@@ -1,156 +1,155 @@
-# DESIGN.md — панель Клод Бота
+# DESIGN.md — Claude Bot Dashboard
 
-Цей файл читає кожен, хто (людина чи агент) торкається `dashboard/`. Він описує
-_чому_ панель виглядає саме так. Якщо зміна суперечить чомусь тут — або зміна
-неправильна, або файл застарів; третього не буває.
+Every person or agent touching `dashboard/` reads this file. It describes
+_why_ the dashboard looks the way it does. If a change contradicts something here — either the change
+is wrong, or the file is outdated; there is no third option.
 
-## Що це за річ
+## What is this thing
 
-Не «AI-продукт». Це **прилад**: панель керування домашнім роботом, яка стоїть
-відкритою годинами на другому моніторі й до якої тягнуться з телефона з дивана.
-Отже: читабельність важливіша за ефектність, стан важливіший за оздоблення,
-нічого не блимає без причини.
+Not an "AI product". It is an **instrument**: a control panel for a home robot, which stays
+open for hours on a second monitor and which is reached for from the phone on the couch.
+Therefore: readability is more important than flashiness, state is more important than decoration,
+nothing blinks without a reason.
 
-Характер — **тепла земля + термінал**. Польовий записник лаборанта, а не
-неонова панель з фільму. Бот — піксельний краб; панель не мусить бути
-піксельною, але має бути з ним однієї крові: тепла, рукотворна, трохи технічна.
+Character — **warm earth + terminal**. A lab technician's field notebook, not a
+neon panel from a movie. The bot is a pixelated crab; the dashboard doesn't have to be
+pixelated, but it must share its bloodline: warm, handcrafted, slightly technical.
 
-## П'ять правил
+## Five rules
 
-1. **Ґрунт, а не скло.** Глибина будується контрастом поверхонь і межею в 1px.
-   Ніякого `backdrop-filter` як основи, ніяких великих розмитих тіней, жодних
-   «скляних» карток. Тінь допустима одна — м'яка амбієнтна під спливним шаром.
-   Виняток — пробне рідке скло в чаті (пластина під полем вводу і коло
-   «до актуальної») і, окремо, попапи: їхнє скло вимкнене, поки у «Вигляді»
-   не обрано «Скло». Стандартна заливка лишається. Рецепт і заборона
-   розносити його далі, поки власник не скаже що вигляд нормальний, лежать
-   у `LIQUID-GLASS.md`.
-2. **Моноширинний = дані.** Цифри, статуси, шляхи, ID, логи, назви моделей,
-   гарячі клавіші — `--font-mono`. Проза, підписи й кнопки — `--font-sans`.
-   Це не смак, це навігація: за шрифтом видно, де факт, а де інтерфейс.
-3. **Один акцент на екран.** Акцентний колір позначає те, що зараз головне,
-   і нічого більше. Якщо акцентних плям дві — одна з них неправа. Стани
-   (працює / спить / помилка) мають власну шкалу й до акценту не належать.
-4. **Рух дрібний і пружинний.** `spring`, не `ease`. 120–260 мс. Рух пояснює,
-   звідки взявся елемент, або підтверджує натиск — і більше нічого.
-   `prefers-reduced-motion` вимикає все, крім зміни непрозорості.
-5. **Порожнеча — це матеріал.** Щедрі поля, вузька міра рядка (62–70 символів
-   у чаті). Коли бракує місця — ріжемо вміст, а не повітря.
+1. **Earth, not glass.** Depth is built by contrasting surfaces and a 1px border.
+   No `backdrop-filter` as a base, no large blurry shadows, no
+   "glass" cards. One shadow is allowed — soft ambient under a pop-up layer.
+   Exception — experimental liquid glass in chat (the plate under the input field and the circle
+   "to latest") and, separately, popups: their glass is disabled until "Glass"
+   is selected in "Appearance". The standard fill remains. The recipe and the ban
+   on spreading it further until the owner says the look is fine, reside
+   in `LIQUID-GLASS.md`.
+2. **Monospaced = data.** Numbers, statuses, paths, IDs, logs, model names,
+   hotkeys — `--font-mono`. Prose, labels, and buttons — `--font-sans`.
+   This is not taste, this is navigation: the font shows where the fact is and where the interface is.
+3. **One accent per screen.** The accent colour marks what is currently the main thing,
+   and nothing more. If there are two accent spots — one of them is wrong. States
+   (working / sleeping / error) have their own scale and do not belong to the accent.
+4. **Movement is small and springy.** `spring`, not `ease`. 120–260 ms. Movement explains
+   where the element came from, or confirms a press — and nothing more.
+   `prefers-reduced-motion` disables everything except opacity changes.
+5. **Emptiness is a material.** Generous margins, narrow line measure (62–70 characters
+   in chat). When there is a lack of space — we cut the content, not the air.
 
-## Заборонено
+## Forbidden
 
-- Градієнтні заливки як тло панелей і кнопок (акцентний градієнт — лише в
-  фірмовому знаку та в індикаторі прогресу).
-- Емодзі в ролі іконок. Іконки — Lucide, 1.75 товщина штриха.
-- Тіні глибші за `--shadow-pop`.
-- Більш ніж два розміри радіуса в одному складеному елементі.
-- Спінер там, де можна показати скелетон або реальний прогрес.
-- Текст-заглушка англійською. Інтерфейс україномовний повністю.
+- Gradient fills as backgrounds for panels and buttons (accent gradient — only in the
+  brand mark and the progress indicator).
+- Emojis as icons. Icons — Lucide, 1.75 stroke width.
+- Shadows deeper than `--shadow-pop`.
+- More than two radius sizes in a single composite element.
+- A spinner where a skeleton or real progress can be shown.
+- Placeholder text in English. The interface is entirely Ukrainian.
 
-## Типографіка
+## Typography
 
-**IBM Plex Sans Variable** (текст) + **IBM Plex Mono** (дані). Обидва
-self-hosted через `@fontsource`, з кирилицею — панель мусить працювати без
-мережі. Plex обрано не з нуля: лендінг проєкту вже на Plex Mono.
+**IBM Plex Sans Variable** (text) + **IBM Plex Mono** (data). Both are
+self-hosted via `@fontsource`, with Cyrillic — the dashboard must work without
+a network. Plex was not chosen from scratch: the project's landing page is already on Plex Mono.
 
-| Роль | Шрифт | Розмір / трекінг |
+| Role | Font | Size / tracking |
 |---|---|---|
-| Заголовок екрана | Sans 600 | 22–26px, `-0.02em` |
-| Мітка секції | **Mono 500, UPPERCASE** | 11px, `+0.12em` |
-| Текст | Sans 400 | 14–15px, висота 1.55 |
-| Репліка в чаті | Sans 400 | 15px, висота 1.62, ширина ≤ 68ch |
-| Дані / лог | Mono 400 | 12–13px |
+| Screen header | Sans 600 | 22–26px, `-0.02em` |
+| Section label | **Mono 500, UPPERCASE** | 11px, `+0.12em` |
+| Text | Sans 400 | 14–15px, height 1.55 |
+| Chat reply | Sans 400 | 15px, height 1.62, width ≤ 68ch |
+| Data / log | Mono 400 | 12–13px |
 
-Мітка секції моноширинними капітеллю — фірмовий прийом панелі. Він же дає
-«приладовість» без жодної картинки.
+Section label in monospaced small caps is a signature trick of the dashboard. It gives
+an "instrumental" feel without a single image.
 
-Український текст проганяється через `glue()` (`src/lib/glue.ts`): короткі
-прийменники й сполучники (`у в з і й та на до не що як`), числа з одиницями та
-останню пару слів абзацу зшиваємо нерозривним пробілом. Ідея — з Typehug із
-«UI things»; сам пакет має правила лише для англійської та польської, тож
-українські правила написані свої.
+Ukrainian text is run through `glue()` (`src/lib/glue.ts`): short
+prepositions and conjunctions (`у в з і й та на до не що як`), numbers with units and
+the last pair of words in a paragraph are stitched with a non-breaking space. The idea is from Typehug from
+"UI things"; the package itself only has rules for English and Polish, so
+Ukrainian rules are custom-written.
 
-## Колір
+## Colour
 
-Дві теми — **Світла пустеля** й **Темний графіт** — і чотири акценти
-(теракота / шавлія / океан / бурштин). Ключі `localStorage` ті самі, що в старій
-панелі (`claudeBotTheme`, `claudeBotAccent`), щоб налаштування пережили переїзд.
+Two themes — **Light Desert** and **Dark Graphite** — and four accents
+(terracotta / sage / ocean / amber). The `localStorage` keys are the same as in the old
+dashboard (`claudeBotTheme`, `claudeBotAccent`), so that settings survive the migration.
 
-Бази теплі: темна — не синьо-чорна, а коричнево-чорна; світла — пісок, не
-білий папір. Кожен акцент має два тони: у темряві світлий варіант, інакше він
-випікається.
+The bases are warm: dark is not blue-black, but brown-black; light is sand, not
+white paper. Each accent has two tones: a light variant in the dark, otherwise it
+burns out.
 
-Шкала станів окремо від акценту: `ok` (працює), `warn` (увага), `err` (впало),
-`idle` (спить). Вони однакові в усіх акцентах — стан не має залежати від смаку.
+The state scale is separate from the accent: `ok` (working), `warn` (attention), `err` (failed),
+`idle` (sleeping). They are the same in all accents — the state should not depend on taste.
 
-## Звідки взяті готові шматки
+## Where ready-made pieces were taken from
 
-З нотатки «UI things»:
+From the "UI things" note:
 
 - **React Bits · Micro** (`src/vendor/reactbits/`) — `VoicePill`, `ThoughtLine`,
   `HoldButton`, `StatusMark`, `SloshGauge`, `RubberSegment`, `SquishSwitch`,
   `SwipeToast`, `WarmTooltip`, `LatticeLoader`, `SlideCommit`, `ScrubField`,
-  `SwipeRow`, `PromptBar`. Іконки перемкнуто з `@hugeicons` на Lucide
-  (`_icons.jsx`), решта коду майже недоторкана — оновлюється з upstream одним
+  `SwipeRow`, `PromptBar`. Icons switched from `@hugeicons` to Lucide
+  (`_icons.jsx`), the rest of the code is mostly untouched — updated from upstream with one
   `curl`.
-- **bencho.dev** (`src/vendor/bencho/`) — радіальне меню на «+» у чаті (MIT).
-  Відкрити, вибрати й підтвердити — один жест: натиснув, повів у бік
-  потрібного, відпустив. Код їхнього репозиторію закритий, тож зібрано за
-  опублікованими на сайті API та CSS-технікою (полярна розкладка через
-  `--i`/`--n`, тригонометрія просто в CSS).
-- **voice-glow** — сяйво під полем вводу, що реагує на голос. Ввімкнене ЛИШЕ
-  поки слухає мікрофон (`active`, `idle=0`): постійне «дихання» під полем
-  зробило б із показника запису прикрасу.
-- **metal-fx** — рідкий метал на назві в шапці. Єдине місце, де такий ефект
-  доречний: логотип на те й логотип, що його розглядають, а не читають. Без
-  WebGL лишається `ShinyText` — той самий напис без шейдера.
-- **Torph** (`torph/react`) — морфінг тексту там, де рядок міняється на місці:
-  чим бот зайнятий, назва моделі, назва треку.
-- **Typehug** — ідея нерозривних пробілів (реалізація своя, див. вище).
-- **Colorion Toggles** — джерело форми для чистих CSS-перемикачів.
-- **aicss.dev** (`src/vendor/aicss/`) — чотири «агентні» шматки з реєстру
-  shadcn: `ThinkingReasoning` (блок «Думаю…», що згортається в «Думав N с»),
-  `Orb` (25 індикаторів дії — по одному на кожен різновид роботи), `FileDiff`
-  (картка змін у файлі) і `DataTable` (таблиця з відповіді).
+- **bencho.dev** (`src/vendor/bencho/`) — radial menu on the "+" in chat (MIT).
+  Open, select and confirm — one gesture: press, move towards the
+  desired item, release. The code of their repository is closed, so it was assembled based on
+  the API published on the site and CSS techniques (polar layout via
+  `--i`/`--n`, trigonometry right in CSS).
+- **voice-glow** — glow under the input field that reacts to the voice. Enabled ONLY
+  while the microphone is listening (`active`, `idle=0`): constant "breathing" under the field
+  would turn a recording indicator into an ornament.
+- **metal-fx** — liquid metal on the name in the header. The only place where such an effect
+  is appropriate: a logo is meant to be looked at, not read. Without
+  WebGL there remains `ShinyText` — the same inscription without a shader.
+- **Torph** (`torph/react`) — text morphing where a string changes in place:
+  what the bot is busy with, model name, track name.
+- **Typehug** — the idea of non-breaking spaces (custom implementation, see above).
+- **Colorion Toggles** — the source of the shape for pure CSS toggles.
+- **aicss.dev** (`src/vendor/aicss/`) — four "agentic" pieces from the shadcn registry:
+  `ThinkingReasoning` (the «Думаю…» (Thinking...) block that collapses into «Думав N с» (Thought N s)),
+  `Orb` (25 action indicators — one for each kind of work), `FileDiff`
+  (card of changes in a file) and `DataTable` (table from the response).
 
-  На відміну від React Bits ці файли КОПІЮЮТЬСЯ в проєкт (так працює
-  `npx shadcn add`) і призначені для правок — усі вони приїхали демонстраціями
-  з зашитим вмістом, тож тут приймають дані пропсами. Що саме змінено —
-  написано в шапці кожного файлу.
+  Unlike React Bits these files are COPIED into the project (that's how
+  `npx shadcn add` works) and are intended for editing — they all arrived as demonstrations
+  with hardcoded content, so here they accept data via props. What exactly was changed —
+  is written in the header of each file.
 
-  Наповнення цих компонентів — принципове місце. `ThinkingReasoning` в
-  оригіналі показує вигадані речення «про хід думки»; наші моделі потоку
-  міркувань не віддають (у SSE є лише `delta` і `tool_*`), тож блок показує
-  РЕАЛЬНІ дії — кожен виклик інструмента з його аргументом. Коли бот просто
-  відповів, лишається сама тривалість. Вигадувати міркування, яких не було,
-  ми не стали.
+  The content of these components is a crucial point. `ThinkingReasoning` in
+  the original shows fake sentences "about the train of thought"; our models do not return a chain
+  of reasoning (SSE only has `delta` and `tool_*`), so the block shows
+  REAL actions — every tool call with its argument. When the bot just
+  answered, only the duration remains. We did not start inventing reasoning that wasn't there.
 
-Готовий чат — **@assistant-ui/react**: headless-примітиви (стрім, tool-calls,
-вкладення, гілки) без нав'язаного вигляду, тож дизайн звідси видно, а не
-бібліотечний.
+The ready-made chat is **@assistant-ui/react**: headless primitives (stream, tool-calls,
+attachments, branches) without an imposed look, so the design visible here is ours, not
+the library's.
 
-## Навігація
+## Navigation
 
-Док плаває над вмістом і переноситься: затиснути й повести — прилипне до
-найближчого краю (низ, верх, ліворуч, праворуч). Вибір живе в
-`localStorage.claudeBotDockSide` поруч із темою й акцентом — це така сама
-особиста звичка.
+The dock floats over the content and can be moved: press and hold — it sticks to
+the nearest edge (bottom, top, left, right). The choice lives in
+`localStorage.claudeBotDockSide` alongside the theme and accent — it is the same
+personal habit.
 
 Dock clearance follows `data-dock` on `<html>`. In chat, only the conversation
 column reserves bottom clearance; both sidebars extend to the window edge.
 Vertical navigation occupies a continuous 72px surface with a dividing rule.
 
-Вертикальний варіант — не поворот через CSS: у повернутого елемента
-`getBoundingClientRect` віддає повернуту рамку, і збільшення під курсором
-перестає за ним слідувати. Тому вісь стала параметром самого компонента
-(див. шапку `Dock.jsx`).
+The vertical variant is not a rotation via CSS: an element rotated
+returns a rotated bounding box from `getBoundingClientRect`, and scaling under the cursor
+stops following it. Therefore, the axis became a parameter of the component itself
+(see the header of `Dock.jsx`).
 
-## Розкладка
+## Layout
 
-Три пороги: `< 760px` телефон (нижня навігація, один стовпець, шухляди
-замість бічних панелей), `760–1180px` планшет, `> 1180px` стіл (бічна рейка
-розділів + дві-три колонки). Безпечні зони iOS через `env(safe-area-inset-*)` —
-панель ставиться на домашній екран як PWA.
+Three breakpoints: `< 760px` phone (bottom navigation, one column, drawers
+instead of side panels), `760–1180px` tablet, `> 1180px` desk (side rail
+of sections + two-three columns). iOS safe zones via `env(safe-area-inset-*)` —
+the dashboard is installed on the home screen as a PWA.
 
 ## Chat workspace (2026-09-20)
 

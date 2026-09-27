@@ -1,57 +1,57 @@
-# Vision Agent — Крок 1 (OpenCV Agent Setup)
+# Vision Agent — Step 1 (OpenCV Agent Setup)
 
-Базовий скелет "тіла" агента з `claude-bot-dev-order.md`. FastAPI-сервер, що
-приймає кадр і каже: бачу обличчя / бачу рух. Тестується на вебці ноутбука —
-жодного заліза (RPi, CSI-камера) чекати не треба.
+Basic skeleton of the agent's "body" from `claude-bot-dev-order.md`. FastAPI server that
+receives a frame and says: I see a face / I see motion. Tested on a laptop webcam —
+no hardware (RPi, CSI camera) needs to be awaited.
 
-## Встановлення
+## Installation
 
 ```bash
 pip install -r requirements.txt --break-system-packages
 ```
 
-## Запуск сервера
+## Starting the server
 
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Перевірка, що піднявся:
+Verification that it's up:
 
 ```bash
 curl http://127.0.0.1:8000/health
 # {"status":"ok","mode":"local"}
 ```
 
-## Тест на вебці
+## Test on webcam
 
-В окремому терміналі, поки сервер працює:
+In a separate terminal, while the server is running:
 
 ```bash
 python test_webcam.py
 ```
 
-Відкриється вікно з відео вебки, зеленими рамками навколо знайдених облич і
-текстовим статусом (кількість облич, чи є рух, поточний режим). Вихід — `q`.
+A window will open with video from the webcam, green bounding boxes around found faces and
+text status (number of faces, whether there is motion, current mode). Exit — `q`.
 
-## Файли
+## Files
 
-- `main.py` — FastAPI-сервер, ендпоінт `POST /vision/frame` (Haar Cascade
-  детекція облич + frame-differencing детекція руху)
-- `config.yaml` — перемикач режиму обробки (`local` / `cloud` / `hybrid`,
-  поки реалізовано тільки `local`) і пороги детекції
-- `test_webcam.py` — клієнт для вебки ноутбука, ганяє кадри через API наживо
-- `requirements.txt` — залежності
+- `main.py` — FastAPI server, endpoint `POST /vision/frame` (Haar Cascade
+  face detection + frame-differencing motion detection)
+- `config.yaml` — processing mode switch (`local` / `cloud` / `hybrid`,
+  currently only `local` is implemented) and detection thresholds
+- `test_webcam.py` — client for laptop webcam, runs frames through the API live
+- `requirements.txt` — dependencies
 
-## Верифіковано
+## Verified
 
-`main.py` протестовано автоматично (FastAPI TestClient): `/health` повертає
-коректний статус, `/vision/frame` коректно декодує JPEG і повертає детекцію;
-на синтетичному русі (зміна кадру) `motion_detected` правильно спрацював
-(score 0.157 проти порогу 0.01). Реальний тест на вебці — залишається
-запустити на своєму ноутбуці через `test_webcam.py`.
+`main.py` tested automatically (FastAPI TestClient): `/health` returns
+correct status, `/vision/frame` correctly decodes JPEG and returns detection;
+on synthetic motion (frame change) `motion_detected` triggered correctly
+(score 0.157 vs threshold 0.01). Real test on webcam — remains to be
+run on your laptop via `test_webcam.py`.
 
-## Що далі
+## What's next
 
-Крок 2 з `claude-bot-dev-order.md` — RAG-пам'ять (ChromaDB + Claude API),
-підключається незалежно від цього кроку, ще без реального заліза.
+Step 2 from `claude-bot-dev-order.md` — RAG memory (ChromaDB + Claude API),
+connected independently of this step, still without real hardware.

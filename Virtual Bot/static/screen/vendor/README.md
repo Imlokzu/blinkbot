@@ -1,19 +1,19 @@
 # vendor/
 
-Локальні копії сторонніх бібліотек — БЕЗ CDN: екран бота має працювати
-на Raspberry Pi без інтернету і без збірки.
+Local copies of third-party libraries — WITHOUT CDN: the bot's screen must work
+on a Raspberry Pi without the internet and without a build step.
 
 ## smd.min.js — streaming-markdown 0.2.15
 
 - npm: https://www.npmjs.com/package/streaming-markdown
-- джерело: https://github.com/thetarnav/streaming-markdown
-- ліцензія: MIT (див. `smd.LICENSE`)
-- sha1 тарболу з реєстру: b0d63b001fcbcf300bd0751fc199a20d78253dba
-- 12.6 КБ мініфіковано, ESM
+- source: https://github.com/thetarnav/streaming-markdown
+- license: MIT (see `smd.LICENSE`)
+- sha1 of the tarball from the registry: b0d63b001fcbcf300bd0751fc199a20d78253dba
+- 12.6 KB minified, ESM
 
-Чому саме вона: парсер ІНКРЕМЕНТАЛЬНИЙ — дописує токени в DOM у міру
-надходження шматків стріму, не переганяючи щоразу весь текст. На A53
-(Pi 3) різниця між цим і «перепарсити все на кожен чанк» — вирішальна.
+Why this exact one: the parser is INCREMENTAL — it appends tokens into the DOM as
+stream chunks arrive, without re-parsing the entire text every time. On an A53
+(Pi 3) the difference between this and "re-parse everything on every chunk" — is crucial.
 
-Оновлення: завантажити новий тарбол з реєстру, звірити shasum, замінити
-файл. Правити вміст руками не можна.
+Updates: download a new tarball from the registry, verify the shasum, replace
+the file. You must not edit the contents manually.

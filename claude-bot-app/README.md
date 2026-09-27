@@ -1,127 +1,127 @@
-# «Клод Бот» — застосунок
+# "Claude Bot" — app
 
-Один інтерфейс на React Native, який працює як **сайт, застосунок на iPhone
-та Android, і програма для macOS / Windows / Linux**. Бекенд — той самий
-FastAPI, що вже обслуговує дебаг-панель: застосунок нічого в ньому не
-переписує, він просто інший клієнт.
+A single React Native interface that works as **a site, an app on iPhone
+and Android, and a desktop app for macOS / Windows / Linux**. The backend is the same
+FastAPI that already serves the debug dashboard: the app rewrites nothing in it,
+it is simply another client.
 
-## Чим це відрізняється від `Virtual Bot`
+## How this differs from `Virtual Bot`
 
-`Virtual Bot` — це **стенд**: вісім розділів (памʼять, зір, сервіси, логи,
-браузер, налаштування) для розробки й діагностики. Він лишається таким і
-далі — там зручно дивитися, що робить бот усередині.
+`Virtual Bot` is a **stand**: eight sections (memory, vision, services, logs,
+browser, settings) for development and diagnostics. It remains as such
+further on — it's convenient for seeing what the bot is doing inside.
 
-Цей застосунок — **продукт**: лише розмова й кодинг-режим. Немає вкладки
-мозку, немає керування сервісами, немає консолі. Те, чим користуються
-щодня, і нічого більше.
+This app is the **product**: only the conversation and coding mode. No brain tab,
+no services management, no console. What is used
+every day, and nothing more.
 
-## Архітектура
+## Architecture
 
 ```
-packages/core     TypeScript без платформи: клієнт бекенду, типи, токени
-                  дизайну. Ні DOM, ні React Native, ні Node — тому один
-                  і той самий код працює в браузері, у Expo Go й Electron.
+packages/core     Platform-agnostic TypeScript: backend client, types, design
+                  tokens. No DOM, no React Native, no Node — so the exact
+                  same code runs in the browser, in Expo Go and Electron.
 
 apps/app          Expo (React Native + react-native-web).
-                  ОДИН UI → iOS, Android, веб.
+                  ONE UI → iOS, Android, web.
 
-apps/desktop      Electron: обгортка навколо веб-збірки Expo.
+apps/desktop      Electron: a wrapper around the Expo web build.
                   → macOS, Windows, Linux.
 ```
 
-Чому саме так, а не «звичайний React для вебу»: щоб `expo go` справді дав
-телефон, UI має бути на React Native. Веб при цьому не втрачається —
-`react-native-web` рендерить ті самі компоненти в DOM, а Electron просто
-показує цю веб-збірку. Ціна рішення: вебові бібліотеки на кшталт
-Ant Design X чи CodeMirror тут не працюють, тому інтерфейс побудований на
-примітивах RN.
+Why exactly like this, and not "regular React for the web": so that `expo go` actually provides
+the phone, the UI must be on React Native. The web is not lost with this —
+`react-native-web` renders the same components into the DOM, and Electron simply
+shows this web build. The cost of the solution: web libraries like
+Ant Design X or CodeMirror do not work here, so the interface is built on
+RN primitives.
 
-## Запуск
+## Launch
 
-Спочатку **бекенд** (він же роздає дебаг-панель):
+First the **backend** (it also serves the debug dashboard):
 
 ```bash
 cd "../Virtual Bot"
 ./start.sh                 # http://127.0.0.1:8100
 ```
 
-Далі залежності монорепо (один раз):
+Next, monorepo dependencies (once):
 
 ```bash
 npm install
 ```
 
-### Веб (розробка)
+### Web (development)
 
 ```bash
 npm run web                # http://localhost:8081
 ```
 
-### Веб (збірка)
+### Web (build)
 
 ```bash
-npm run build:web          # apps/app/dist — статичні файли
+npm run build:web          # apps/app/dist — static files
 ```
 
-### iPhone / Android через Expo Go
+### iPhone / Android via Expo Go
 
 ```bash
-npm start                  # покаже QR-код
+npm start                  # will show QR code
 ```
 
-Скануйте код застосунком Expo Go. Адресу бекенда застосунок визначає сам —
-бере IP компʼютера з адреси, з якої завантажився бандл. Якщо телефон і
-компʼютер у різних мережах або потрібен інший хост, задайте явно:
+Scan the code with the Expo Go app. The app determines the backend address itself —
+it takes the computer's IP from the address the bundle was loaded from. If the phone and
+the computer are in different networks or a different host is needed, specify explicitly:
 
 ```bash
 EXPO_PUBLIC_API_URL=http://192.168.0.10:8100 npm start
 ```
 
-> «localhost» на телефоні означає сам телефон, а не ваш компʼютер — саме
-> тому потрібен IP у мережі.
+> "localhost" on the phone means the phone itself, not your computer — which is exactly
+> why an IP in the network is needed.
 
-### Комп'ютер (Electron)
+### Computer (Electron)
 
 ```bash
-npm run desktop            # збере веб і відкриє вікно
+npm run desktop            # will build web and open window
 npm run build:desktop      # dmg / nsis / AppImage
 ```
 
-## Що потрібно від бекенда
+## What is needed from the backend
 
-Застосунок ходить у ці ендпоінти наявного бекенда:
+The app accesses these endpoints of the existing backend:
 
-| Ендпоінт | Для чого |
+| Endpoint | Purpose |
 |---|---|
-| `GET /api/models` | список моделей, обрана, і хто відповів останнім |
-| `POST /api/model` | вибір моделі (це стан на бекенді, а не параметр запиту) |
-| `POST /api/chat` | повідомлення → відповідь |
-| `GET /api/sessions` | список розмов |
-| `GET /api/code/status` | чи показувати режим «Код» |
-| `POST /api/code/chat` | задача для кодинг-агента (SSE) |
-| `GET /api/auth/config` | чи ввімкнено вхід |
+| `GET /api/models` | list of models, selected one, and who answered last |
+| `POST /api/model` | model selection (this is state on the backend, not a request parameter) |
+| `POST /api/chat` | message → reply |
+| `GET /api/sessions` | list of conversations |
+| `GET /api/code/status` | whether to show the "Code" mode |
+| `POST /api/code/chat` | task for the coding agent (SSE) |
+| `GET /api/auth/config` | whether login is enabled |
 
-### Єдина потрібна зміна в бекенді — CORS
+### The only necessary change in the backend is CORS
 
-> **Увага:** цей фрагмент застосовано в робочому дереві `Virtual Bot/main.py`,
-> але НЕ закомічено разом із застосунком: у тому файлі лежить велика
-> незакомічена робота над бекендом, і змішувати її з цим коммітом було б
-> неправильно. Якщо ви клонували репозиторій і застосунок не бачить бота —
-> додайте це вручну.
+> **Warning:** this snippet is applied in the working tree `Virtual Bot/main.py`,
+> but is NOT committed together with the app: that file contains a lot of
+> uncommitted work on the backend, and mixing it with this commit would be
+> wrong. If you cloned the repository and the app doesn't see the bot —
+> add this manually.
 
-У `Virtual Bot/main.py`, поряд з іншими імпортами:
+In `Virtual Bot/main.py`, next to other imports:
 
 ```python
 from fastapi.middleware.cors import CORSMiddleware
 ```
 
-Одразу після `app = FastAPI(...)`:
+Right after `app = FastAPI(...)`:
 
 ```python
 _CORS_DEFAULT = [
     "http://localhost:8081", "http://127.0.0.1:8081",    # Metro (expo web)
     "http://localhost:8082", "http://127.0.0.1:8082",    # Electron
-    "http://localhost:19006", "http://127.0.0.1:19006",  # історичний порт Expo
+    "http://localhost:19006", "http://127.0.0.1:19006",  # historic Expo port
 ]
 _cors_env = (os.environ.get("CORS_ORIGINS") or "").strip()
 _cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] or _CORS_DEFAULT
@@ -129,40 +129,40 @@ _cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] or _CORS_
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_credentials=False,   # токен їде заголовком, cookies не потрібні
+    allow_credentials=False,   # the token travels in the header, cookies are not needed
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
 ```
 
-Чому саме так. Дебаг-панель роздає сам
-бекенд, тому їй CORS не потрібен; застосунок живе на іншому порту, і без
-дозволу браузер блокує кожен запит. Список origin-ів обмежений локальними
-адресами (`CORS_ORIGINS` у `.env` — якщо треба інший хост), `allow_credentials`
-свідомо вимкнено: токен їде заголовком, cookies не використовуються.
+Why exactly like this. The debug dashboard is served by the
+backend itself, so it doesn't need CORS; the app lives on another port, and without
+permission the browser blocks every request. The list of origins is limited to local
+addresses (`CORS_ORIGINS` in `.env` — if another host is needed), `allow_credentials`
+is intentionally disabled: the token travels in the header, cookies are not used.
 
-## Мозок і моделі
+## Brains and models
 
-Застосунок сам моделей не вибирає — показує те, що віддає `/api/models`
-(список кований у `config.yaml`, секція `omni.models`).
+The app itself does not choose models — it shows what `/api/models` returns
+(the list is hardcoded in `config.yaml`, section `omni.models`).
 
-Моделі `opencode-go/*` доступні **тільки через роутер Omni на
-`127.0.0.1:20128`**. Якщо він не запущений, бекенд падає по ланцюжку до
-демо-режиму — і застосунок чесно пише «демо-режим (мозок недоступний)»
-під відповіддю, а не приписує її обраній моделі.
+Models `opencode-go/*` are available **only via the Omni router on
+`127.0.0.1:20128`**. If it is not running, the backend falls back along the chain to
+the demo mode — and the app honestly writes "demo mode (brain unavailable)"
+under the reply, rather than attributing it to the selected model.
 
-## Локальний режим без входу
+## Local mode without login
 
 ```bash
 CLERK_DISABLED=1 ./start.sh
 ```
 
-Тоді бекенд не вимагає токена, і застосунок працює без екрана входу.
+Then the backend does not demand a token, and the app works without the login screen.
 
-## Що далі
+## What's next
 
-- Список розмов (бекенд уже віддає `/api/sessions`)
-- Кодинг-режим через SSE: `POST /api/code/chat` віддає стрім, і для нього
-  потрібні різні читачі — `EventSource` у вебі й `fetch` зі стрімом у RN
-- Прикріплення файлів (`POST /api/chat/upload`)
-- Голос (`/api/asr`, `/api/tts`)
+- List of conversations (the backend already returns `/api/sessions`)
+- Coding mode via SSE: `POST /api/code/chat` returns a stream, and it requires
+  different readers — `EventSource` on the web and `fetch` with a stream in RN
+- Attaching files (`POST /api/chat/upload`)
+- Voice (`/api/asr`, `/api/tts`)
