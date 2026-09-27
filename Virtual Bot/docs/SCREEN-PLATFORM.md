@@ -522,11 +522,11 @@ is kept as `botScreenUiStyle` (`material` | `deep`) and set on
 
 | | **Material You** (default) | **Deep UI** |
 |---|---|---|
-| look | the bot's own palette, pixel clock and controls | true black / soft grey, rounded cards, Samsung blue |
+| look | the bot's own palette, pixel clock and controls | an aurora of deep glows behind everything, glass cards with a lit gradient edge, gradient titles |
 | app icons | **tonal** — Pixel's themed icons, inked in the screen's colour (`themedColors`) | full-colour gradient discs |
 | weather tile | **Pixel Weather**: sky-tinted surface, hours as a temperature curve, days with a range bar | the whole tile is the sky, columns |
-| quick panel | outlined tiles | round buttons, label underneath |
-| sliders, switches | as before | thick filling bars, toggle switches |
+| quick panel | outlined tiles | round buttons, each action its own gradient (tinted glass when off) |
+| sliders, switches | as before | thick bars filled with the blue → violet gradient, gradient toggles |
 | titles | small spaced capitals | big bold sentence case |
 
 - `deep.css` holds the whole Deep UI design system, modelled on

@@ -4,76 +4,167 @@
    A second design system over the same markup, never a rewrite: every
    rule here is scoped to :root[data-ui="deep"], so with the default
    "Material You" style this file changes nothing and screen.css stands
-   as it is. Deep colour, modelled on Samsung's One UI:
+   as it is.
 
-     - true black (dark) or soft grey (light) ground, rounded cards
-       grouped on it, no hairlines;
-     - big bold sentence-case titles instead of small spaced capitals;
-     - Samsung blue as the accent, filled pills for choices and actions;
-     - the quick panel as round buttons with the label under them;
-     - thick sliders that fill as they go, and toggle switches;
-     - a small springy overshoot when a panel arrives.
+   Deep UI is deep colour, the way the app icons are drawn: not a palette
+   swap but light and depth.
+     - An aurora — three soft radial glows (violet, teal, rose) — lies
+       behind the carousel and every panel, so black is never flat.
+     - Cards are dark glass with a lit edge: a gradient hairline that is
+       brighter at the top-left, where the light comes from.
+     - One signature gradient, blue → violet, marks what is chosen or
+       on: buttons, switches, slider fills, your chat bubbles, the dot of
+       the current screen.
+     - Every quick action has a colour of its own, as every app icon
+       does: tinted glass when off, its full gradient when on.
+     - Titles are gradient type; buttons give under the finger.
+   Modelled on One UI (grouped cards, round quick buttons, toggles) but
+   dressed in the icons' colours.
 
-   Skins still win: they set their colours inline on the root element.
-   Constraints of the Pi stand here too: transitions only on transform
-   and opacity, no filters, no shadows on anything that moves.
+   The Pi's rules hold: gradients never animate, only transform and
+   opacity move, and nothing that moves casts a shadow. Skins still win:
+   they set their colours inline on the root element.
    ============================================================ */
 
 :root[data-ui="deep"] {
-  --bg: #010101;
-  --panel: #17171a;
-  --line: #2a2a2f;
-  --text: #fafafa;
-  --muted: #a1a1a7;
-  --accent: #3e91ff;
-  --ok: #3ecf6e;
-  --off: #6e6e74;
-  --ou-card: #1c1c20;
-  --ou-chip: #2c2c31;
-  --ou-radius: 20px;
+  --bg: #050508;
+  --panel: #111118;
+  --line: #262633;
+  --text: #f7f6ff;
+  --muted: #a3a1b8;
+  --accent: #6f7bff;
+  --ok: #3ee0a1;
+  --off: #6e6c80;
   --font: "SamsungOne", "Samsung Sans", Roboto, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --ou-radius: 20px;
+
+  --deep-a: #4f8bff;
+  --deep-b: #a35bff;
+  --deep-grad: linear-gradient(135deg, var(--deep-a), var(--deep-b));
+  --deep-aurora:
+    radial-gradient(85% 65% at 6% 0%, rgba(110, 70, 255, 0.34), transparent 62%),
+    radial-gradient(75% 60% at 100% 100%, rgba(0, 175, 195, 0.24), transparent 64%),
+    radial-gradient(55% 45% at 96% 6%, rgba(255, 70, 150, 0.14), transparent 62%);
+  --deep-card: #12121b;
+  --deep-glass: linear-gradient(160deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.015) 60%);
+  --deep-edge: linear-gradient(150deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.035) 42%, rgba(163, 91, 255, 0.3));
+  --deep-chip: rgba(255, 255, 255, 0.08);
+  --deep-title: linear-gradient(90deg, #ffffff 35%, #c9b8ff);
 }
 :root[data-ui="deep"][data-theme="light"] {
-  --bg: #f2f2f5;
+  --bg: #f4f3fa;
   --panel: #ffffff;
-  --line: #e1e1e6;
-  --text: #111114;
-  --muted: #6d6d73;
-  --accent: #0381fe;
-  --ok: #2aa55a;
-  --off: #a8a8ae;
-  --ou-card: #ffffff;
-  --ou-chip: #e9e9ee;
+  --line: #e2e0ee;
+  --text: #15141f;
+  --muted: #6c6a80;
+  --accent: #5a5cff;
+  --ok: #1fae78;
+  --off: #a9a7b8;
+  --deep-a: #3c7bff;
+  --deep-b: #9446ff;
+  --deep-aurora:
+    radial-gradient(85% 65% at 6% 0%, rgba(120, 90, 255, 0.2), transparent 62%),
+    radial-gradient(75% 60% at 100% 100%, rgba(0, 180, 200, 0.16), transparent 64%),
+    radial-gradient(55% 45% at 96% 6%, rgba(255, 90, 160, 0.12), transparent 62%);
+  --deep-card: #ffffff;
+  --deep-glass: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(246, 244, 255, 0.9));
+  --deep-edge: linear-gradient(150deg, rgba(120, 100, 255, 0.28), rgba(0, 0, 0, 0.05) 45%, rgba(163, 91, 255, 0.32));
+  --deep-chip: rgba(40, 30, 90, 0.07);
+  --deep-title: linear-gradient(90deg, #15141f 35%, #5b3dff);
 }
 
-/* ---------- Titles ---------- */
-:root[data-ui="deep"] .tile-head {
-  font: 700 13px/1.2 var(--font);
+/* ---------- Depth: the aurora behind everything ---------- */
+:root[data-ui="deep"] .stage { background: var(--deep-aurora), var(--bg); }
+:root[data-ui="deep"] .layer::before { background: var(--deep-aurora), color-mix(in srgb, var(--bg) 84%, transparent); }
+:root[data-ui="deep"] .layer-apps.watch::before { background: var(--deep-aurora), color-mix(in srgb, var(--bg) 88%, transparent); }
+
+/* Glass cards with a lit edge. The solid card sits under the glass so the
+   edge gradient, painted on the border box, shows only in the border. */
+:root[data-ui="deep"] .settings-section,
+:root[data-ui="deep"] .notice,
+:root[data-ui="deep"] .music-card,
+:root[data-ui="deep"] .mode-card {
+  border: 1px solid transparent;
+  border-radius: var(--ou-radius);
+  background:
+    var(--deep-glass) padding-box,
+    linear-gradient(var(--deep-card), var(--deep-card)) padding-box,
+    var(--deep-edge) border-box;
+}
+
+/* ---------- Type: gradient titles, sentence case ---------- */
+:root[data-ui="deep"] .tile-head,
+:root[data-ui="deep"] .layer-head {
   letter-spacing: 0;
   text-transform: none;
-  color: var(--text);
+  border-bottom: 0;
 }
+:root[data-ui="deep"] .tile-head { font: 700 13px/1.2 var(--font); color: var(--text); }
 :root[data-ui="deep"] .layer-head {
   align-items: center;
-  font: 700 18px/1.15 var(--font);
-  letter-spacing: -0.01em;
-  text-transform: none;
-  color: var(--text);
-  border-bottom: 0;
+  font: 800 19px/1.15 var(--font);
+  letter-spacing: -0.015em;
   padding-bottom: 2px;
   margin-bottom: 8px;
 }
+:root[data-ui="deep"] .layer-head > span:first-child,
+:root[data-ui="deep"] .settings-section-head strong {
+  background: var(--deep-title);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 :root[data-ui="deep"] .layer-hint { font-weight: 400; }
+
+/* ---------- Buttons: glass chips, the signature gradient when chosen ---------- */
 :root[data-ui="deep"] .layer-back,
-:root[data-ui="deep"] .layer-edit {
+:root[data-ui="deep"] .layer-edit,
+:root[data-ui="deep"] .settings-choice,
+:root[data-ui="deep"] .settings-reset,
+:root[data-ui="deep"] .settings-test,
+:root[data-ui="deep"] .settings-select,
+:root[data-ui="deep"] .notice-btn,
+:root[data-ui="deep"] .store-tab,
+:root[data-ui="deep"] .store-chip,
+:root[data-ui="deep"] .store-badge,
+:root[data-ui="deep"] .tiles-move,
+:root[data-ui="deep"] .chat-head-btn,
+:root[data-ui="deep"] .chip-btn,
+:root[data-ui="deep"] .mode-chip,
+:root[data-ui="deep"] .chat-send {
   border: 0;
-  background: var(--ou-chip);
+  border-radius: 14px;
+  background: var(--deep-chip);
   color: var(--text);
   letter-spacing: 0;
   font-weight: 600;
 }
+:root[data-ui="deep"] .settings-choice.on,
+:root[data-ui="deep"] .store-tab.on,
+:root[data-ui="deep"] .store-chip.on,
+:root[data-ui="deep"] .layer-edit.on,
+:root[data-ui="deep"] .cta,
+:root[data-ui="deep"] .mic-btn,
+:root[data-ui="deep"] .osk-enter {
+  border: 0;
+  background: var(--deep-grad);
+  color: #fff;
+}
+:root[data-ui="deep"] .cta { font-weight: 700; }
+:root[data-ui="deep"] .settings-reset { color: #ff6b8a; }
+/* Buttons give under the finger — a transform, so it costs nothing */
+:root[data-ui="deep"] .cta,
+:root[data-ui="deep"] .mic-btn,
+:root[data-ui="deep"] .layer-back,
+:root[data-ui="deep"] .settings-choice,
+:root[data-ui="deep"] .mode-chip,
+:root[data-ui="deep"] .chip-btn { transition: transform 120ms ease; }
+:root[data-ui="deep"] .cta:active,
+:root[data-ui="deep"] .mic-btn:active,
 :root[data-ui="deep"] .layer-back:active,
-:root[data-ui="deep"] .layer-edit.on { background: var(--accent); color: #fff; }
+:root[data-ui="deep"] .settings-choice:active,
+:root[data-ui="deep"] .mode-chip:active,
+:root[data-ui="deep"] .chip-btn:active { transform: scale(0.94); }
 
 /* ---------- Panels arrive with a little spring ---------- */
 :root[data-ui="deep"] .layer { transition: transform 320ms cubic-bezier(0.2, 1.12, 0.36, 1); }
@@ -83,16 +174,7 @@
 :root[data-ui="deep"][data-motion="reduced"] .layer,
 :root[data-ui="deep"][data-motion="reduced"] .layer-app { transition-duration: 1ms; }
 
-/* ---------- Actions ---------- */
-:root[data-ui="deep"] .cta {
-  border: 0;
-  background: var(--accent);
-  color: #fff;
-  font-weight: 700;
-}
-:root[data-ui="deep"] .cta:active { opacity: 0.8; background: var(--accent); color: #fff; }
-
-/* ---------- Quick panel: round buttons, label underneath ---------- */
+/* ---------- Quick panel: every action a colour of its own ---------- */
 :root[data-ui="deep"] .qs-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-auto-rows: minmax(58px, auto);
@@ -105,13 +187,25 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--text);
+  color: var(--muted);
   font: 500 9px/1.15 var(--font);
   letter-spacing: 0;
   text-align: center;
   white-space: normal;
+  --qs-a: #4f8bff;
+  --qs-b: #a35bff;
 }
-/* The icon is the button: a disc behind it, filled blue when on */
+:root[data-ui="deep"] .qs-tile[data-id="sleep"] { --qs-a: #5b5bff; --qs-b: #8e3dff; }
+:root[data-ui="deep"] .qs-tile[data-id="theme"] { --qs-a: #ffb347; --qs-b: #ff6a3d; }
+:root[data-ui="deep"] .qs-tile[data-id="voice"] { --qs-a: #19c3b0; --qs-b: #1a7fd6; }
+:root[data-ui="deep"] .qs-tile[data-id="speed"] { --qs-a: #ff5fa2; --qs-b: #c03bff; }
+:root[data-ui="deep"] .qs-tile[data-id="apps"] { --qs-a: #3fa9ff; --qs-b: #5b5bff; }
+:root[data-ui="deep"] .qs-tile[data-id="icons"] { --qs-a: #8f9bb5; --qs-b: #535c78; }
+:root[data-ui="deep"] .qs-tile[data-id="chatNew"] { --qs-a: #34d17a; --qs-b: #0f9b8e; }
+:root[data-ui="deep"] .qs-tile[data-id="chatPick"] { --qs-a: #00c6ff; --qs-b: #0066ff; }
+:root[data-ui="deep"] .qs-tile[data-id="full"] { --qs-a: #f7797d; --qs-b: #c471ed; }
+:root[data-ui="deep"] .qs-tile[data-id="reload"] { --qs-a: #ff4b5c; --qs-b: #ff8a3d; }
+/* Off: glass tinted with its own colour. On: its full gradient. */
 :root[data-ui="deep"] .qs-tile > .svgicon,
 :root[data-ui="deep"] .qs-tile > canvas,
 :root[data-ui="deep"] .qs-tile > .pxicon {
@@ -121,80 +215,68 @@
   height: 38px;
   padding: 9px;
   border-radius: 50%;
-  background: var(--ou-chip);
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--qs-a) 30%, transparent),
+    color-mix(in srgb, var(--qs-b) 16%, transparent));
+  transition: transform 120ms ease;
 }
-:root[data-ui="deep"] .qs-tile > .svgicon { stroke: var(--text) !important; stroke-width: 1.8; }
 :root[data-ui="deep"] .qs-tile.on > .svgicon,
 :root[data-ui="deep"] .qs-tile.on > canvas,
-:root[data-ui="deep"] .qs-tile.on > .pxicon { background: var(--accent); }
+:root[data-ui="deep"] .qs-tile.on > .pxicon { background: linear-gradient(135deg, var(--qs-a), var(--qs-b)); }
+:root[data-ui="deep"] .qs-tile > .svgicon { stroke: var(--text) !important; stroke-width: 1.8; }
 :root[data-ui="deep"] .qs-tile.on > .svgicon { stroke: #fff !important; }
-:root[data-ui="deep"] .qs-tile.on { color: var(--text); background: transparent; border: 0; }
-:root[data-ui="deep"] .qs-tile:active > .svgicon { opacity: 0.75; }
+:root[data-ui="deep"] .qs-tile.on { color: var(--text); font-weight: 700; background: transparent; border: 0; }
+:root[data-ui="deep"] .qs-tile:active > .svgicon { transform: scale(0.9); }
 
-/* ---------- Sliders: a thick bar that fills (--pct from screen.js) ---------- */
+/* ---------- Sliders: a thick glass bar filled with the gradient ---------- */
 :root[data-ui="deep"] .qs-slider input[type="range"],
 :root[data-ui="deep"] .settings-range {
   -webkit-appearance: none;
   appearance: none;
   height: 24px;
   border-radius: 12px;
-  background: linear-gradient(90deg, var(--accent) var(--pct, 50%), var(--ou-chip) var(--pct, 50%));
+  background:
+    var(--deep-grad) 0 0 / var(--pct, 50%) 100% no-repeat,
+    var(--deep-chip);
 }
 :root[data-ui="deep"] .qs-slider input[type="range"]::-webkit-slider-thumb,
 :root[data-ui="deep"] .settings-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 24px;
   height: 24px;
+  box-sizing: border-box;
   border-radius: 50%;
   background: #fff;
-  border: 3px solid var(--accent);
-  box-sizing: border-box;
+  border: 4px solid var(--deep-b);
 }
 :root[data-ui="deep"] .qs-slider input[type="range"]::-moz-range-thumb,
 :root[data-ui="deep"] .settings-range::-moz-range-thumb {
   width: 24px;
   height: 24px;
+  box-sizing: border-box;
   border-radius: 50%;
   background: #fff;
-  border: 3px solid var(--accent);
-  box-sizing: border-box;
+  border: 4px solid var(--deep-b);
 }
 :root[data-ui="deep"] .qs-slider-val,
-:root[data-ui="deep"] .settings-value { font-family: var(--font); color: var(--text); }
+:root[data-ui="deep"] .settings-value { font-family: var(--font); font-weight: 700; color: var(--text); }
 
-/* ---------- Settings: grouped cards, pills and toggles ---------- */
-:root[data-ui="deep"] .settings-section {
-  border: 0;
-  border-radius: var(--ou-radius);
-  background: var(--ou-card);
-  padding: 10px 12px;
-  gap: 8px;
-}
-:root[data-ui="deep"] .settings-section-head { font: 700 12px/1.2 var(--font); }
-:root[data-ui="deep"] .settings-choice,
-:root[data-ui="deep"] .settings-reset,
-:root[data-ui="deep"] .settings-test,
-:root[data-ui="deep"] .settings-select {
-  border: 0;
-  border-radius: 14px;
-  background: var(--ou-chip);
-  color: var(--text);
-}
-:root[data-ui="deep"] .settings-choice.on { background: var(--accent); color: #fff; }
-:root[data-ui="deep"] .settings-reset { color: #ff5b52; }
-/* The on/off buttons become One UI toggles. The words stay in the DOM
-   (screen readers, aria-pressed); only the picture changes. */
+/* ---------- Settings: glass groups, toggles ---------- */
+:root[data-ui="deep"] .settings-section { padding: 10px 12px; gap: 8px; }
+:root[data-ui="deep"] .settings-section-head { font: 800 12px/1.2 var(--font); }
+/* The on/off buttons become toggles. The words stay in the DOM (screen
+   readers, aria-pressed); only the picture changes. */
 :root[data-ui="deep"] .settings-switch {
   position: relative;
   flex: none;
-  width: 38px;
+  width: 40px;
   min-width: 0;
   height: 22px;
   min-height: 0;
   padding: 0;
   border: 0;
   border-radius: 11px;
-  background: #56565c;
+  background: var(--deep-chip);
   font-size: 0;
   color: transparent;
 }
@@ -207,61 +289,68 @@
   height: 16px;
   border-radius: 50%;
   background: #fff;
-  transition: transform 180ms ease;
+  transition: transform 180ms cubic-bezier(0.3, 1.4, 0.5, 1);
 }
-:root[data-ui="deep"] .settings-switch.on { background: var(--accent); border: 0; }
-:root[data-ui="deep"] .settings-switch.on::after { transform: translateX(16px); }
+:root[data-ui="deep"] .settings-switch.on { background: var(--deep-grad); border: 0; }
+:root[data-ui="deep"] .settings-switch.on::after { transform: translateX(18px); }
 :root[data-ui="deep"] .settings-switch:disabled { opacity: 0.4; }
-:root[data-ui="deep"] .settings-swatch.on { border-color: var(--bg); outline: 2px solid var(--accent); outline-offset: 0; }
+:root[data-ui="deep"] .settings-swatch.on { border-color: var(--bg); outline: 2px solid var(--deep-b); outline-offset: 0; }
 
-/* ---------- Notifications ---------- */
-:root[data-ui="deep"] .notice {
-  border: 0;
-  border-radius: var(--ou-radius);
-  background: var(--ou-card);
-  padding: 8px 8px 8px 10px;
+/* ---------- Notifications: a gradient disc says how serious ---------- */
+:root[data-ui="deep"] .notice { padding: 8px 8px 8px 9px; }
+:root[data-ui="deep"] .notice-ico {
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--deep-grad);
+  color: #fff;
 }
-:root[data-ui="deep"] .notice.error .notice-ico { color: #ff5b52; }
-:root[data-ui="deep"] .notice.warn .notice-ico { color: #ffb020; }
+:root[data-ui="deep"] .notice.warn .notice-ico { background: linear-gradient(135deg, #ffc043, #ff7a2f); color: #fff; }
+:root[data-ui="deep"] .notice.error .notice-ico { background: linear-gradient(135deg, #ff4b6e, #d6249f); color: #fff; }
+:root[data-ui="deep"] .notice-ico svg { width: 15px; height: 15px; }
 :root[data-ui="deep"] .notice-meta { font-family: var(--font); }
-:root[data-ui="deep"] .notice-btn,
-:root[data-ui="deep"] .notices-clear { border: 0; border-radius: 13px; background: var(--ou-chip); color: var(--text); }
 
-/* ---------- Conversation: Samsung Messages bubbles ---------- */
+/* ---------- Conversation: your words in the gradient, the bot's in glass ---------- */
 :root[data-ui="deep"] .msg { border-radius: 18px; padding: 7px 11px; }
-:root[data-ui="deep"] .msg.user { background: var(--accent); color: #fff; border-bottom-right-radius: 6px; }
-:root[data-ui="deep"] .msg.bot { border: 0; background: var(--ou-chip); border-bottom-left-radius: 6px; }
+:root[data-ui="deep"] .msg.user { background: var(--deep-grad); color: #fff; border-bottom-right-radius: 6px; }
+:root[data-ui="deep"] .msg.bot {
+  border: 1px solid transparent;
+  border-bottom-left-radius: 6px;
+  background:
+    var(--deep-glass) padding-box,
+    linear-gradient(var(--deep-card), var(--deep-card)) padding-box,
+    var(--deep-edge) border-box;
+}
+:root[data-ui="deep"] .chat-input { border: 0; border-radius: 18px; background: var(--deep-chip); }
 
-/* ---------- Store and lists ---------- */
-:root[data-ui="deep"] .store-tab,
-:root[data-ui="deep"] .store-chip { border: 0; border-radius: 14px; background: var(--ou-chip); color: var(--text); }
-:root[data-ui="deep"] .store-tab.on,
-:root[data-ui="deep"] .store-chip.on { background: var(--accent); color: #fff; }
-:root[data-ui="deep"] .store-row { border-bottom-color: var(--line); padding: 7px 2px; }
-:root[data-ui="deep"] .store-badge { border: 0; border-radius: 8px; background: var(--ou-chip); }
+/* ---------- Face: the mic wears the gradient as a ring ---------- */
+:root[data-ui="deep"] .face-mic {
+  border: 2px solid transparent;
+  background: linear-gradient(var(--bg), var(--bg)) padding-box, var(--deep-grad) border-box;
+}
 
-/* ---------- On-screen keyboard: Samsung Keyboard's rounded keys ---------- */
-:root[data-ui="deep"] .osk-key { border: 0; border-radius: 8px; background: var(--ou-chip); color: var(--text); }
-:root[data-ui="deep"] .osk-key.osk-fn { background: color-mix(in srgb, var(--ou-chip) 60%, var(--bg)); }
-:root[data-ui="deep"] .osk-enter { background: var(--accent); color: #fff; }
+/* ---------- Drawer and keyboard ---------- */
+:root[data-ui="deep"] .wd-name {
+  border: 1px solid transparent;
+  background: linear-gradient(rgba(10, 10, 18, 0.85), rgba(10, 10, 18, 0.85)) padding-box, var(--deep-edge) border-box;
+}
+:root[data-ui="deep"] .wd-btn { background: var(--deep-chip); }
+:root[data-ui="deep"] .wd-app.on .wd-disc { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--deep-b); }
+:root[data-ui="deep"] .osk-key { border: 0; border-radius: 8px; background: var(--deep-chip); color: var(--text); }
+:root[data-ui="deep"] .osk-key.osk-fn { background: color-mix(in srgb, var(--deep-chip) 55%, transparent); }
 
-/* ---------- Carousel dots: the current one stretches into a pill ---------- */
-:root[data-ui="deep"] .dots i { transition: opacity 180ms ease, transform 180ms ease; }
-:root[data-ui="deep"] .dots i.on { background: var(--text); transform: scaleX(2.2); border-radius: 3px; }
+/* ---------- Carousel dots: the current one is a gradient pill ---------- */
 :root[data-ui="deep"] .dots { gap: 8px; }
+:root[data-ui="deep"] .dots i { transition: opacity 180ms ease, transform 180ms ease; }
+:root[data-ui="deep"] .dots i.on { background: var(--deep-grad); transform: scaleX(2.4); border-radius: 3px; }
 
-/* ---------- Line icons take the text colour, the mic the accent ----------
-   uiIcon() inks each icon inline with the screen's icon tint; One UI's
-   controls are monochrome, so the tint yields here. */
+/* ---------- Line icons take the text colour ----------
+   uiIcon() inks each icon inline with the screen's icon tint; Deep UI's
+   controls are monochrome and let the gradients carry the colour. */
 :root[data-ui="deep"] .svgicon { stroke: var(--text) !important; }
-:root[data-ui="deep"] .face-mic .svgicon { stroke: var(--accent) !important; }
-
-/* The talk button is the one filled action on the chat tile */
-:root[data-ui="deep"] .mic-btn { border-color: var(--accent); background: var(--accent); color: #fff; }
-:root[data-ui="deep"] .mic-btn .svgicon { stroke: #fff !important; }
-:root[data-ui="deep"] .mode-chip { border: 0; background: var(--ou-chip); color: var(--text); }
-:root[data-ui="deep"] .tiles-move { border: 0; border-radius: 12px; background: var(--ou-chip); color: var(--text); }
-:root[data-ui="deep"] .chat-input { border: 0; border-radius: 18px; background: var(--ou-chip); }
-:root[data-ui="deep"] .chat-send,
-:root[data-ui="deep"] .chat-head-btn,
-:root[data-ui="deep"] .chip-btn { border: 0; background: var(--ou-chip); color: var(--text); }
+:root[data-ui="deep"] .mic-btn .svgicon,
+:root[data-ui="deep"] .osk-enter .svgicon { stroke: #fff !important; }
+:root[data-ui="deep"] .face-mic .svgicon { stroke: #c9b8ff !important; }
+:root[data-ui="deep"] .notices-section { text-transform: none; letter-spacing: 0; font: 700 11px/1.2 var(--font); color: var(--muted); }
