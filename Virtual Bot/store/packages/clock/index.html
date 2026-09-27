@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Clock</title>
+<!-- App kit v1: the screen's own look (Material You or Deep UI, any theme
+     or skin) and its safe insets. See docs/SCREEN-PLATFORM.md §2.6. -->
+<link rel="stylesheet" href="/static/screen/app-kit.css">
+<script src="/static/screen/app-kit.js"></script>
+<style>
+  /* One clock app, as on a phone: the time here and in other cities, the
+     timers, the stopwatch. It replaces the separate "World clock" and
+     "Stopwatch" apps. Only what is the clock's own is here; buttons,
+     chips, cards and colours are kit parts. */
+  svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .kit-btn svg.fill, svg.fill { fill: currentColor; stroke: none; }
+
+  /* Tabs: a segment across the whole top, an icon and a word each */
+  #tabs { flex: none; }
+  #tabs .kit-chip { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 6px; }
+  #tabs .kit-chip svg.i { width: 14px; height: 14px; }
+  .view { display: flex; gap: 10px; }
+
+  /* ---- clock: the time here on the left, the cities on the right ---- */
+  .here { width: 118px; flex: none; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 10px 12px; }
+  .here-name { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
+  .here-time { font-size: 40px; white-space: nowrap; }
+  .here-time small { font-size: 15px; margin-left: 1px; }
+  .here-date { font: 600 12px/1.25 var(--font); }
+  .here-date::first-letter { text-transform: uppercase; }
+  .here .kit-btn { align-self: flex-start; margin-top: 2px; }
+  #editBtn[aria-pressed="true"] { background: var(--kit-primary); color: var(--kit-on-accent); }
+
+  .cities { flex: 1; min-width: 0; min-height: 0; }
+  .city { flex: 1; min-height: 0; max-height: 46px; gap: 8px; padding: 0 10px 0 7px; }
+  .dn { display: grid; place-items: center; width: 26px; height: 26px; flex: none; border-radius: 50%; background: var(--kit-surface-hi); color: var(--muted); }
+  .dn svg.i { width: 14px; height: 14px; }
+  .dn.day { background: var(--kit-tonal); color: var(--kit-on-tonal); }
+  :root[data-ui="deep"] .dn.day { background: var(--kit-primary); color: var(--kit-on-accent); }
+  .city-name { overflow: hidden; font: 700 12px/1.2 var(--font); text-overflow: ellipsis; white-space: nowrap; }
+  .city-sub { margin-top: 1px; overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+  .city-time { font: 400 20px/1 var(--font); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  :root[data-ui="deep"] .city-time { font-weight: 300; }
+  .city .kit-btn.icon { width: 28px; height: 28px; min-width: 28px; min-height: 28px; }
+  .add-row { justify-content: center; gap: 8px; border: 0; color: var(--accent); font: 600 12px/1 var(--font); cursor: pointer; background: transparent; box-shadow: inset 0 0 0 1.5px var(--kit-surface-hi); }
+  .add-row:active { transform: scale(.98); }
+  .empty { margin: auto; padding: 0 12px; text-align: center; }
+
+  /* The city picker: a page of its own over the tabs */
+  .picker { position: absolute; inset: 0; opacity: 0; pointer-events: none; transform: translateY(10px); transition: opacity .16s ease, transform .16s ease; }
+  .picker.show { opacity: 1; pointer-events: auto; transform: none; }
+  .picks { display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 6px; }
+  .pick { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 34px; padding: 0 12px; border: 0; border-radius: 12px; background: var(--kit-surface); color: var(--text); text-align: left; cursor: pointer; transition: transform 110ms ease; }
+  .pick:active { transform: scale(.96); }
+  .pick span { overflow: hidden; font: 600 12px/1.2 var(--font); text-overflow: ellipsis; white-space: nowrap; }
+  .pick small { flex: none; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+  /* ---- timer: a progress ring on the left, its controls on the right ---- */
+  .ring-box { position: relative; flex: 1; min-width: 0; display: grid; place-items: center; border: 0; padding: 0; background: none; color: inherit; font: inherit; }
+  .ring { width: 100%; height: 100%; max-width: 158px; max-height: 158px; aspect-ratio: 1; }
+  .ring circle { fill: none; stroke-width: 7; }
+  .ring .track { stroke: var(--kit-surface-hi); }
+  .ring .arc { stroke: var(--accent); stroke-linecap: round; }
+  .ring-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0 18px; text-align: center; }
+  .ring-in .kit-display { font-size: 36px; white-space: nowrap; }
+  .ring-in .kit-display.long { font-size: 27px; }
+  .ring-in .kit-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ring-box.paused .kit-display { opacity: .55; }
+  .ring-box.done .kit-display { color: var(--accent); animation: blink 1s ease-in-out infinite; }
+  .ring-box.done .kit-label { color: var(--accent); font-weight: 700; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  /* One dot per timer when there are several: tap the ring for the next */
+  .dots { display: flex; gap: 4px; justify-content: center; min-height: 5px; }
+  .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--kit-surface-hi); }
+  .dots i.on { background: var(--accent); }
+
+  .side { width: 128px; flex: none; display: flex; flex-direction: column; gap: 6px; }
+  .steppers { display: flex; flex-direction: column; gap: 6px; padding: 2px 4px; }
+  .stepper { display: flex; align-items: center; gap: 6px; min-height: 26px; }
+  .stepper .kit-btn { width: 26px; height: 26px; min-width: 26px; min-height: 26px; background: var(--kit-surface-hi); }
+  .stepper .kit-btn svg { width: 15px; height: 15px; }
+  .stepper-mid { flex: 1; min-width: 0; display: flex; align-items: baseline; justify-content: center; gap: 3px; }
+  .stepper-value { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stepper-label { color: var(--muted); font-size: 10px; font-weight: 500; }
+  .presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .presets .kit-chip { min-height: 26px; padding: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .side .kit-btn.block { min-height: 34px; border-radius: 17px; font-size: 13px; }
+  .side .kit-btn.push { margin-top: auto; }
+  .side .row2 { display: flex; gap: 6px; }
+  .side .row2 .kit-btn { flex: 1; padding: 0; }
+  .offline { color: var(--muted); font-size: 10px; text-align: center; }
+
+  /* ---- stopwatch: digits + controls, and a laps column once started ---- */
+  .sw-main { flex: 1; min-width: 0; gap: 6px; }
+  .digits { white-space: nowrap; font-size: 56px; }
+  .digits small { font-size: 0.42em; font-weight: 400; margin-left: 1px; }
+  .view.split .digits { font-size: 40px; }
+  .view.split .digits.long { font-size: 30px; }
+  .digits.long { font-size: 44px; }
+  .status { text-transform: uppercase; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; }
+  .controls { gap: 12px; margin-top: 6px; }
+  .view.split .controls { gap: 8px; }
+  /* Pixel Clock: the primary is a circle at rest and a rounded square while
+     it runs; the change is instant (radius never animates on the Pi). */
+  .kit-btn.play { width: 56px; height: 56px; }
+  .kit-btn.play.running { border-radius: 20px; }
+  .kit-btn.play svg { width: 26px; height: 26px; }
+  .kit-btn.aside { width: 40px; height: 40px; transition: transform 110ms ease, opacity 160ms ease; }
+  .kit-btn.aside.gone { opacity: 0; pointer-events: none; }
+  .laps { width: 128px; flex: none; display: flex; flex-direction: column; gap: 2px; padding: 0; }
+  .lap { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 3px 10px; border-radius: 8px; background: var(--kit-surface); font-variant-numeric: tabular-nums; flex: none; }
+  .lap:first-child { border-top-left-radius: 14px; border-top-right-radius: 14px; }
+  .lap:last-child { border-bottom-left-radius: 14px; border-bottom-right-radius: 14px; }
+  .lap-n { width: 18px; color: var(--muted); font-size: 11px; font-weight: 600; }
+  .lap-t { flex: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .lap-t b { font-size: 13px; font-weight: 600; }
+  .lap-t span { color: var(--muted); font-size: 10px; }
+  .lap.best .lap-t b { color: var(--ok); }
+  .lap.worst .lap-t b { color: var(--accent); }
+  .laps-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 16px; background: var(--kit-surface); color: var(--muted); font-size: 11px; text-align: center; }
+  .laps-empty svg { width: 22px; height: 22px; opacity: 0.7; }
+
+  @media (max-height: 200px) {
+    .here-time { font-size: 30px; } .city-sub { display: none; } .presets { display: none; }
+    .digits { font-size: 42px; } .view.split .digits { font-size: 30px; }
+    .kit-btn.play { width: 46px; height: 46px; } .kit-btn.aside { width: 34px; height: 34px; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; } }
+</style>
+</head>
+<body class="kit">
+  <main class="kit-app" id="app">
+    <nav class="kit-segment" id="tabs">
+      <button class="kit-chip" type="button" data-tab="clock"><span data-icon="clock"></span><span data-i18n="tabClock"></span></button>
+      <button class="kit-chip" type="button" data-tab="timer"><span data-icon="hourglass"></span><span data-i18n="tabTimer"></span></button>
+      <button class="kit-chip" type="button" data-tab="sw"><span data-icon="stopwatch"></span><span data-i18n="tabSw"></span></button>
+    </nav>
+
+    <!-- The time here and in other cities -->
+    <section class="kit-fill view" id="viewClock">
+      <div class="kit-card here">
+        <span class="here-name" data-i18n="here"></span>
+        <span class="kit-display here-time" id="local">00:00</span>
+        <span class="here-date" id="localDate"></span>
+        <button class="kit-btn icon sm" id="editBtn" type="button" aria-pressed="false" data-i18n-aria="edit"></button>
+      </div>
+      <div class="kit-list cities" id="cities"></div>
+    </section>
+
+    <!-- Timers: the same ones the bot sets by voice (/api/screen/timers) -->
+    <section class="kit-fill view" id="viewTimer" hidden>
+      <button class="ring-box" id="tDisplay" type="button">
+        <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="track" cx="50" cy="50" r="45"/>
+          <circle class="arc" id="tArc" cx="50" cy="50" r="45" transform="rotate(-90 50 50)"/>
+        </svg>
+        <span class="ring-in">
+          <span class="kit-display" id="tTime">05:00</span>
+          <span class="kit-label" id="tSub"></span>
+          <span class="dots" id="tDots"></span>
+        </span>
+      </button>
+      <aside class="side" id="tSetup">
+        <div class="kit-card steppers">
+          <div class="stepper">
+            <button class="kit-btn icon" type="button" data-adj="-60" data-i18n-aria="minLess"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+            <span class="stepper-mid"><span class="stepper-value" id="tMin">5</span><span class="stepper-label" data-i18n="min"></span></span>
+            <button class="kit-btn icon" type="button" data-adj="60" data-i18n-aria="minMore"><svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg></button>
+          </div>
+          <div class="stepper">
+            <button class="kit-btn icon" type="button" data-adj="-15" data-i18n-aria="secLess"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+            <span class="stepper-mid"><span class="stepper-value" id="tSec">00</span><span class="stepper-label" data-i18n="sec"></span></span>
+            <button class="kit-btn icon" type="button" data-adj="15" data-i18n-aria="secMore"><svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg></button>
+          </div>
+        </div>
+        <div class="presets" id="presets"></div>
+        <div class="row2 push" id="tSetupRow">
+          <button class="kit-btn tonal block" id="tBack" type="button" data-i18n-aria="back"></button>
+          <button class="kit-btn primary block" id="tStart" type="button"></button>
+        </div>
+      </aside>
+      <aside class="side" id="tControls" hidden>
+        <button class="kit-btn primary block" id="tPrimary" type="button"></button>
+        <button class="kit-btn tonal block" id="tMore" type="button"></button>
+        <button class="kit-btn tonal block" id="tCancel" type="button"></button>
+        <button class="kit-btn ghost block push" id="tNew" type="button"></button>
+      </aside>
+    </section>
+
+    <!-- Stopwatch -->
+    <section class="kit-fill view" id="viewSw" hidden>
+      <div class="kit-center sw-main">
+        <div class="kit-display digits" id="swTime">00:00<small>.00</small></div>
+        <div class="kit-label status" id="swSub"></div>
+        <div class="kit-row center controls">
+          <button class="kit-btn icon tonal aside" id="swReset" type="button" data-i18n-aria="reset">
+            <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"/></svg>
+          </button>
+          <button class="kit-btn icon primary play" id="swPrimary" type="button"></button>
+          <button class="kit-btn icon tonal aside" id="swLap" type="button" data-i18n-aria="lap">
+            <svg viewBox="0 0 24 24"><path d="M6 20.5V4M6 4.5h11l-2.2 4 2.2 4H6"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="laps kit-scroll" id="laps" data-noswipe hidden></div>
+    </section>
+  </main>
+
+  <section class="kit-app kit-page picker" id="picker">
+    <header class="kit-bar">
+      <button class="kit-btn icon" id="pickClose" type="button" data-icon="back" data-i18n-aria="close"></button>
+      <span class="kit-title" data-i18n="pickTitle"></span>
+    </header>
+    <div class="kit-fill kit-scroll picks" id="picks"></div>
+  </section>
+<script>
+  const APP_ID = "clock";
+  const CITIES = {
+    kyiv: ["Europe/Kyiv", "Europe/Kiev"], london: ["Europe/London"], lisbon: ["Europe/Lisbon"], paris: ["Europe/Paris"],
+    berlin: ["Europe/Berlin"], warsaw: ["Europe/Warsaw"], rome: ["Europe/Rome"], madrid: ["Europe/Madrid"],
+    reykjavik: ["Atlantic/Reykjavik"], istanbul: ["Europe/Istanbul"], tbilisi: ["Asia/Tbilisi"], dubai: ["Asia/Dubai"],
+    cairo: ["Africa/Cairo"], nairobi: ["Africa/Nairobi"], johannesburg: ["Africa/Johannesburg"], delhi: ["Asia/Kolkata", "Asia/Calcutta"],
+    bangkok: ["Asia/Bangkok"], singapore: ["Asia/Singapore"], hongkong: ["Asia/Hong_Kong"], beijing: ["Asia/Shanghai"],
+    seoul: ["Asia/Seoul"], tokyo: ["Asia/Tokyo"], sydney: ["Australia/Sydney"], auckland: ["Pacific/Auckland"],
+    honolulu: ["Pacific/Honolulu"], losangeles: ["America/Los_Angeles"], denver: ["America/Denver"], chicago: ["America/Chicago"],
+    newyork: ["America/New_York"], toronto: ["America/Toronto"], mexico: ["America/Mexico_City"], saopaulo: ["America/Sao_Paulo"],
+    buenosaires: ["America/Argentina/Buenos_Aires"],
+  };
+  const STR = {
+    uk: {
+      title: "Годинник", tabClock: "Час", tabTimer: "Таймер", tabSw: "Секундомір",
+      here: "Тут", edit: "Змінити міста", close: "Закрити", pickTitle: "Додати місто", add: "Додати місто",
+      remove: "Прибрати", empty: "Додай до чотирьох міст", today: "Сьогодні", tomorrow: "Завтра", yesterday: "Вчора",
+      same: "як тут", hours: "{sign}{h} год", hoursMin: "{sign}{h}:{m} год", day: "День", night: "Ніч",
+      start: "Старт", pause: "Пауза", resume: "Далі", stop: "Стоп", again: "Ще раз", cancel: "Скасувати",
+      plusMin: "+1 хв", newTimer: "Новий", back: "Назад", min: "хв", sec: "сек",
+      minLess: "Мінус хвилина", minMore: "Плюс хвилина", secLess: "Мінус 15 секунд", secMore: "Плюс 15 секунд",
+      timesUp: "Час вийшов", of: "з {t}", pausedOf: "пауза · з {t}", ready: "Готовий", offline: "Немає звʼязку з ботом",
+      full: "Уже пʼять таймерів",
+      lap: "Коло", reset: "Скинути", noLaps: "Кола з'являться тут", laps: "Кіл: {n}", running: "Йде", paused: "Пауза",
+      kyiv: "Київ", london: "Лондон", lisbon: "Лісабон", paris: "Париж", berlin: "Берлін", warsaw: "Варшава", rome: "Рим",
+      madrid: "Мадрид", reykjavik: "Рейкʼявік", istanbul: "Стамбул", tbilisi: "Тбілісі", dubai: "Дубай", cairo: "Каїр",
+      nairobi: "Найробі", johannesburg: "Йоганнесбург", delhi: "Делі", bangkok: "Бангкок", singapore: "Сингапур",
+      hongkong: "Гонконг", beijing: "Пекін", seoul: "Сеул", tokyo: "Токіо", sydney: "Сідней", auckland: "Окленд",
+      honolulu: "Гонолулу", losangeles: "Лос-Анджелес", denver: "Денвер", chicago: "Чикаго", newyork: "Нью-Йорк",
+      toronto: "Торонто", mexico: "Мехіко", saopaulo: "Сан-Паулу", buenosaires: "Буенос-Айрес",
+    },
+    en: {
+      title: "Clock", tabClock: "Clock", tabTimer: "Timer", tabSw: "Stopwatch",
+      here: "Here", edit: "Edit cities", close: "Close", pickTitle: "Add a city", add: "Add a city",
+      remove: "Remove", empty: "Add up to four cities", today: "Today", tomorrow: "Tomorrow", yesterday: "Yesterday",
+      same: "same as here", hours: "{sign}{h} h", hoursMin: "{sign}{h}:{m} h", day: "Day", night: "Night",
+      start: "Start", pause: "Pause", resume: "Resume", stop: "Stop", again: "Again", cancel: "Cancel",
+      plusMin: "+1 min", newTimer: "New", back: "Back", min: "min", sec: "sec",
+      minLess: "Minus a minute", minMore: "Plus a minute", secLess: "Minus 15 seconds", secMore: "Plus 15 seconds",
+      timesUp: "Time's up", of: "of {t}", pausedOf: "paused · of {t}", ready: "Ready", offline: "Can't reach the bot",
+      full: "Five timers already",
+      lap: "Lap", reset: "Reset", noLaps: "Laps show up here", laps: "Laps: {n}", running: "Running", paused: "Paused",
+      kyiv: "Kyiv", london: "London", lisbon: "Lisbon", paris: "Paris", berlin: "Berlin", warsaw: "Warsaw", rome: "Rome",
+      madrid: "Madrid", reykjavik: "Reykjavik", istanbul: "Istanbul", tbilisi: "Tbilisi", dubai: "Dubai", cairo: "Cairo",
+      nairobi: "Nairobi", johannesburg: "Johannesburg", delhi: "Delhi", bangkok: "Bangkok", singapore: "Singapore",
+      hongkong: "Hong Kong", beijing: "Beijing", seoul: "Seoul", tokyo: "Tokyo", sydney: "Sydney", auckland: "Auckland",
+      honolulu: "Honolulu", losangeles: "Los Angeles", denver: "Denver", chicago: "Chicago", newyork: "New York",
+      toronto: "Toronto", mexico: "Mexico City", saopaulo: "Sao Paulo", buenosaires: "Buenos Aires",
+    },
+  };
+  const ICONS = {
+    clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    hourglass: '<path d="M7 3.5h10M7 20.5h10M8 3.5c0 4.5 4 5.5 4 8.5s-4 4-4 8.5M16 3.5c0 4.5-4 5.5-4 8.5s4 4 4 8.5"/>',
+    stopwatch: '<circle cx="12" cy="13.5" r="7"/><path d="M12 13.5V10M10 2.5h4M18.5 6.5l1.2-1.2"/>',
+    pencil: '<path d="M4 20h4l10-10a2.1 2.1 0 0 0-3-3L5 17z"/>',
+    check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    x: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+    back: '<path d="m14 5-7 7 7 7M7 12h13"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    sun: '<circle cx="12" cy="12" r="3.8"/><path d="M12 3v2M12 19v2M21 12h-2M5 12H3M18.4 5.6l-1.4 1.4M7 17l-1.4 1.4M18.4 18.4 17 17M7 7 5.6 5.6"/>',
+    moon: '<path d="M20 14.2A8.5 8.5 0 0 1 9.8 4a8.5 8.5 0 1 0 10.2 10.2z"/>',
+    flag: '<path d="M6 20.5V4M6 4.5h11l-2.2 4 2.2 4H6"/>',
+    reset: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"/>',
+  };
+  // Filled glyphs read better than outlines on the big buttons
+  const FILLED = {
+    play: '<svg class="fill" viewBox="0 0 24 24"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l10.6-6.8a1 1 0 0 0 0-1.72L9.5 4.34A1 1 0 0 0 8 5.2z"/></svg>',
+    pause: '<svg class="fill" viewBox="0 0 24 24"><rect x="6.5" y="5" width="4" height="14" rx="1.4"/><rect x="13.5" y="5" width="4" height="14" rx="1.4"/></svg>',
+    stop: '<svg class="fill" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg>',
+  };
+
+  /* ---- storage, language, parent messages ---- */
+
+  // Storage throws inside a sandboxed iframe, so every access is guarded
+  // and the app keeps its state in memory instead of failing. `legacy` is
+  // the key the separate apps this one replaced ("world-clock",
+  // "stopwatch") used: same origin, so their saved cities and a running
+  // stopwatch carry over.
+  function load(key, fallback, legacy) {
+    try {
+      let raw = localStorage.getItem(APP_ID + "." + key);
+      if (raw == null && legacy) raw = localStorage.getItem(legacy);
+      return raw == null ? fallback : JSON.parse(raw);
+    } catch (_) { return fallback; }
+  }
+  function save(key, value) {
+    try { localStorage.setItem(APP_ID + "." + key, JSON.stringify(value)); } catch (_) {}
+  }
+  // The kit already knows the screen's language (botScreenLang)
+  let lang = window.BotApp ? BotApp.lang : "uk";
+  function t(key, vars) {
+    let text = STR[lang][key];
+    if (text == null) text = STR.uk[key];
+    if (text == null) return key;
+    if (vars) text = text.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m));
+    return text;
+  }
+  function icon(name) {
+    return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (ICONS[name] || "") + "</svg>";
+  }
+  // "*" on purpose: in a sandbox our origin is "null", and naming a real
+  // origin as the target would silently drop the message.
+  function post(message) {
+    try { window.parent.postMessage(message, "*"); } catch (_) {}
+  }
+  const $ = (id) => document.getElementById(id);
+  const pad = (n, w) => String(n).padStart(w || 2, "0");
+  function fmtClock(sec) {
+    sec = Math.max(0, Math.ceil(sec));
+    const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, s = sec % 60;
+    return (h ? h + ":" + pad(m) : pad(m)) + ":" + pad(s);
+  }
+
+  const TABS = ["clock", "timer", "sw"];
+  let tab = load("tab", "clock");
+  if (!TABS.includes(tab)) tab = "clock";
+
+  /* ================= clock: here and in other cities ================= */
+
+  const MAX_CITIES = 4;
+  const formatters = {};
+  let chosen = load("cities", ["kyiv", "london", "newyork", "tokyo"], "world-clock.cities");
+  if (!Array.isArray(chosen)) chosen = ["kyiv"];
+  chosen = chosen.filter((id, i) => CITIES[id] && chosen.indexOf(id) === i).slice(0, MAX_CITIES);
+  let editing = false, lastMinute = -1;
+
+  // The first zone name the browser's ICU knows wins: Europe/Kyiv only
+  // exists in newer builds, older Chromium on the Pi still says Kiev.
+  function formatter(id) {
+    if (formatters[id] !== undefined) return formatters[id];
+    formatters[id] = null;
+    for (const zone of CITIES[id]) {
+      try {
+        formatters[id] = new Intl.DateTimeFormat("en-GB", { timeZone: zone, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric" });
+        break;
+      } catch (_) {}
+    }
+    return formatters[id];
+  }
+  function partsIn(id, date) {
+    const f = formatter(id);
+    if (!f) return null;
+    const out = {};
+    f.formatToParts(date).forEach((p) => { if (p.type !== "literal") out[p.type] = Number(p.value); });
+    out.hour %= 24;
+    return out;
+  }
+  function describe(id, date) {
+    const p = partsIn(id, date);
+    if (!p) return null;
+    const diff = Math.round((Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute) - date.getTime()) / 60000) + date.getTimezoneOffset();
+    const localDay = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+    const cityDay = Date.UTC(p.year, p.month - 1, p.day);
+    const dayKey = cityDay > localDay ? "tomorrow" : cityDay < localDay ? "yesterday" : "today";
+    let rel = t("same");
+    if (diff) {
+      const abs = Math.abs(diff), h = Math.floor(abs / 60), m = abs % 60;
+      rel = t(m ? "hoursMin" : "hours", { sign: diff > 0 ? "+" : "−", h, m: pad(m) });
+    }
+    // The row is narrow: the day is named only when it is not today
+    return { time: pad(p.hour) + ":" + pad(p.minute), day: p.hour >= 6 && p.hour < 18, sub: dayKey === "today" ? rel : t(dayKey) + ", " + rel };
+  }
+  // Weekday and date in the screen's language, e.g. "Sat, 27 Sep"
+  const dateFormats = {};
+  function localDate(date) {
+    try {
+      if (!dateFormats[lang]) dateFormats[lang] = new Intl.DateTimeFormat(lang === "en" ? "en-GB" : "uk-UA", { weekday: "long", day: "numeric", month: "long" });
+      return dateFormats[lang].format(date);
+    } catch (_) { return ""; }
+  }
+
+  function renderClock() {
+    const now = new Date(Math.floor(Date.now() / 60000) * 60000);
+    lastMinute = now.getTime();
+    $("local").textContent = pad(now.getHours()) + ":" + pad(now.getMinutes());
+    $("localDate").textContent = localDate(now);
+    const editBtn = $("editBtn");
+    editBtn.setAttribute("aria-pressed", editing ? "true" : "false");
+    editBtn.innerHTML = icon(editing ? "check" : "pencil");
+    const list = $("cities");
+    list.innerHTML = "";
+    chosen.forEach((id, i) => {
+      const d = describe(id, now);
+      if (!d) return;
+      const row = document.createElement("div");
+      row.className = "kit-item city";
+      row.innerHTML = '<span class="dn ' + (d.day ? "day" : "night") + '">' + icon(d.day ? "sun" : "moon") +
+        '</span><div class="kit-grow" style="min-width:0"><div class="city-name"></div><div class="city-sub"></div></div>' +
+        (editing ? '<button class="kit-btn icon danger" type="button" data-remove="' + i + '">' + icon("x") + "</button>" : '<span class="city-time"></span>');
+      row.querySelector(".dn").setAttribute("aria-label", t(d.day ? "day" : "night"));
+      row.querySelector(".city-name").textContent = t(id);
+      row.querySelector(".city-sub").textContent = d.sub;
+      if (editing) row.querySelector("[data-remove]").setAttribute("aria-label", t("remove"));
+      else row.querySelector(".city-time").textContent = d.time;
+      list.appendChild(row);
+    });
+    if ((editing || !chosen.length) && chosen.length < MAX_CITIES) {
+      const add = document.createElement("button");
+      add.type = "button"; add.className = "kit-item city add-row"; add.id = "addRow";
+      add.innerHTML = icon("plus") + "<span></span>";
+      add.lastChild.textContent = t("add");
+      list.appendChild(add);
+    }
+    if (!chosen.length && !editing) {
+      const empty = document.createElement("div");
+      empty.className = "kit-label empty";
+      empty.textContent = t("empty");
+      list.prepend(empty);
+    }
+  }
+  function openPicker(open) {
+    if (open) {
+      const now = new Date();
+      const picks = $("picks");
+      picks.innerHTML = "";
+      Object.keys(CITIES)
+        .filter((id) => !chosen.includes(id) && formatter(id))
+        .sort((a, b) => t(a).localeCompare(t(b), lang))
+        .forEach((id) => {
+          const b = document.createElement("button");
+          b.type = "button"; b.className = "pick"; b.dataset.city = id;
+          b.innerHTML = "<span></span><small></small>";
+          b.firstChild.textContent = t(id);
+          b.lastChild.textContent = describe(id, now).time;
+          picks.appendChild(b);
+        });
+      picks.scrollTop = 0;
+    }
+    $("picker").classList.toggle("show", open);
+  }
+  $("editBtn").addEventListener("click", () => { editing = !editing; renderClock(); });
+  $("cities").addEventListener("click", (event) => {
+    const rm = event.target.closest("[data-remove]");
+    if (rm) { chosen.splice(Number(rm.dataset.remove), 1); save("cities", chosen); renderClock(); return; }
+    if (event.target.closest("#addRow")) openPicker(true);
+  });
+  $("picks").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-city]");
+    if (!b || chosen.length >= MAX_CITIES) return;
+    chosen.push(b.dataset.city);
+    save("cities", chosen);
+    if (chosen.length >= MAX_CITIES) editing = false;
+    openPicker(false);
+    renderClock();
+  });
+  $("pickClose").addEventListener("click", () => openPicker(false));
+
+  /* ================= timer: the bot's own timers =================
+     Not a private countdown: the app lists and sets the same timers the
+     bot sets by voice ("put a timer on for 5 minutes"), which live on the
+     server (screen_widgets.py). So a timer started here shows on the
+     screen's island, the bot can say how long is left, and the screen
+     rings it even after the app is closed. The app only draws them. */
+
+  const PRESETS = [1, 3, 5, 10, 15, 30];
+  const ARC = 2 * Math.PI * 45;
+  $("tArc").setAttribute("stroke-dasharray", ARC.toFixed(2));
+  let draft = Number(load("draft", 300)) || 300;       // the next timer's length, seconds
+  let timers = [];        // {id, label, seconds, ends_at, left, state} from the server
+  let skew = 0;           // server clock minus ours, seconds
+  let pickedId = "";      // which timer the ring shows when there are several
+  let adding = false;     // the setup page is open over running timers
+  let online = true, pollId = 0, tickId = 0, busy = false;
+
+  function leftOf(tm) {
+    if (tm.state === "paused") return Math.max(0, tm.left);
+    return Math.max(0, tm.ends_at - (Date.now() / 1000 + skew));
+  }
+  // Countdowns only (reminders live in the screen's notices), and a rung
+  // one for a minute, so "time's up" is seen but does not stay forever.
+  function shown() {
+    const nowS = Date.now() / 1000 + skew;
+    return timers
+      .filter((tm) => tm.kind !== "reminder" && (tm.state === "paused" || leftOf(tm) > 0 || nowS - tm.ends_at < 60))
+      .sort((a, b) => leftOf(a) - leftOf(b));
+  }
+  function current() {
+    const list = shown();
+    return list.find((tm) => tm.id === pickedId) || list[0] || null;
+  }
+  function isDone(tm) { return tm && tm.state !== "paused" && leftOf(tm) <= 0; }
+  function setTimers(d) {
+    if (!d || !Array.isArray(d.timers)) return;
+    timers = d.timers;
+    if (typeof d.now === "number") skew = d.now - Date.now() / 1000;
+    online = true;
+  }
+  async function fetchTimers() {
+    try {
+      const r = await fetch("/api/screen/timers", { cache: "no-store" });
+      setTimers(await r.json());
+    } catch (_) { online = false; }
+    renderTimer();
+  }
+  async function act(body) {
+    if (busy) return;
+    busy = true;
+    try {
+      const r = await fetch("/api/screen/timers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const d = await r.json();
+      if (r.ok) setTimers(d);
+      online = true;
+    } catch (_) { online = false; }
+    busy = false;
+    renderTimer();
+  }
+  // A rung timer rings on the screen itself, and a touch inside an app
+  // never reaches the screen's own "any touch silences it" listener.
+  function silence() { post({ type: "botTimerSilence" }); }
+
+  function renderRing(tm) {
+    const done = isDone(tm);
+    const left = tm ? leftOf(tm) : draft;
+    const text = done ? "00:00" : fmtClock(left);
+    const el = $("tTime");
+    el.textContent = text;
+    el.classList.toggle("long", text.length > 5);
+    // The ring empties as time runs out, like the Pixel timer. It is
+    // redrawn on the tick, never animated.
+    const share = done ? 0 : tm ? Math.min(1, left / Math.max(1, tm.seconds)) : 1;
+    $("tArc").setAttribute("stroke-dashoffset", (ARC * (1 - share)).toFixed(2));
+    const box = $("tDisplay");
+    box.classList.toggle("done", !!done);
+    box.classList.toggle("paused", !!tm && tm.state === "paused");
+  }
+  function renderTimer() {
+    const list = shown();
+    const tm = adding ? null : current();
+    renderRing(tm);
+    const sub = $("tSub");
+    if (!online && !tm) sub.textContent = t("offline");
+    else if (!tm) sub.textContent = t("ready");
+    else if (isDone(tm)) sub.textContent = tm.label || t("timesUp");
+    else sub.textContent = tm.label || t(tm.state === "paused" ? "pausedOf" : "of", { t: fmtClock(tm.seconds) });
+    $("tDots").innerHTML = !adding && list.length > 1 ? list.map((x) => '<i class="' + (x === tm ? "on" : "") + '"></i>').join("") : "";
+
+    $("tSetup").hidden = !!tm;
+    $("tControls").hidden = !tm;
+    if (!tm) {
+      $("tMin").textContent = Math.floor(draft / 60);
+      $("tSec").textContent = pad(draft % 60);
+      $("presets").innerHTML = PRESETS.map((m) => '<button class="kit-chip' + (draft === m * 60 ? " on" : "") +
+        '" type="button" data-preset="' + m + '">' + m + "</button>").join("");
+      const running = list.filter((x) => !isDone(x)).length;
+      const full = running >= 5;
+      $("tStart").innerHTML = FILLED.play + "<span></span>";
+      $("tStart").lastChild.textContent = t(full ? "full" : "start");
+      $("tStart").disabled = full || !online;
+      // "Back" only when there are timers to go back to
+      $("tBack").hidden = !list.length;
+      $("tBack").innerHTML = icon("back");
+    } else {
+      const done = isDone(tm);
+      const paused = tm.state === "paused";
+      $("tPrimary").innerHTML = FILLED[done ? "stop" : paused ? "play" : "pause"] + "<span></span>";
+      $("tPrimary").lastChild.textContent = t(done ? "stop" : paused ? "resume" : "pause");
+      $("tMore").textContent = done ? t("again") : t("plusMin");
+      $("tCancel").textContent = t("cancel");
+      $("tCancel").hidden = done;
+      $("tNew").innerHTML = icon("plus") + "<span></span>";
+      $("tNew").lastChild.textContent = t("newTimer");
+    }
+    // The ring counts down every quarter second only while it is on screen
+    const counting = tab === "timer" && !document.hidden && list.some((x) => x.state === "running" || isDone(x));
+    if (counting && !tickId) tickId = setInterval(() => renderRing(adding ? null : current()), 250);
+    if (!counting && tickId) { clearInterval(tickId); tickId = 0; }
+  }
+  function setDraft(sec) {
+    draft = Math.max(5, Math.min(99 * 60, sec));
+    save("draft", draft);
+    renderTimer();
+  }
+  $("tSetup").addEventListener("click", (event) => {
+    const adj = event.target.closest("[data-adj]");
+    if (adj) setDraft(draft + Number(adj.dataset.adj));
+    const preset = event.target.closest("[data-preset]");
+    if (preset) setDraft(Number(preset.dataset.preset) * 60);
+  });
+  $("tStart").addEventListener("click", () => { adding = false; pickedId = ""; act({ action: "set", seconds: draft }); });
+  $("tBack").addEventListener("click", () => { adding = false; renderTimer(); });
+  $("tNew").addEventListener("click", () => { adding = true; renderTimer(); });
+  $("tPrimary").addEventListener("click", () => {
+    const tm = current();
+    if (!tm) return;
+    if (isDone(tm)) { silence(); act({ action: "cancel", id: tm.id }); }
+    else act({ action: tm.state === "paused" ? "resume" : "pause", id: tm.id });
+  });
+  $("tMore").addEventListener("click", async () => {
+    const tm = current();
+    if (!tm) return;
+    if (!isDone(tm)) { act({ action: "add", id: tm.id, seconds: 60 }); return; }
+    // Again: the same length and name, as a fresh timer
+    silence();
+    await act({ action: "cancel", id: tm.id });
+    act({ action: "set", seconds: tm.seconds, label: tm.label || "" });
+  });
+  $("tCancel").addEventListener("click", () => {
+    const tm = current();
+    if (tm) act({ action: "cancel", id: tm.id });
+  });
+  // Several timers: a tap on the ring shows the next one
+  $("tDisplay").addEventListener("click", () => {
+    const list = shown();
+    if (adding || list.length < 2) return;
+    const i = list.indexOf(current());
+    pickedId = list[(i + 1) % list.length].id;
+    renderTimer();
+  });
+  // Any touch in the app silences a timer that is ringing, as a touch
+  // anywhere else on the screen does
+  document.addEventListener("pointerdown", () => { if (shown().some(isDone)) silence(); }, true);
+
+  // Voice timers change behind the app's back, so while the tab is open the
+  // list is read again every few seconds (a small JSON, fine on the Pi).
+  function syncPolling() {
+    const want = tab === "timer" && !document.hidden;
+    if (want && !pollId) { fetchTimers(); pollId = setInterval(fetchTimers, 3000); }
+    if (!want && pollId) { clearInterval(pollId); pollId = 0; }
+  }
+
+  /* ================= stopwatch ================= */
+
+  // Wall-clock anchors, so closing the app does not stop it: reopening
+  // shows the real elapsed time.
+  let sw = Object.assign({ running: false, startAt: 0, acc: 0, laps: [] }, load("sw", {}, "stopwatch.sw"));
+  if (!Array.isArray(sw.laps)) sw.laps = [];
+  let rafId = 0;
+  function fmtSw(ms) {
+    const cs = Math.floor(ms / 10) % 100, s = Math.floor(ms / 1000) % 60, m = Math.floor(ms / 60000) % 60, h = Math.floor(ms / 3600000);
+    return { main: (h ? h + ":" + pad(m) : pad(m)) + ":" + pad(s), frac: "." + pad(cs), long: h > 0 };
+  }
+  function swElapsed() { return sw.acc + (sw.running ? Date.now() - sw.startAt : 0); }
+  function renderSwTime() {
+    const f = fmtSw(swElapsed());
+    $("swTime").innerHTML = f.main + "<small>" + f.frac + "</small>";
+    $("swTime").classList.toggle("long", f.long);
+  }
+  function swLoop() {
+    rafId = 0;
+    if (!sw.running || document.hidden || tab !== "sw") return;
+    renderSwTime();
+    rafId = requestAnimationFrame(swLoop);
+  }
+  function renderSw() {
+    const elapsed = swElapsed();
+    renderSwTime();
+    $("swSub").textContent = sw.laps.length ? t("laps", { n: sw.laps.length }) : t(sw.running ? "running" : elapsed ? "paused" : "ready");
+    const primary = $("swPrimary");
+    primary.innerHTML = FILLED[sw.running ? "pause" : "play"];
+    primary.classList.toggle("running", sw.running);
+    primary.setAttribute("aria-label", t(sw.running ? "pause" : elapsed ? "resume" : "start"));
+    // Both side buttons stay once the watch has started, so the primary
+    // stays centred; reset works only while stopped, lap only while running.
+    const fresh = !sw.running && !elapsed;
+    $("swReset").classList.toggle("gone", fresh);
+    $("swReset").disabled = sw.running;
+    $("swLap").classList.toggle("gone", fresh);
+    $("swLap").disabled = !sw.running || sw.laps.length >= 99;
+    const laps = $("laps");
+    const started = sw.running || elapsed > 0 || sw.laps.length > 0;
+    laps.hidden = !started;
+    $("viewSw").classList.toggle("split", started);
+    if (!sw.laps.length) {
+      laps.innerHTML = '<div class="laps-empty">' + icon("flag") + "<span></span></div>";
+      laps.firstChild.lastChild.textContent = t("noLaps");
+    } else {
+      const splits = sw.laps.map((v, i) => v - (i ? sw.laps[i - 1] : 0));
+      const lo = Math.min(...splits), hi = Math.max(...splits);
+      laps.innerHTML = splits.map((d, i) => {
+        const f = fmtSw(d), total = fmtSw(sw.laps[i]);
+        const cls = splits.length > 1 ? (d === lo ? " best" : d === hi ? " worst" : "") : "";
+        return '<div class="lap' + cls + '"><span class="lap-n">' + (i + 1) + '</span><span class="lap-t"><b>' +
+          f.main + f.frac + "</b><span>" + total.main + total.frac + "</span></span></div>";
+      }).reverse().join("");
+    }
+    if (sw.running && !rafId && tab === "sw") rafId = requestAnimationFrame(swLoop);
+  }
+  $("swPrimary").addEventListener("click", () => {
+    if (sw.running) { sw.acc = swElapsed(); sw.running = false; }
+    else { sw.startAt = Date.now(); sw.running = true; }
+    save("sw", sw); renderSw();
+  });
+  $("swLap").addEventListener("click", () => {
+    if (sw.running && sw.laps.length < 99) { sw.laps.push(swElapsed()); save("sw", sw); renderSw(); $("laps").scrollTop = 0; }
+  });
+  $("swReset").addEventListener("click", () => {
+    if (sw.running) return;
+    sw = { running: false, startAt: 0, acc: 0, laps: [] };
+    save("sw", sw); renderSw();
+  });
+
+  /* ================= tabs ================= */
+
+  function renderTabs() {
+    document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
+    $("viewClock").hidden = tab !== "clock";
+    $("viewTimer").hidden = tab !== "timer";
+    $("viewSw").hidden = tab !== "sw";
+    if (tab !== "clock") { editing = false; openPicker(false); }
+    if (tab === "clock") renderClock();
+    else if (tab === "timer") renderTimer();
+    else renderSw();
+    syncPolling();
+  }
+  function goTab(next) {
+    if (!TABS.includes(next) || next === tab) return;
+    tab = next;
+    save("tab", tab);
+    renderTabs();
+  }
+  $("tabs").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-tab]");
+    if (b) goTab(b.dataset.tab);
+  });
+  // A horizontal swipe across the app moves to the next tab, as on a
+  // phone's clock. The screen's own edge strips still mean "back".
+  (function swipeTabs(root) {
+    let start = null;
+    root.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("input, [data-noswipe]")) return;
+      start = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    });
+    window.addEventListener("pointerup", (e) => {
+      if (!start || start.id !== e.pointerId) return;
+      const dx = e.clientX - start.x, dy = e.clientY - start.y;
+      start = null;
+      if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.5 || $("picker").classList.contains("show")) return;
+      goTab(TABS[Math.max(0, Math.min(TABS.length - 1, TABS.indexOf(tab) + (dx < 0 ? 1 : -1)))]);
+    });
+    window.addEventListener("pointercancel", () => { start = null; });
+  })($("app"));
+
+  function applyI18n() {
+    document.documentElement.lang = lang;
+    document.title = t("title");
+    document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll("[data-i18n-aria]").forEach((el) => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
+    renderTabs();
+    if ($("picker").classList.contains("show")) openPicker(true);
+  }
+  document.querySelectorAll("[data-icon]").forEach((el) => { el.innerHTML = icon(el.dataset.icon); });
+
+  // Minute resolution is all the clock tab needs; checking every 5 s keeps
+  // the flip close to the real minute without waking the CPU each second.
+  setInterval(() => { if (tab === "clock" && !document.hidden && Math.floor(Date.now() / 60000) * 60000 !== lastMinute) renderClock(); }, 5000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) renderTabs(); else syncPolling(); });
+
+  applyI18n();
+  // Read the timers once on open, whatever the tab, so switching to it is instant
+  if (tab !== "timer") fetchTimers();
+
+  // The screen's style and theme are applied by the kit; the app only
+  // follows the language.
+  if (window.BotApp) BotApp.onChange((s) => { if (s.lang !== lang) { lang = s.lang; applyI18n(); } });
+</script>
+</body>
+</html>

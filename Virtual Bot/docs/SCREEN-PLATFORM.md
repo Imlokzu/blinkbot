@@ -542,6 +542,24 @@ as `botScreenDrawerView`.
 The drawer takes the pointer for itself (`stopPropagation`), so a pan
 never becomes a carousel swipe or the stage's long press.
 
+**What it lists** (`drawerApps()` in screen.js): real apps only. First the
+store apps, with `DRAWER_FIRST` (YouTube, YT Music, Clock) in front, then
+the screen's own tools (camera, services, panel, settings, memory, chats,
+store). The first app sits in the middle of the honeycomb. The carousel's
+tiles (face, clock, chat, timer, weather …) are not in the drawer: they
+are one swipe away, and an icon that only scrolled the carousel read as
+an app that did nothing. `SCREENS` still names them, for the bot's
+`open_screen`.
+
+**Clock** (`store/packages/clock`) is one app with three tabs: the time
+here and in up to four cities, timers, and a stopwatch. It replaced the
+separate "World clock" and "Stopwatch" apps. `screen_store.RETIRED_BUILTINS`
+swaps their installed copies for it, and it reads their saved cities and
+stopwatch. Its timers are the bot's own (`/api/screen/timers`), the same
+ones set by voice, so the screen's island shows them and rings them after
+the app is closed. A tap inside the app silences a ringing timer by
+posting `botTimerSilence` to the screen.
+
 **App icons.** Every icon in the drawer and the store is drawn in
 `app-icons.js`: a coloured gradient disc with one white glyph, viewBox
 48×48. That is the Deep UI look. The Material You style re-inks the

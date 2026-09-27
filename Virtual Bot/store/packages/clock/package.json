@@ -1,0 +1,18 @@
+{
+  "id": "clock",
+  "type": "app",
+  "label": "Годинник",
+  "icon": "clock",
+  "tint": "#c9b35a",
+  "version": "1.0.0",
+  "author": "Клод Бот",
+  "description": "Час тут і в інших містах, таймери (ті самі, що ставить бот голосом) і секундомір з колами.",
+  "category": "tools",
+  "entry": "index.html",
+  "locales": {
+    "en": {
+      "label": "Clock",
+      "description": "The time here and in other cities, timers (the same ones the bot sets by voice) and a stopwatch with laps."
+    }
+  }
+}

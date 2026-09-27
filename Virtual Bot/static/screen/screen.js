@@ -2974,16 +2974,31 @@ function renderApps() {
       onActivity: wake,
     });
   }
-  const current = tiles[tileIndex] && tiles[tileIndex].dataset.tile;
-  watchDrawer.setApps(SCREENS.concat(installedApps).map((scr) => ({
+  watchDrawer.setApps(drawerApps(SCREENS, installedApps).map((scr) => ({
     id: scr.id,
     icon: scr.icon,
     pkg: scr.pkg,
     // Own screens have a key, store apps their manifest's own name
     label: scr.labelKey ? t(scr.labelKey) : scr.label,
-    on: !scr.app && scr.id === current,
   })));
   watchDrawer.show();
+}
+
+/* What the drawer lists, in the order it lists it: the honeycomb puts the
+   first app in the middle and the rest in rings around it, so order is
+   what is easy to reach. Only real apps: the carousel's tiles (face,
+   clock, chat, timer, weather …) are one swipe away already, and a drawer
+   icon that only scrolled the carousel read as an app that did nothing.
+   Media first, then the rest of the store, then the screen's own tools. */
+const DRAWER_FIRST = ["youtube", "yt-music", "clock"];
+
+function drawerApps(screens, installed) {
+  const rank = (app) => {
+    const i = DRAWER_FIRST.indexOf(app.pkg);
+    return i === -1 ? DRAWER_FIRST.length : i;
+  };
+  const store = installed.slice().sort((a, b) => rank(a) - rank(b));
+  return store.concat(screens.filter((scr) => scr.app));
 }
 
 /* Єдина точка переходу «за назвою» — нею користуються і лаунчер, і бот.
@@ -4670,6 +4685,9 @@ window.addEventListener("message", (event) => {
   }
   if (event.data?.type === "storeAppSwipe" && ["left", "right", "down"].includes(event.data.direction)) appGoBack();
   if (event.data?.type === "botKeyboard") onAppKeyboardRequest(frame, event.data);
+  // A touch inside an app never reaches the stage's "any touch silences
+  // the alarm", so the Clock app says so when a rung timer is on its screen.
+  if (event.data?.type === "botTimerSilence") stopRing();
   if (event.data?.type === "botMusicControl" && frame.dataset.sandboxed !== "1") onAppMusicControl(event.data);
 });
 

@@ -303,3 +303,29 @@ def test_a_newer_builtin_version_refreshes_the_installed_copy(store_dir):
     screen_store.installed_apps()                                    # what the screen calls at start
     assert (installed / "index.html").read_text("utf-8") != "old copy"
     assert json.loads((installed / "package.json").read_text("utf-8"))["version"] == "99.0.0"
+
+
+def test_a_retired_builtin_app_is_swapped_for_its_successor(store_dir):
+    # "World clock" and "Stopwatch" became tabs of "Clock". A screen that
+    # had them installed must end up with the Clock, not with two orphan
+    # copies no catalog lists and nothing can uninstall.
+    for old_id in ("world-clock", "stopwatch"):
+        old = store_dir / "installed" / "apps" / old_id
+        old.mkdir(parents=True)
+        (old / "index.html").write_text("old app", "utf-8")
+    ids = [m["id"] for m in screen_store.installed_apps()]
+    assert "clock" in ids
+    assert not (store_dir / "installed" / "apps" / "world-clock").exists()
+    assert not (store_dir / "installed" / "apps" / "stopwatch").exists()
+    assert screen_store.migrate_retired_apps() == []                 # once is enough
+
+
+def test_a_shared_app_with_a_retired_id_is_left_alone(store_dir):
+    old = store_dir / "installed" / "apps" / "stopwatch"
+    old.mkdir(parents=True)
+    (old / "index.html").write_text("someone's own stopwatch", "utf-8")
+    shared = store_dir / "shared" / "stopwatch"
+    shared.mkdir(parents=True)
+    (shared / "package.json").write_text("{}", "utf-8")
+    assert screen_store.migrate_retired_apps() == []
+    assert old.exists()

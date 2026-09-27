@@ -369,11 +369,42 @@ def refresh_builtin_apps() -> list[str]:
     return changed
 
 
+# Built-in apps that were folded into another one: old id -> the app that
+# replaced it. "World clock" and "Stopwatch" became tabs of "Clock".
+RETIRED_BUILTINS = {"world-clock": "clock", "stopwatch": "clock"}
+
+
+def migrate_retired_apps() -> list[str]:
+    """Swap installed copies of retired built-in apps for their successor.
+
+    The old copy would otherwise linger in installed/ forever: its source is
+    gone from the repository, so no catalog lists it and nothing could
+    uninstall it. A shared package that happens to use a retired id is its
+    author's, and is left alone. Returns the ids that were removed.
+    """
+    removed: list[str] = []
+    for old_id, new_id in RETIRED_BUILTINS.items():
+        if not (installed_dir("apps") / old_id).is_dir() or (shared_dir() / old_id / "package.json").is_file():
+            continue
+        try:
+            if not is_installed(new_id) and load_manifest(new_id) is not None:
+                install(new_id)
+            with _store_lock:
+                _remove_installed(old_id, "app")
+            removed.append(old_id)
+        except StoreError:
+            log.exception("Store: could not retire %s", old_id)
+    if removed:
+        log.info("Store: retired %s", ", ".join(removed))
+    return removed
+
+
 def installed_apps() -> list[dict[str, Any]]:
     """Manifests of INSTALLED apps — the screen's app drawer shows these.
 
-    Built-in copies are brought up to date first (refresh_builtin_apps):
-    this is what the screen asks for when it starts."""
+    Built-in copies are brought up to date first (migrate_retired_apps,
+    refresh_builtin_apps): this is what the screen asks for when it starts."""
+    migrate_retired_apps()
     refresh_builtin_apps()
     return [m for m in _manifests() if m["type"] == "app" and is_installed(m["id"])]
 
