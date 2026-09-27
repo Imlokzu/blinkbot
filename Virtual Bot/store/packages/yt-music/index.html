@@ -625,6 +625,8 @@
   let lyr = { id: "", kind: "none", lines: [], els: [] };
   let lineIdx = -2;
   let raf = 0, lastSec = -1;
+  // The screen's island opens this app at #player: go straight to the song.
+  let wantPlayer = location.hash === "#player";
 
   function control(action, extra) {
     try { window.parent.postMessage({ type: "botMusicControl", action, ...(extra || {}) }, "*"); } catch (e) {}
@@ -860,6 +862,7 @@
       pending = null;
     }
     if (tr && pending && tr.id === pending.id && (data.playing || data.failed || !data.loading)) pending = null;
+    if (wantPlayer && tr && tr.provider === "youtube") { wantPlayer = false; openPlayer(tr, false); }
     if (tr && tr.provider === "youtube" && !player.hidden) showTrack(tr);
     const waiting = !data.failed && (!!pending || data.loading);
     setPlayButton(data.playing && !data.loading, waiting);

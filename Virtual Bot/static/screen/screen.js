@@ -10,6 +10,7 @@ import { drawGlyphString, makeIcon, paintIcon, hasPixelIcon } from "./pixel-ui.j
    перевіряти напряму, не маючи мікрофона (див. wake.js) */
 import { parseWake, findWake } from "./wake.js";
 import { ReplyTurn } from "./reply.js";
+import { activities as islandActivities, selectKey as islandSelect, fmtClock } from "./island.js";
 import { ScreenKeyboard } from "./keyboard.js";
 /* Контурні іконки та їхні кольори — у icons.js */
 import { makeSvgIcon, ICON_COLORS } from "./icons.js";
@@ -60,6 +61,15 @@ const dimmer = $("dimmer");
 let osk = null;
 let tileIndex = 0;
 let layer = null;      // null | "apps" | "quick"
+// Island state lives up here: renderIsland() is called from the timer and
+// music code above its own block, and a `let` below would still be in its
+// temporal dead zone then.
+let islandBooted = false;
+let islandOpen = false;
+let islandKey = "";            // the activity the open island shows
+let islandShape = "";          // what the panel's buttons were built for
+let islandIdle = 0;            // auto-collapse timer
+let lastVideoState = null;     // last botVideoState from the YouTube app
 let asleep = false;
 let bright = 100;      // яскравість 15..100 (повзунок у швидких діях)
 let volume = 70;       // гучність голосу 0..100
@@ -122,6 +132,7 @@ function goTile(i, wrapped) {
   }
   rail.style.transform = "translate3d(" + (-tileIndex * STAGE_W) + "px, 0, 0)";
   renderDots();
+  renderIsland();          // it moves aside on tiles with a heading
   // Дані підтягуємо лише для видимого тайла — на Pi це не дрібниця
   if (tiles[tileIndex].dataset.tile === "state") refreshStatus();
   if (tiles[tileIndex].dataset.tile === "weather") loadWeather(false);
@@ -175,6 +186,7 @@ function openLayer(name) {
   layerQuick.classList.toggle("open", name === "quick");
   layerNotices.classList.toggle("open", name === "notices");
   stage.classList.toggle("layered", !!name);
+  renderIsland();
 }
 
 function goHome() {
@@ -3036,6 +3048,7 @@ function openAppLayer(titleKey, build) {
   build(appBody);
   layerApp.classList.add("open");
   stage.classList.add("layered");
+  renderIsland();
   wake();
 }
 
@@ -3046,6 +3059,7 @@ function closeAppLayer() {
   // дивлячись на застарілий стан (unload в iframe не гарантований).
   if (layerApp.querySelector(".storeapp-frame")?.dataset.pkg === VIDEO_PKG) {
     videoPending = null;
+    handVideoToSound();
     fetch("/api/video/state", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -3058,6 +3072,7 @@ function closeAppLayer() {
   layerApp.classList.remove("open", "full");
   appBody.innerHTML = "";                 // MJPEG-стрім інакше тягнеться далі
   if (!layer && !appsOpen()) stage.classList.remove("layered");
+  renderIsland();
 }
 
 document.querySelector("[data-app-close]").addEventListener("click", closeAppLayer);
@@ -4093,9 +4108,12 @@ function updateNpSeek() {
 }
 
 function showNpBar(show) {
-  $("nowPlaying").classList.toggle("hidden", !show);
-  stage.classList.toggle("np", !!show);
+  // The island at the top replaced this bar; the element stays because the
+  // music sheet and the loading state still hang off it.
+  $("nowPlaying").classList.add("hidden");
+  stage.classList.remove("np");
   if (show) updateNpText();
+  renderIsland();
 }
 
 async function musicPlayTrack(track, opts) {
@@ -4112,6 +4130,12 @@ async function musicPlayTrack(track, opts) {
   musicAudio.src = track.provider === "radio"
     ? track.url
     : "/api/music/stream?provider=youtube&id=" + encodeURIComponent(track.id);
+  // A video handed over as sound goes on from where the picture stopped.
+  // currentTime before metadata is dropped by the browser.
+  if (track.startAt > 0) {
+    const at = track.startAt;
+    musicAudio.addEventListener("loadedmetadata", () => { try { musicAudio.currentTime = at; } catch (e) {} }, { once: true });
+  }
   syncMusicVolume();
   applyMusicRate();
   showNpBar(true);
@@ -4486,12 +4510,13 @@ function postStoreAppSkin(frame = null) {
   } catch (e) {}
 }
 
-function openStoreApp(entry) {
+function openStoreApp(entry, opts) {
   openAppLayer(entry.title || "app.head", (box) => {
     box.classList.add("storeapp-body");
     const frame = document.createElement("iframe");
     frame.className = "storeapp-frame";
-    frame.src = "/store-apps/" + encodeURIComponent(entry.pkg) + "/index.html";
+    // opts.hash: where to land inside the app ("#player" from the island)
+    frame.src = "/store-apps/" + encodeURIComponent(entry.pkg) + "/index.html" + ((opts && opts.hash) || "");
     frame.title = entry.title || entry.pkg;
     // dataset.pkg — щоб команди бота знайшли САМЕ той застосунок, а не
     // будь-який відкритий (перевірка в videoFrame)
@@ -4524,7 +4549,12 @@ window.addEventListener("message", (event) => {
   if (event.data?.type === "closeStoreApp") closeAppLayer();
   // The app asked for the whole panel (the YouTube player): the layer drops
   // its title bar and padding. The app keeps its own way back.
-  if (event.data?.type === "storeAppFullscreen") layerApp.classList.toggle("full", !!event.data.on);
+  if (event.data?.type === "storeAppFullscreen") { layerApp.classList.toggle("full", !!event.data.on); renderIsland(); }
+  // The YouTube player reports where it is, so closing it can hand the
+  // video over as sound from that exact second.
+  if (event.data?.type === "botVideoState" && frame.dataset.pkg === VIDEO_PKG) {
+    lastVideoState = { ...event.data, at: Date.now() };
+  }
   if (event.data?.type === "storeAppSwipe" && ["left", "right", "down"].includes(event.data.direction)) closeAppLayer();
   if (event.data?.type === "botKeyboard") onAppKeyboardRequest(frame, event.data);
   if (event.data?.type === "botMusicControl" && frame.dataset.sandboxed !== "1") onAppMusicControl(event.data);
@@ -5257,10 +5287,10 @@ function renderTimers() {
     pauseIco.innerHTML = "";
     pauseIco.appendChild(uiIcon(want, { cell: 2 }));
   }
-  // The face shows the nearest timer next to the clock, so a running
-  // timer is visible from home without switching tiles
-  faceTimer.classList.toggle("hidden", !tm);
-  if (tm) faceTimer.textContent = fmtLeft(timerLeft(tm));
+  // A running timer used to show as a chip next to the clock; the island
+  // shows it now, on every tile and over apps.
+  faceTimer.classList.add("hidden");
+  renderIsland();
 }
 
 function alarmBeep() {
@@ -5756,6 +5786,306 @@ async function loadNotices() {
 loadNotices();
 $("faceBellIco").appendChild(makeSvgIcon("bell"));
 $("faceBell").addEventListener("click", (e) => { e.stopPropagation(); wake(); openLayer("notices"); });
+
+
+/* ---------- The island (Dynamic Island) ----------
+
+   A pill at the top, on every tile and over apps: the running timer, the
+   song, a video that went on as sound. A tap opens it with controls; with
+   more than one thing going on, a row of tabs picks which. A tap on the
+   open island's title goes back into that app. Which activities exist and
+   in what order is island.js (no DOM, tested from node); this is the
+   drawing and the buttons. */
+
+const island = $("island");
+const ISLAND_IDLE_MS = 8000;
+
+function frontAppPkg() {
+  if (!layerApp.classList.contains("open")) return "";
+  return layerApp.querySelector(".storeapp-frame")?.dataset.pkg || "";
+}
+
+function islandState() {
+  const tr = musicState.track;
+  const live = musicAudio.duration > 0 && isFinite(musicAudio.duration);
+  return {
+    ringing: Date.now() < ringUntil,
+    timers: timers.map((tm) => ({ id: tm.id, label: tm.label, kind: tm.kind, state: tm.state, left: timerLeft(tm) })),
+    music: tr ? {
+      id: tr.id, title: tr.title, uploader: tr.uploader, provider: tr.provider,
+      fromVideo: !!tr.fromVideo, cover: tr.cover || "",
+      playing: !musicAudio.paused && !musicAudio.error,
+      position: musicAudio.currentTime || 0,
+      duration: live ? musicAudio.duration : Number(tr.duration) || 0,
+    } : null,
+    openApp: frontAppPkg(),
+  };
+}
+
+function islandIcon(kind) {
+  return { timer: "timer", ring: "timer", radio: "radio", video: "youtube" }[kind] || "music";
+}
+
+function islandCover(act) {
+  if (act.kind !== "music" && act.kind !== "video") return "";
+  return act.cover ? "/api/ytm/cover?u=" + encodeURIComponent(act.cover)
+    : "/api/video/thumb?id=" + encodeURIComponent(act.id);
+}
+
+// What the pill says for an activity: a countdown, or the song title.
+function islandText(act) {
+  if (act.kind === "ring") return t("island.ringing");
+  if (act.kind === "timer") return fmtClock(act.left);
+  return act.title || t("common.untitled");
+}
+
+function setIslandIcon(slot, act) {
+  const want = act ? act.kind + "|" + (islandCover(act) || islandIcon(act.kind)) : "";
+  if (slot.dataset.want === want) return;
+  slot.dataset.want = want;
+  slot.innerHTML = "";
+  if (!act) return;
+  const cover = islandCover(act);
+  if (cover) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.decoding = "async";
+    img.src = cover;
+    // No cover: fall back to the note instead of a hole
+    img.addEventListener("error", () => { slot.innerHTML = ""; slot.appendChild(makeSvgIcon(islandIcon(act.kind))); }, { once: true });
+    slot.appendChild(img);
+  } else {
+    slot.appendChild(makeSvgIcon(islandIcon(act.kind)));
+  }
+}
+
+function islandHidden() {
+  // Over the shades and the drawer it would sit on their headers; a
+  // full-screen app asked for the whole panel; the music sheet covers it.
+  return !!layer || layerApp.classList.contains("full") || !musicSheet.classList.contains("hidden");
+}
+
+function renderIsland() {
+  if (!islandBooted) return;
+  const list = islandActivities(islandState());
+  const hide = !list.length || islandHidden();
+  island.classList.toggle("hidden", hide);
+  // A tile with a heading on the left gets the island in its top-right
+  // corner instead of over the heading; the face and apps keep it centred.
+  const onHeading = !layerApp.classList.contains("open") && !!tiles[tileIndex]?.querySelector(".tile-head");
+  island.classList.toggle("right", onHeading && !hide);
+  stage.classList.toggle("island-right", onHeading && !hide);
+  if (hide) { if (islandOpen) collapseIsland(); return; }
+
+  // The pill: the first activity, plus a dot for the next one (iOS splits
+  // the island the same way).
+  const first = list[0];
+  island.classList.toggle("ring", first.kind === "ring");
+  setIslandIcon($("islIco"), first);
+  $("islText").textContent = islandText(first);
+  $("islEq").classList.toggle("hidden", !(first.playing && first.kind !== "timer"));
+  const second = list[1] || null;
+  $("islDot").classList.toggle("hidden", !second);
+  island.classList.toggle("split", !!second);
+  setIslandIcon($("islDotIco"), second);
+
+  if (islandOpen) renderIslandPanel(list);
+}
+
+function islandButton(icon, labelKey, onTap, cls) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "isl-btn" + (cls ? " " + cls : "");
+  b.setAttribute("aria-label", t(labelKey));
+  b.appendChild(makeSvgIcon(icon));
+  b.addEventListener("click", (e) => { e.stopPropagation(); islandTouched(); onTap(); });
+  return b;
+}
+
+function islandTextButton(labelKey, onTap) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "isl-btn isl-word";
+  b.textContent = t(labelKey);
+  b.addEventListener("click", (e) => { e.stopPropagation(); islandTouched(); onTap(); });
+  return b;
+}
+
+function islandControls(act) {
+  const ctl = $("islCtl");
+  ctl.innerHTML = "";
+  if (act.kind === "ring") {
+    ctl.appendChild(islandTextButton("island.cancel", () => stopRing()));
+  } else if (act.kind === "timer") {
+    ctl.appendChild(islandButton(act.paused ? "play" : "pause", act.paused ? "island.resume" : "island.pause",
+      () => timerAction({ action: act.paused ? "resume" : "pause", id: act.id }), "isl-main-btn"));
+    ctl.appendChild(islandTextButton("island.plus1", () => timerAction({ action: "add", id: act.id, seconds: 60 })));
+    ctl.appendChild(islandTextButton("island.cancel", () => timerAction({ action: "cancel", id: act.id })));
+  } else if (act.kind === "radio") {
+    ctl.appendChild(islandButton(act.playing ? "pause" : "play", "island.pause", musicToggle, "isl-main-btn"));
+  } else if (act.kind === "video") {
+    // A video's natural steps are ten seconds, not tracks
+    ctl.appendChild(islandButton("prev", "island.back10", () => nudgeMusic(-10)));
+    ctl.appendChild(islandButton(act.playing ? "pause" : "play", "island.pause", musicToggle, "isl-main-btn"));
+    ctl.appendChild(islandButton("next", "island.fwd10", () => nudgeMusic(10)));
+  } else {
+    ctl.appendChild(islandButton("prev", "music.prev", () => {
+      if (musicAudio.currentTime > 4) musicAudio.currentTime = 0; else musicStep(-1);
+    }));
+    ctl.appendChild(islandButton(act.playing ? "pause" : "play", "island.pause", musicToggle, "isl-main-btn"));
+    ctl.appendChild(islandButton("next", "music.next", () => musicStep(1)));
+  }
+}
+
+function nudgeMusic(delta) {
+  const total = musicAudio.duration;
+  if (!(total > 0) || !isFinite(total)) return;
+  musicAudio.currentTime = Math.max(0, Math.min(total - 0.5, musicAudio.currentTime + delta));
+}
+
+function renderIslandPanel(list) {
+  islandKey = islandSelect(list, islandKey);
+  const act = list.find((a) => a.key === islandKey);
+
+  // Tabs only when there is something to choose between
+  const tabs = $("islTabs");
+  const tabsWant = list.length > 1 ? list.map((a) => a.key).join(",") + "|" + islandKey : "";
+  if (tabs.dataset.want !== tabsWant) {
+    tabs.dataset.want = tabsWant;
+    tabs.innerHTML = "";
+    tabs.classList.toggle("hidden", list.length < 2);
+    if (list.length > 1) {
+      for (const a of list) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "isl-tab" + (a.key === islandKey ? " on" : "");
+        b.setAttribute("aria-label", t("island." + (a.kind === "ring" ? "timer" : a.kind)));
+        b.appendChild(makeSvgIcon(islandIcon(a.kind)));
+        b.addEventListener("click", (e) => { e.stopPropagation(); islandTouched(); islandKey = a.key; renderIsland(); });
+        tabs.appendChild(b);
+      }
+    }
+  }
+
+  setIslandIcon($("islArt"), act);
+  const kindLabel = t("island." + (act.kind === "ring" ? "timer" : act.kind));
+  if (act.kind === "timer" || act.kind === "ring") {
+    $("islTitle").textContent = act.kind === "ring" ? t("island.ringing") : (act.title || t("timer.unnamed"));
+    $("islSub").textContent = act.kind === "ring" ? kindLabel : (act.paused ? t("island.paused") : kindLabel);
+    $("islBig").textContent = act.kind === "timer" ? fmtClock(act.left) : "";
+  } else {
+    $("islTitle").textContent = act.title || t("common.untitled");
+    $("islSub").textContent = act.subtitle || kindLabel;
+    $("islBig").textContent = "";
+  }
+  const bar = act.duration > 0 && (act.kind === "music" || act.kind === "video");
+  $("islBar").classList.toggle("hidden", !bar);
+  if (bar) {
+    $("islFill").style.transform = "scaleX(" + Math.min(1, act.position / act.duration).toFixed(4) + ")";
+    $("islCur").textContent = fmtClock(act.position);
+    $("islDur").textContent = fmtClock(act.duration);
+  }
+
+  // Rebuild buttons only when what they do changes, not every second
+  const shape = act.key + "|" + (act.playing ? 1 : 0) + "|" + (act.paused ? 1 : 0);
+  if (shape !== islandShape) { islandShape = shape; islandControls(act); }
+}
+
+function islandTouched() {
+  clearTimeout(islandIdle);
+  islandIdle = setTimeout(collapseIsland, ISLAND_IDLE_MS);
+  wake();
+}
+
+function expandIsland() {
+  islandOpen = true;
+  islandShape = "";
+  island.classList.add("open");
+  $("islPill").setAttribute("aria-expanded", "true");
+  islandTouched();
+  renderIsland();
+}
+
+function collapseIsland() {
+  islandOpen = false;
+  islandKey = "";
+  clearTimeout(islandIdle);
+  island.classList.remove("open");
+  $("islPill").setAttribute("aria-expanded", "false");
+}
+
+/* The open island's title goes back to where the activity lives. */
+function openIslandActivity() {
+  const list = islandActivities(islandState());
+  const act = list.find((a) => a.key === islandKey) || list[0];
+  if (!act) return;
+  collapseIsland();
+  if (act.kind === "timer" || act.kind === "ring") { showScreen("timer"); return; }
+  if (act.kind === "video") { soundBackToVideo(); return; }
+  const app = act.kind === "music" && installedApps.find((a) => a.pkg === "yt-music");
+  if (app) { closeApps(); openLayer(null); openStoreApp(app, { hash: "#player" }); return; }
+  openMusicSheet();
+}
+
+/* Closing the YouTube app while a video plays: the sound goes on in Now
+   Playing from the same second, and the island shows it as a video. The
+   player reports its state (botVideoState); a stale report is not trusted. */
+function handVideoToSound() {
+  const st = lastVideoState;
+  lastVideoState = null;
+  if (!st || !st.video_id || st.paused || Date.now() - st.at > 15000) return;
+  const position = (Number(st.position) || 0) + (Date.now() - st.at) / 1000;
+  musicPlayTrack({
+    provider: "youtube", id: st.video_id, title: st.title || "", uploader: st.uploader || "",
+    duration: Number(st.duration) || 0, fromVideo: true, startAt: position,
+  }, { queue: false });
+}
+
+/* ...and back: the island's video opens the player at the second the sound
+   reached, and the sound stops before the picture starts. */
+function soundBackToVideo() {
+  const tr = musicState.track;
+  if (!tr) return;
+  const position = musicAudio.currentTime || 0;
+  musicAudio.pause();
+  musicState.track = null;
+  musicState.playing = false;
+  showNpBar(false);
+  onVideoCommand({ action: "play", position,
+                   track: { id: tr.id, title: tr.title, uploader: tr.uploader, duration: tr.duration } });
+}
+
+$("islPill").addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (islandOpen) collapseIsland(); else expandIsland();
+});
+$("islMain").addEventListener("click", (e) => { e.stopPropagation(); openIslandActivity(); });
+$("islBar").addEventListener("click", (e) => {
+  e.stopPropagation();
+  islandTouched();
+  const total = musicAudio.duration;
+  if (!(total > 0) || !isFinite(total)) return;
+  const box = e.currentTarget.getBoundingClientRect();
+  musicAudio.currentTime = Math.max(0, Math.min(1, (e.clientX - box.left) / box.width)) * (total - 0.5);
+});
+// Swipes and taps on the island must not reach the carousel under it
+for (const name of ["pointerdown", "pointerup", "pointermove"]) {
+  island.addEventListener(name, (e) => e.stopPropagation());
+}
+// A tap anywhere else closes it, like iOS
+document.addEventListener("pointerdown", (e) => {
+  if (islandOpen && !island.contains(e.target)) collapseIsland();
+}, true);
+
+for (const name of ["play", "pause", "playing", "ended", "emptied", "error", "loadedmetadata", "seeked"]) {
+  musicAudio.addEventListener(name, renderIsland);
+}
+musicAudio.addEventListener("timeupdate", () => { if (islandOpen) renderIsland(); });
+// Timers tick through renderTimers; this keeps the pill fresh otherwise
+setInterval(renderIsland, 1000);
+onLangChange(() => { islandShape = ""; $("islTabs").dataset.want = ""; renderIsland(); });
+islandBooted = true;
+renderIsland();
 
 renderDots();
 applyTileLayout();

@@ -1276,6 +1276,12 @@
       segments: adSegments.length,
       captions: captionsOn,
     }, extra || {});
+    // The screen hears it too: closing this app while a video plays hands
+    // it over as sound from this second (the island shows it).
+    try {
+      window.parent.postMessage(Object.assign({ type: "botVideoState", uploader: current ? (current.uploader || "") : "" }, payload),
+        window.location.origin);
+    } catch (e) { /* standalone */ }
     fetch("/api/video/state", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

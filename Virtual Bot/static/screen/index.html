@@ -185,6 +185,29 @@
   </div>
 
 
+  <!-- The island (like iOS's Dynamic Island): what is going on right now —
+       a timer, the song, a video playing on as sound. Tap to open it. -->
+  <div class="island hidden" id="island">
+    <button class="isl-pill" id="islPill" type="button" aria-expanded="false" data-i18n-aria="island.aria">
+      <span class="isl-ico" id="islIco"></span>
+      <span class="isl-text" id="islText"></span>
+      <span class="isl-eq hidden" id="islEq" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="isl-dot hidden" id="islDot"><span class="isl-ico" id="islDotIco"></span></span>
+    </button>
+    <div class="isl-panel" id="islPanel">
+      <div class="isl-tabs hidden" id="islTabs"></div>
+      <button class="isl-main" id="islMain" type="button" data-i18n-aria="island.openAria">
+        <span class="isl-art" id="islArt"></span>
+        <span class="isl-info"><b id="islTitle"></b><span id="islSub"></span></span>
+        <span class="isl-big" id="islBig"></span>
+      </button>
+      <div class="isl-bar hidden" id="islBar">
+        <span id="islCur">0:00</span><span class="isl-track"><i id="islFill"></i></span><span id="islDur">0:00</span>
+      </div>
+      <div class="isl-ctl" id="islCtl"></div>
+    </div>
+  </div>
+
   <!-- ── Notification shade: swipe DOWN on the left half (Android) ──
        Timers and reminders, and what the bot wants you to see later:
        something broke, a reminder went off, a long task finished. -->

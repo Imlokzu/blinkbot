@@ -140,6 +140,9 @@ html, body {
 }
 
 .face-clock { display: block; image-rendering: pixelated; }
+/* The bell sits by the link dot, so the middle of the row stays free for
+   the island above it. */
+.face-top .face-bell { margin-left: 6px; margin-right: auto; }
 
 .link-dot {
   width: 7px;
@@ -2190,4 +2193,208 @@ html, body {
   margin-left: -18px;
   border-radius: 2px;
   background: var(--line);
+}
+
+
+/* ---------- The island (Dynamic Island) ----------
+   A black pill at the top centre over everything but the shades. It grows
+   into a panel by transform + opacity only: two elements cross-fade
+   instead of one element changing width, which on the Pi would reflow the
+   whole stage every frame. */
+.island {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  z-index: 4;
+  transform: translateX(-50%);
+  color: #f1f2f4;
+}
+.island.hidden { display: none; }
+.isl-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  /* The face's clock starts at x=232 on a 320 px screen: the pill (and the
+     dot next to it) must end before it. */
+  max-width: 136px;
+  padding: 0 9px 0 4px;
+  border: 0;
+  border-radius: 12px;
+  background: #000;
+  color: inherit;
+  font: 600 10.5px/1 inherit;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: opacity 140ms linear, transform 180ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.island.open .isl-pill { opacity: 0; transform: scale(1.2); pointer-events: none; }
+.isl-ico {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.isl-ico img, .isl-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.isl-ico .svgicon { width: 13px; height: 13px; stroke: #f1f2f4; }
+.isl-text { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.island.ring .isl-pill { background: var(--accent); color: #000; animation: isl-ring 1s ease-in-out infinite; }
+.island.ring .isl-ico .svgicon { stroke: #000; }
+@keyframes isl-ring { 50% { transform: scale(1.08); } }
+
+/* Three bars that bounce while sound plays: scaleY only */
+.isl-eq { flex: none; display: flex; align-items: flex-end; gap: 2px; height: 10px; }
+.isl-eq.hidden { display: none; }
+.isl-eq i {
+  display: block;
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--accent);
+  transform-origin: bottom;
+  animation: isl-eq 0.9s ease-in-out infinite;
+}
+.isl-eq i:nth-child(2) { animation-delay: -0.3s; }
+.isl-eq i:nth-child(3) { animation-delay: -0.6s; }
+@keyframes isl-eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+
+/* The second activity: a separate little circle, like iOS's split island */
+.isl-dot {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 5px);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.isl-dot.hidden { display: none; }
+/* Split: the pill shrinks and the pair is centred as one group */
+.island.split { transform: translateX(calc(-50% - 14px)); }
+.island.split .isl-pill { max-width: 108px; }
+.island.split .isl-panel { left: calc(50% + 14px); }
+
+.isl-panel {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 296px;
+  padding: 7px 9px 8px;
+  box-sizing: border-box;
+  border-radius: 20px;
+  background: #000;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) scale(0.5);
+  transform-origin: top center;
+  transition: opacity 160ms linear, transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.island.open .isl-panel { opacity: 1; pointer-events: auto; transform: translateX(-50%) scale(1); }
+
+/* On a tile with a heading: top-right corner, and the heading stops short
+   of it (a long city name is cut, not covered). */
+.island.right, .island.right.split { left: auto; right: 8px; transform: none; }
+.island.right .isl-pill { max-width: 112px; }
+.island.right.split .isl-pill { max-width: 84px; }
+.island.right .isl-dot { left: auto; right: calc(100% + 5px); }
+.island.right .isl-panel, .island.right.split .isl-panel {
+  left: auto;
+  right: -4px;
+  transform: scale(0.5);
+  transform-origin: top right;
+}
+.island.right.open .isl-panel { transform: scale(1); }
+.stage.island-right .tile-head {
+  padding-right: 128px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.isl-tabs { display: flex; gap: 5px; justify-content: center; }
+.isl-tabs.hidden { display: none; }
+.isl-tab {
+  width: 30px;
+  height: 22px;
+  border: 1px solid #2f3438;
+  border-radius: 11px;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.isl-tab .svgicon { width: 13px; height: 13px; stroke: #8e9498; }
+.isl-tab.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.isl-tab.on .svgicon { stroke: #f1f2f4; }
+
+.isl-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.isl-art {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #1e2124;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.isl-art .svgicon { width: 20px; height: 20px; stroke: var(--accent); }
+.isl-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.isl-info b, .isl-info span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.isl-info b { font-size: 12px; }
+.isl-info span { font-size: 9.5px; color: #8e9498; }
+.isl-big { flex: none; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); }
+.isl-big:empty { display: none; }
+
+.isl-bar { display: flex; align-items: center; gap: 6px; font-size: 8.5px; color: #8e9498; font-variant-numeric: tabular-nums; cursor: pointer; }
+.isl-bar.hidden { display: none; }
+.isl-track { flex: 1; height: 3px; border-radius: 2px; background: #2f3438; overflow: hidden; }
+.isl-track i { display: block; height: 100%; background: #f1f2f4; transform-origin: left center; transform: scaleX(0); }
+
+.isl-ctl { display: flex; align-items: center; justify-content: center; gap: 14px; }
+.isl-btn {
+  min-width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: #f1f2f4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.isl-btn .svgicon { width: 17px; height: 17px; stroke: #f1f2f4; }
+.isl-btn:active { background: #2f3438; }
+.isl-btn.isl-main-btn { width: 34px; height: 34px; border-radius: 17px; background: #f1f2f4; }
+.isl-btn.isl-main-btn .svgicon { stroke: #000; }
+.isl-btn.isl-word { padding: 0 11px; border: 1px solid #2f3438; font-size: 10px; font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .isl-eq i, .island.ring .isl-pill { animation: none; }
 }

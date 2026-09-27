@@ -505,6 +505,36 @@ parent.postMessage({type: "botMusicControl", action: "seek", position: 42}, "*")
 `playing` is true only while sound is actually coming (`failed` covers a
 dead stream), so an app can interpolate the position between messages.
 
+### The island (`static/screen/island.js`)
+
+A pill at the top of the screen, like iOS's Dynamic Island, replaced the
+Now Playing bar and the timer chip on the face. It shows what is going on
+now: a ringing or running timer, the song, a video that went on as sound.
+
+- **Order:** a ringing timer, then whatever runs or plays, then what is
+  paused. The pill shows the first; a second one gets its own dot.
+- **Tap:** the island opens with controls (timer: pause/resume, +1 min,
+  cancel; music: prev / play-pause / next and a seek bar; video as sound:
+  ±10 s). With more than one activity, tabs on top pick which.
+- **Tap on the open island's title:** back into the app — the timer tile,
+  YT Music at `#player`, or the YouTube player at the second the sound
+  reached. A tap anywhere else, or 8 s without touching, closes it.
+- **Where:** centred on the face and over apps; in the top-right corner on
+  tiles with a heading (the heading is cut short, not covered). Hidden over
+  the shades and the drawer, in full-screen apps, and for an activity whose
+  own app is in front (iOS does the same).
+- **A video goes on as sound:** the YouTube app reports its state to the
+  screen (`{type: "botVideoState", video_id, title, uploader, position,
+  duration, paused}`); closing the app while a video plays hands it to Now
+  Playing from that second. The island shows it as a video, and its title
+  opens the picture again.
+- **Landing inside an app:** the screen opens a package at
+  `/store-apps/<id>/index.html#player`; YT Music opens its player on that
+  hash. Other apps may read `location.hash` the same way.
+
+The ordering rules have no DOM and are checked through node in
+`tests/test_island_js.py`.
+
 ### Full screen for an app
 
 `parent.postMessage({type: "storeAppFullscreen", on: true}, "*")` drops the
