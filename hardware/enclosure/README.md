@@ -12,7 +12,28 @@ model cannot disagree.
 |---|---|
 | ![assembled](preview-assembled.png) | ![exploded](preview-exploded.png) |
 
-Default outer size: **192 × 129 × 87 mm** (cardboard, 3 mm walls).
+Default outer size: **98.9 × 204.1 × 95.6 mm** (cardboard, 3 mm walls). The
+front is almost all screen — the visible area is 71.5 % of the width
+(`screen_share` caps it at 73 %). Mic grille and magnetic charging sit in the
+bottom bezel, keys and the power button on the top, the speaker fires out of the
+right side. The box is deep because the power bank lies lengthwise under the Pi.
+
+## Parts and where the numbers come from
+
+| Part | Source |
+|---|---|
+| Raspberry Pi 3 Model B | official drawing [RPI-3B-V1_2](https://datasheets.raspberrypi.com/rpi3/raspberry-pi-3-b-mechanical-drawing.pdf): outline, holes, connector positions and heights |
+| Waveshare 3.5inch HDMI LCD (E), 640×480 | [Waveshare](https://www.waveshare.com/3.5inch-hdmi-lcd-e.htm): outline 76.6 × 63.6, active area 70.68 × 53.36; power and capacitive touch over one USB-C |
+| Redmi 20000 mAh (PB200LZM) | [mi.com](https://www.mi.com/global/product/20000mah-redmi-fast-charge-power-bank/specs/): 154 × 73.6 × 27.3; the manual documents output while charging |
+| Raspberry Pi USB 3 Hub | [raspberrypi.com](https://www.raspberrypi.com/documentation/accessories/usb.html): 57.4 × 52.4 × 18 |
+| Waveshare USB TO AUDIO | Waveshare size drawing: 53 × 23.5 × 14.6 |
+| Mini USB microphone | [Adafruit #3367](https://www.adafruit.com/product/3367): 22.2 × 18.3 × 7 |
+| Panel-mount USB-A / USB-C | Adafruit [#908](https://www.adafruit.com/product/908) / [#4053](https://www.adafruit.com/product/4053): M3 screws 30 / 20 mm apart |
+
+The 3.5" MPI3508 (480×320) is deliberately not used: its touch and power go
+through the Pi's GPIO header. Values marked `UNVERIFIED` in the file are not
+published by the maker (screen thickness, Pi board thickness and underside,
+panel-mount cutouts, the speaker).
 
 ## Modes
 
@@ -40,21 +61,15 @@ The console also prints the outer size and every cutout's centre and size.
 
 ## Before cutting
 
-All sizes are defaults from shop listings. Measure the real parts and edit the
-parameters at the top of the file, especially:
-
-- `screen_size`, `screen_t`, `screen_view` — the 3.5" module and its visible area;
-- `bank_size` — the power bank drives the depth;
-- `speaker_d` — drives the width (`symmetric = true` keeps the screen centred;
-  a 28 mm speaker makes the box ~30 mm narrower);
-- `usbc_cut`, `usba_cut`, `port_screw_pitch` — the panel-mount extension cables;
-- `mic_size`, `key_cap`, `power_d`.
+Measure the real parts, especially everything marked `UNVERIFIED`, and edit the
+parameters at the top of the file. The layout, templates and checks follow.
 
 ## Notes
 
 - The Pi's only HDMI port feeds the screen, so the back has no HDMI opening. The
-  screen stands behind the front panel and the Pi lies on a shelf behind it: use
-  a short flexible HDMI cable, not the U-shaped adapter meant for stacking.
+  screen's HDMI and USB-C are on its top edge, and the Pi lies on a shelf with
+  its HDMI facing the right wall: use right-angle adapters and a short flexible
+  HDMI cable.
 - The back ports are panel-mount extensions from the powered hub. A phone
   plugged in there draws charge from the hub, not from the Pi.
 - Cardboard: the back is a door hinged on the top panel and held by a tuck flap,

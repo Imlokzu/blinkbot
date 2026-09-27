@@ -5,16 +5,20 @@
 // the solid model and the fit checks are all generated from that list, so a
 // template can never disagree with the model.
 //
-// Parts are the phase-1 set: Raspberry Pi 3 Model B, a 3.5" HDMI screen, a USB
-// microphone, a USB sound card with speaker, a powered USB hub and a
-// pass-through power bank. Everything connects over USB/HDMI; nothing is wired
-// to GPIO.
+// The front is almost all screen (about 72 % of the width): mic grille and
+// magnetic charging sit in the bottom bezel, keys and the power button on the
+// top, the speaker fires sideways. The box is deep rather than wide because the
+// power bank lies lengthwise under the Pi.
+//
+// Parts are the phase-1 set, with dimensions from official drawings where they
+// exist (sources next to each group). Everything connects over USB/HDMI;
+// nothing is wired to GPIO.
 //
 // Coordinates are millimetres. X = width, left to right seen from the front.
 // Y = depth, front (0) to back. Z = height, floor (0) to top.
 //
-// Every component size below is a default taken from shop listings. Measure
-// the real parts and edit these values before cutting anything.
+// Values marked UNVERIFIED are not published by the maker: measure the real
+// part before cutting.
 
 /* [Output] */
 mode = "assembled"; // [assembled, exploded, net, pieces, print]
@@ -24,41 +28,58 @@ only = ""; // [, front, back, top, bottom, left, right, shelf] pieces mode: one 
 /* [Enclosure] */
 cardboard_wall = 3;     // single-wall corrugated board
 print_wall = 2.4;
-clearance = 5;          // air and cable room around every component
-face_margin = 8;        // free border around the front-panel elements
-symmetric = true;       // equal side columns keep the screen ("face") centred
+clearance = 4;          // air and cable room around every component
+screen_share = 0.73;    // visible screen width / box width, at most
+bottom_bezel = 16;      // below the screen module: mic grille and charging
 glue_tab = 15;
 tuck_flap = 12;         // closes the cardboard back door
 line_width = 0.4;       // template line thickness
 
-/* [Raspberry Pi 3 Model B] */
+/* [Raspberry Pi 3 Model B: official drawing RPI-3B-V1_2] */
+// Board coordinates: x along the 85 mm edge from the micro-USB end, y from the
+// HDMI edge, z up from the board's top surface.
 pi_size = [85, 56];
-pi_board_t = 1.4;
-pi_top_h = 17;          // USB/Ethernet stack above the board
-pi_bottom_h = 2;        // microSD and solder joints below the board
-pi_holes = [[3.5, 3.5], [61.5, 3.5], [3.5, 52.5], [61.5, 52.5]]; // M2.5, board-local
-pi_hole_d = 2.7;
+pi_board_t = 1.4;       // UNVERIFIED (not on the drawing; both OpenSCAD libraries use 1.4)
+pi_holes = [[3.5, 3.5], [61.5, 3.5], [3.5, 52.5], [61.5, 52.5]];
+pi_hole_d = 2.75;
+pi_top_h = 16;          // USB stacks, the tallest part
+pi_bottom_h = 2;        // UNVERIFIED: microSD and solder joints
+pi_usb_y = [29, 47];    // USB stack centres on the far edge
+pi_usb = [17.4, 13.3];  // depth along x (UNVERIFIED), width
+pi_eth = [10.25, 21.3, 15.8, 13.5]; // centre y, depth (UNVERIFIED), width, height
+pi_far_overhang = 2.1;  // USB/Ethernet past the board edge
+pi_hdmi = [32, 14.7, 11.5, 6.5, 1.75]; // centre x, width, depth, height, overhang
+pi_microusb = [10.6, 7.7, 5.6, 3, 1.4];  // height UNVERIFIED
+pi_jack = [53.5, 6, 12, 6, 2.75];        // width/overhang read from the drawing
 standoff_h = 6;
 standoff_d = 6;
 
-/* [Screen] */
-screen_size = [86, 57];     // module, X x Z
-screen_t = 10;
-screen_view = [72, 54];     // visible area
-screen_view_offset = [0, 0];
-screen_raise = 4;           // the face sits slightly above centre
-hdmi_gap = 20;              // behind the screen for a flexible HDMI cable
+/* [Screen: Waveshare 3.5inch HDMI LCD (E), 640x480] */
+// Power and capacitive touch share one USB-C port; HDMI, USB-C and the audio
+// jack are all on the top edge.
+screen_size = [76.6, 63.6];   // outline, X x Z
+screen_t = 12;                // UNVERIFIED: thickness is not published
+screen_view = [70.68, 53.36]; // active area
+screen_view_offset = [0, 2.1]; // bezels: 2.96 sides, 3.02 top, 7.22 bottom
+screen_cable_room = 10;       // above the top edge: use right-angle HDMI and USB-C adapters
+screen_cable_depth = 20;
 
-/* [Power bank] */
-bank_size = [140, 68, 27];  // 20 000 mAh, two outputs, pass-through
+/* [Power bank: Redmi 20000 mAh PB200LZM] */
+// Documented to keep 5 V 2.4 A output while charging. Lies lengthwise, ports at the back.
+bank_size = [73.6, 154, 27.3];
+bank_plug_room = 20;
 
 /* [USB parts] */
-hub_size = [60, 25, 12];
-sound_size = [35, 25, 10];
-speaker_d = 40;
+hub_size = [57.4, 52.4, 18];      // Raspberry Pi USB 3 Hub (works on the Pi 3's USB 2.0)
+sound_size = [23.5, 53, 14.6];    // Waveshare USB TO AUDIO, lying lengthwise
+usb_plug_room = 30;               // behind the Pi's USB/Ethernet end
+hdmi_plug_room = 14;              // beside the Pi's HDMI port, right-angle adapter
+speaker_d = 40;                   // UNVERIFIED: generic 40 mm 4 ohm speaker
 speaker_depth = 20;
-mic_size = [20, 18, 45];    // standing upright
-mic_grille = [12, 32];
+mic_size = [22.2, 18.3, 7];       // Adafruit Mini USB Microphone (#3367)
+mic_grille = [16, 6];
+mic_hole = 1.5;
+mic_pitch = 3;
 
 /* [Controls] */
 power_d = 12;
@@ -66,28 +87,27 @@ keys = 3;
 key_cap = 12;
 key_pitch = 18;
 key_depth = 15;
-keys_on = "top"; // [top, front]
 charge_cut = [14, 7];       // magnetic charging connector
 charge_lift = 6;            // above the bottom edge of the front panel
 
 /* [Back ports] */
-ports = ["usbc", "usbc", "usba", "usba", "jack"]; // left to right, seen from behind
-usbc_cut = [9.5, 3.8];
-usba_cut = [13.5, 6.5];
+// Panel-mount extensions from the hub, seen from behind, top row first.
+port_rows = [["usbc", "usbc", "jack"], ["usba", "usba"]];
+usbc_cut = [9.5, 3.8];      // UNVERIFIED: no published cutout
+usba_cut = [13.5, 6.5];     // UNVERIFIED: no published cutout
 jack_d = 6.5;
-port_screw_d = 3.2;
-port_screw_pitch = 25;
-port_pitch = 34;
-port_top = 14;              // row centre below the top edge
-port_body = [20, 10];       // panel-mount connector body: depth, height
-cable_room = 25;            // behind the Pi for connector bodies and cable bends
+port_screw_d = 3.2;         // M3
+usbc_screw_pitch = 20;      // Adafruit #4053
+usba_screw_pitch = 30;      // Adafruit #908
+port_gap = 4;
+port_top = 14;              // top row centre below the top edge
+port_row_pitch = 16;
+port_body = [20, 10];       // connector body behind the panel: depth, height
 
 /* [Ventilation and grilles] */
 vent = [2, 25];
 vent_pitch = 6;
 vents = 8;
-mic_hole = 2;
-mic_pitch = 4;
 speaker_hole = 3;
 speaker_pitch = 5;
 
@@ -110,116 +130,125 @@ clr = clearance;
 key_len = key_cap + (keys - 1) * key_pitch;
 key_body = key_cap + 4;
 
-col_l = mic_size[0];
-col_r = max(speaker_d, power_d, keys_on == "front" ? key_body : 0);
-cl = symmetric ? max(col_l, col_r) : col_l;
-cr = symmetric ? max(col_l, col_r) : col_r;
+// The Pi lies lengthwise with its USB/Ethernet end to the back, so the plugs
+// use the depth, and its HDMI edge faces the right wall.
+pi_w = pi_size[1];
+pi_bb = [pi_size[1] + pi_hdmi[4], pi_size[0] + pi_far_overhang]; // with overhangs, X x Y
 
-iw = max(clr + cl + clr + screen_size[0] + clr + cr + clr,
-         clr + pi_size[0] + clr + max(hub_size[0], sound_size[0]) + clr,
-         clr + bank_size[0] + clr);
-W = iw + 2 * wall;
+iw_need = max(screen_size[0] + 2 * clr,
+              bank_size[0] + 2 * clr,
+              clr + pi_bb[0] + hdmi_plug_room + clr,
+              clr + hub_size[0] + clr + sound_size[0] + clr);
+W = max(iw_need + 2 * wall, screen_view[0] / screen_share);
+iw = W - 2 * wall;
 
-front_zone = max(screen_t, speaker_depth, mic_size[1], keys_on == "front" ? key_depth : 0);
-pi_y = wall + max(screen_t + hdmi_gap, front_zone + clr);
-stack_d = max(pi_size[1], hub_size[1] + clr + sound_size[1], bank_size[1]);
-D = pi_y + stack_d + cable_room + wall;
+front_zone = max(screen_t, mic_size[1], 15);
+pi_y = wall + max(front_zone, screen_cable_depth) + clr;
+hub_y = pi_y + pi_bb[1] + usb_plug_room;
+D = max(hub_y + max(hub_size[1], sound_size[1]) + clr,
+        pi_y + bank_size[1] + bank_plug_room) + wall + (printing ? boss : 0);
 
 // The power bank lies on the floor; the Pi, hub and sound card sit on a shelf
 // above it, which keeps the bank away from the Pi's heat.
 shelf_z = wall + bank_size[2] + clr;
 shelf_top = shelf_z + wall;
-pi_z = shelf_top + standoff_h;
+pi_z = shelf_top + standoff_h;          // underside of the board
 pi_top = pi_z + pi_board_t + pi_top_h;
-right_col_h = power_d + clr + (keys_on == "front" ? key_len + clr : 0) + speaker_d;
-H = max(pi_top + clr + (keys_on == "top" ? key_depth : clr) + wall,
-        2 * wall + 2 * face_margin + max(screen_size[1] + 2 * screen_raise, right_col_h, mic_size[2]));
+screen_z0 = wall + bottom_bezel;
+screen_top = screen_z0 + screen_size[1];
+H = max(screen_top + screen_cable_room + wall,
+        pi_top + clr + key_depth + wall,
+        shelf_top + clr + speaker_d + clr + wall);
 
-scx = symmetric ? W / 2 : wall + clr + cl + clr + screen_size[0] / 2;
-scz = H / 2 + screen_raise;
-scr_l = scx - screen_size[0] / 2;
-scr_r = scx + screen_size[0] / 2;
-mic_x = (wall + scr_l) / 2;
-mic_z = scz;
-col_x = (scr_r + W - wall) / 2;
-power_z = H - wall - face_margin - power_d / 2;
-speaker_z = wall + face_margin + speaker_d / 2;
-keys_front_z = (power_z - power_d / 2 + speaker_z + speaker_d / 2) / 2;
-key_y = wall + front_zone + clr + key_body / 2;
+scx = W / 2;
+screen_x0 = scx - screen_size[0] / 2;
+view_c = [scx + screen_view_offset[0], screen_z0 + screen_size[1] / 2 + screen_view_offset[1]];
+mic_x = screen_x0 + mic_size[0] / 2 + 2;
+mic_z = wall + bottom_bezel / 2;
+key_y = wall + screen_cable_depth + clr + key_body / 2;
 key0_x = wall + clr + key_cap / 2;
+power_x = W - wall - clr - power_d / 2;
 
 pi_x = wall + clr;
-pi_cx = pi_x + pi_size[0] / 2;
-pi_cy = pi_y + pi_size[1] / 2;
-hub_x = pi_x + pi_size[0] + clr;
-sound_y = pi_y + hub_size[1] + clr;
+pi_cx = pi_x + pi_w / 2;
+pi_cy = pi_y + pi_size[0] / 2;
+function pi_xy(p) = [pi_x + pi_w - p[1], pi_y + p[0]]; // board -> box
+hdmi_y = pi_y + pi_hdmi[0];
+speaker_y = hdmi_y + 8 + clr + speaker_d / 2;
+speaker_z = shelf_top + clr + speaker_d / 2;
 bank_x = (W - bank_size[0]) / 2;
+sound_x = wall + clr + hub_size[0] + clr;
 shelf_y0 = pi_y - clr;
 shelf_y1 = D - wall - (printing ? boss + fit : 0);
-port_z = H - port_top;
 // Intake slots stay below the shelf so they never cut the line it is glued on.
-side_vent_h = min(vent[1], shelf_z - wall - 2 * face_margin);
+side_vent_h = min(vent[1], shelf_z - wall - 16);
 side_vent_z = wall + (shelf_z - wall) / 2;
 
 // ---------------------------------------------------------------- cutouts
 // Entry: [face, name, cx, cy, kind, a, b]. Centres use each face's natural
 // coordinates: front/back (X, Z), top/bottom/shelf (X, Y), left/right (Y, Z).
 
+function vent_off(i) = (i - (vents - 1) / 2) * vent_pitch;
 function port_dims(k) = k == "usbc" ? usbc_cut : k == "usba" ? usba_cut : [jack_d, jack_d];
 function port_kind(k) = k == "jack" ? "circle" : k;
-function port_u(i) = W / 2 + (i - (len(ports) - 1) / 2) * port_pitch;
-function vent_off(i) = (i - (vents - 1) / 2) * vent_pitch;
+function screw_pitch(k) = k == "usbc" ? usbc_screw_pitch : usba_screw_pitch;
+function port_bw(k) = k == "jack" ? jack_d : screw_pitch(k) + port_screw_d;
+function sum_to(v, n) = n <= 0 ? 0 : v[n - 1] + sum_to(v, n - 1);
+function row_w(row) = [for (k = row) port_bw(k)];
+function row_total(row) = sum_to(row_w(row), len(row)) + port_gap * (len(row) - 1);
+function port_u(row, i) = W / 2 - row_total(row) / 2 + sum_to(row_w(row), i) + port_gap * i + row_w(row)[i] / 2;
 
-front_cuts = concat(
-  [["front", "screen window", scx + screen_view_offset[0], scz + screen_view_offset[1], "rect", screen_view[0], screen_view[1]],
+front_cuts =
+  [["front", "screen window", view_c[0], view_c[1], "rect", screen_view[0], screen_view[1]],
    ["front", "microphone grille", mic_x, mic_z, "mic", mic_grille[0], mic_grille[1]],
-   ["front", "power switch", col_x, power_z, "circle", power_d, power_d],
-   ["front", "speaker grille", col_x, speaker_z, "spk", speaker_d - 6, speaker_d - 6],
-   ["front", "charge connector", scx, charge_lift + charge_cut[1] / 2, "slot", charge_cut[0], charge_cut[1]]],
-  keys_on == "front"
-    ? [for (i = [0 : keys - 1]) ["front", str("key ", i + 1), col_x, keys_front_z + ((keys - 1) / 2 - i) * key_pitch, "rect", key_cap + 1, key_cap + 1]]
-    : []);
+   ["front", "charge connector", scx, charge_lift + charge_cut[1] / 2, "slot", charge_cut[0], charge_cut[1]]];
 
 top_cuts = concat(
   [for (i = [0 : vents - 1]) ["top", str("vent ", i + 1), pi_cx + vent_off(i), pi_cy, "slot", vent[0], vent[1]]],
-  keys_on == "top"
-    ? [for (i = [0 : keys - 1]) ["top", str("key ", i + 1), key0_x + i * key_pitch, key_y, "rect", key_cap + 1, key_cap + 1]]
-    : []);
+  [for (i = [0 : keys - 1]) ["top", str("key ", i + 1), key0_x + i * key_pitch, key_y, "rect", key_cap + 1, key_cap + 1]],
+  [["top", "power button", power_x, key_y, "circle", power_d, power_d]]);
 
-side_cuts = [for (f = ["left", "right"], i = [0 : vents - 1])
-  [f, str("vent ", i + 1), pi_cy + vent_off(i), side_vent_z, "slot", vent[0], side_vent_h]];
+side_cuts = concat(
+  [for (f = ["left", "right"], i = [0 : vents - 1])
+    [f, str("vent ", i + 1), pi_cy + vent_off(i), side_vent_z, "slot", vent[0], side_vent_h]],
+  [["right", "speaker grille", speaker_y, speaker_z, "spk", speaker_d - 6, speaker_d - 6]]);
 
 // The Pi's only HDMI output feeds the screen, so the back has no HDMI opening.
-port_cuts = [for (i = [0 : len(ports) - 1])
-  ["back", str(ports[i], " ", i + 1), W - port_u(i), port_z, port_kind(ports[i]), port_dims(ports[i])[0], port_dims(ports[i])[1]]];
+port_cuts = [for (r = [0 : len(port_rows) - 1], i = [0 : len(port_rows[r]) - 1]) let(k = port_rows[r][i])
+  ["back", str(k, " ", r + 1, ".", i + 1), W - port_u(port_rows[r], i), H - port_top - r * port_row_pitch,
+   port_kind(k), port_dims(k)[0], port_dims(k)[1]]];
 
 shelf_cuts = concat(
-  [for (h = pi_holes) ["shelf", "pi hole", pi_x + h[0], pi_y + h[1], "circle", pi_hole_d, pi_hole_d]],
+  [for (h = pi_holes) let(p = pi_xy(h)) ["shelf", "pi hole", p[0], p[1], "circle", pi_hole_d, pi_hole_d]],
   [for (i = [0 : vents - 1]) ["shelf", str("vent ", i + 1), pi_cx + vent_off(i), pi_cy, "slot", vent[0], vent[1]]]);
 
 cuts = concat(front_cuts, top_cuts, side_cuts, port_cuts);
 all_cuts = concat(cuts, shelf_cuts);
 
 // ---------------------------------------------------------------- parts
-// Entry: [name, position, size, colour], all axis-aligned boxes.
+// Entry: [name, position, size, colour] as axis-aligned boxes for the fit
+// checks. Colour "zone" marks reserved space (plugs, cables) that is checked
+// but not drawn; real parts get a detailed model in part_model().
 
 parts = concat(
-  [["screen", [scx - screen_size[0] / 2, wall, scz - screen_size[1] / 2], [screen_size[0], screen_t, screen_size[1]], "black"],
-   ["microphone", [mic_x - mic_size[0] / 2, wall, mic_z - mic_size[2] / 2], mic_size, "dimgray"],
-   ["speaker", [col_x - speaker_d / 2, wall, speaker_z - speaker_d / 2], [speaker_d, speaker_depth, speaker_d], "gray"],
-   ["power switch", [col_x - power_d / 2, wall, power_z - power_d / 2], [power_d, 15, power_d], "red"],
-   ["charge connector", [scx - charge_cut[0] / 2, wall, charge_lift], [charge_cut[0], 15, charge_cut[1]], "gold"],
-   ["power bank", [bank_x, pi_y, wall], bank_size, "steelblue"],
-   ["shelf", [wall, shelf_y0, shelf_z], [iw, shelf_y1 - shelf_y0, wall], "tan"],
-   ["raspberry pi", [pi_x, pi_y, pi_z - pi_bottom_h], [pi_size[0], pi_size[1], pi_bottom_h + pi_board_t + pi_top_h], "green"],
-   ["usb hub", [hub_x, pi_y, shelf_top], hub_size, "white"],
-   ["sound card", [hub_x, sound_y, shelf_top], sound_size, "purple"],
-   keys_on == "top"
-     ? ["keys", [wall + clr, key_y - key_body / 2, H - wall - key_depth], [key_len, key_body, key_depth], "orange"]
-     : ["keys", [col_x - key_body / 2, wall, keys_front_z - key_len / 2], [key_body, key_depth, key_len], "orange"]],
-  [for (c = port_cuts) [str("port ", c[1]), [c[2] - bbox(c)[0] / 2, D - wall - port_body[0], port_z - port_body[1] / 2],
-                        [bbox(c)[0], port_body[0], port_body[1]], "silver"]],
-  printing ? [for (x = [wall, W - wall - boss]) ["screw column", [x, D - wall - boss, wall], [boss, boss, H - 2 * wall], "burlywood"]] : []);
+  [["screen", [screen_x0, wall, screen_z0], [screen_size[0], screen_t, screen_size[1]], "part"],
+   ["screen cables", [screen_x0, wall, screen_top], [screen_size[0], screen_cable_depth, screen_cable_room], "zone"],
+   ["microphone", [mic_x - mic_size[0] / 2, wall, mic_z - mic_size[2] / 2], mic_size, "part"],
+   ["charge connector", [scx - charge_cut[0] / 2, wall, charge_lift], [charge_cut[0], 15, charge_cut[1]], "part"],
+   ["power bank", [bank_x, pi_y, wall], bank_size, "part"],
+   ["power bank plugs", [bank_x, pi_y + bank_size[1], wall], [bank_size[0], bank_plug_room, bank_size[2]], "zone"],
+   ["shelf", [wall, shelf_y0, shelf_z], [iw, shelf_y1 - shelf_y0, wall], "zone"],
+   ["raspberry pi", [pi_x, pi_y, pi_z - pi_bottom_h], [pi_bb[0], pi_bb[1], pi_bottom_h + pi_board_t + pi_top_h], "part"],
+   ["pi usb plugs", [pi_x, pi_y + pi_bb[1], pi_z], [pi_w, usb_plug_room, pi_board_t + pi_top_h], "zone"],
+   ["hdmi plug", [pi_x + pi_bb[0], hdmi_y - 8, pi_z], [hdmi_plug_room, 16, pi_board_t + 12], "zone"],
+   ["speaker", [W - wall - speaker_depth, speaker_y - speaker_d / 2, speaker_z - speaker_d / 2], [speaker_depth, speaker_d, speaker_d], "part"],
+   ["usb hub", [wall + clr, hub_y, shelf_top], hub_size, "part"],
+   ["sound card", [sound_x, hub_y, shelf_top], sound_size, "part"],
+   ["keys", [wall + clr, key_y - key_body / 2, H - wall - key_depth], [key_len, key_body, key_depth], "part"],
+   ["power button", [power_x - power_d / 2, key_y - power_d / 2, H - wall - 15], [power_d, power_d, 15], "part"]],
+  [for (c = port_cuts) let(b = bbox(c))
+    [str("port ", c[1]), [c[2] - b[0] / 2, D - wall - port_body[0] - (printing ? 0 : 0), c[3] - port_body[1] / 2], [b[0], port_body[0], port_body[1]], "port"]],
+  printing ? [for (x = [wall, W - wall - boss]) ["screw column", [x, D - wall - boss, wall], [boss, boss, H - 2 * wall], "zone"]] : []);
 
 screw_points = [for (x = [wall + boss / 2, W - wall - boss / 2], z = [wall + 10, H - wall - 10]) [x, z]];
 
@@ -229,7 +258,7 @@ function r1(x) = round(x * 10) / 10;
 function face_size(f) = (f == "front" || f == "back") ? [W, H] : (f == "top" || f == "bottom") ? [W, D] : [D, H];
 function face_lo(f) = f == "shelf" ? [wall, shelf_y0] : [0, 0];
 function face_hi(f) = f == "shelf" ? [W - wall, shelf_y1] : face_size(f);
-function bbox(c) = (c[4] == "usbc" || c[4] == "usba") ? [port_screw_pitch + port_screw_d, max(c[6], port_screw_d)] : [c[5], c[6]];
+function bbox(c) = (c[4] == "usbc" || c[4] == "usba") ? [screw_pitch(c[4]) + port_screw_d, max(c[6], port_screw_d)] : [c[5], c[6]];
 function inside_face(c) = let(b = bbox(c), lo = face_lo(c[0]) + [5, 5], hi = face_hi(c[0]) - [5, 5])
   c[2] - b[0] / 2 >= lo[0] - eps && c[2] + b[0] / 2 <= hi[0] + eps &&
   c[3] - b[1] / 2 >= lo[1] - eps && c[3] + b[1] / 2 <= hi[1] + eps;
@@ -258,6 +287,8 @@ module checks() {
 
 module report() {
   echo(str("Outer size W x D x H: ", r1(W), " x ", r1(D), " x ", r1(H), " mm (", material, ", wall ", wall, " mm)"));
+  echo(str("Visible screen: ", r1(100 * screen_view[0] / W), " % of the width, ",
+           r1(100 * screen_view[1] / H), " % of the height"));
   echo(str("Shelf: underside at Z = ", r1(shelf_z), " mm, ", r1(iw), " x ", r1(shelf_y1 - shelf_y0), " mm"));
   for (c = all_cuts) let(b = bbox(c))
     echo(str(c[0], " | ", c[1], " | centre ", r1(c[2]), ", ", r1(c[3]), " | ", r1(b[0]), " x ", r1(b[1])));
@@ -296,11 +327,11 @@ module cut2d(c) {
   else if (k == "spk") grille_circle(a, speaker_hole, speaker_pitch);
   else if (k == "usbc" || k == "usba") {
     if (k == "usbc") slot(a, b); else square([a, b], center = true);
-    for (s = [-1, 1]) translate([s * port_screw_pitch / 2, 0]) circle(d = port_screw_d);
+    for (s = [-1, 1]) translate([s * screw_pitch(k) / 2, 0]) circle(d = port_screw_d);
   }
 }
 
-// ---------------------------------------------------------------- 3D model
+// ---------------------------------------------------------------- 3D shell
 
 module cut3d(c) {
   f = c[0]; t = wall + 2;
@@ -345,7 +376,7 @@ module back_panel() {
   difference() {
     translate([0, D - wall, 0]) cube([W, wall, H]);
     for (c = port_cuts) cut3d(c);
-    for (p = screw_points) translate([p[0], D - wall - 1, p[1]]) rotate([-90, 0, 0]) cylinder(d = port_screw_d, h = wall + 2);
+    if (printing) for (p = screw_points) translate([p[0], D - wall - 1, p[1]]) rotate([-90, 0, 0]) cylinder(d = port_screw_d, h = wall + 2);
   }
 }
 
@@ -354,15 +385,89 @@ module shelf_plate() {
   difference() {
     union() {
       translate([wall + inset, shelf_y0, shelf_z]) cube([iw - 2 * inset, shelf_y1 - shelf_y0, wall]);
-      if (printing) for (h = pi_holes) translate([pi_x + h[0], pi_y + h[1], shelf_top]) cylinder(d = standoff_d, h = standoff_h);
+      if (printing) for (h = pi_holes) let(p = pi_xy(h)) translate([p[0], p[1], shelf_top]) cylinder(d = standoff_d, h = standoff_h);
     }
     for (c = shelf_cuts) cut3d(c);
   }
 }
 
+// ---------------------------------------------------------------- part models
+
+// Raspberry Pi 3 Model B in board coordinates, connector positions from the
+// official drawing.
+module pi_model() {
+  color("forestgreen") difference() {
+    linear_extrude(pi_board_t) offset(r = 3) offset(delta = -3) square(pi_size);
+    for (h = pi_holes) translate([h[0], h[1], -1]) cylinder(d = pi_hole_d, h = pi_board_t + 2);
+  }
+  translate([0, 0, pi_board_t]) {
+    color("silver") {
+      for (y = pi_usb_y) translate([pi_size[0] + pi_far_overhang - pi_usb[0], y - pi_usb[1] / 2, 0]) cube([pi_usb[0], pi_usb[1], pi_top_h]);
+      translate([pi_size[0] + pi_far_overhang - pi_eth[1], pi_eth[0] - pi_eth[2] / 2, 0]) cube([pi_eth[1], pi_eth[2], pi_eth[3]]);
+      translate([pi_hdmi[0] - pi_hdmi[1] / 2, -pi_hdmi[4], 0]) cube([pi_hdmi[1], pi_hdmi[2], pi_hdmi[3]]);
+      translate([pi_microusb[0] - pi_microusb[1] / 2, -pi_microusb[4], 0]) cube([pi_microusb[1], pi_microusb[2], pi_microusb[3]]);
+    }
+    color("black") {
+      translate([pi_jack[0] - pi_jack[1] / 2, -pi_jack[4], 0]) cube([pi_jack[1], pi_jack[2], pi_jack[3]]);
+      translate([32.5 - 25.5, 52.5 - 2.5, 0]) cube([51, 5, 8.5]); // GPIO header, left empty
+    }
+    color("dimgray") translate([30, 22, 0]) cube([14, 14, 1.2]);   // SoC
+  }
+}
+
+module screen_model() {
+  color([0.08, 0.08, 0.1]) cube([screen_size[0], 2, screen_size[1]]);
+  color([0.2, 0.45, 0.75]) translate([(screen_size[0] - screen_view[0]) / 2 + screen_view_offset[0], -0.05,
+                                      (screen_size[1] - screen_view[1]) / 2 + screen_view_offset[1]])
+    cube([screen_view[0], 0.1, screen_view[1]]);
+  color("royalblue") translate([0, 3.5, 0]) cube([screen_size[0], 1.6, screen_size[1]]);
+  // HDMI, USB-C (power + touch) and audio jack on the top edge.
+  color("silver") for (c = [[20, 15, 6], [42, 9, 3.5], [58, 6, 6]])
+    translate([c[0] - c[1] / 2, 5.1, screen_size[1] - 8]) cube([c[1], c[2], 8]);
+}
+
+module rounded_box(s, r) {
+  hull() for (x = [r, s[0] - r], y = [r, s[1] - r]) translate([x, y, 0]) cylinder(r = r, h = s[2]);
+}
+
+module part_model(p) {
+  n = p[0]; o = p[1]; s = p[2];
+  if (n == "raspberry pi") translate([pi_x + pi_w, pi_y, pi_z]) rotate([0, 0, 90]) pi_model();
+  else if (n == "screen") translate(o) screen_model();
+  else if (n == "power bank") translate(o) {
+    color("gainsboro") rounded_box(s, 6);
+    color("black") for (x = [22, 40]) translate([x, s[1] - 0.5, 10]) cube([12, 1, 5]);
+  }
+  else if (n == "usb hub") translate(o) {
+    color("white") rounded_box(s, 3);
+    color("black") for (i = [0 : 3]) translate([4 + i * 13.5, s[1] - 0.5, 6]) cube([12, 1, 5]);
+  }
+  else if (n == "sound card") translate(o) {
+    color("black") cube([s[0], s[1] - 12, s[2]]);
+    color("silver") translate([(s[0] - 12) / 2, s[1] - 12, (s[2] - 4.5) / 2]) cube([12, 12, 4.5]);
+  }
+  else if (n == "microphone") translate(o) {
+    color("black") cube([s[0], s[1] - 8, s[2]]);
+    color("silver") translate([(s[0] - 12) / 2, s[1] - 8, 1]) cube([12, 8, 4.5]);
+  }
+  else if (n == "speaker") translate(o + [s[0], s[1] / 2, s[2] / 2]) rotate([0, -90, 0]) {
+    color("dimgray") cylinder(d1 = speaker_d, d2 = speaker_d * 0.6, h = speaker_depth * 0.5);
+    color("gray") cylinder(d = speaker_d * 0.5, h = speaker_depth);
+  }
+  else if (n == "keys") translate(o) for (i = [0 : keys - 1]) translate([i * key_pitch, 0, 0]) {
+    color("black") translate([0, (key_body - key_cap) / 2, 0]) cube([key_cap, key_cap, key_depth - 4]);
+    color("lightgray") translate([0.5, (key_body - key_cap) / 2 + 0.5, key_depth - 4]) cube([key_cap - 1, key_cap - 1, 4]);
+  }
+  else if (n == "power button") translate(o + [s[0] / 2, s[1] / 2, 0]) color("firebrick") cylinder(d = power_d, h = s[2]);
+  else if (n == "charge connector") translate(o + [s[0] / 2, 0, s[2] / 2]) rotate([-90, 0, 0]) color("gold") cylinder(d = s[2], h = s[1]);
+  else if (p[3] == "port") translate(o) {
+    color("silver") translate([s[0] / 2 - 7, 0, 1]) cube([14, s[1], s[2] - 2]);
+    color("black") translate([0, s[1] - 2, 0]) cube([s[0], 2, s[2]]);
+  }
+}
+
 module parts_view() {
-  for (p = parts) if (p[0] != "shelf" && p[0] != "screw column")
-    color(p[3]) translate(p[1]) cube(p[2]);
+  for (p = parts) if (p[3] != "zone") part_model(p);
 }
 
 module assembled() {
@@ -372,7 +477,7 @@ module assembled() {
 }
 
 module exploded() {
-  e = 30;
+  e = 35;
   slabs = [[[0, 0, 0], [W, wall, H], [0, -e, 0]],
            [[0, D - wall, 0], [W, wall, H], [0, e, 0]],
            [[0, 0, 0], [wall, D, H], [-e, 0, 0]],
@@ -437,7 +542,7 @@ module shelf_shape() {
 module shelf_marks() {
   dashes([0, 0], [0, sd]);
   dashes([iw, 0], [iw, sd]);
-  label("SHELF", [iw - 40, 4]);
+  label("SHELF", [iw / 2 - 12, sd - 12]);
 }
 
 shelf_net_at = [W + D + glue_tab + 25, 0];
