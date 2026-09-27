@@ -2108,3 +2108,86 @@ html, body {
 .mode-chip.icon-only { padding: 0 8px; display: inline-flex; align-items: center; }
 @media (prefers-reduced-motion: reduce) { .osk-caret { animation: none; } }
 :root[data-motion="reduced"] .osk-caret { animation: none; }
+
+/* ---------- Notification shade (swipe down, left half) ---------- */
+.layer-notices { transform: translate3d(0, -100%, 0); }
+.notices-clear:disabled { opacity: 0.35; }
+.notices-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  touch-action: pan-y;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  scrollbar-width: none;
+}
+.notices-list::-webkit-scrollbar { display: none; }
+.notices-section {
+  margin-top: 2px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.notices-empty { margin: auto; max-width: 220px; text-align: center; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 8px;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+.notice.warn { border-left-color: var(--accent); }
+.notice.error { border-left-color: #d95a5a; }
+.notice-ico { flex: none; display: inline-flex; color: var(--muted); }
+.notice.error .notice-ico { color: #d95a5a; }
+.notice-ico svg { width: 16px; height: 16px; stroke: currentColor; fill: none; }
+.notice-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.notice-copy strong { font-size: 11px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notice-body { font-size: 10px; line-height: 1.35; color: var(--text); opacity: 0.85; }
+.notice-meta { font: 400 9px/1.2 var(--mono); color: var(--muted); }
+.notice-btn {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font: 600 11px/1 var(--font);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.notice-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; }
+.notice-btn:active { border-color: var(--accent); color: var(--accent); }
+
+/* The bell on the face: unread notices, like Android's status bar */
+.face-bell {
+  margin-left: 8px;
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--muted);
+  font: 600 9px/1 var(--mono);
+  cursor: pointer;
+}
+.face-bell svg { width: 13px; height: 13px; stroke: currentColor; fill: none; }
+.face-bell.alert { color: #d95a5a; }
+.shade-handle { flex: none; height: 14px; margin: 4px -14px -14px; position: relative; }
+.shade-handle::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+  border-radius: 2px;
+  background: var(--line);
+}

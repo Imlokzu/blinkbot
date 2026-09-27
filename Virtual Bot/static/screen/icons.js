@@ -141,6 +141,9 @@ const PATHS = {
     '<circle cx="17.5" cy="6.5" r="2.3"/>' +
     '<circle cx="17.5" cy="17.5" r="2.3"/>' +
     '<path d="M8.6 11 15.4 7.6M8.6 13l6.8 3.4"/>',
+  bell:
+    '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z"/>' +
+    '<path d="M10 20.5a2.2 2.2 0 0 0 4 0"/>',
   keyboard:
     '<rect x="2.5" y="6" width="19" height="12" rx="2"/>' +
     '<path d="M6 9.5h.01M9 9.5h.01M12 9.5h.01M15 9.5h.01M18 9.5h.01M6 12.5h.01M9 12.5h.01M12 12.5h.01M15 12.5h.01M18 12.5h.01M8 15.5h8"/>',
@@ -200,6 +203,7 @@ export const ICON_COLORS = {
   headphones: "#d98263",
   share: "#7fa8d8",
   star: "#d7a65b",
+  bell: "#d7a65b",
   keyboard: "#9aa3a8",
   backspace: "#9aa3a8",
   shift: "#9aa3a8",

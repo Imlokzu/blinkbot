@@ -21,7 +21,9 @@
     <section class="tile tile-face" data-tile="face" data-emotion="idle">
       <div class="face-top">
         <span class="link-dot" id="linkDot" data-i18n-title="face.link" title="Звʼязок із ботом"></span>
-        <span class="face-timer hidden" id="faceTimer"></span>
+        <!-- Unread notices, like the icons in Android's status bar -->
+      <span class="face-bell hidden" id="faceBell"><span class="ico-slot" id="faceBellIco"></span><b id="faceBellCount"></b></span>
+      <span class="face-timer hidden" id="faceTimer"></span>
       <canvas class="face-clock" id="faceClockCanvas" width="76" height="20"></canvas>
       </div>
       <canvas class="crab" id="crabCanvas" width="300" height="152"></canvas>
@@ -182,6 +184,23 @@
     </div>
   </div>
 
+
+  <!-- ── Notification shade: swipe DOWN on the left half (Android) ──
+       Timers and reminders, and what the bot wants you to see later:
+       something broke, a reminder went off, a long task finished. -->
+  <section class="layer layer-notices" id="layerNotices">
+    <div class="layer-head">
+      <span data-i18n="notices.head">Сповіщення</span>
+      <span class="head-btns">
+        <button class="layer-back notices-clear" id="noticesClear" type="button" data-i18n="notices.clear">Очистити</button>
+        <button class="layer-back" data-back type="button" data-i18n="common.back">Назад ✕</button>
+      </span>
+    </div>
+    <div class="notices-list" id="noticesList"></div>
+    <!-- The pull handle: a swipe up from here always closes the shade, even
+         when the list above is long enough to scroll -->
+    <div class="shade-handle" aria-hidden="true"></div>
+  </section>
 
   <!-- ── Шторка швидких дій: свайп ВНИЗ, виїжджає згори ── -->
   <section class="layer layer-quick" id="layerQuick">

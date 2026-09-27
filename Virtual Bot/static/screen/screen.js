@@ -53,6 +53,7 @@ function chatTile() {
   return Math.max(0, tiles.findIndex((el) => el.dataset.tile === "chat"));
 }
 const layerQuick = $("layerQuick");
+const layerNotices = $("layerNotices");
 const dimmer = $("dimmer");
 
 // The on-screen keyboard; created further down, read by wake() early on
@@ -165,12 +166,14 @@ function openLayer(name) {
   // Знімок робимо ДО показу шару, поки видно те, що маємо розмити
   if (name === "apps") { renderApps(); applyFrost(layerApps); }
   else if (name === "quick") applyFrost(layerQuick);
+  else if (name === "notices") { applyFrost(layerNotices); onNoticesOpened(); }
   layer = name;
   const appsIsOpen = name === "apps";
   layerApps.classList.toggle("open", appsIsOpen);
   layerApps.setAttribute("aria-hidden", String(!appsIsOpen));
   layerApps.toggleAttribute("inert", !appsIsOpen);
   layerQuick.classList.toggle("open", name === "quick");
+  layerNotices.classList.toggle("open", name === "notices");
   stage.classList.toggle("layered", !!name);
 }
 
@@ -322,7 +325,7 @@ function releaseStagePointer(pointerId) {
    обробляється самим контролом, а навігація спрацьовує лише після порогу. */
 function isInteractive(el) {
   return !!(el && el.closest &&
-    el.closest("input, textarea, select, .chat-log, .feed, .qs-slider, .face-photo, .say-text"));
+    el.closest("input, textarea, select, .chat-log, .feed, .qs-slider, .face-photo, .say-text, .notices-list.scrolls"));
 }
 
 stage.addEventListener("pointerdown", (e) => {
@@ -356,13 +359,18 @@ function finishStagePointer(e) {
     if (layer) { openLayer(null); return; }      // горизонталь у шарі = назад
     goTileCyclic(dx < 0 ? 1 : -1);
   } else if (dy < 0) {
-    // Свайп ВГОРУ: з каруселі — шухляда застосунків; зі шторки — назад
-    if (layer === "quick") openLayer(null);
+    // Swipe UP: from the carousel — the app drawer; from a shade — back
+    if (layer === "quick" || layer === "notices") openLayer(null);
     else if (!layer) openLayer("apps");
   } else {
-    // Свайп ВНИЗ: з каруселі — швидкі дії; із шухляди — назад
+    // Swipe DOWN, as on Android: the left half pulls the notifications,
+    // the right half the quick settings. From the drawer — back.
     if (layer === "apps") openLayer(null);
-    else if (!layer) openLayer("quick");
+    else if (!layer) {
+      const rect = stage.getBoundingClientRect();
+      const fromLeft = (s.x - rect.left) / k < STAGE_W / 2;
+      openLayer(fromLeft ? "notices" : "quick");
+    }
   }
 }
 
@@ -384,11 +392,14 @@ window.addEventListener("keydown", (e) => {
   // У полі вводу стрілки — це курсор, а не навігація екраном
   const t = e.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+  // A held key auto-repeats: without this, holding "n" flickers the shade
+  if (e.repeat) return;
   wake();
   if (e.key === "ArrowRight") goTileCyclic(1);
   else if (e.key === "ArrowLeft") goTileCyclic(-1);
   else if (e.key === "ArrowUp") openLayer(layer === "quick" ? null : "apps");
   else if (e.key === "ArrowDown") openLayer(layer === "apps" ? null : "quick");
+  else if (e.key === "n") openLayer(layer === "notices" ? null : "notices");
   else if (e.key === "Escape") goHome();
 });
 
@@ -523,6 +534,10 @@ setLink(false);
     }
     if (ev.type === "weather") {
       onWeatherEvent(ev);
+      return;
+    }
+    if (ev.type === "notice") {
+      onNoticeEvent(ev);
       return;
     }
     if (ev.type === "video") {
@@ -2941,6 +2956,7 @@ function showScreen(id) {
   if (id === "chats") { closeApps(); openChats(); return; }
   if (id === "store") { closeApps(); openStore(); return; }
   if (id === "quick") { openLayer("quick"); return; }
+  if (id === "notices") { closeApps(); openLayer("notices"); return; }
   // Застосунок, встановлений з магазину: id виглядає як "app:metronome"
   if (typeof id === "string" && id.startsWith("app:")) {
     const entry = installedApps.find((a) => a.id === id);
@@ -5127,7 +5143,9 @@ function fmtLeft(sec) {
 /* The timer the tile and the face chip talk about: the nearest one still
    counting (or paused); a rung one only while it is ringing. */
 function nearestTimer() {
-  const live = timers.filter((tm) => tm.state === "paused" || timerLeft(tm) > 0);
+  // Reminders ("call mum at 18:30") are not countdowns to watch: they live
+  // in the notification shade, not on the timer tile or the face chip.
+  const live = timers.filter((tm) => tm.kind !== "reminder" && (tm.state === "paused" || timerLeft(tm) > 0));
   live.sort((a, b) => timerLeft(a) - timerLeft(b));
   return live[0] || null;
 }
@@ -5136,9 +5154,11 @@ function setTimers(list, serverNow) {
   timers = Array.isArray(list) ? list : [];
   if (typeof serverNow === "number") timerSkew = serverNow - Date.now() / 1000;
   // Finished before we heard of it (screen was asleep or closed): it is
-  // over, ringing now would only confuse.
+  // over, ringing now would only confuse. A missed reminder is not lost —
+  // it waits in the notification shade.
   for (const tm of timers) if (tm.state === "done") timerRung.add(tm.id);
   renderTimers();
+  noticesChanged();
 }
 
 function renderTimers() {
@@ -5154,7 +5174,7 @@ function renderTimers() {
   if (tm) label.textContent = (tm.label || t("timer.unnamed")) + (tm.state === "paused" ? " · " + t("timer.paused") : "");
   else if (ringing) label.textContent = t("timer.ringing");
   else label.textContent = t("timer.empty");
-  const others = timers.filter((x) => x !== tm && (x.state === "paused" || timerLeft(x) > 0));
+  const others = timers.filter((x) => x !== tm && x.kind !== "reminder" && (x.state === "paused" || timerLeft(x) > 0));
   $("timerMore").textContent = others.map((x) => (x.label || t("timer.unnamed")) + " " + fmtLeft(timerLeft(x))).join(" · ");
   $("timerPause").disabled = !tm;
   $("timerCancel").disabled = !tm && !ringing;
@@ -5202,8 +5222,14 @@ function ringTimerDone(tm) {
   ringUntil = Date.now() + RING_MS;
   const label = tm.label || t("timer.unnamed");
   setEmotion("surprised");
-  showCaption(t("timer.done", { label }), "bot");
-  speechSay(t("timer.doneSpoken", { label }));
+  if (tm.kind === "reminder") {
+    showCaption(t("reminder.done", { text: label }), "bot");
+    speechSay(t("reminder.doneSpoken", { text: label }));
+  } else {
+    showCaption(t("timer.done", { label }), "bot");
+    speechSay(t("timer.doneSpoken", { label }));
+  }
+  noticesChanged();
   clearInterval(ringTimer);
   alarmBeep();
   ringTimer = setInterval(() => {
@@ -5381,6 +5407,283 @@ function onWeatherEvent(ev) {
 }
 
 $("weatherDays").addEventListener("click", (e) => { e.stopPropagation(); wake(); loadWeather(true); });
+
+/* ---------- Notification shade ----------
+   Swipe down on the left half. What is in it:
+     - timers and reminders (the same shared state as the timer tile);
+     - notices from the service when something is wrong — no brain, the
+       voice fell back to Piper, recognition failing — which clear
+       themselves once it works again; and the bot's own (post_notification);
+     - "no connection", raised here: with the link down, the server cannot
+       tell us anything, including that.
+   Unread = newer than the last time the shade was opened; that count is
+   the bell on the face. */
+
+const NOTICES_SEEN_KEY = "botScreenNoticesSeen";
+const LINK_LOST_MS = 15000;
+let notices = [];
+const localNotices = new Map();         // key -> notice raised by the screen itself
+let noticesSeenAt = Number(readPref(NOTICES_SEEN_KEY, "0")) || 0;
+let linkDownSince = 0;
+
+function allNotices() {
+  return Array.from(localNotices.values()).concat(notices)
+    .sort((a, b) => (b.at || 0) - (a.at || 0));
+}
+
+function reminders() {
+  return timers.filter((tm) => tm.kind === "reminder");
+}
+
+function reminderFired(r) {
+  return r.state === "done" || (r.state === "running" && timerLeft(r) <= 0);
+}
+
+function noticeTitle(n) {
+  if (n.code) {
+    const key = "notice." + n.code;
+    const text = t(key, n.params || {});
+    if (text !== key) return text;
+  }
+  return n.title || n.body || "";
+}
+
+function noticeBody(n) {
+  if (n.code) {
+    const params = n.params || {};
+    for (const key of ["notice." + n.code + "." + (params.reason || "body"), "notice." + n.code + ".body"]) {
+      const text = t(key, params);
+      if (text !== key) return text;
+    }
+    return "";
+  }
+  return n.title ? n.body || "" : "";
+}
+
+function clockOf(epochSec) {
+  const d = new Date(epochSec * 1000);
+  return (clockFormat === "12" ? String(d.getHours() % 12 || 12) : two(d.getHours())) + ":" + two(d.getMinutes());
+}
+
+function unreadCount() {
+  const seen = noticesSeenAt / 1000;
+  const fresh = allNotices().filter((n) => (n.at || 0) > seen).length;
+  // A reminder that went off while nobody looked counts too
+  const fired = reminders().filter((r) => reminderFired(r) && r.ends_at > seen).length;
+  return fresh + fired;
+}
+
+function renderBell() {
+  const count = unreadCount();
+  const bell = $("faceBell");
+  bell.classList.toggle("hidden", !count);
+  bell.classList.toggle("alert", allNotices().some((n) => n.level === "error"));
+  $("faceBellCount").textContent = count > 9 ? "9+" : String(count || "");
+}
+
+function noticeRow(opts) {
+  const row = document.createElement("div");
+  row.className = "notice " + (opts.level || "info");
+  const ico = document.createElement("span");
+  ico.className = "notice-ico";
+  ico.appendChild(makeSvgIcon(opts.icon));
+  row.appendChild(ico);
+  const copy = document.createElement("div");
+  copy.className = "notice-copy";
+  const title = document.createElement("strong");
+  title.textContent = opts.title;
+  copy.appendChild(title);
+  if (opts.body) {
+    const body = document.createElement("span");
+    body.className = "notice-body";
+    body.textContent = opts.body;
+    copy.appendChild(body);
+  }
+  const meta = document.createElement("span");
+  meta.className = "notice-meta";
+  meta.textContent = opts.meta || "";
+  copy.appendChild(meta);
+  row.appendChild(copy);
+  for (const action of opts.actions || []) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "notice-btn";
+    btn.setAttribute("aria-label", action.label);
+    if (action.icon) btn.appendChild(makeSvgIcon(action.icon));
+    else btn.textContent = action.text;
+    btn.addEventListener("click", (e) => { e.stopPropagation(); wake(); action.run(); });
+    row.appendChild(btn);
+  }
+  return row;
+}
+
+function renderNotices() {
+  const list = $("noticesList");
+  list.innerHTML = "";
+  const clocks = timers.filter((tm) => tm.kind === "reminder" || tm.state !== "done")
+    .sort((a, b) => timerLeft(a) - timerLeft(b));
+  if (clocks.length) {
+    const head = document.createElement("div");
+    head.className = "notices-section";
+    head.textContent = t("notices.timers");
+    list.appendChild(head);
+    for (const tm of clocks) {
+      const reminder = tm.kind === "reminder";
+      const done = tm.state === "done" || (tm.state === "running" && timerLeft(tm) <= 0);
+      const meta = done
+        ? t("notices.fired", { time: clockOf(tm.ends_at) })
+        : reminder
+          ? t("notices.at", { time: clockOf(tm.ends_at) }) + " · " + fmtLeft(timerLeft(tm))
+          : fmtLeft(timerLeft(tm)) + (tm.state === "paused" ? " · " + t("timer.paused") : "");
+      const actions = [];
+      if (!reminder && !done) {
+        actions.push({
+          icon: tm.state === "paused" ? "play" : "pause",
+          label: t("timer.pause"),
+          run: () => timerAction({ action: tm.state === "paused" ? "resume" : "pause", id: tm.id }),
+        });
+      }
+      actions.push({ text: "✕", label: t("notices.dismiss"), run: () => { stopRing(); timerAction({ action: "cancel", id: tm.id }); } });
+      list.appendChild(noticeRow({
+        icon: reminder ? "bell" : "timer",
+        level: done ? "warn" : "info",
+        title: tm.label || t("timer.unnamed"),
+        meta,
+        actions,
+      }));
+    }
+  }
+  const feed = allNotices();
+  if (feed.length) {
+    const head = document.createElement("div");
+    head.className = "notices-section";
+    head.textContent = t("notices.feed");
+    list.appendChild(head);
+    for (const n of feed) {
+      const meta = ago((n.at || 0) * 1000) + (n.count > 1 ? " · ×" + n.count : "");
+      list.appendChild(noticeRow({
+        icon: n.level === "error" ? "bolt" : n.source === "bot" ? "bubble" : "bell",
+        level: n.level,
+        title: noticeTitle(n),
+        body: noticeBody(n),
+        meta,
+        actions: [{ text: "✕", label: t("notices.dismiss"), run: () => dismissNotice(n) }],
+      }));
+    }
+  }
+  if (!clocks.length && !feed.length) {
+    const empty = document.createElement("div");
+    empty.className = "notices-empty";
+    empty.textContent = t("notices.empty");
+    list.appendChild(empty);
+  }
+  $("noticesClear").disabled = !feed.length && !reminders().some(reminderFired);
+  // A long list scrolls under the finger; a short one lets the swipe up
+  // close the shade from anywhere, as on a phone.
+  list.classList.toggle("scrolls", list.scrollHeight > list.clientHeight + 2);
+}
+
+function noticesChanged() {
+  if (layer === "notices") {
+    renderNotices();
+    markNoticesSeen();
+  }
+  renderBell();
+}
+
+function markNoticesSeen() {
+  noticesSeenAt = Date.now() + timerSkew * 1000;
+  writePref(NOTICES_SEEN_KEY, String(Math.round(noticesSeenAt)));
+}
+
+function onNoticesOpened() {
+  renderNotices();
+  markNoticesSeen();
+  renderBell();
+}
+
+function setNotices(list) {
+  notices = Array.isArray(list) ? list : [];
+  noticesChanged();
+}
+
+async function dismissNotice(n) {
+  if (localNotices.has(n.key)) {
+    localNotices.delete(n.key);
+    noticesChanged();
+    return;
+  }
+  try {
+    const r = await fetch("/api/screen/notices/dismiss", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: n.id }),
+    });
+    const d = await r.json();
+    if (r.ok) setNotices(d.notices);
+  } catch (e) { /* offline: it stays until the link is back */ }
+}
+
+$("noticesClear").addEventListener("click", async (e) => {
+  e.stopPropagation();
+  wake();
+  localNotices.clear();
+  // Fired reminders go too; upcoming ones and running timers stay — "clear"
+  // means "I have seen these", not "cancel my plans".
+  // "Fired" by our clock: the server's copy still says running until it
+  // is asked again
+  for (const r of reminders()) if (reminderFired(r)) timerAction({ action: "cancel", id: r.id });
+  try {
+    const r = await fetch("/api/screen/notices/dismiss", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: "all" }),
+    });
+    const d = await r.json();
+    if (r.ok) setNotices(d.notices);
+  } catch (err) {
+    noticesChanged();
+  }
+});
+
+function onNoticeEvent(ev) {
+  setNotices(ev.notices);
+  // A new error is worth waking the screen for, like the say event
+  if (ev.action === "add" && ev.notice && ev.notice.level === "error" && asleep) wake();
+}
+
+// The link notice is watched rather than hooked into setLink(): setLink
+// runs at startup before this state exists.
+setInterval(() => {
+  if (linkAlive) {
+    linkDownSince = 0;
+    if (localNotices.delete("link.lost")) {
+      noticesChanged();
+      loadNotices();                       // catch up on what we missed
+    }
+  } else {
+    if (!linkDownSince) linkDownSince = Date.now();
+    if (Date.now() - linkDownSince > LINK_LOST_MS && !localNotices.has("link.lost")) {
+      localNotices.set("link.lost", { key: "link.lost", code: "linkLost", level: "error", at: Date.now() / 1000, source: "screen" });
+      noticesChanged();
+    }
+  }
+  if (layer === "notices") renderNotices();   // live countdowns
+}, 1000);
+
+async function loadNotices() {
+  try {
+    const r = await fetch("/api/screen/notices");
+    const d = await r.json();
+    if (typeof d.now === "number") timerSkew = d.now - Date.now() / 1000;
+    setNotices(d.notices);
+  } catch (e) {
+    renderBell();
+  }
+}
+loadNotices();
+$("faceBellIco").appendChild(makeSvgIcon("bell"));
+$("faceBell").addEventListener("click", (e) => { e.stopPropagation(); wake(); openLayer("notices"); });
 
 renderDots();
 applyTileLayout();
