@@ -483,7 +483,9 @@ was the only thing it changed. An app's design is picked in this order:
 2. the manifest's **`icon` name** (`BY_ICON`), for third-party packages;
 3. a grey disc with the first **letter** of the label.
 
-A new built-in package should get a design and a `BY_ID` entry.
+A new built-in package should get a design and a `BY_ID` entry. How to
+draw one that fits the set is in the skill
+`.agents/skills/screen-app-icons/SKILL.md`.
 `test_every_screen_and_package_has_its_own_design` fails until it does.
 The layout maths (`honeycomb`, `fisheye`, `listLens`, `rubber`) is pure
 and checked from node in `tests/test_screen_js.py`.

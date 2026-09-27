@@ -224,6 +224,14 @@ display on a Raspberry Pi 3:
 
 Read `Virtual Bot/docs/SCREEN-PLATFORM.md` before writing one.
 
+**Every app needs its own icon** in the drawer and the store. Icons are
+drawn in code in `Virtual Bot/static/screen/app-icons.js`, a gradient disc
+with one bold white glyph in the One UI style, not as image files. To add
+or restyle one, follow the skill
+`.agents/skills/screen-app-icons/SKILL.md`: its rules, palette, helpers,
+test and visual check. A new built-in package without a design fails
+`test_every_screen_and_package_has_its_own_design`.
+
 ### Do not widen the scope
 
 Build what was asked. If you find a second problem on the way, finish the first
