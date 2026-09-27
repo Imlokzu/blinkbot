@@ -378,3 +378,42 @@ func TestSilentProgressUpdatesAreSkipped(t *testing.T) {
 		t.Errorf("want one line, got:\n%q", out)
 	}
 }
+
+// After a reply the session keeps its old stop state until the agent reacts;
+// wait must not return on that stale state.
+func TestWaitIgnoresStaleStateAfterReply(t *testing.T) {
+	var mu sync.Mutex
+	polls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		switch r.URL.Path {
+		case "/sessions/7":
+			polls++
+			w.Write([]byte(`{"id":"7","state":"AWAITING_USER_FEEDBACK"}`))
+		case "/sessions/7/activities":
+			last := `{"originator":"user","userMessaged":{"userMessage":"fix it"}}`
+			if polls >= 3 {
+				last = `{"originator":"agent","agentMessaged":{"agentMessage":"fixed, submit?"}}`
+			}
+			w.Write([]byte(`{"activities":[{"originator":"agent","agentMessaged":{"agentMessage":"done?"}},` + last + `]}`))
+		}
+	}))
+	defer srv.Close()
+	t.Setenv("JULES_API_URL", srv.URL)
+	t.Setenv("JULES_API_KEY", "k")
+	c := client(t)
+	s, err := c.Wait("7", time.Minute, 5*time.Millisecond, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	acts, _ := c.ListActivities("7")
+	mu.Lock()
+	defer mu.Unlock()
+	if polls < 3 || s.State != "AWAITING_USER_FEEDBACK" {
+		t.Errorf("returned after %d polls on a stale state", polls)
+	}
+	if lastAgentWords(acts) != "fixed, submit?" {
+		t.Errorf("got %q", lastAgentWords(acts))
+	}
+}

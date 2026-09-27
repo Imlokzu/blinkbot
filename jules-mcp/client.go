@@ -402,7 +402,7 @@ func (c *Client) Wait(id string, timeout, every time.Duration, onTick func(*Sess
 				onTick(s)
 			}
 			lastState = s.State
-			if IsStopState(s.State) {
+			if IsStopState(s.State) && !c.userSpokeLast(id) {
 				return s, nil
 			}
 		}
@@ -411,6 +411,26 @@ func (c *Client) Wait(id string, timeout, every time.Duration, onTick func(*Sess
 		}
 		time.Sleep(every)
 	}
+}
+
+// userSpokeLast reports whether the newest meaningful activity is ours — a
+// reply or a plan approval the agent has not reacted to yet. Right after
+// SendMessage the session still shows the old stop state (say
+// AWAITING_USER_FEEDBACK) for a few seconds, and without this check a wait
+// started after a reply would return at once with the stale answer.
+func (c *Client) userSpokeLast(id string) bool {
+	acts, err := c.ListActivities(id)
+	if err != nil {
+		return false // cannot tell; trust the state
+	}
+	for i := len(acts) - 1; i >= 0; i-- {
+		a := acts[i]
+		if p := a.ProgressUpdated; p != nil && p.Title == "" && p.Description == "" {
+			continue
+		}
+		return a.Originator == "user"
+	}
+	return false
 }
 
 // ---- helpers ----
