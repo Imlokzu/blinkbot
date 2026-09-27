@@ -64,6 +64,13 @@ header explains the contract. The reference app is
 | switch | `<button class="kit-switch" aria-pressed="true|false">` |
 | list | `.kit-list` > `.kit-item` (`.kit-grow` for the text) |
 | keypad / board cell | `.kit-key` (`.accent`, `.tonal`) |
+| search / text field | `<label class="kit-input"><svg…/><input></label>` |
+| media progress | `.kit-progress` with `--p` (0…1) |
+| read-only pill, stat | `.kit-pill` (= `.kit-badge`), `.kit-stat` > `b` + `span` |
+| toast | `.kit-snackbar` (+ `.show`) |
+| a page over the app | `.kit-page` (the app's ground, aurora in Deep UI) |
+| small icon button, filled icon | `.kit-btn.icon.sm`, `<svg class="fill">` |
+| canvas colours | `BotApp.color("--accent")` → a plain `rgb()`/`rgba()` a canvas accepts |
 | colours in your own CSS | `var(--bg --panel --line --text --muted --accent --ok --off)`, and `--kit-surface`, `--kit-surface-hi`, `--kit-tonal`, `--kit-on-tonal`, `--kit-primary` (a gradient in Deep UI: use it as `background`, not `color`) |
 | style-specific tweaks | `:root[data-ui="deep"] …` / `:root[data-ui="material"] …` / `:root[data-theme="light"] …` |
 
@@ -80,9 +87,10 @@ header explains the contract. The reference app is
    `dataset.theme`, no light palette of your own. `app-kit.js` does all
    of it. Keep only the language follow-up through `BotApp.onChange`.
 4. **Draw game boards and art from tokens.** A canvas game reads colours
-   with `getComputedStyle(document.documentElement).getPropertyValue("--accent")`.
+   with `BotApp.color("--accent")` (it also resolves `color-mix()` values).
    Read them again in `BotApp.onChange`, so the board follows a style
-   switch.
+   switch. Never `scrollIntoView()` inside an app: it scrolls the screen
+   itself; scroll the list element (`list.scrollTop = …`).
 5. **Deep UI gradients stay in ONE hue**, light at the top and deep at
    the bottom, as on the app icons. Never blend two hues (blue → violet
    reads as a generic "AI" look). `--kit-primary` already does this;

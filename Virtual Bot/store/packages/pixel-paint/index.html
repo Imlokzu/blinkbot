@@ -2,56 +2,82 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Pixel Paint</title>
+<!-- App kit v1: the screen's own look (Material You or Deep UI, any theme
+     or skin) and its safe insets. See docs/SCREEN-PLATFORM.md §2.6. -->
+<link rel="stylesheet" href="/static/screen/app-kit.css">
+<script src="/static/screen/app-kit.js"></script>
 <style>
-  :root {
-    --bg: #16181a; --panel: #1e2124; --line: #2f3438; --text: #e8e4dc;
-    --muted: #8e9498; --accent: #d17a58; --ok: #8ca879; --off: #6b7175;
-    color-scheme: dark;
+  /* Only what is the paint app's own: the canvas, the swatches and the tool
+     rail. A drawing app gives the canvas the whole height, colours on one
+     side and tools on the other, like a tablet sketchbook. */
+  .studio { flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
+
+  /* ---- Palette: two columns of round swatches ---- */
+  .pal { display: grid; grid-template-columns: repeat(2, 24px); gap: 8px 6px; flex: none; }
+  .sw {
+    width: 24px; height: 24px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent);
+    outline: 2px solid transparent; outline-offset: 2px;
+    transition: transform 100ms ease;
   }
-  :root[data-theme="light"] {
-    --bg: #efe7d9; --panel: #fbf6ec; --line: #ddcdb2; --text: #2f271f;
-    --muted: #7d6d5c; --accent: #b95f3d; --ok: #6f8b5f; --off: #a8998a;
-    color-scheme: light;
+  .sw:active { transform: scale(0.88); }
+  .sw.on { outline-color: var(--text); }
+  :root[data-ui="deep"] .sw { border-radius: 8px; }
+
+  /* ---- Canvas: 16x16 art pixels, 12x12 each on the 192px canvas ---- */
+  .canvas-box { display: grid; place-items: center; flex: none; height: 100%; min-width: 0; }
+  canvas {
+    display: block; height: min(192px, 100%); aspect-ratio: 1 / 1;
+    border-radius: 12px; background: var(--kit-surface-hi);
+    image-rendering: pixelated; touch-action: none;
   }
-  html, body { margin: 0; height: 100%; overflow: hidden;
-    background: var(--bg, #16181a); color: var(--text, #e8e4dc);
-    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    -webkit-user-select: none; user-select: none;
-    -webkit-tap-highlight-color: transparent; }
-  .wrap { display: flex; flex-direction: column; height: 100%; padding: 8px; gap: 6px; }
-  /* The canvas takes whatever height is left after the palette and the
-     buttons, staying square, so the tools never fall off a 240px screen. */
-  * { box-sizing: border-box; }
-  canvas { border: 1px solid var(--line, #2f3438); border-radius: 6px;
-    image-rendering: pixelated; touch-action: none; align-self: center;
-    flex: 1 1 auto; min-height: 0; width: auto; max-width: 100%; aspect-ratio: 1 / 1; }
-  .pal { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; flex: none; }
-  .sw { width: 22px; height: 22px; border-radius: 5px; border: 2px solid transparent; }
-  .sw.on { border-color: var(--text, #e8e4dc); }
-  .row { display: flex; gap: 6px; justify-content: center; flex: none; }
-  button { background: var(--panel, #1e2124); color: var(--text, #e8e4dc);
-    border: 1px solid var(--line, #2f3438); border-radius: 8px; padding: 5px 10px; font-size: 13px; }
-  button:active { background: var(--accent, #d17a58); }
+  :root[data-ui="deep"] canvas {
+    border-radius: 14px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--text) 10%, var(--bg)), color-mix(in srgb, var(--text) 6%, var(--bg)));
+  }
+  :root[data-ui="deep"][data-theme="light"] canvas { background: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08); }
+
+  /* ---- Tool rail ---- */
+  .tools { display: flex; flex-direction: column; gap: 8px; flex: none; }
+  /* A toolbar, as in a phone's editor: plain icons, and only the tool that
+     is on gets a filled shape */
+  .tools .kit-btn.icon { width: 34px; height: 34px; min-width: 34px; min-height: 34px; background: transparent; color: var(--text); }
+  .tools .rule { height: 1px; margin: 0 6px; background: color-mix(in srgb, var(--text) 12%, transparent); }
+  /* The tool that is on reads like a selected chip: tonal in Material You,
+     the accent's gradient in Deep UI */
+  .tools .tool[aria-pressed="true"] { background: var(--kit-tonal); color: var(--kit-on-tonal); }
+  :root[data-ui="deep"] .tools .tool[aria-pressed="true"] { background: var(--kit-primary); color: var(--kit-on-accent); }
 </style>
 </head>
-<body>
-<div class="wrap">
-  <canvas id="cv" width="192" height="192"></canvas>
-  <div class="pal" id="pal"></div>
-  <div class="row">
-    <button id="eraser" data-i18n="eraser"></button>
-    <button id="fill" data-i18n="fill"></button>
-    <button id="clear" data-i18n="clear"></button>
-  </div>
-</div>
+<body class="kit">
+  <main class="kit-app studio">
+    <div class="pal" id="pal"></div>
+    <div class="canvas-box"><canvas id="cv" width="192" height="192"></canvas></div>
+    <div class="tools">
+      <button class="kit-btn icon tool" id="pencil" type="button" aria-pressed="true" data-i18n-aria="pencil">
+        <svg viewBox="0 0 24 24"><path d="M4 20l1-4L15.5 5.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M13.5 7.5l3 3"/></svg>
+      </button>
+      <button class="kit-btn icon tool" id="eraser" type="button" aria-pressed="false" data-i18n-aria="eraser">
+        <svg viewBox="0 0 24 24"><path d="M9 19.5h11"/><path d="M5.2 14.8l8.6-8.6a2 2 0 0 1 2.8 0l2.2 2.2a2 2 0 0 1 0 2.8l-8.3 8.3H8.4l-3.2-3.2a1.1 1.1 0 0 1 0-1.5z"/><path d="M10 10l4.5 4.5"/></svg>
+      </button>
+      <span class="rule"></span>
+      <button class="kit-btn icon" id="fill" type="button" data-i18n-aria="fill">
+        <svg viewBox="0 0 24 24"><path d="M5 11l6.5-6.5L19 12l-6.5 6.5a1.4 1.4 0 0 1-2 0L5 13a1.4 1.4 0 0 1 0-2z"/><path d="M5 12h14"/><path d="M20.5 15.5c0 1.2-.8 2-1.5 2s-1.5-.8-1.5-2 1.5-3 1.5-3 1.5 1.8 1.5 3z"/></svg>
+      </button>
+      <button class="kit-btn icon" id="clear" type="button" data-i18n-aria="clear">
+        <svg viewBox="0 0 24 24"><path d="M4.5 7h15"/><path d="M9.5 7V5h5v2"/><path d="M6.5 7l1 12.5h9l1-12.5"/><path d="M10.5 11v5M13.5 11v5"/></svg>
+      </button>
+    </div>
+  </main>
 <script>
   const STR = {
-    uk: { title: "Піксель-майстерня", eraser: "Гумка", fill: "Залити", clear: "Стерти все", color: "Колір {n}" },
-    en: { title: "Pixel Paint", eraser: "Eraser", fill: "Fill", clear: "Clear all", color: "Colour {n}" },
+    uk: { title: "Піксель-майстерня", pencil: "Олівець", eraser: "Гумка", fill: "Залити", clear: "Стерти все", color: "Колір {n}" },
+    en: { title: "Pixel Paint", pencil: "Pencil", eraser: "Eraser", fill: "Fill", clear: "Clear all", color: "Colour {n}" },
   };
-  let lang = "uk";
-  try { lang = localStorage.getItem("botScreenLang") === "en" ? "en" : "uk"; } catch (_) {}
+  // The kit already knows the screen's language (botScreenLang)
+  let lang = window.BotApp ? BotApp.lang : "uk";
   function t(key, vars) {
     let text = STR[lang][key] ?? STR.uk[key] ?? key;
     if (vars) text = text.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m));
@@ -61,6 +87,7 @@
     document.documentElement.lang = lang;
     document.title = t("title");
     document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll("[data-i18n-aria]").forEach((el) => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
     document.querySelectorAll(".sw").forEach((el, i) => el.setAttribute("aria-label", t("color", { n: i + 1 })));
   }
 
@@ -68,9 +95,13 @@
   const $ = (id) => document.getElementById(id);
   const cv = $("cv"), ctx = cv.getContext("2d");
   const N = 16, CELL = cv.width / N;
+  // The paint colours are the drawing's own data (saved as hex in every
+  // drawing), so they stay fixed; only the canvas around them follows the
+  // screen's tokens.
   const PALETTE = ["#e8e4dc", "#d17a58", "#d98263", "#d7a65b", "#8ca879",
     "#5fb0a8", "#5b9bd5", "#b48ad8", "#e74c3c", "#16181a"];
   let color = PALETTE[1];
+  let lastColor = color;
   let grid = [];
   // Keys are prefixed with the package id; the old camelCase key is still
   // read once so an existing drawing survives the rename.
@@ -82,8 +113,37 @@
   } catch (e) { /* broken record or no storage (sandbox): start with a blank canvas */ }
   if (grid.length !== N * N) grid = new Array(N * N).fill(null);
 
+  // Colours of the canvas chrome, resolved from the kit's tokens. A probe
+  // element resolves color-mix() to a plain colour the canvas accepts.
+  const probe = document.createElement("i");
+  probe.style.display = "none";
+  document.body.appendChild(probe);
+  function tokenColor(expr) {
+    probe.style.color = "";
+    probe.style.color = expr;
+    const c = getComputedStyle(probe).color;
+    // color-mix() computes to "color(srgb r g b / a)"; an older canvas may
+    // not parse that, so it is turned into plain rgba().
+    const m = /^color\(srgb ([\d.e-]+) ([\d.e-]+) ([\d.e-]+)(?: \/ ([\d.e-]+))?\)$/.exec(c);
+    if (!m) return c;
+    const ch = (v) => Math.round(Math.min(1, Math.max(0, Number(v))) * 255);
+    return "rgba(" + ch(m[1]) + "," + ch(m[2]) + "," + ch(m[3]) + "," + (m[4] == null ? 1 : Number(m[4])) + ")";
+  }
+  let gridLine = "rgba(128,128,128,0.15)", gridMajor = "rgba(128,128,128,0.3)";
+  function readColors() {
+    gridLine = tokenColor("color-mix(in srgb, var(--text) 9%, transparent)");
+    gridMajor = tokenColor("color-mix(in srgb, var(--text) 18%, transparent)");
+  }
+
   function draw() {
     ctx.clearRect(0, 0, cv.width, cv.height);
+    // A faint grid under the paint, so empty cells are still aimable; every
+    // fourth line a little stronger, to count by.
+    for (let i = 1; i < N; i++) {
+      ctx.fillStyle = i % 4 === 0 ? gridMajor : gridLine;
+      ctx.fillRect(i * CELL, 0, 1, cv.height);
+      ctx.fillRect(0, i * CELL, cv.width, 1);
+    }
     for (let y = 0; y < N; y++) {
       for (let x = 0; x < N; x++) {
         const c = grid[y * N + x];
@@ -103,6 +163,7 @@
     const x = Math.floor((e.clientX - rect.left) * k / CELL);
     const y = Math.floor((e.clientY - rect.top) * k / CELL);
     if (x < 0 || y < 0 || x >= N || y >= N) return;
+    if (grid[y * N + x] === color) return;
     grid[y * N + x] = color;
     draw();
     save();
@@ -112,33 +173,41 @@
   cv.addEventListener("pointermove", (e) => { if (drawing) paint(e); });
   window.addEventListener("pointerup", () => { drawing = false; });
 
+  // Pencil paints with the chosen swatch, the eraser paints "nothing"
+  function setTool(erase) {
+    $("pencil").setAttribute("aria-pressed", String(!erase));
+    $("eraser").setAttribute("aria-pressed", String(erase));
+    pal.querySelectorAll(".sw").forEach((el) => el.classList.toggle("on", !erase && el.dataset.color === color));
+  }
+
   const pal = $("pal");
   PALETTE.forEach((c, i) => {
     const sw = document.createElement("button");
+    sw.type = "button";
     sw.className = "sw" + (c === color ? " on" : "");
     sw.style.background = c;
+    sw.dataset.color = c;
     sw.setAttribute("aria-label", t("color", { n: i + 1 }));
     sw.addEventListener("click", () => {
-      color = c;
-      pal.querySelectorAll(".sw").forEach((el) => el.classList.remove("on"));
-      sw.classList.add("on");
+      color = lastColor = c;
+      setTool(false);
     });
     pal.appendChild(sw);
   });
-  $("eraser").addEventListener("click", () => { color = null; pal.querySelectorAll(".sw").forEach((el) => el.classList.remove("on")); });
+  $("pencil").addEventListener("click", () => { color = lastColor; setTool(false); });
+  $("eraser").addEventListener("click", () => { color = null; setTool(true); });
   $("fill").addEventListener("click", () => { grid = grid.map(() => color); draw(); save(); });
   $("clear").addEventListener("click", () => { grid = new Array(N * N).fill(null); draw(); save(); });
+  readColors();
   draw();
   applyI18n();
 
-  // The screen's skin, theme and language arrive as a message (CSS
-  // variables do not cross the iframe boundary). Only the source is
-  // checked, since a sandboxed frame sees origin "null".
-  window.addEventListener("message", (e) => {
-    if (e.source !== window.parent || !e.data || e.data.type !== "botSkin") return;
-    if (e.data.vars) for (const k in e.data.vars) document.documentElement.style.setProperty(k, e.data.vars[k]);
-    document.documentElement.dataset.theme = e.data.theme === "light" ? "light" : "dark";
-    if ((e.data.lang === "uk" || e.data.lang === "en") && e.data.lang !== lang) { lang = e.data.lang; applyI18n(); }
+  // The screen's style, theme and skin are applied by the kit; the grid
+  // lines are re-read from its tokens, and the language is followed.
+  if (window.BotApp) BotApp.onChange((s) => {
+    readColors();
+    draw();
+    if (s.lang !== lang) { lang = s.lang; applyI18n(); }
   });
 </script>
 </body>

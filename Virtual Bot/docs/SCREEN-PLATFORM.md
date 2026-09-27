@@ -126,10 +126,13 @@ wears: Material You or Deep UI, dark or light, any skin.
 - `app-kit.css` offers the parts: `kit-bar`, `kit-title`, `kit-card`,
   `kit-display`, `kit-btn` (`primary`/`tonal`/`ghost`/`icon`/`big`),
   `kit-chip`, `kit-segment`, `kit-slider`, `kit-switch`, `kit-list` /
-  `kit-item`, `kit-key`. Colours for an app's own CSS: `--kit-surface`,
+  `kit-item` (`.compact`, or a `<button>`), `kit-key`, `kit-input`
+  (search field), `kit-progress` (`--p` 0…1), `kit-pill` / `kit-badge`,
+  `kit-stat`, `kit-snackbar`, `kit-page`. Colours for an app's own CSS: `--kit-surface`,
   `--kit-surface-hi`, `--kit-tonal`, `--kit-primary`.
 - JS: `BotApp.lang / .theme / .ui`, `BotApp.onChange(fn)`,
-  `BotApp.paint(slider)`, `BotApp.close()`.
+  `BotApp.paint(slider)`, `BotApp.close()`, `BotApp.color(token)` (a
+  canvas-ready colour).
 - The class names and tokens are a public API. Add to them, never
   rename: installed apps are copies.
 - **Built-in apps must use the kit**: `test_builtin_app_is_native`

@@ -560,6 +560,8 @@ def test_package_supports_light_theme():
     Без цього він лишався темним на світлому екрані, а іконки на
     currentColor ставали світлими на світлому."""
     markup = _package_markup()
+    if "/static/screen/app-kit.css" in markup and "/static/screen/app-kit.js" in markup:
+        return  # on the app kit: app-kit.js applies theme, style and skin
     assert ':root[data-theme="light"]' in markup
     assert "dataset.theme" in markup
 

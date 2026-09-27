@@ -110,6 +110,22 @@ def _uses_app_kit(markup: str) -> bool:
 
 
 @pytest.mark.parametrize("pkg", _app_dirs(), ids=lambda p: p.name)
+def test_builtin_app_is_native(pkg: Path):
+    """Built-in apps wear the screen's look: the app kit, full screen, and
+    the screen's style — not a page of their own inside a frame."""
+    markup = _strip_comments((pkg / "index.html").read_text("utf-8"))
+    assert _uses_app_kit(markup), "link /static/screen/app-kit.css and app-kit.js (skill: screen-app-native)"
+    assert re.search(r'<body[^>]*class="[^"]*\bkit\b', markup), '<body class="kit">'
+    assert "kit-app" in markup, "the app's root is <main class=\"kit-app\"> (it keeps taps out of the gesture strips)"
+    # The kit owns the palette: an app that redefines the screen's colour
+    # tokens in :root would pin its own theme over the screen's.
+    style = " ".join(re.findall(r"<style>(.*?)</style>", markup, flags=re.S))
+    own_root = re.findall(r":root(?:\[data-theme=\"light\"\])?\s*\{([^}]*)\}", style)
+    pinned = [v for block in own_root for v in re.findall(r"(--(?:bg|panel|text|accent|line|muted))\s*:", block)]
+    assert not pinned, f"redefines screen tokens {sorted(set(pinned))} — take them from the kit"
+
+
+@pytest.mark.parametrize("pkg", _app_dirs(), ids=lambda p: p.name)
 def test_app_fits_package_limits(pkg: Path):
     files = [p for p in pkg.rglob("*") if p.is_file()]
     assert len(files) <= screen_store.MAX_PACKAGE_FILES

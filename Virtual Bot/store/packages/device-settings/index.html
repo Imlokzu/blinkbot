@@ -1,411 +1,390 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="uk">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Device settings</title>
-  <style>
-    :root {
-      --bg: #16181a;
-      --panel: #1e2124;
-      --panel-strong: #292d30;
-      --line: #2f3438;
-      --text: #e8e4dc;
-      --muted: #8e9498;
-      --accent: #d17a58;
-      --accent-soft: rgba(209, 122, 88, .14);
-      --ok: #8ca879;
-      --ok-soft: rgba(139, 213, 168, .13);
-      --warn: #d7a65b;
-      --warn-soft: rgba(242, 199, 119, .13);
-      --off: #6b7175;
-      --route-icon-bg: rgba(255, 255, 255, .05);
-      color-scheme: dark;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Device settings</title>
+<!-- App kit v1: the screen's own look (Material You or Deep UI, any theme
+     or skin) and its safe insets. See docs/SCREEN-PLATFORM.md §2.6. -->
+<link rel="stylesheet" href="/static/screen/app-kit.css">
+<script src="/static/screen/app-kit.js"></script>
+<style>
+  /* Only what is this app's own: the device card, status glyphs (signal,
+     battery) and the mixer rows. Lists, chips, sliders and buttons are
+     kit parts. */
+  [hidden] { display: none !important; }
+  svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-linecap: round;
+    stroke-linejoin: round; stroke-width: 1.9; }
+  .kit-bar .kit-btn.icon { width: 30px; height: 30px; margin-left: -4px; }
+  .kit-bar .kit-segment .kit-chip { padding: 0 12px; }
+  .badge { flex: none; display: inline-flex; align-items: center; min-height: 20px; padding: 0 8px; border-radius: 10px;
+    background: var(--kit-tonal); color: var(--kit-on-tonal); font: 700 9px/1 var(--font); letter-spacing: .06em; }
 
-    :root[data-theme="light"] {
-      --bg: #efe7d9;
-      --panel: #fbf6ec;
-      --panel-strong: #f2e8d8;
-      --line: #ddcdb2;
-      --text: #2f271f;
-      --muted: #7d6d5c;
-      --accent: #b95f3d;
-      --accent-soft: rgba(185, 95, 61, .12);
-      --ok: #6f8b5f;
-      --ok-soft: rgba(111, 139, 95, .14);
-      --warn: #9a6b27;
-      --warn-soft: rgba(154, 107, 39, .14);
-      --off: #a8998a;
-      --route-icon-bg: rgba(85, 65, 42, .06);
-      color-scheme: light;
-    }
+  .content { padding-bottom: 2px; }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .sec { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 0; }
 
-    * { box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
-    body {
-      background: var(--bg, #12161d);
-      color: var(--text, #edf2f8);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 12px;
-      -webkit-font-smoothing: antialiased;
-      -webkit-user-select: none;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
+  /* The bot itself: a raised card with its name and battery */
+  .summary { display: flex; align-items: center; gap: 10px; }
+  .summary-name { overflow: hidden; font: 700 15px/1.2 var(--font); letter-spacing: -0.01em; text-overflow: ellipsis; white-space: nowrap; }
+  .summary-sub { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+  .dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--accent); }
+  .battery { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+  .battery-top { display: flex; align-items: center; gap: 8px; }
+  .battery-pct { font: 600 20px/1 var(--font); font-variant-numeric: tabular-nums; }
+  .battery-shell { position: relative; box-sizing: border-box; width: 30px; height: 14px; padding: 2px;
+    border: 1.5px solid var(--muted); border-radius: 4px; }
+  .battery-shell::after { position: absolute; top: 3px; right: -4px; width: 2px; height: 5px; border-radius: 0 2px 2px 0;
+    background: var(--muted); content: ""; }
+  .battery-fill { display: block; height: 100%; border-radius: 1.5px; background: var(--accent); }
 
-    button, input { font: inherit; }
-    button { color: inherit; }
-    .app { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; padding: 7px 8px 8px; gap: 5px; overflow-y: auto; touch-action: pan-y; scrollbar-width: none; }
-    .app::-webkit-scrollbar { display: none; }
+  /* Round icon badge at the start of every row; "on" = active/connected */
+  .ico { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 50%;
+    background: var(--kit-tonal); color: var(--kit-on-tonal); }
+  .ico.on { background: var(--kit-primary); color: var(--kit-on-accent); }
+  .ico.lg { width: 38px; height: 38px; }
+  .ico.lg svg { width: 20px; height: 20px; }
 
-    .summary { display: flex; align-items: center; justify-content: space-between; flex: none; min-height: 39px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-    .summary-copy { min-width: 0; }
-    .summary-name { overflow: hidden; font-size: 13px; font-weight: 750; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
-    .summary-sub { display: flex; align-items: center; gap: 5px; margin-top: 2px; color: var(--muted); font-size: 9px; }
-    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px var(--ok-soft); }
-    .battery { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
-    .battery-top { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; }
-    .battery-shell { position: relative; width: 42px; height: 10px; padding: 2px; border: 1px solid var(--muted); border-radius: 4px; }
-    .battery-shell::after { position: absolute; top: 2px; right: -4px; width: 2px; height: 4px; border-radius: 0 2px 2px 0; background: var(--muted); content: ""; }
-    .battery-fill { width: 82%; height: 100%; border-radius: 2px; background: var(--ok); }
-    .charge { color: var(--ok); font-size: 9px; }
+  .row { box-sizing: border-box; width: 100%; border: 0; color: var(--text); font: inherit; text-align: left; }
+  button.row { cursor: pointer; }
+  button.row:active { background: var(--kit-surface-hi); }
+  .row-title { display: block; overflow: hidden; font: 600 13px/1.2 var(--font); text-overflow: ellipsis; white-space: nowrap; }
+  .row-sub { display: block; overflow: hidden; margin-top: 2px; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+  .state { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+  .state-text { color: var(--accent); font: 600 11px/1 var(--font); }
+  .state-text.ready { color: var(--muted); }
+  .chev { color: var(--muted); }
+  .signal { display: flex; align-items: flex-end; gap: 2px; height: 11px; flex: none; }
+  .signal i { display: block; width: 3px; border-radius: 1.5px; background: var(--kit-surface-hi); }
+  :root[data-ui="deep"] .signal i { background: color-mix(in srgb, var(--text) 18%, transparent); }
+  .signal i:nth-child(1) { height: 3px; }
+  .signal i:nth-child(2) { height: 5px; }
+  .signal i:nth-child(3) { height: 8px; }
+  .signal i:nth-child(4) { height: 11px; }
+  .signal .signal-on, :root[data-ui="deep"] .signal .signal-on { background: var(--accent); }
 
-    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; flex: none; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: transparent; }
-    .tab { min-height: 24px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
-    .tab.active { background: var(--panel-strong); color: var(--text); box-shadow: 0 2px 8px rgba(0, 0, 0, .16); }
+  /* Mixer: one row per source — icon, name over its slider, level, mute */
+  .mixer { display: flex; flex-direction: column; gap: 10px; }
+  .mixer-head { display: flex; flex-direction: column; gap: 2px; }
+  .mixer-title { font: 700 13px/1.2 var(--font); }
+  .mixer-hint { color: var(--muted); font-size: 10px; }
+  .route { display: flex; align-items: center; gap: 8px; }
+  .route-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .route-name { overflow: hidden; font: 600 11px/1.1 var(--font); text-overflow: ellipsis; white-space: nowrap; }
+  .route .kit-slider { height: 16px; border-radius: 8px; }
+  .route .kit-slider::-webkit-slider-thumb { width: 16px; height: 16px; border-width: 3px; }
+  .route .kit-slider::-moz-range-thumb { width: 16px; height: 16px; border-width: 3px; }
+  .route.muted .kit-slider { opacity: 0.45; }
+  .route-value { min-width: 32px; color: var(--muted); font: 600 11px/1 var(--font); font-variant-numeric: tabular-nums; text-align: right; }
+  .route .kit-btn.icon { width: 30px; height: 30px; }
+  .route .kit-btn.icon.on { background: var(--kit-tonal); color: var(--kit-on-tonal); }
 
-    .content { min-height: 0; flex: none; overflow: visible; padding: 1px 1px 4px; touch-action: pan-y; }
-    .stack { display: grid; gap: 6px; }
-    .section-label { display: flex; align-items: baseline; justify-content: space-between; padding: 1px 3px 0; color: var(--muted); font-size: 8px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
-    .virtual-badge { color: var(--accent); font-size: 8px; letter-spacing: .05em; }
-    .card { border: 1px solid var(--line); border-radius: 13px; background: var(--panel); }
-    .connection-card { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 47px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); text-align: left; cursor: pointer; }
-    .connection-card:active, .device-row:active { transform: translateY(1px); background: var(--panel-strong); }
-    .icon-box { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 7px; background: var(--accent-soft); color: var(--accent); }
-    .icon-box.green { background: var(--ok-soft); color: var(--ok); }
-    .icon-box.amber { background: var(--warn-soft); color: var(--warn); }
-    .copy { min-width: 0; flex: 1; }
-    .title { display: block; overflow: hidden; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-    .subtitle { display: block; overflow: hidden; margin-top: 2px; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-    .state { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
-    .state-text { color: var(--ok); font-size: 9px; font-weight: 700; }
-    .state-text.ready { color: var(--warn); }
-    .signal { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
-    .signal i { display: block; width: 3px; border-radius: 2px 2px 0 0; background: var(--line); }
-    .signal i:nth-child(1) { height: 3px; }
-    .signal i:nth-child(2) { height: 5px; }
-    .signal i:nth-child(3) { height: 7px; }
-    .signal i:nth-child(4) { height: 10px; }
-    .signal i.on { background: var(--ok); }
-    .chevron { flex: none; color: var(--off); font-size: 16px; }
+  .note { padding: 0 4px; color: var(--muted); font-size: 10px; line-height: 1.35; }
+  .kit-btn.tonal svg { width: 16px; height: 16px; }
 
-    .audio-card { padding: 8px; }
-    .audio-device { display: flex; align-items: center; gap: 8px; }
-    .audio-device .copy { flex: 1; }
-    .device-meta { color: var(--ok); font-size: 9px; }
-    .select-pill { padding: 5px 7px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-strong); color: var(--accent); font-size: 9px; font-weight: 700; }
-    .divider { height: 1px; margin: 8px 0; background: var(--line); }
-    .mixer-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 7px; }
-    .mixer-title { font-size: 11px; font-weight: 750; }
-    .mixer-hint { max-width: 145px; color: var(--muted); font-size: 9px; line-height: 1.3; text-align: right; }
-    .route-list { display: grid; gap: 6px; margin-top: 8px; }
-    .route-row { display: grid; grid-template-columns: 23px minmax(0, 1fr) auto; align-items: center; gap: 7px; }
-    .route-icon { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 7px; background: var(--route-icon-bg); color: var(--muted); }
-    .route-copy { min-width: 0; }
-    .route-name { overflow: hidden; font-size: 10px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
-    .route-controls { display: flex; align-items: center; gap: 5px; }
-    .route-range { width: 67px; height: 4px; accent-color: var(--accent); cursor: pointer; }
-    .route-value { min-width: 22px; color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; text-align: right; }
-    .mute { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; }
-    .mute.on { border-color: var(--warn-soft); background: var(--warn-soft); color: var(--warn); }
-    .action { width: 100%; min-height: 27px; border: 1px solid var(--accent); border-radius: 14px; background: transparent; color: var(--accent); font-size: 9px; font-weight: 700; cursor: pointer; }
-    .action:active { background: var(--accent-soft); }
-    .back { display: flex; align-items: center; gap: 5px; min-height: 26px; padding: 0 4px; border: 0; background: transparent; color: var(--accent); font-size: 10px; font-weight: 700; cursor: pointer; }
-    .device-list { overflow: hidden; }
-    .device-row { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 46px; padding: 7px 9px; border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; cursor: pointer; }
-    .device-row:last-child { border-bottom: 0; }
-    .device-row .icon-box { width: 27px; height: 27px; }
-    .device-action { color: var(--accent); font-size: 9px; font-weight: 700; }
-    .note { padding: 1px 3px; color: var(--muted); font-size: 9px; line-height: 1.35; }
-    .empty { padding: 18px 10px; color: var(--muted); text-align: center; }
-    .toast { position: fixed; right: 9px; bottom: 8px; left: 9px; min-height: 26px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-strong); color: var(--text); font-size: 10px; opacity: 0; pointer-events: none; transform: translateY(5px); transition: opacity .16s ease, transform .16s ease; }
-    .toast.show { opacity: 1; transform: translateY(0); }
-    .toast.error { border-color: var(--warn-soft); color: var(--warn); }
-
-    svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
-    @media (prefers-reduced-motion: reduce) { .connection-card:active, .device-row:active, .toast { transition: none; transform: none; } }
-  </style>
+  /* Snackbar: inverse surface, above the gesture pill */
+  .toast { position: fixed; left: var(--kit-inset-side); right: var(--kit-inset-side); bottom: calc(var(--kit-inset-bottom) + 4px);
+    box-sizing: border-box; min-height: 30px; padding: 8px 12px; border-radius: 12px; background: var(--text); color: var(--bg);
+    font: 600 11px/1.3 var(--font); opacity: 0; pointer-events: none; transform: translateY(6px);
+    transition: opacity .16s ease, transform .16s ease; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { color: color-mix(in srgb, var(--accent) 70%, var(--bg)); }
+  @media (prefers-reduced-motion: reduce) { .toast { transition: none; transform: none; } }
+</style>
 </head>
-<body>
-  <div class="app">
-    <section class="summary" id="summary"></section>
-    <nav class="tabs" data-i18n-aria="nav">
-      <button class="tab active" type="button" data-tab="connections" data-i18n="tabConnections"></button>
-      <button class="tab" type="button" data-tab="audio" data-i18n="tabAudio"></button>
-    </nav>
-    <main class="content" id="content"></main>
-  </div>
+<body class="kit">
+  <main class="kit-app">
+    <header class="kit-bar">
+      <button class="kit-btn icon ghost" id="backBtn" type="button" data-action="back" data-i18n-aria="back" hidden></button>
+      <span class="kit-title" id="barTitle" data-i18n="title"></span>
+      <span class="badge" id="badge" hidden></span>
+      <nav class="kit-segment" id="tabs" data-i18n-aria="nav">
+        <button class="kit-chip on" type="button" data-tab="connections" data-i18n="tabConnections"></button>
+        <button class="kit-chip" type="button" data-tab="audio" data-i18n="tabAudio"></button>
+      </nav>
+    </header>
+    <section class="kit-fill kit-scroll content" id="content"></section>
+  </main>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script>
-    const STR = {
-      uk: {
-        title: "Підключення", nav: "Налаштування пристрою", tabConnections: "Звʼязок", tabAudio: "Звук",
-        signal: "Сигнал {v}%", botName: "Клод Бот", virtualDevice: "віртуальний пристрій", systemConnected: "система підключена",
-        charging: "заряджається", onBattery: "від батареї", connections: "Підключення", demoMode: "DEMO MODE", live: "LIVE",
-        noNetwork: "Мережу не вибрано", noIp: "без IP", connected: "підключено", ready: "готово", readyToPair: "готовий до підключення",
-        enabled: "увімкнено", off: "вимкнено", audioNow: "Аудіо зараз", inOut: "вхід · вихід", builtinSpeaker: "Вбудований динамік",
-        builtinMic: "Вбудований мікрофон", voiceOutput: "Вихід для голосу бота", asrInput: "Вхід для розпізнавання", active: "активний",
-        refresh: "Оновити стан", noteConnections: "У віртуальному режимі підключення імітуються. На Raspberry Pi ці самі картки покажуть реальний стан.",
-        back: "Назад до підключень", wifiNetworks: "Wi‑Fi мережі", secured: "Захищена мережа", open: "Відкрита мережа",
-        activeNet: "активна", choose: "обрати", noteWifi: "Тап по мережі збереже вибір локально у virtual mode. Реальне підключення додасть native-адаптер.",
-        btDevices: "Bluetooth пристрої", notConnected: "не підключено", battery: "заряд {n}%", connect: "підключити", scan: "Сканувати ще раз",
-        noteBt: "Пошук і сполучення стануть реальними після підключення Bluetooth-модуля бота.",
-        audioRoutes: "Аудіомаршрути", perSource: "окремо для кожного джерела", playbackOutput: "Вихід відтворення", change: "змінити",
-        configure: "налаштувати", perApp: "Гучність по застосунках", sliderHint: "Тап по повзунку — точний рівень",
-        volumeOf: "Гучність: {label}", unmute: "Увімкнути {label}", mute: "Вимкнути {label}",
-        noteAudio: "Налаштування зберігаються локально у virtual mode. Пізніше вони передаватимуться реальному мікшеру бота.",
-        routeBot: "Голос бота", routeAlarm: "Будильник", toastVirtual: "Поки показую virtual mode",
-        toastPickOutput: "Оберіть вихід у Bluetooth-пристроях", toastMic: "Мікрофон налаштовано для ASR",
-        toastPairRequest: "Запит на підключення збережено", toastNetwork: "Мережу {ssid} обрано",
-      },
-      en: {
-        title: "Connections", nav: "Device settings", tabConnections: "Network", tabAudio: "Sound",
-        signal: "Signal {v}%", botName: "Claude Bot", virtualDevice: "virtual device", systemConnected: "system connected",
-        charging: "charging", onBattery: "on battery", connections: "Connections", demoMode: "DEMO MODE", live: "LIVE",
-        noNetwork: "No network chosen", noIp: "no IP", connected: "connected", ready: "ready", readyToPair: "ready to pair",
-        enabled: "on", off: "off", audioNow: "Audio now", inOut: "in · out", builtinSpeaker: "Built-in speaker",
-        builtinMic: "Built-in microphone", voiceOutput: "Output for the bot's voice", asrInput: "Input for speech recognition", active: "active",
-        refresh: "Refresh status", noteConnections: "In virtual mode connections are simulated. On a Raspberry Pi the same cards show the real state.",
-        back: "Back to connections", wifiNetworks: "Wi‑Fi networks", secured: "Secured network", open: "Open network",
-        activeNet: "active", choose: "choose", noteWifi: "Tapping a network saves the choice locally in virtual mode. A native adapter will make it real.",
-        btDevices: "Bluetooth devices", notConnected: "not connected", battery: "battery {n}%", connect: "connect", scan: "Scan again",
-        noteBt: "Search and pairing become real once the bot's Bluetooth module is connected.",
-        audioRoutes: "Audio routes", perSource: "per source", playbackOutput: "Playback output", change: "change",
-        configure: "configure", perApp: "Volume per app", sliderHint: "Tap the slider for an exact level",
-        volumeOf: "Volume: {label}", unmute: "Unmute {label}", mute: "Mute {label}",
-        noteAudio: "Settings are stored locally in virtual mode. Later they will go to the bot's real mixer.",
-        routeBot: "Bot voice", routeAlarm: "Alarm", toastVirtual: "Showing virtual mode for now",
-        toastPickOutput: "Pick an output among the Bluetooth devices", toastMic: "Microphone set up for ASR",
-        toastPairRequest: "Pairing request saved", toastNetwork: "Network {ssid} chosen",
-      },
-    };
-    let lang = "uk";
-    try { lang = localStorage.getItem("botScreenLang") === "en" ? "en" : "uk"; } catch (_) {}
-    function t(key, vars) {
-      let text = STR[lang][key] ?? STR.uk[key] ?? key;
-      if (vars) text = text.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m));
-      return text;
-    }
-    function applyI18n() {
-      document.documentElement.lang = lang;
-      document.title = t("title");
-      document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
-      document.querySelectorAll("[data-i18n-aria]").forEach((el) => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
-    }
-    const $ = (selector) => document.querySelector(selector);
-    const state = { data: null, tab: "connections", detail: null, toastTimer: null };
-    const storageKey = "device-settings.audio-routes";
-    const outputKey = "device-settings.output";
+<script>
+  const STR = {
+    uk: {
+      title: "Підключення", nav: "Налаштування пристрою", tabConnections: "Звʼязок", tabAudio: "Звук",
+      signal: "Сигнал {v}%", botName: "Клод Бот", virtualDevice: "віртуальний пристрій", systemConnected: "система підключена",
+      charging: "заряджається", onBattery: "від батареї", connections: "Підключення", demoMode: "DEMO MODE", live: "LIVE",
+      noNetwork: "Мережу не вибрано", noIp: "без IP", connected: "підключено", ready: "готово", readyToPair: "готовий до підключення",
+      enabled: "увімкнено", off: "вимкнено", audioNow: "Аудіо зараз", inOut: "вхід · вихід", builtinSpeaker: "Вбудований динамік",
+      builtinMic: "Вбудований мікрофон", voiceOutput: "Вихід для голосу бота", asrInput: "Вхід для розпізнавання", active: "активний",
+      refresh: "Оновити стан", noteConnections: "У віртуальному режимі підключення імітуються. На Raspberry Pi ці самі картки покажуть реальний стан.",
+      back: "Назад до підключень", wifiNetworks: "Wi‑Fi мережі", secured: "Захищена мережа", open: "Відкрита мережа",
+      activeNet: "активна", choose: "обрати", noteWifi: "Тап по мережі збереже вибір локально у virtual mode. Реальне підключення додасть native-адаптер.",
+      btDevices: "Bluetooth пристрої", notConnected: "не підключено", battery: "заряд {n}%", connect: "підключити", scan: "Сканувати ще раз",
+      noteBt: "Пошук і сполучення стануть реальними після підключення Bluetooth-модуля бота.",
+      audioRoutes: "Аудіомаршрути", perSource: "окремо для кожного джерела", playbackOutput: "Вихід відтворення", change: "змінити",
+      configure: "налаштувати", perApp: "Гучність по застосунках", sliderHint: "Тап по повзунку — точний рівень",
+      volumeOf: "Гучність: {label}", unmute: "Увімкнути {label}", mute: "Вимкнути {label}",
+      noteAudio: "Налаштування зберігаються локально у virtual mode. Пізніше вони передаватимуться реальному мікшеру бота.",
+      routeBot: "Голос бота", routeAlarm: "Будильник", toastVirtual: "Поки показую virtual mode",
+      toastPickOutput: "Оберіть вихід у Bluetooth-пристроях", toastMic: "Мікрофон налаштовано для ASR",
+      toastPairRequest: "Запит на підключення збережено", toastNetwork: "Мережу {ssid} обрано",
+    },
+    en: {
+      title: "Connections", nav: "Device settings", tabConnections: "Network", tabAudio: "Sound",
+      signal: "Signal {v}%", botName: "Claude Bot", virtualDevice: "virtual device", systemConnected: "system connected",
+      charging: "charging", onBattery: "on battery", connections: "Connections", demoMode: "DEMO MODE", live: "LIVE",
+      noNetwork: "No network chosen", noIp: "no IP", connected: "connected", ready: "ready", readyToPair: "ready to pair",
+      enabled: "on", off: "off", audioNow: "Audio now", inOut: "in · out", builtinSpeaker: "Built-in speaker",
+      builtinMic: "Built-in microphone", voiceOutput: "Output for the bot's voice", asrInput: "Input for speech recognition", active: "active",
+      refresh: "Refresh status", noteConnections: "In virtual mode connections are simulated. On a Raspberry Pi the same cards show the real state.",
+      back: "Back to connections", wifiNetworks: "Wi‑Fi networks", secured: "Secured network", open: "Open network",
+      activeNet: "active", choose: "choose", noteWifi: "Tapping a network saves the choice locally in virtual mode. A native adapter will make it real.",
+      btDevices: "Bluetooth devices", notConnected: "not connected", battery: "battery {n}%", connect: "connect", scan: "Scan again",
+      noteBt: "Search and pairing become real once the bot's Bluetooth module is connected.",
+      audioRoutes: "Audio routes", perSource: "per source", playbackOutput: "Playback output", change: "change",
+      configure: "configure", perApp: "Volume per app", sliderHint: "Tap the slider for an exact level",
+      volumeOf: "Volume: {label}", unmute: "Unmute {label}", mute: "Mute {label}",
+      noteAudio: "Settings are stored locally in virtual mode. Later they will go to the bot's real mixer.",
+      routeBot: "Bot voice", routeAlarm: "Alarm", toastVirtual: "Showing virtual mode for now",
+      toastPickOutput: "Pick an output among the Bluetooth devices", toastMic: "Microphone set up for ASR",
+      toastPairRequest: "Pairing request saved", toastNetwork: "Network {ssid} chosen",
+    },
+  };
+  // The kit already knows the screen's language (botScreenLang)
+  let lang = window.BotApp ? BotApp.lang : "uk";
+  function t(key, vars) {
+    let text = STR[lang][key] ?? STR.uk[key] ?? key;
+    if (vars) text = text.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m));
+    return text;
+  }
+  function applyI18n() {
+    document.documentElement.lang = lang;
+    document.title = t("title");
+    document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll("[data-i18n-aria]").forEach((el) => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
+  }
+  const $ = (selector) => document.querySelector(selector);
+  const state = { data: null, tab: "connections", detail: null, toastTimer: null };
+  const storageKey = "device-settings.audio-routes";
+  const outputKey = "device-settings.output";
 
-    const icons = {
-      bot: '<svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="13" rx="3"/><path d="M8 6V4m8 2V4M8 13h.01M16 13h.01M9 17h6"/></svg>',
-      wifi: '<svg viewBox="0 0 24 24"><path d="M3 8.5a14 14 0 0 1 18 0M6.5 12a8.5 8.5 0 0 1 11 0M10 15.5a3.5 3.5 0 0 1 4 0M12 19h.01"/></svg>',
-      bluetooth: '<svg viewBox="0 0 24 24"><path d="m8 7 8 10-4 3V4l4 4-8 9"/></svg>',
-      headphones: '<svg viewBox="0 0 24 24"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><path d="M4 14h3v5H5a1 1 0 0 1-1-1zM20 14h-3v5h2a1 1 0 0 0 1-1z"/></svg>',
-      speaker: '<svg viewBox="0 0 24 24"><path d="M4 10h4l5-4v12l-5-4H4zM17 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>',
-      mic: '<svg viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="12" rx="4"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg>',
-      youtube: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="3"/><path d="m10 10 5 2-5 2z"/></svg>',
-      alarm: '<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 9v4l2 1M5 5 3 7m16-2 2 2"/></svg>',
-      bell: '<svg viewBox="0 0 24 24"><path d="M6 17h12l-1.5-2v-4a4.5 4.5 0 0 0-9 0v4zM10 20h4"/></svg>',
-      refresh: '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.8-3L3 11m0 0V6m0 5h5M4 13a8 8 0 0 0 14.8 3L21 13m0 0v5m0-5h-5"/></svg>',
-      arrow: '<svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>',
-      back: '<svg viewBox="0 0 24 24"><path d="m14 5-7 7 7 7M7 12h13"/></svg>',
-      volume: '<svg viewBox="0 0 24 24"><path d="M4 10h4l5-4v12l-5-4H4zM17 9a4 4 0 0 1 0 6"/></svg>',
-      mute: '<svg viewBox="0 0 24 24"><path d="M4 10h4l5-4v12l-5-4H4zM18 9l3 3m0-3-3 3"/></svg>'
-    };
+  const icons = {
+    bot: '<svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="13" rx="3"/><path d="M8 6V4m8 2V4M8 13h.01M16 13h.01M9 17h6"/></svg>',
+    wifi: '<svg viewBox="0 0 24 24"><path d="M3 8.5a14 14 0 0 1 18 0M6.5 12a8.5 8.5 0 0 1 11 0M10 15.5a3.5 3.5 0 0 1 4 0M12 19h.01"/></svg>',
+    bluetooth: '<svg viewBox="0 0 24 24"><path d="m8 7 8 10-4 3V4l4 4-8 9"/></svg>',
+    headphones: '<svg viewBox="0 0 24 24"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><path d="M4 14h3v5H5a1 1 0 0 1-1-1zM20 14h-3v5h2a1 1 0 0 0 1-1z"/></svg>',
+    speaker: '<svg viewBox="0 0 24 24"><path d="M4 10h4l5-4v12l-5-4H4zM17 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12"/></svg>',
+    mic: '<svg viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="12" rx="4"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg>',
+    youtube: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="3"/><path d="m10 10 5 2-5 2z"/></svg>',
+    alarm: '<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 9v4l2 1M5 5 3 7m16-2 2 2"/></svg>',
+    bell: '<svg viewBox="0 0 24 24"><path d="M6 17h12l-1.5-2v-4a4.5 4.5 0 0 0-9 0v4zM10 20h4"/></svg>',
+    keyboard: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.8-3L3 11m0 0V6m0 5h5M4 13a8 8 0 0 0 14.8 3L21 13m0 0v5m0-5h-5"/></svg>',
+    arrow: '<svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>',
+    back: '<svg viewBox="0 0 24 24"><path d="m14 5-7 7 7 7M7 12h13"/></svg>',
+    volume: '<svg viewBox="0 0 24 24"><path d="M4 10h4l5-4v12l-5-4H4zM17 9a4 4 0 0 1 0 6"/></svg>',
+    mute: '<svg viewBox="0 0 24 24"><path d="M4 10h4l5-4v12l-5-4H4zM18 9l3 3m0-3-3 3"/></svg>'
+  };
 
-    function icon(name) { return icons[name] || icons.bot; }
-    function escapeHtml(value) {
-      return String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+  function icon(name) { return icons[name] || icons.bot; }
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+  }
+  function loadJson(key, fallback) {
+    try { return JSON.parse(localStorage.getItem(key) || "") || fallback; } catch (_) { return fallback; }
+  }
+  function saveJson(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} }
+  function showToast(message, error = false) {
+    const toast = $("#toast");
+    toast.textContent = message;
+    toast.classList.toggle("error", error);
+    toast.classList.add("show");
+    clearTimeout(state.toastTimer);
+    state.toastTimer = setTimeout(() => toast.classList.remove("show"), 2400);
+  }
+  // "*" because a shared package runs with an opaque origin, where naming
+  // our own origin as the target would drop the message.
+  function post(type, payload = {}) { try { window.parent.postMessage({ type, ...payload }, "*"); } catch (_) {} }
+
+  function signal(value) {
+    const filled = Math.max(0, Math.min(4, Math.round(Number(value || 0) / 25)));
+    return `<span class="signal" aria-label="${escapeHtml(t("signal", { v: value }))}">${[1, 2, 3, 4].map((item) => `<i class="${item <= filled ? "signal-on" : ""}"></i>`).join("")}</span>`;
+  }
+  // One list row: round icon, title over subtitle, and whatever goes on the right.
+  function row({ tag = "div", attrs = "", ico, on = false, title, sub, right = "" }) {
+    return `<${tag} class="kit-item row" ${tag === "button" ? 'type="button"' : ""} ${attrs}><span class="ico ${on ? "on" : ""}">${icon(ico)}</span>` +
+      `<span class="kit-grow"><span class="row-title">${title}</span><span class="row-sub">${sub}</span></span>${right}</${tag}>`;
+  }
+  function section(label, badge) {
+    return `<div class="sec"><span class="kit-label">${label}</span>${badge ? `<span class="badge">${badge}</span>` : ""}</div>`;
+  }
+
+  function renderBar() {
+    const detail = state.tab === "connections" ? state.detail : null;
+    const data = state.data || {};
+    $("#backBtn").hidden = !detail;
+    $("#backBtn").innerHTML = icon("back");
+    $("#tabs").hidden = !!detail;
+    $("#badge").hidden = !detail;
+    $("#barTitle").textContent = detail === "wifi" ? t("wifiNetworks") : detail === "bluetooth" ? t("btDevices") : t("title");
+    if (detail === "wifi") $("#badge").textContent = t((data.wifi || {}).status === "connected" ? "connected" : "off");
+    if (detail === "bluetooth") $("#badge").textContent = t((data.bluetooth || {}).enabled ? "enabled" : "off");
+    document.querySelectorAll("[data-tab]").forEach((tab) => tab.classList.toggle("on", tab.dataset.tab === state.tab));
+  }
+  function summaryHtml() {
+    const data = state.data || {};
+    const device = data.device || {};
+    const battery = device.battery || {};
+    const level = Math.max(0, Math.min(100, battery.level ?? 82));
+    return `<div class="kit-card hi summary"><span class="ico lg on">${icon("bot")}</span>
+      <div class="kit-grow" style="flex:1;min-width:0"><div class="summary-name">${escapeHtml(device.name || t("botName"))}</div>
+        <div class="summary-sub kit-label"><span class="dot"></span>${t(data.mode === "virtual" ? "virtualDevice" : "systemConnected")}</div></div>
+      <div class="battery"><div class="battery-top"><span class="battery-pct">${battery.level ?? 82}%</span><span class="battery-shell"><span class="battery-fill" style="width:${level}%"></span></span></div>
+        <span class="kit-label">${t(battery.charging ? "charging" : "onBattery")}</span></div></div>`;
+  }
+  function renderConnections() {
+    const data = state.data || {};
+    if (state.detail === "wifi") return renderWifiDetail(data.wifi || {});
+    if (state.detail === "bluetooth") return renderBluetoothDetail(data.bluetooth || {});
+    const wifi = data.wifi || {};
+    const bluetooth = data.bluetooth || {};
+    const audio = data.audio || {};
+    const headphones = (bluetooth.devices || []).find((device) => device.kind === "headphones");
+    const wifiOn = wifi.status === "connected";
+    $("#content").innerHTML = `<div class="stack">
+      ${summaryHtml()}
+      ${section(t("connections"), t(data.mode === "virtual" ? "demoMode" : "live"))}
+      <div class="kit-list">
+        ${row({ tag: "button", attrs: 'data-detail="wifi"', ico: "wifi", on: wifiOn, title: "Wi‑Fi",
+          sub: `${escapeHtml(wifi.ssid || t("noNetwork"))} · ${escapeHtml(wifi.ip || t("noIp"))}`,
+          right: `<span class="state"><span class="state-text ${wifiOn ? "" : "ready"}">${t(wifiOn ? "connected" : "ready")}</span>${signal(wifi.signal)}</span><span class="chev">${icon("arrow")}</span>` })}
+        ${row({ tag: "button", attrs: 'data-detail="bluetooth"', ico: "bluetooth", on: !!headphones?.connected, title: "Bluetooth",
+          sub: headphones?.connected ? escapeHtml(headphones.name) + " · " + (headphones.battery ?? 0) + "%" : t("readyToPair"),
+          right: `<span class="state"><span class="state-text ${headphones?.connected ? "" : "ready"}">${t(headphones?.connected ? "connected" : "enabled")}</span></span><span class="chev">${icon("arrow")}</span>` })}
+      </div>
+      ${section(t("audioNow"), t("inOut"))}
+      <div class="kit-list">
+        ${row({ ico: audio.output?.icon || "speaker", title: escapeHtml(audio.output?.name || t("builtinSpeaker")), sub: t("voiceOutput"),
+          right: `<span class="state-text">${t("active")}</span>` })}
+        ${row({ ico: "mic", title: escapeHtml(audio.input?.name || t("builtinMic")), sub: t("asrInput"),
+          right: `<span class="state-text">${t("active")}</span>` })}
+      </div>
+      <button class="kit-btn tonal block" type="button" data-action="refresh">${icon("refresh")}<span>${t("refresh")}</span></button>
+      <div class="note">${t("noteConnections")}</div>
+    </div>`;
+  }
+  function renderWifiDetail(wifi) {
+    const networks = wifi.networks || [];
+    $("#content").innerHTML = `<div class="stack"><div class="kit-list">${networks.map((network) => row({
+      tag: "button", attrs: `data-network="${escapeHtml(network.ssid)}"`, ico: "wifi", on: !!network.known,
+      title: escapeHtml(network.ssid), sub: t(network.secured ? "secured" : "open"),
+      right: `${signal(network.signal)}<span class="state-text ${network.known ? "" : "ready"}">${t(network.known ? "activeNet" : "choose")}</span>`,
+    })).join("")}</div><div class="note">${t("noteWifi")}</div></div>`;
+  }
+  function renderBluetoothDetail(bluetooth) {
+    const devices = bluetooth.devices || [];
+    $("#content").innerHTML = `<div class="stack"><div class="kit-list">${devices.map((device) => row({
+      tag: "button", attrs: `data-device="${escapeHtml(device.id)}"`, ico: device.icon, on: !!device.connected,
+      title: escapeHtml(device.name), sub: device.battery == null ? t("notConnected") : t("battery", { n: device.battery }),
+      right: `<span class="state-text ${device.connected ? "" : "ready"}">${t(device.connected ? "connected" : "connect")}</span>`,
+    })).join("")}</div><button class="kit-btn tonal block" type="button" data-action="scan">${icon("refresh")}<span>${t("scan")}</span></button><div class="note">${t("noteBt")}</div></div>`;
+  }
+  function routes() {
+    const defaults = (state.data?.audio?.routes || []).map((route) => ({ ...route }));
+    const saved = loadJson(storageKey, {});
+    // Demo data carries keys, not text, so a language switch relabels it.
+    return defaults.map((route) => ({ ...route, ...(saved[route.id] || {}), label: route.label || t(route.labelKey) }));
+  }
+  function renderAudio() {
+    const audio = state.data?.audio || {};
+    const devices = (audio.devices || []).filter((device) => device.kind === "output");
+    const output = audio.output || devices[0] || { icon: "speaker" };
+    $("#content").innerHTML = `<div class="stack">
+      ${section(t("audioRoutes"), t("perSource"))}
+      <div class="kit-list">
+        ${row({ ico: output.icon || "speaker", on: true, title: escapeHtml(output.name || t("builtinSpeaker")), sub: t("playbackOutput"),
+          right: `<button class="kit-chip" type="button" data-action="output">${t("change")}</button>` })}
+        ${row({ ico: audio.input?.icon || "mic", title: escapeHtml(audio.input?.name || t("builtinMic")), sub: t("asrInput"),
+          right: `<button class="kit-chip" type="button" data-action="input">${t("configure")}</button>` })}
+      </div>
+      <div class="kit-card mixer">
+        <div class="mixer-head"><span class="mixer-title">${t("perApp")}</span><span class="mixer-hint">${t("sliderHint")}</span></div>
+        ${routes().map((route) => `<div class="route ${route.muted ? "muted" : ""}"><span class="ico">${icon(route.icon)}</span>
+          <span class="route-copy"><span class="route-name">${escapeHtml(route.label)}</span><input class="kit-slider" type="range" min="0" max="100" value="${Math.max(0, Math.min(100, route.volume ?? 0))}" data-route="${escapeHtml(route.id)}" aria-label="${escapeHtml(t("volumeOf", { label: route.label }))}"></span>
+          <span class="route-value" data-value="${escapeHtml(route.id)}">${route.muted ? "—" : route.volume}%</span>
+          <button class="kit-btn icon ${route.muted ? "on" : ""}" type="button" data-mute="${escapeHtml(route.id)}" aria-label="${escapeHtml(t(route.muted ? "unmute" : "mute", { label: route.label }))}">${icon(route.muted ? "mute" : "volume")}</button></div>`).join("")}
+      </div>
+      <div class="note">${t("noteAudio")}</div>
+    </div>`;
+  }
+  function render() {
+    renderBar();
+    if (state.tab === "audio") renderAudio(); else renderConnections();
+    // Sliders built from a template need their fill painted once
+    if (window.BotApp) BotApp.paint();
+  }
+  async function refresh() {
+    try {
+      const response = await fetch("/api/system/status", { cache: "no-store" });
+      if (!response.ok) throw new Error("status");
+      state.data = await response.json();
+    } catch (_) {
+      state.data = { mode: "virtual", device: { battery: { level: 82, charging: true } }, wifi: { status: "connected", ssid: "Claude-Bot", ip: "192.168.1.42", signal: 86, networks: [] }, bluetooth: { enabled: true, devices: [] }, audio: { output: { icon: "speaker" }, input: { icon: "mic" }, routes: [{ id: "bot", labelKey: "routeBot", icon: "bot", volume: 72 }, { id: "youtube", label: "YouTube", icon: "youtube", volume: 58 }, { id: "alarm", labelKey: "routeAlarm", icon: "alarm", volume: 84 }] } };
+      showToast(t("toastVirtual"), true);
     }
-    function loadJson(key, fallback) {
-      try { return JSON.parse(localStorage.getItem(key) || "") || fallback; } catch (_) { return fallback; }
+    render();
+  }
+  function updateRoute(id, changes) {
+    const saved = loadJson(storageKey, {});
+    saved[id] = { ...(saved[id] || {}), ...changes };
+    saveJson(storageKey, saved);
+    post("botAudioRoute", { routeId: id, ...changes });
+  }
+  document.addEventListener("click", (event) => {
+    const tab = event.target.closest("[data-tab]");
+    if (tab) { state.tab = tab.dataset.tab; state.detail = null; render(); return; }
+    const detail = event.target.closest("[data-detail]");
+    if (detail) { state.detail = detail.dataset.detail; render(); $("#content").scrollTop = 0; return; }
+    const action = event.target.closest("[data-action]");
+    if (action) {
+      if (action.dataset.action === "back") { state.detail = null; render(); }
+      if (action.dataset.action === "refresh" || action.dataset.action === "scan") refresh();
+      if (action.dataset.action === "output") { state.tab = "connections"; state.detail = "bluetooth"; render(); showToast(t("toastPickOutput")); }
+      if (action.dataset.action === "input") showToast(t("toastMic"));
+      return;
     }
-    function saveJson(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {} }
-    function showToast(message, error = false) {
-      const toast = $("#toast");
-      toast.textContent = message;
-      toast.classList.toggle("error", error);
-      toast.classList.add("show");
-      clearTimeout(state.toastTimer);
-      state.toastTimer = setTimeout(() => toast.classList.remove("show"), 2400);
-    }
-    // "*" because a shared package runs with an opaque origin, where naming
-    // our own origin as the target would drop the message.
-    function post(type, payload = {}) { try { window.parent.postMessage({ type, ...payload }, "*"); } catch (_) {} }
-    const appRoot = $(".app");
-    let swipeStart = null;
-    function releaseSwipe(pointerId) {
-      if (pointerId == null || typeof appRoot.hasPointerCapture !== "function") return;
-      try {
-        if (appRoot.hasPointerCapture(pointerId)) appRoot.releasePointerCapture(pointerId);
-      } catch (_) {}
-    }
-    appRoot.addEventListener("pointerdown", (event) => {
-      if (swipeStart || event.target.closest("input, select, textarea")) return;
-      const onButton = !!event.target.closest("button");
-      swipeStart = {
-        x: event.clientX,
-        y: event.clientY,
-        pointerId: event.pointerId,
-        scrollable: true,
-      };
-      if (!onButton) {
-        try { appRoot.setPointerCapture(event.pointerId); } catch (_) {}
-      }
-    });
-    function finishSwipe(event) {
-      if (!swipeStart || swipeStart.pointerId !== event.pointerId) return;
-      const start = swipeStart;
-      swipeStart = null;
-      releaseSwipe(start.pointerId);
-      if (event.type === "pointercancel" && start.scrollable) return;
-      const dx = event.clientX - start.x;
-      const dy = event.clientY - start.y;
-      if (Math.max(Math.abs(dx), Math.abs(dy)) < 28) return;
-      if (Math.abs(dx) >= Math.abs(dy)) post("storeAppSwipe", { direction: dx < 0 ? "left" : "right" });
-      else if (dy > 0) post("storeAppSwipe", { direction: "down" });
-    }
-    appRoot.addEventListener("pointerup", finishSwipe);
-    appRoot.addEventListener("pointercancel", finishSwipe);
-    window.addEventListener("pointerup", finishSwipe);
-    window.addEventListener("pointercancel", finishSwipe);
-    appRoot.addEventListener("lostpointercapture", (event) => {
-      if (swipeStart?.pointerId === event.pointerId) swipeStart = null;
-    });
-    function signal(value) {
-      const filled = Math.max(0, Math.min(4, Math.round(Number(value || 0) / 25)));
-      return `<span class="signal" aria-label="${escapeHtml(t("signal", { v: value }))}">${[1, 2, 3, 4].map((item) => `<i class="${item <= filled ? "on" : ""}"></i>`).join("")}</span>`;
-    }
-    function renderIconNodes() {
-      document.querySelectorAll("[data-icon]").forEach((node) => { node.innerHTML = icon(node.dataset.icon); });
-    }
-    function renderSummary() {
-      const data = state.data || {};
-      const device = data.device || {};
-      const battery = device.battery || {};
-      $("#summary").innerHTML = `
-        <div class="summary-copy"><div class="summary-name">${escapeHtml(device.name || t("botName"))}</div>
-          <div class="summary-sub"><span class="dot"></span>${t(data.mode === "virtual" ? "virtualDevice" : "systemConnected")}</div></div>
-        <div class="battery"><div class="battery-top"><span>${battery.level ?? 82}%</span><span class="battery-shell"><span class="battery-fill" style="width:${Math.max(0, Math.min(100, battery.level ?? 82))}%"></span></span></div>
-          <span class="charge">${t(battery.charging ? "charging" : "onBattery")}</span></div>`;
-    }
-    function renderConnections() {
-      const data = state.data || {};
-      if (state.detail === "wifi") return renderWifiDetail(data.wifi || {});
-      if (state.detail === "bluetooth") return renderBluetoothDetail(data.bluetooth || {});
-      const wifi = data.wifi || {};
-      const bluetooth = data.bluetooth || {};
-      const headphones = (bluetooth.devices || []).find((device) => device.kind === "headphones");
-      $("#content").innerHTML = `<div class="stack">
-        <div class="section-label"><span>${t("connections")}</span><span class="virtual-badge">${t(data.mode === "virtual" ? "demoMode" : "live")}</span></div>
-        <button class="connection-card" type="button" data-detail="wifi"><span class="icon-box green">${icon("wifi")}</span><span class="copy"><span class="title">Wi‑Fi</span><span class="subtitle">${escapeHtml(wifi.ssid || t("noNetwork"))} · ${escapeHtml(wifi.ip || t("noIp"))}</span></span><span class="state"><span class="state-text">${t(wifi.status === "connected" ? "connected" : "ready")}</span>${signal(wifi.signal)}</span><span class="chevron">${icon("arrow")}</span></button>
-        <button class="connection-card" type="button" data-detail="bluetooth"><span class="icon-box ${headphones?.connected ? "green" : ""}">${icon("bluetooth")}</span><span class="copy"><span class="title">Bluetooth</span><span class="subtitle">${headphones?.connected ? escapeHtml(headphones.name) + " · " + (headphones.battery ?? 0) + "%" : t("readyToPair")}</span></span><span class="state"><span class="state-text ${headphones?.connected ? "" : "ready"}">${t(headphones?.connected ? "connected" : "enabled")}</span></span><span class="chevron">${icon("arrow")}</span></button>
-        <div class="card audio-card"><div class="section-label" style="padding:0"><span>${t("audioNow")}</span><span class="virtual-badge">${t("inOut")}</span></div><div class="divider"></div><div class="audio-device"><span class="icon-box">${icon((data.audio || {}).output?.icon || "speaker")}</span><span class="copy"><span class="title">${escapeHtml((data.audio || {}).output?.name || t("builtinSpeaker"))}</span><span class="subtitle">${t("voiceOutput")}</span></span><span class="device-meta">${t("active")}</span></div><div class="divider"></div><div class="audio-device"><span class="icon-box amber">${icon("mic")}</span><span class="copy"><span class="title">${escapeHtml((data.audio || {}).input?.name || t("builtinMic"))}</span><span class="subtitle">${t("asrInput")}</span></span><span class="device-meta">${t("active")}</span></div></div>
-        <button class="action" type="button" data-action="refresh">${icon("refresh")} &nbsp;${t("refresh")}</button>
-        <div class="note">${t("noteConnections")}</div>
-      </div>`;
-    }
-    function renderWifiDetail(wifi) {
-      const networks = wifi.networks || [];
-      $("#content").innerHTML = `<div class="stack"><button class="back" type="button" data-action="back">${icon("back")} ${t("back")}</button><div class="section-label"><span>${t("wifiNetworks")}</span><span class="virtual-badge">${t(wifi.status === "connected" ? "connected" : "off")}</span></div><div class="card device-list">${networks.map((network) => `<button class="device-row" type="button" data-network="${escapeHtml(network.ssid)}"><span class="icon-box ${network.known ? "green" : ""}">${icon("wifi")}</span><span class="copy"><span class="title">${escapeHtml(network.ssid)}</span><span class="subtitle">${t(network.secured ? "secured" : "open")}</span></span>${signal(network.signal)}<span class="device-action">${t(network.known ? "activeNet" : "choose")}</span></button>`).join("")}</div><div class="note">${t("noteWifi")}</div></div>`;
-    }
-    function renderBluetoothDetail(bluetooth) {
-      const devices = bluetooth.devices || [];
-      $("#content").innerHTML = `<div class="stack"><button class="back" type="button" data-action="back">${icon("back")} ${t("back")}</button><div class="section-label"><span>${t("btDevices")}</span><span class="virtual-badge">${t(bluetooth.enabled ? "enabled" : "off")}</span></div><div class="card device-list">${devices.map((device) => `<button class="device-row" type="button" data-device="${escapeHtml(device.id)}"><span class="icon-box ${device.connected ? "green" : ""}">${icon(device.icon)}</span><span class="copy"><span class="title">${escapeHtml(device.name)}</span><span class="subtitle">${device.battery == null ? t("notConnected") : t("battery", { n: device.battery })}</span></span><span class="device-action">${t(device.connected ? "connected" : "connect")}</span></button>`).join("")}</div><button class="action" type="button" data-action="scan">${icon("refresh")} &nbsp;${t("scan")}</button><div class="note">${t("noteBt")}</div></div>`;
-    }
-    function routes() {
-      const defaults = (state.data?.audio?.routes || []).map((route) => ({ ...route }));
-      const saved = loadJson(storageKey, {});
-      // Demo data carries keys, not text, so a language switch relabels it.
-      return defaults.map((route) => ({ ...route, ...(saved[route.id] || {}), label: route.label || t(route.labelKey) }));
-    }
-    function renderAudio() {
-      const audio = state.data?.audio || {};
-      const devices = (audio.devices || []).filter((device) => device.kind === "output");
-      const output = audio.output || devices[0] || { icon: "speaker" };
-      $("#content").innerHTML = `<div class="stack"><div class="section-label"><span>${t("audioRoutes")}</span><span class="virtual-badge">${t("perSource")}</span></div><div class="card audio-card"><div class="audio-device"><span class="icon-box">${icon(output.icon || "speaker")}</span><span class="copy"><span class="title">${escapeHtml(output.name || t("builtinSpeaker"))}</span><span class="subtitle">${t("playbackOutput")}</span></span><span class="select-pill" data-action="output">${t("change")}</span></div><div class="divider"></div><div class="audio-device"><span class="icon-box amber">${icon(audio.input?.icon || "mic")}</span><span class="copy"><span class="title">${escapeHtml(audio.input?.name || t("builtinMic"))}</span><span class="subtitle">${t("asrInput")}</span></span><span class="select-pill" data-action="input">${t("configure")}</span></div></div><div class="card audio-card"><div class="mixer-head"><span class="mixer-title">${t("perApp")}</span><span class="mixer-hint">${t("sliderHint")}</span></div><div class="route-list">${routes().map((route) => `<div class="route-row"><span class="route-icon">${icon(route.icon)}</span><span class="route-copy"><span class="route-name">${escapeHtml(route.label)}</span><input class="route-range" type="range" min="0" max="100" value="${Math.max(0, Math.min(100, route.volume ?? 0))}" data-route="${escapeHtml(route.id)}" aria-label="${escapeHtml(t("volumeOf", { label: route.label }))}"></span><span class="route-controls"><span class="route-value" data-value="${escapeHtml(route.id)}">${route.muted ? "—" : route.volume}%</span><button class="mute ${route.muted ? "on" : ""}" type="button" data-mute="${escapeHtml(route.id)}" aria-label="${escapeHtml(t(route.muted ? "unmute" : "mute", { label: route.label }))}">${icon(route.muted ? "mute" : "volume")}</button></span></div>`).join("")}</div></div><div class="note">${t("noteAudio")}</div></div>`;
-    }
-    function render() {
-      renderSummary();
-      document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.tab === state.tab));
-      if (state.tab === "audio") renderAudio(); else renderConnections();
-      renderIconNodes();
-    }
-    async function refresh() {
-      try {
-        const response = await fetch("/api/system/status", { cache: "no-store" });
-        if (!response.ok) throw new Error("status");
-        state.data = await response.json();
-      } catch (_) {
-        state.data = { mode: "virtual", device: { battery: { level: 82, charging: true } }, wifi: { status: "connected", ssid: "Claude-Bot", ip: "192.168.1.42", signal: 86, networks: [] }, bluetooth: { enabled: true, devices: [] }, audio: { output: { icon: "speaker" }, input: { icon: "mic" }, routes: [{ id: "bot", labelKey: "routeBot", icon: "bot", volume: 72 }, { id: "youtube", label: "YouTube", icon: "youtube", volume: 58 }, { id: "alarm", labelKey: "routeAlarm", icon: "alarm", volume: 84 }] } };
-        showToast(t("toastVirtual"), true);
-      }
+    const mute = event.target.closest("[data-mute]");
+    if (mute) {
+      const route = routes().find((item) => item.id === mute.dataset.mute);
+      updateRoute(mute.dataset.mute, { muted: !route?.muted });
+      const scroll = $("#content").scrollTop;
       render();
+      $("#content").scrollTop = scroll;
     }
-    function updateRoute(id, changes) {
-      const saved = loadJson(storageKey, {});
-      saved[id] = { ...(saved[id] || {}), ...changes };
-      saveJson(storageKey, saved);
-      post("botAudioRoute", { routeId: id, ...changes });
-    }
-    document.addEventListener("click", (event) => {
-      const tab = event.target.closest("[data-tab]");
-      if (tab) { state.tab = tab.dataset.tab; state.detail = null; render(); return; }
-      const detail = event.target.closest("[data-detail]");
-      if (detail) { state.detail = detail.dataset.detail; render(); return; }
-      const action = event.target.closest("[data-action]");
-      if (action) {
-        if (action.dataset.action === "back") { state.detail = null; render(); }
-        if (action.dataset.action === "refresh" || action.dataset.action === "scan") refresh();
-        if (action.dataset.action === "output") { state.tab = "connections"; state.detail = "bluetooth"; render(); showToast(t("toastPickOutput")); }
-        if (action.dataset.action === "input") showToast(t("toastMic"));
-        return;
-      }
-      const mute = event.target.closest("[data-mute]");
-      if (mute) {
-        const route = routes().find((item) => item.id === mute.dataset.mute);
-        updateRoute(mute.dataset.mute, { muted: !route?.muted });
-        render();
-      }
-      const device = event.target.closest("[data-device]");
-      if (device) { post("botBluetoothDevice", { deviceId: device.dataset.device }); showToast(t("toastPairRequest")); }
-      const network = event.target.closest("[data-network]");
-      if (network) { post("botWifiNetwork", { ssid: network.dataset.network }); showToast(t("toastNetwork", { ssid: network.dataset.network })); }
-    });
-    document.addEventListener("input", (event) => {
-      const range = event.target.closest("[data-route]");
-      if (!range) return;
-      const value = Number(range.value);
-      const label = Array.from(document.querySelectorAll("[data-value]"))
-        .find((node) => node.dataset.value === range.dataset.route);
-      if (label) label.textContent = `${value}%`;
-      updateRoute(range.dataset.route, { volume: value, muted: false });
-    });
-    window.addEventListener("message", (event) => {
-      // Only the source is checked: a sandboxed frame sees origin "null".
-      if (event.source !== window.parent || event.data?.type !== "botSkin") return;
-      if (event.data.vars) Object.entries(event.data.vars).forEach(([key, value]) => document.documentElement.style.setProperty(key, value));
-      document.documentElement.dataset.theme = event.data.theme === "light" ? "light" : "dark";
-      if ((event.data.lang === "uk" || event.data.lang === "en") && event.data.lang !== lang) {
-        lang = event.data.lang;
-        applyI18n();
-        if (state.data) render();
-      }
-    });
-    applyI18n();
-    refresh();
-  </script>
+    const device = event.target.closest("[data-device]");
+    if (device) { post("botBluetoothDevice", { deviceId: device.dataset.device }); showToast(t("toastPairRequest")); }
+    const network = event.target.closest("[data-network]");
+    if (network) { post("botWifiNetwork", { ssid: network.dataset.network }); showToast(t("toastNetwork", { ssid: network.dataset.network })); }
+  });
+  document.addEventListener("input", (event) => {
+    const range = event.target.closest("[data-route]");
+    if (!range) return;
+    const value = Number(range.value);
+    const label = Array.from(document.querySelectorAll("[data-value]"))
+      .find((node) => node.dataset.value === range.dataset.route);
+    if (label) label.textContent = `${value}%`;
+    const routeRow = range.closest(".route");
+    if (routeRow) { routeRow.classList.remove("muted"); routeRow.querySelector("[data-mute]")?.classList.remove("on"); }
+    updateRoute(range.dataset.route, { volume: value, muted: false });
+  });
+
+  applyI18n();
+  refresh();
+
+  // The screen's style and theme are applied by the kit; the app only
+  // follows the language.
+  if (window.BotApp) BotApp.onChange((s) => {
+    if (s.lang !== lang) { lang = s.lang; applyI18n(); if (state.data) render(); }
+  });
+</script>
 </body>
 </html>

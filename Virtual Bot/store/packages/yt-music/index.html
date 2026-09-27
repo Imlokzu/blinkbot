@@ -4,208 +4,206 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>YT Music</title>
+<!-- App kit v1: the screen's own look (Material You or Deep UI, any theme
+     or skin) and its safe insets. See docs/SCREEN-PLATFORM.md §2.6. -->
+<link rel="stylesheet" href="/static/screen/app-kit.css">
+<script src="/static/screen/app-kit.js"></script>
 <style>
-  :root {
-    --bg: #16181a; --panel: #1e2124; --line: #2f3438; --text: #e8e4dc;
-    --muted: #8e9498; --accent: #d17a58; --ok: #8ca879; --off: #6b7175;
-    color-scheme: dark;
-  }
-  :root[data-theme="light"] {
-    --bg: #efe7d9; --panel: #fbf6ec; --line: #ddcdb2; --text: #2f271f;
-    --muted: #7d6d5c; --accent: #b95f3d; --ok: #6f8b5f; --off: #a8998a;
-    color-scheme: light;
-  }
-  * { box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
-  body { background: var(--bg); color: var(--text);
-    font: 12px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
-    -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
-  button, input { font: inherit; color: inherit; }
+  /* Only what is the music app's own: covers, track rows, the now-playing
+     page and its lyrics. Colours, buttons and surfaces come from the kit. */
   [hidden] { display: none !important; }
-  svg.i { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8;
+  button, input { font: inherit; color: inherit; }
+  svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9;
     stroke-linecap: round; stroke-linejoin: round; }
+  .kit-btn svg.i { width: 18px; height: 18px; }
+  .kit-app { position: relative; gap: 6px; }
 
-  .app { display: flex; flex-direction: column; height: 100%; padding: 6px 8px 6px; gap: 5px; }
-  .bar { display: flex; gap: 5px; flex: none; }
-  input { flex: 1; min-width: 0; height: 28px; padding: 0 10px; border: 1px solid var(--line);
-    border-radius: 14px; background: var(--panel); outline: none; font-size: 12px; }
-  input:focus { border-color: var(--accent); }
-  .btn { flex: none; min-width: 28px; height: 28px; padding: 0 10px; border: 1px solid var(--line);
-    border-radius: 14px; background: var(--panel); font-size: 11px; font-weight: 700; cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
-  .btn.icon { width: 28px; padding: 0; }
-  .btn:active { border-color: var(--accent); color: var(--accent); }
-  .seg { display: flex; flex: none; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-  .seg button { border: 0; background: transparent; color: var(--muted); height: 22px; padding: 0 10px;
-    font-size: 10px; font-weight: 700; cursor: pointer; }
-  .seg button.on { background: var(--accent); color: var(--bg); }
-  .row2 { display: flex; align-items: center; gap: 6px; flex: none; }
-  .status { flex: 1; min-width: 0; color: var(--muted); font-size: 10px; white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis; }
+  /* ---- Browse: search, the songs/albums choice, the shelves ---- */
+  .search { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; }
+  .search svg.i { position: absolute; left: 11px; color: var(--muted); pointer-events: none; }
+  .search input { flex: 1; min-width: 0; height: 34px; padding: 0 12px 0 33px; border: 0; border-radius: 17px;
+    background: var(--kit-surface-hi); outline: none; font-size: 12px; -webkit-appearance: none; appearance: none; }
+  .search input::placeholder { color: var(--muted); }
+  .search input:focus { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .search input::-webkit-search-cancel-button { display: none; }
+  .kit-bar .kit-btn.icon { width: 34px; height: 34px; min-width: 34px; min-height: 34px; }
+  .row2 { flex: none; gap: 8px; }
+  .row2 .kit-segment { flex: none; padding: 2px; gap: 2px; border-radius: 15px; }
+  .row2 .kit-chip { min-height: 26px; min-width: 64px; border-radius: 13px; }
+  .row2 .kit-chip:not(.on) { background: transparent; color: var(--muted); }
+  .status { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .status.now { color: var(--accent); }
 
-  .list { flex: 1; min-height: 0; overflow-y: auto; touch-action: pan-y; scrollbar-width: none;
-    border-top: 1px solid var(--line); padding-top: 3px; }
-  .list::-webkit-scrollbar { display: none; }
-  .shelf { margin: 6px 0 3px; color: var(--muted); font-size: 9.5px; font-weight: 700;
-    letter-spacing: .08em; text-transform: uppercase; }
-  /* Albums scroll sideways in one row: a 172px-tall frame cannot spend two
-     rows of covers before the first song. */
-  .albums { display: flex; gap: 7px; overflow-x: auto; touch-action: pan-x; scrollbar-width: none; padding-bottom: 2px; }
+  .list { flex: 1; margin: 0 -4px; padding: 0 4px; }
+  .shelf { margin: 8px 2px 5px; color: var(--text); font: 700 12px/1.2 var(--font); }
+  .shelf:first-child { margin-top: 2px; }
+  /* Albums scroll sideways in one row: the list cannot spend two rows of
+     covers before the first song. */
+  .albums { display: flex; gap: 8px; overflow-x: auto; touch-action: pan-x; scrollbar-width: none; padding-bottom: 2px; }
   .albums::-webkit-scrollbar { display: none; }
-  .album { flex: none; width: 76px; border: 0; padding: 0; background: transparent; text-align: left; cursor: pointer; }
-  .album img, .album .ph { width: 76px; height: 76px; border-radius: 6px; display: block; object-fit: cover;
-    background: var(--line); }
-  .album .t { margin-top: 3px; font-size: 10px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .album .s { font-size: 9px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .track { display: flex; align-items: center; gap: 7px; width: 100%; min-height: 40px; padding: 3px 0;
-    border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; cursor: pointer; }
-  .track:active .tt { color: var(--accent); }
+  .albums.grid { flex-wrap: wrap; overflow-x: visible; touch-action: pan-y; }
+  .album { flex: none; width: 80px; border: 0; padding: 0; background: transparent; text-align: left; cursor: pointer;
+    transition: transform 110ms ease; }
+  .album:active { transform: scale(.95); }
+  .album img, .album .ph { width: 80px; height: 80px; border-radius: 12px; display: block; object-fit: cover;
+    background: var(--kit-surface-hi); }
+  .album .t { margin-top: 4px; font-size: 10.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .album .s { font-size: 9.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 4px 2px 4px 4px;
+    border-radius: 12px; cursor: pointer; transition: transform 110ms ease; }
+  .track:active { transform: scale(.98); background: var(--kit-surface); }
   .track.on .tt { color: var(--accent); }
-  .cover { width: 34px; height: 34px; flex: none; border-radius: 4px; object-fit: cover; background: var(--line); }
-  .num { width: 22px; flex: none; text-align: center; color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+  .cover { width: 36px; height: 36px; flex: none; border-radius: 8px; object-fit: cover; background: var(--kit-surface-hi); }
+  .num { width: 24px; flex: none; text-align: center; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
   .ti { flex: 1; min-width: 0; }
-  .tt { font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ts { font-size: 9.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .mini { flex: none; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 9px;
-    background: transparent; color: var(--muted); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-  .mini:active { color: var(--accent); border-color: var(--accent); }
-  .hint { padding: 8px 2px; color: var(--muted); font-size: 10.5px; line-height: 1.45; }
+  .tt { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ts { margin-top: 1px; font-size: 10px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track .kit-btn.icon { width: 32px; height: 32px; min-width: 32px; min-height: 32px; color: var(--muted); background: transparent; }
+  .track .kit-btn.icon svg.i { width: 17px; height: 17px; }
+  .hint { padding: 10px 4px; line-height: 1.45; }
 
-  .sheet { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--bg); }
-  .shead { flex: none; display: flex; align-items: center; gap: 7px; padding: 6px 8px 4px; }
-  .shead .t { flex: 1; min-width: 0; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sbody { flex: 1; min-height: 0; overflow-y: auto; touch-action: pan-y; padding: 2px 8px 10px; scrollbar-width: none; }
-  .sbody::-webkit-scrollbar { display: none; }
-  .ahead { display: flex; gap: 8px; align-items: center; padding: 4px 0 6px; }
-  .ahead img, .ahead .ph { width: 56px; height: 56px; border-radius: 6px; object-fit: cover; background: var(--line); flex: none; }
-  .lyrics { white-space: pre-wrap; font-size: 11.5px; line-height: 1.5; }
-  .source { margin-top: 8px; color: var(--muted); font-size: 9px; }
+  /* Mini player under the list: what the screen is playing right now */
+  .mini-np { flex: none; display: flex; align-items: center; gap: 10px; width: 100%; height: 44px;
+    padding: 0 5px 0 5px; border: 0; text-align: left; cursor: pointer; color: var(--text); }
+  .mini-np img { width: 34px; height: 34px; flex: none; border-radius: 8px; object-fit: cover; background: var(--kit-surface-hi); }
+  .mini-np .kit-btn.icon { width: 34px; height: 34px; min-width: 34px; min-height: 34px; }
 
-  /* Mini bar under the list: what the screen is playing right now. */
-  .app { position: relative; }
-  .mini-np { flex: none; display: flex; align-items: center; gap: 7px; width: 100%; height: 34px;
-    padding: 0 3px 0 0; border: 1px solid var(--line); border-radius: 9px; background: var(--panel);
-    text-align: left; cursor: pointer; overflow: hidden; }
-  .mini-np img { width: 32px; height: 32px; flex: none; object-fit: cover; background: var(--line); }
-  .mini-np .ti { flex: 1; min-width: 0; }
-  .mini-np .mini { border: 0; color: var(--text); }
+  /* ---- Pages over the list: an album, a song's lyrics ---- */
+  .sheet { position: absolute; inset: 0; background: var(--bg); }
+  :root[data-ui="deep"] .sheet {
+    background: radial-gradient(95% 70% at 50% -12%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 66%), var(--bg); }
+  .sheet .kit-title { font-size: 16px; }
+  .sbody { flex: 1; }
+  .ahead { display: flex; gap: 12px; align-items: center; padding: 2px 0 8px; }
+  .ahead img, .ahead .ph { width: 72px; height: 72px; border-radius: 12px; object-fit: cover; background: var(--kit-surface-hi); flex: none; }
+  .ahead .tt { font-size: 14px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .ahead .kit-btn { margin-top: 7px; min-height: 30px; padding: 0 14px 0 11px; font-size: 12px; }
+  .lyrics { white-space: pre-wrap; font-size: 12.5px; line-height: 1.55; }
+  .source { margin-top: 10px; }
 
-  /* ---- The player: the whole panel, like the YouTube video player ----
-     Cover on the left, title and transport on its right, the lyrics under
-     both. Only transform and opacity move: on the Pi's A53 a reflow per
-     lyric line would be felt. */
-  .player { position: absolute; inset: 0; display: flex; flex-direction: column;
-    background: var(--bg); overflow: hidden; }
+  /* ---- Now playing: the whole panel, like a phone's player turned
+     sideways. The cover, title and transport on the left, the lyrics on
+     the right. Only transform and opacity move: on the Pi's A53 a reflow
+     per lyric line would be felt. ---- */
+  .player { position: absolute; inset: 0; overflow: hidden; background: var(--bg); }
+  /* The cover's own colour washes down from the top and fades out: one
+     hue, lit at the top, the page's ground at the bottom. */
   .pbg { position: absolute; inset: 0; pointer-events: none;
     background: linear-gradient(180deg,
-      color-mix(in srgb, var(--tint, var(--accent)) 42%, var(--bg)) 0%,
-      color-mix(in srgb, var(--tint, var(--accent)) 14%, var(--bg)) 55%, var(--bg) 100%);
-    transition: opacity .4s linear; }
-  .ptop { position: relative; flex: none; display: flex; gap: 9px; padding: 8px 8px 4px; }
-  .pcover { width: 86px; height: 86px; flex: none; border-radius: 7px; object-fit: cover;
-    background: var(--line); box-shadow: 0 4px 14px rgba(0, 0, 0, .35); }
-  .pinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
-  .phead { display: flex; align-items: flex-start; gap: 4px; }
-  .ptext { flex: 1; min-width: 0; }
-  .ptitle { font-size: 13px; font-weight: 800; line-height: 1.2; display: -webkit-box;
-    -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .partist { margin-top: 2px; font-size: 10px; color: var(--muted); white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis; }
-  .pclose { flex: none; width: 26px; height: 26px; margin: -3px -3px 0 0; border: 0; border-radius: 13px;
-    background: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-  .pclose:active { background: var(--line); }
-  .pctl { display: flex; align-items: center; gap: 10px; }
-  .pctl button { width: 30px; height: 30px; border: 0; border-radius: 15px; background: transparent;
-    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
-  .pctl button svg.i { width: 17px; height: 17px; }
-  .pctl button:disabled { opacity: .35; }
-  .pctl button:active { background: var(--line); }
-  .pctl .big { width: 38px; height: 38px; border-radius: 19px; background: var(--text); color: var(--bg); }
-  .pctl .big svg.i { width: 18px; height: 18px; }
-  .pctl .big:active { background: var(--accent); }
-  .pctl .big.wait { opacity: .6; }
-  .pseek { display: flex; align-items: center; gap: 6px; font-size: 9px; color: var(--muted);
-    font-variant-numeric: tabular-nums; }
-  .pbar { flex: 1; height: 16px; position: relative; cursor: pointer; }
-  .pbar i, .pbar b { position: absolute; left: 0; right: 0; top: 7px; height: 3px; border-radius: 2px; display: block; }
-  .pbar i { background: color-mix(in srgb, var(--text) 22%, transparent); }
-  .pbar b { background: var(--text); transform: scaleX(0); transform-origin: left center; }
+      color-mix(in srgb, var(--tint, var(--accent)) 46%, var(--bg)) 0%,
+      color-mix(in srgb, var(--tint, var(--accent)) 16%, var(--bg)) 58%, var(--bg) 100%); }
+  :root[data-theme="light"] .pbg {
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--tint, var(--accent)) 30%, var(--bg)) 0%,
+      color-mix(in srgb, var(--tint, var(--accent)) 10%, var(--bg)) 58%, var(--bg) 100%); }
+  .pmain { position: relative; flex: 1; min-height: 0; display: flex; gap: 14px; }
+  .pside { flex: none; width: 124px; display: flex; flex-direction: column; align-items: center; min-height: 0; }
+  .pcover { width: 100px; height: 100px; flex: none; border-radius: 14px; object-fit: cover;
+    background: var(--kit-surface-hi); box-shadow: 0 6px 18px rgba(0, 0, 0, .35); }
+  :root[data-theme="light"] .pcover { box-shadow: 0 6px 16px rgba(0, 0, 0, .16); }
+  .ptext { width: 100%; margin-top: 7px; text-align: center; }
+  .ptitle { font: 700 13px/1.2 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .partist { margin-top: 1px; font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pseek { width: 100%; margin-top: 5px; }
+  .pbar { height: 14px; position: relative; cursor: pointer; }
+  .pbar i, .pbar b { position: absolute; left: 0; right: 0; top: 5px; height: 4px; border-radius: 2px; display: block; }
+  .pbar i { background: color-mix(in srgb, var(--text) 18%, transparent); }
+  .pbar b { background: var(--accent); transform: scaleX(0); transform-origin: left center; }
+  :root[data-ui="deep"] .pbar b { background: var(--text); }
+  .ptimes { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .pctl { margin-top: auto; gap: 8px; }
+  .pctl .kit-btn.icon { width: 32px; height: 32px; min-width: 32px; min-height: 32px; background: transparent; }
+  .pctl .kit-btn.icon svg.i { width: 19px; height: 19px; }
+  .pctl #pplay { width: 46px; height: 46px; background: var(--kit-primary); color: var(--kit-on-accent); }
+  .pctl #pplay svg.i { width: 21px; height: 21px; stroke-width: 2.2; }
+  .pctl #pplay.wait { opacity: .6; }
+
+  /* Right column: where the lyrics came from and "collapse", then the text */
+  .pright { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+  .phead { flex: none; display: flex; align-items: center; gap: 6px; min-height: 30px; }
+  .psrc { flex: 1; min-width: 0; font-size: 9.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .psrc.bad { color: var(--accent); }
+  .phead .kit-btn.icon { width: 30px; height: 30px; min-width: 30px; min-height: 30px; }
 
   /* Lyrics: a column that slides up so the current line sits a third of
      the way down. The current line grows by transform and fills left to
      right as it is sung (background-clip: text). */
-  .plyr { position: relative; flex: 1; min-height: 0; overflow: hidden; padding: 0 12px;
-    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 78%, transparent 100%);
-            mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 78%, transparent 100%); }
+  .plyr { position: relative; flex: 1; min-height: 0; overflow: hidden;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 12%, #000 80%, transparent 100%);
+            mask-image: linear-gradient(180deg, transparent 0, #000 12%, #000 80%, transparent 100%); }
   .plines { will-change: transform; transition: transform .5s cubic-bezier(.22, .61, .36, 1); }
-  .l { width: 88%; padding: 3px 0; font-size: 13px; font-weight: 800; line-height: 1.25;
-    color: color-mix(in srgb, var(--text) 42%, transparent); transform-origin: left center;
+  .l { width: 90%; padding: 3px 0; font-size: 12.5px; font-weight: 800; line-height: 1.25;
+    color: color-mix(in srgb, var(--text) 40%, transparent); transform-origin: left center;
     transition: transform .3s ease, color .3s linear, opacity .3s linear; cursor: pointer; }
   .l.past { opacity: .55; }
-  .l.now { transform: scale(1.1); color: transparent;
-    background-image: linear-gradient(90deg, var(--text) 50%, color-mix(in srgb, var(--text) 42%, transparent) 50%);
+  .l.now { transform: scale(1.08); color: transparent;
+    background-image: linear-gradient(90deg, var(--text) 50%, color-mix(in srgb, var(--text) 40%, transparent) 50%);
     background-size: 200% 100%; background-position-x: 100%;
     -webkit-background-clip: text; background-clip: text; }
   .l.gap { font-size: 12px; }
-  .plain .l { font-size: 11.5px; font-weight: 600; color: color-mix(in srgb, var(--text) 78%, transparent); cursor: default; }
+  .plain .l { font-size: 12px; font-weight: 600; color: color-mix(in srgb, var(--text) 78%, transparent); cursor: default; }
   .pmsg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    padding: 0 20px; text-align: center; color: var(--muted); font-size: 11px; line-height: 1.45; }
-  .psrc.bad { color: var(--accent); }
-  .psrc { position: relative; flex: none; height: 13px; padding: 0 12px 2px; font-size: 8.5px;
-    color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    padding: 0 12px; text-align: center; line-height: 1.45; }
 </style>
 </head>
-<body>
-<div class="app" id="app">
-  <div class="bar">
-    <input id="q" type="search" data-i18n-placeholder="search.placeholder" data-i18n-aria="search.aria">
-    <button class="btn" id="go" type="button" data-i18n="search.go"></button>
-    <button class="btn icon" id="homeBtn" type="button" data-i18n-aria="home.aria" data-icon="home"></button>
-  </div>
-  <div class="row2">
-    <div class="seg" id="kind" role="group">
-      <button type="button" data-kind="songs" class="on" data-i18n="kind.songs"></button>
-      <button type="button" data-kind="albums" data-i18n="kind.albums"></button>
+<body class="kit">
+<main class="kit-app" id="app">
+  <header class="kit-bar">
+    <label class="search">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+      <input id="q" type="search" data-i18n-placeholder="search.placeholder" data-i18n-aria="search.aria">
+    </label>
+    <button class="kit-btn icon tonal" id="go" type="button" data-i18n-aria="search.go" data-icon="go"></button>
+    <button class="kit-btn icon" id="homeBtn" type="button" data-i18n-aria="home.aria" data-icon="home"></button>
+  </header>
+  <div class="kit-row row2">
+    <div class="kit-segment" id="kind" role="group">
+      <button type="button" data-kind="songs" class="kit-chip on" data-i18n="kind.songs"></button>
+      <button type="button" data-kind="albums" class="kit-chip" data-i18n="kind.albums"></button>
     </div>
-    <div class="status" id="status"></div>
+    <div class="kit-label status" id="status"></div>
   </div>
-  <div class="list" id="list"></div>
-  <button class="mini-np" id="miniNp" type="button" hidden>
+  <div class="kit-scroll list" id="list"></div>
+  <button class="kit-card hi mini-np" id="miniNp" type="button" hidden>
     <img id="miniCover" alt="">
     <div class="ti"><div class="tt" id="miniTitle"></div><div class="ts" id="miniArtist"></div></div>
-    <span class="mini" id="miniPlay" role="button"></span>
+    <span class="kit-btn icon primary" id="miniPlay" role="button"></span>
   </button>
-</div>
+</main>
 
-<div class="player" id="player" hidden>
+<section class="kit-app player" id="player" hidden>
   <div class="pbg"></div>
-  <div class="ptop">
-    <img class="pcover" id="pcover" alt="">
-    <div class="pinfo">
+  <div class="pmain">
+    <div class="pside">
+      <img class="pcover" id="pcover" alt="">
+      <div class="ptext"><div class="ptitle" id="ptitle"></div><div class="partist" id="partist"></div></div>
+      <div class="pseek">
+        <div class="pbar" id="pbar"><i></i><b id="pfill"></b></div>
+        <div class="ptimes"><span id="pcur">0:00</span><span id="pdur">0:00</span></div>
+      </div>
+      <div class="kit-row pctl">
+        <button class="kit-btn icon" id="pprev" type="button" data-i18n-aria="player.prev" data-icon="prev"></button>
+        <button class="kit-btn icon" id="pplay" type="button" data-i18n-aria="player.playPause"></button>
+        <button class="kit-btn icon" id="pnext" type="button" data-i18n-aria="player.next" data-icon="next"></button>
+      </div>
+    </div>
+    <div class="pright">
       <div class="phead">
-        <div class="ptext"><div class="ptitle" id="ptitle"></div><div class="partist" id="partist"></div></div>
-        <button class="pclose" id="pclose" type="button" data-i18n-aria="player.close" data-icon="down"></button>
+        <div class="psrc" id="psrc"></div>
+        <button class="kit-btn icon" id="pclose" type="button" data-i18n-aria="player.close" data-icon="down"></button>
       </div>
-      <div class="pctl">
-        <button id="pprev" type="button" data-i18n-aria="player.prev" data-icon="prev"></button>
-        <button id="pplay" class="big" type="button" data-i18n-aria="player.playPause"></button>
-        <button id="pnext" type="button" data-i18n-aria="player.next" data-icon="next"></button>
-      </div>
-      <div class="pseek"><span id="pcur">0:00</span><div class="pbar" id="pbar"><i></i><b id="pfill"></b></div><span id="pdur">0:00</span></div>
+      <div class="plyr" id="plyr" data-i18n-aria="lyrics.aria"><div class="plines" id="plines"></div><div class="kit-label pmsg" id="pmsg" hidden></div></div>
     </div>
   </div>
-  <div class="plyr" id="plyr"><div class="plines" id="plines"></div><div class="pmsg" id="pmsg" hidden></div></div>
-  <div class="psrc" id="psrc"></div>
-</div>
+</section>
 
-<div class="sheet" id="sheet" hidden>
-  <div class="shead">
-    <button class="btn" id="sheetBack" type="button"><span data-icon="back"></span><span data-i18n="common.back"></span></button>
-    <div class="t" id="sheetTitle"></div>
-  </div>
-  <div class="sbody" id="sheetBody"></div>
-</div>
+<section class="kit-app sheet" id="sheet" hidden>
+  <header class="kit-bar">
+    <button class="kit-btn icon" id="sheetBack" type="button" data-i18n-aria="common.back" data-icon="back"></button>
+    <span class="kit-title" id="sheetTitle"></span>
+  </header>
+  <div class="kit-scroll sbody" id="sheetBody"></div>
+</section>
 
 <script>
   // YouTube Music on the screen.
@@ -301,7 +299,8 @@
   }
   function storageSet(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
 
-  let lang = storageGet("botScreenLang", "uk") === "en" ? "en" : "uk";
+  // The kit knows the screen's language (botScreenLang, then its message)
+  let lang = window.BotApp ? BotApp.lang : (storageGet("botScreenLang", "uk") === "en" ? "en" : "uk");
   function t(key, vars) {
     let text = (STR[lang] && STR[lang][key]) || STR.uk[key] || key;
     if (vars) for (const k in vars) text = text.split("{" + k + "}").join(String(vars[k]));
@@ -324,6 +323,7 @@
     list: '<path d="M4 6.5h.01M4 12h.01M4 17.5h.01M8.5 6.5h11.5M8.5 12h11.5M8.5 17.5h11.5"/>',
     music: '<path d="M9.2 18V6.2l9.3-2v11.6"/><circle cx="6.9" cy="18" r="2.4"/><circle cx="16.2" cy="15.8" r="2.4"/>',
     back: '<path d="m14 5-7 7 7 7M7 12h13"/>',
+    go: '<path d="M5 12h13M13 6.5l5.5 5.5-5.5 5.5"/>',
     home: '<path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z"/>',
     lyrics: '<path d="M6 3.5h8.5L19 8v12.5H6z"/><path d="M14 3.5V8.5h5M9 12.5h7M9 16h5"/>',
   };
@@ -344,7 +344,7 @@
   function say(key, vars, now) {
     statusState = [key, vars || null, !!now];
     status.textContent = t(key, vars);
-    status.className = "status" + (now ? " now" : "");
+    status.className = "kit-label status" + (now ? " now" : "");
   }
   function fmt(sec) {
     sec = Math.max(0, Math.floor(Number(sec) || 0));
@@ -407,7 +407,7 @@
     info.append(title, sub);
     row.appendChild(info);
     const words = document.createElement("button");
-    words.type = "button"; words.className = "mini";
+    words.type = "button"; words.className = "kit-btn icon";
     words.setAttribute("aria-label", t("lyrics.aria"));
     words.innerHTML = icon("lyrics");
     words.addEventListener("click", (e) => { e.stopPropagation(); openLyrics(track); });
@@ -539,9 +539,7 @@
       if (!items.length) { say("status.nothing"); return; }
       if (kind === "albums") {
         const grid = document.createElement("div");
-        grid.className = "albums";
-        grid.style.flexWrap = "wrap";
-        grid.style.overflowX = "visible";
+        grid.className = "albums grid";
         for (const a of items) grid.appendChild(albumCard(a));
         list.appendChild(grid);
       } else {
@@ -578,7 +576,7 @@
     const sub = document.createElement("div");
     sub.className = "ts"; sub.textContent = [(data.artists || []).join(", "), data.year || ""].filter(Boolean).join(" · ");
     const all = document.createElement("button");
-    all.type = "button"; all.className = "btn"; all.style.marginTop = "5px";
+    all.type = "button"; all.className = "kit-btn primary";
     all.innerHTML = icon("play") + "<span></span>";
     all.querySelector("span").textContent = t("album.play");
     const tracks = (data.tracks || []).filter((x) => x.id);
@@ -931,16 +929,17 @@
       if (e.origin === window.location.origin) onMusicState(e.data);
       return;
     }
-    if (e.data.type !== "botSkin") return;
-    if (e.data.vars) for (const k in e.data.vars) document.documentElement.style.setProperty(k, e.data.vars[k]);
-    document.documentElement.dataset.theme = e.data.theme === "light" ? "light" : "dark";
-    if ((e.data.lang === "uk" || e.data.lang === "en") && e.data.lang !== lang) {
-      lang = e.data.lang;
-      applyI18n();
-      say(statusState[0], statusState[1], statusState[2]);
-      if (view === "home") showHome(); else if (view === "search") search();
-      if (shown && !player.hidden) { const tr = shown; shown = null; showTrack(tr); }
-    }
+  });
+
+  // The screen's style, theme and skin are the kit's (app-kit.js); the app
+  // only follows the language.
+  if (window.BotApp) BotApp.onChange((st) => {
+    if (st.lang === lang) return;
+    lang = st.lang;
+    applyI18n();
+    say(statusState[0], statusState[1], statusState[2]);
+    if (view === "home") showHome(); else if (view === "search") search();
+    if (shown && !player.hidden) { const tr = shown; shown = null; showTrack(tr); }
   });
 
   applyI18n();

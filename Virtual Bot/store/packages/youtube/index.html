@@ -3,330 +3,352 @@
 <head>
 <meta charset="UTF-8">
 <title>YouTube</title>
+<!-- App kit v1: the screen's own look (Material You or Deep UI, any theme
+     or skin) and its safe insets. See docs/SCREEN-PLATFORM.md §2.6. -->
+<link rel="stylesheet" href="/static/screen/app-kit.css">
+<script src="/static/screen/app-kit.js"></script>
 <style>
-  /* Palette shared with device-settings (tuned to the bot). The light theme
-     matters: the parent sends it in botSkin with the skin, and without this
-     block the app stayed DARK on a light screen — with currentColor icons
-     turning light on light. */
-  :root {
-    --bg: #16181a; --panel: #1e2124; --line: #2f3438;
-    --text: #e8e4dc; --muted: #8e9498; --accent: #d17a58;
-    --ok: #8ca879; --off: #6b7175;
-    color-scheme: dark;
-  }
-  :root[data-theme="light"] {
-    --bg: #efe7d9; --panel: #fbf6ec; --line: #ddcdb2;
-    --text: #2f271f; --muted: #7d6d5c; --accent: #b95f3d;
-    --ok: #6f8b5f; --off: #a8998a;
-    color-scheme: light;
-  }
+  /* Only what is YouTube's own: the search field, video rows, the player
+     and its two sheets. Colours, buttons, chips, switches and lists are kit
+     parts in the screen's style. */
 
-  html, body { margin: 0; height: 100%; overflow: hidden;
-    background: var(--bg, #16181a); color: var(--text, #e8e4dc);
-    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    -webkit-user-select: none; user-select: none;
-    -webkit-tap-highlight-color: transparent; }
-  .wrap { display: flex; flex-direction: column; height: 100%; padding: 6px 8px 4px; gap: 5px; box-sizing: border-box; }
-  .bar { display: flex; gap: 5px; flex: none; }
-  input { flex: 1; min-width: 0; height: 28px; padding: 0 9px;
-    border: 1px solid var(--line, #2f3438); border-radius: 14px;
-    background: var(--panel, #1e2124); color: var(--text, #e8e4dc);
-    font-size: 13px; outline: none; }
-  input:focus { border-color: var(--accent, #d17a58); }
-  /* Only .bar and .ctl buttons. While this rule sat on ALL buttons, the
-     height also hit result cards (.card is a button too): a card with a
-     preview needs ~126px, it got 30 — and each card covered the previous. */
-  .bar button { background: var(--panel, #1e2124); color: var(--text, #e8e4dc);
-    border: 1px solid var(--line, #2f3438); border-radius: 14px;
-    height: 28px; padding: 0 11px; font-size: 12px; flex: none; cursor: pointer; }
-  .bar button:active { background: var(--accent, #d17a58); }
-  /* Square cog: next to "Search" on 320px every extra pixel of width comes
-     out of the search field. */
-  .bar button.icon { padding: 0; width: 28px; }
-
-  /* Own vector icons in the screen's style: viewBox 24x24, stroke-only
-     currentColor, no fill (same contract as static/screen/icons.js). Kept in
-     the package, not imported: a package must stay self-contained. */
-  svg { width: 14px; height: 14px; flex: none; fill: none;
-    stroke: currentColor; stroke-width: 1.8;
+  /* Icons: viewBox 24x24, stroke-only currentColor, no fill (the contract
+     of static/screen/icons.js). Kept in the package: it must stay
+     self-contained. */
+  svg { width: 16px; height: 16px; flex: none; fill: none;
+    stroke: currentColor; stroke-width: 1.9;
     stroke-linecap: round; stroke-linejoin: round; }
-  .bar button.icon svg { width: 15px; height: 15px; }
-  .ctl button svg { width: 13px; height: 13px; display: block; margin: 0 auto; }
-  .ib { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
 
-  /* Sort row + status. The order is REMEMBERED: whoever wants the newest
-     uploads does not want to pick it again on every search. */
-  .row2 { display: flex; align-items: center; gap: 6px; flex: none; min-height: 20px; }
-  .seg { display: flex; flex: none; border: 1px solid var(--line, #2f3438);
-    border-radius: 10px; overflow: hidden; }
-  .seg button { background: transparent; color: var(--muted, #8e9498);
-    border: none; height: 20px; padding: 0 8px; font-size: 10px; cursor: pointer; }
-  .seg button.on { background: var(--accent, #d17a58); color: var(--bg, #16181a); font-weight: 600; }
-  .status { flex: 1; min-width: 0; font-size: 10px; color: var(--muted, #8e9498);
+  /* ---------- Home: search bar ---------- */
+  /* The field IS the bar, as in a phone's video app: the magnifier inside it
+     searches, the cross clears. */
+  .search { flex: 1; min-width: 0; height: 34px; display: flex; align-items: center;
+    gap: 2px; padding: 0 4px; box-sizing: border-box; border-radius: 17px;
+    background: var(--kit-surface-hi); }
+  :root[data-ui="deep"] .search { border: 1px solid transparent;
+    background: linear-gradient(var(--kit-surface-hi), var(--kit-surface-hi)) padding-box, var(--kit-edge) border-box; }
+  .search:focus-within { background: var(--kit-tonal); }
+  :root[data-ui="deep"] .search:focus-within {
+    background: linear-gradient(var(--kit-tonal), var(--kit-tonal)) padding-box, var(--kit-edge) border-box; }
+  .search input { flex: 1; min-width: 0; height: 100%; padding: 0 2px; border: 0;
+    background: transparent; color: var(--text); font: 500 13px/1 var(--font); outline: none; }
+  .search input::placeholder { color: var(--muted); font-weight: 400; }
+  .search input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+  .fbtn { flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; color: var(--muted); cursor: pointer;
+    transition: transform 110ms ease, opacity 110ms ease; }
+  .fbtn:active { transform: scale(0.9); }
+  .fbtn:disabled { opacity: 0.4; }
+  .fbtn[hidden] { display: none; }
+  .search:focus-within #go { color: var(--kit-on-tonal); }
+  .kit-bar .kit-btn.icon { width: 34px; height: 34px; }
+
+  /* Sort chips and the status line share one row. The order is REMEMBERED:
+     whoever wants the newest uploads does not want to pick it again. */
+  .tools { flex: none; gap: 10px; }
+  .status { flex: 1; min-width: 0; text-align: right; font-size: 10.5px; color: var(--muted);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .status.now { color: var(--accent, #d17a58); }
+  .status.now { color: var(--accent); font-weight: 600; }
 
-  /* Two columns like YouTube: one column gives a 300x169 preview on 320px,
-     one result per screen, and search turns into scrolling. */
-  .grid { flex: 1; min-height: 0; overflow-y: auto; touch-action: pan-y;
-    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 7px;
-    align-content: start; padding: 4px 0 6px;
-    border-top: 1px solid var(--line, #2f3438); scrollbar-width: none; }
-  .grid::-webkit-scrollbar { display: none; }
-  .shelf { grid-column: 1 / -1; font-size: 10px; font-weight: 700; letter-spacing: .04em;
-    text-transform: uppercase; color: var(--muted, #8e9498); padding-top: 2px; }
-  .chips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 5px; }
-  .chips button { background: var(--panel, #1e2124); color: var(--text, #e8e4dc);
-    border: 1px solid var(--line, #2f3438); border-radius: 11px;
-    min-height: 24px; padding: 0 9px; font-size: 10px; cursor: pointer; max-width: 140px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* ---------- Home: results ---------- */
+  #grid { display: flex; flex-direction: column; gap: 6px; margin: 0 -2px; padding: 0 2px; }
+  .shelf { font: 600 11px/1.2 var(--font); color: var(--muted); padding: 4px 4px 0; }
+  :root[data-ui="material"] .shelf { letter-spacing: 0.06em; text-transform: uppercase; font-size: 10px; }
+  :root[data-ui="deep"] .shelf { color: var(--text); font-size: 12px; font-weight: 700; }
+  .recent .kit-chip { max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  .card { display: flex; flex-direction: column; gap: 3px; width: 100%;
-    padding: 0; border: none; background: transparent; text-align: left;
-    color: var(--text, #e8e4dc); cursor: pointer; position: relative; }
-  .card:active .thumb { border-color: var(--accent, #d17a58); }
+  /* One video per row: a phone's list on a 320 px screen shows more than
+     two cramped columns, and the title gets room to be read. */
+  .card { width: 100%; min-height: 0; padding: 5px; gap: 9px; border: 0;
+    color: var(--text); font: inherit; text-align: left; cursor: pointer;
+    transition: transform 110ms ease; }
+  .card:active { transform: scale(0.98); }
   .card:disabled { opacity: 0.5; }
-  /* aspect-ratio, not a fixed height: the card width follows the grid and
-     the preview must stay 16:9, or people get stretched. */
-  .thumb { width: 100%; aspect-ratio: 16 / 9; border-radius: 5px;
-    object-fit: cover; display: block; background: var(--line, #2f3438);
-    border: 1px solid transparent; }
-  /* Resume bar under a continue-watching preview; scaleX, never width. */
-  .resume { position: absolute; left: 1px; right: 1px; top: 0; aspect-ratio: 16 / 9;
-    pointer-events: none; display: flex; align-items: flex-end; }
-  .resume i { display: block; height: 3px; width: 100%; background: var(--accent, #d17a58);
-    transform-origin: left center; border-radius: 0 0 0 5px; }
-  .t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-    overflow: hidden; font-size: 10.5px; line-height: 1.22; font-weight: 600; }
-  .s { font-size: 9px; color: var(--muted, #8e9498);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kit-list > .card { border-radius: 10px; }
+  .kit-list > .card:first-child { border-top-left-radius: var(--kit-radius); border-top-right-radius: var(--kit-radius); }
+  .kit-list > .card:last-child { border-bottom-left-radius: var(--kit-radius); border-bottom-right-radius: var(--kit-radius); }
+  /* aspect-ratio, not a fixed height: the preview must stay 16:9. */
+  .tbox { position: relative; flex: none; width: 86px; aspect-ratio: 16 / 9;
+    border-radius: 8px; overflow: hidden; background: var(--kit-surface-hi); }
+  :root[data-ui="deep"] .tbox { border-radius: 11px; }
+  .thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* Duration and live badges sit on the picture, as on every video app */
+  .badge { position: absolute; right: 4px; bottom: 4px; padding: 1px 4px; border-radius: 4px;
+    background: rgba(0, 0, 0, 0.78); color: #fff; font: 600 9px/1.35 var(--font);
+    font-variant-numeric: tabular-nums; }
   /* A live stream has no muxed track, so say so NOW rather than after a
      tap into silence. The dot is CSS: a glyph sits off the baseline. */
-  .live { color: var(--accent, #d17a58); font-weight: 600; }
+  .badge.live { background: var(--kit-primary); color: var(--kit-on-accent); letter-spacing: 0.04em; }
   .live::before { content: ""; display: inline-block; width: 5px; height: 5px;
-    margin-right: 3px; border-radius: 50%; background: currentColor;
-    vertical-align: 1px; }
-
-  /* "More videos" under the results: a full-width row, not a card, so it
-     never reads as one more video. */
-  .more { grid-column: 1 / -1; height: 28px; border-radius: 14px; cursor: pointer;
-    background: var(--panel, #1e2124); color: var(--text, #e8e4dc);
-    border: 1px solid var(--line, #2f3438); font-size: 11px; }
-  .more:disabled { color: var(--muted, #8e9498); }
-
-  .hint { grid-column: 1 / -1; padding: 6px 2px; font-size: 10.5px;
-    line-height: 1.45; color: var(--muted, #8e9498); }
-  .hint b { color: var(--text, #e8e4dc); }
-
-  /* ---- Video mode: the player takes the whole app ---- */
-  .player { position: absolute; inset: 0; display: none;
-    flex-direction: column; background: var(--panel, #1e2124); }
-  .player.on { display: flex; }
-  .ptop { flex: none; display: flex; align-items: center; gap: 6px;
-    height: 26px; padding: 0 6px; background: var(--panel, #1e2124); }
-  .ptitle { flex: 1; min-width: 0; font-size: 10px; color: var(--text, #e8e4dc);
+    margin-right: 3px; border-radius: 50%; background: currentColor; vertical-align: 1px; }
+  /* Resume bar under a continue-watching preview; scaleX, never width. */
+  .resume { position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+    background: rgba(255, 255, 255, 0.35); pointer-events: none; }
+  .resume i { display: block; height: 100%; width: 100%; background: var(--accent);
+    transform-origin: left center; }
+  .t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; font-size: 11.5px; line-height: 1.25; font-weight: 600; }
+  .s { margin-top: 3px; font-size: 10px; color: var(--muted);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .more { flex: none; margin-top: 2px; }
+
+  /* Empty home: what the app does, in one calm block */
+  .empty { flex: 1; gap: 10px; padding: 4px 10px; text-align: center; }
+  .empty .glyph { width: 48px; height: 48px; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; background: var(--kit-tonal); color: var(--kit-on-tonal); }
+  :root[data-ui="deep"] .empty .glyph { background: var(--kit-primary); color: var(--kit-on-accent); }
+  .empty .glyph svg { width: 26px; height: 26px; }
+  .hint { max-width: 270px; font-size: 11px; line-height: 1.45; color: var(--muted); }
+  .hint b { color: var(--text); font-weight: 600; }
+
+  /* ---------- The player: takes the whole panel ----------
+     The picture gets the full width (320 px = a 16:9 frame 180 px tall);
+     the title floats over its top edge, the controls dock under it. */
+  .player { position: absolute; inset: 0; z-index: 5; display: none; flex-direction: column;
+    background: var(--bg); }
+  .player.on { display: flex; }
   .vbox { flex: 1; min-height: 0; display: flex; align-items: center;
-    justify-content: center; background: #000; position: relative; }
-  video { width: 100%; max-height: 100%; background: #000; display: block; }
-  /* Captions: one line block over the bottom of the frame. Only opacity
-     changes; the text swaps in place, so nothing reflows the video. */
-  .cap { position: absolute; left: 8px; right: 8px; bottom: 6px; text-align: center;
-    pointer-events: none; opacity: 0; transition: opacity .15s linear; }
-  .cap.on { opacity: 1; }
-  .cap span { display: inline; padding: 1px 5px; border-radius: 3px;
-    background: rgba(0, 0, 0, .72); color: #fff; font-size: 11px; line-height: 1.5;
-    -webkit-box-decoration-break: clone; box-decoration-break: clone; }
-  .ctl { flex: none; display: flex; align-items: center; gap: 4px;
-    height: 30px; padding: 0 5px; background: var(--panel, #1e2124); }
-  .ctl button { background: transparent; color: var(--text, #e8e4dc);
-    border: 1px solid var(--line, #2f3438); border-radius: 9px;
-    height: 24px; min-width: 24px; padding: 0 4px; font-size: 10px; cursor: pointer; }
-  .ctl button.on { border-color: var(--accent, #d17a58); color: var(--accent, #d17a58); }
-  .ctl button:active { background: var(--accent, #d17a58); color: var(--bg, #16181a); }
-  .seek { flex: 1; min-width: 0; height: 16px; position: relative; cursor: pointer; }
-  .seek i { position: absolute; left: 0; right: 0; top: 7px; height: 3px;
-    border-radius: 2px; background: var(--line, #2f3438); display: block; }
-  /* transform: scaleX only. width on every frame is a reflow, and on an A53
-     the player and decoder have already taken everything there was. */
-  .seek b { position: absolute; left: 0; top: 7px; height: 3px; width: 100%;
-    border-radius: 2px; background: var(--accent, #d17a58); display: block;
-    transform: scaleX(0); transform-origin: left center; }
+    justify-content: center; background: #000; position: relative; overflow: hidden; }
+  video { width: 100%; height: 100%; object-fit: contain; background: #000; display: block; }
+
+  /* Top: back, title, captions, transcript — over the picture on a scrim */
+  .ptop { position: absolute; left: 0; right: 0; top: 0; z-index: 2; display: flex;
+    align-items: center; gap: 6px; padding: 6px var(--kit-inset-side) 18px;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.35) 60%, rgba(0, 0, 0, 0)); color: #fff; }
+  .pmeta { flex: 1; min-width: 0; }
+  .ptitle { font: 600 12px/1.25 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .psub { font-size: 10px; color: rgba(255, 255, 255, 0.72); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .psub:empty { display: none; }
+  /* Buttons over the picture are dark glass whatever the theme: they sit
+     on video, not on the screen's background. */
+  .glass .kit-btn:not(.primary),
+  .player.full .pbottom .kit-btn:not(.primary) { background: rgba(16, 16, 16, 0.42); color: #fff; }
+  .player .kit-btn.icon { width: 30px; height: 30px; }
+  .player .kit-btn.icon.play { width: 38px; height: 38px; }
+  .player .kit-btn.icon.play svg { width: 20px; height: 20px; }
+  .player .kit-btn svg { width: 16px; height: 16px; }
+  .txtbtn { font: 700 10.5px/1 var(--font); letter-spacing: 0.02em; }
+  .kit-btn.on { background: var(--kit-tonal); color: var(--kit-on-tonal); }
+  .glass .kit-btn.on { background: #fff; color: #000; }
+
+  /* Bottom: the progress line on the picture's lower edge, then transport */
+  .pbottom { flex: none; position: relative; z-index: 2;
+    padding: 0 var(--kit-inset-side) var(--kit-inset-bottom); }
+  /* The hit area is 16 px; the drawn line is 3 px. Edge to edge like the
+     picture, though the gesture strips own the outer 12 px for taps. */
+  .seek { position: relative; height: 16px; margin: -8px calc(-1 * var(--kit-inset-side)) 0;
+    cursor: pointer; }
+  .seek i { position: absolute; left: 0; right: 0; top: 7px; height: 3px; display: block;
+    background: color-mix(in srgb, var(--text) 22%, transparent); }
+  /* transform only: width on every frame is a reflow, and on an A53 the
+     player and decoder have already taken everything there was. */
+  .seek b { position: absolute; left: 0; top: 7px; height: 3px; width: 100%; display: block;
+    background: var(--accent); transform: scaleX(0); transform-origin: left center; }
+  :root[data-ui="deep"] .seek b { background: linear-gradient(90deg,
+    color-mix(in srgb, var(--accent) 78%, #000), color-mix(in srgb, var(--accent) 88%, #fff)); }
+  /* The knob rides a full-width layer moved by translateX(part * 100%) */
+  .seek u { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block;
+    pointer-events: none; transform: translateX(0); }
+  .seek u::after { content: ""; position: absolute; left: -5px; top: 3.5px; width: 10px; height: 10px;
+    border-radius: 50%; background: var(--accent); }
   /* Sponsor marks on the bar: you see IN ADVANCE where the player will
      jump, so a skip does not read as a broken stream. */
-  .seek .ad { position: absolute; top: 6px; height: 5px; border-radius: 1px;
-    background: var(--off, #6b5330); opacity: 0.85; }
-  .time { flex: none; font-size: 9px; color: var(--muted, #8e9498);
-    font-variant-numeric: tabular-nums; }
-  .vmsg { position: absolute; inset: 26px 0 30px; display: none;
-    align-items: center; justify-content: center; padding: 0 18px;
-    text-align: center; font-size: 11px; line-height: 1.45;
-    color: var(--muted, #8e9498); }
+  .seek .ad { position: absolute; top: 7px; height: 3px; background: var(--ok); opacity: 0.9; }
+  .ctl { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+    gap: 8px; min-height: 40px; padding-top: 2px; }
+  .ctl .mid { display: flex; align-items: center; gap: 10px; }
+  .ctl .end { display: flex; justify-content: flex-end; gap: 6px; }
+  .time { font: 500 10px/1 var(--font); color: var(--muted); font-variant-numeric: tabular-nums;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Messages over the picture (preparing, buffering, errors) */
+  .vmsg { position: absolute; inset: 0; z-index: 1; display: none; flex-direction: column; gap: 10px;
+    align-items: center; justify-content: center; padding: 0 28px;
+    text-align: center; font-size: 11px; line-height: 1.45; color: rgba(255, 255, 255, 0.8); }
   .vmsg.on { display: flex; }
+  /* Loading ring: rotates by transform, the only kind of motion allowed */
+  .vmsg.busy::before { content: ""; width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%;
+    border: 2.5px solid rgba(255, 255, 255, 0.2); border-top-color: var(--accent);
+    animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Full screen: the picture takes the whole panel and the bars float over
-     it. They fade (opacity only) instead of leaving the layout, so the video
-     never jumps when they come and go. A tap brings them back. */
-  .player.full .ptop, .player.full .ctl { position: absolute; left: 0; right: 0; z-index: 2;
-    opacity: 0; pointer-events: none; transition: opacity .18s linear;
-    background: color-mix(in srgb, var(--panel, #1e2124) 82%, transparent); }
-  .player.full .ptop { top: 0; }
-  .player.full .ctl { bottom: 0; }
-  .player.full.chrome .ptop, .player.full.chrome .ctl { opacity: 1; pointer-events: auto; }
-  .player.full video { height: 100%; object-fit: contain; }
-  .player.full .vmsg { inset: 0; }
+  /* Captions: one block over the bottom of the frame. Only opacity and
+     transform change; the text swaps in place, so nothing reflows. */
+  .cap { position: absolute; left: 14px; right: 14px; bottom: 14px; z-index: 1; text-align: center;
+    pointer-events: none; opacity: 0; transition: opacity 0.15s linear, transform 0.18s ease; }
+  .cap.on { opacity: 1; }
+  .cap span { display: inline; padding: 1px 6px; border-radius: 4px;
+    background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 11.5px; line-height: 1.55;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone; }
 
-  /* "Skipped" pill: opacity only, no reflow, does not catch taps. */
-  .skipped { position: absolute; left: 6px; bottom: 36px; max-width: 260px;
-    display: flex; align-items: center; gap: 5px;
-    padding: 4px 8px; border-radius: 9px; pointer-events: none;
-    background: var(--panel, #1e2124); border: 1px solid var(--line, #2f3438);
-    color: var(--text, #e8e4dc); font-size: 10px; line-height: 1.3;
-    opacity: 0; transition: opacity 0.18s linear; }
+  /* "Skipped" pill: opacity only, no reflow, does not catch taps. Under
+     the title, so it never lands on the captions at the bottom. */
+  .skipped { position: absolute; left: var(--kit-inset-side); top: 46px; z-index: 3; max-width: 260px;
+    display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 8px; border-radius: 14px;
+    pointer-events: none; background: rgba(0, 0, 0, 0.78); color: #fff;
+    font-size: 10.5px; line-height: 1.3; opacity: 0; transition: opacity 0.18s linear; }
+  .skipped svg { color: var(--accent); width: 14px; height: 14px; }
   .skipped.on { opacity: 1; }
 
-  /* ---- Sheets (settings, transcript) over the whole app ---- */
-  .sheet { position: absolute; inset: 0; display: none; flex-direction: column;
-    background: var(--bg, #16181a); }
-  .sheet.on { display: flex; }
-  .shead { flex: none; display: flex; align-items: center; gap: 6px;
-    height: 26px; padding: 0 6px; background: var(--panel, #1e2124); }
-  .shead .ptitle { font-size: 11px; font-weight: 600; }
-  .shead button, .ptop button { background: transparent; color: var(--text, #e8e4dc);
-    border: 1px solid var(--line, #2f3438); border-radius: 9px;
-    height: 22px; padding: 0 8px; font-size: 10px; cursor: pointer; }
-  .sbody { flex: 1; min-height: 0; overflow-y: auto; touch-action: pan-y;
-    padding: 7px 9px 10px; scrollbar-width: none; }
-  .sbody::-webkit-scrollbar { display: none; }
-  .opt { display: flex; align-items: center; gap: 8px; padding: 6px 0;
-    border-bottom: 1px solid var(--line, #2f3438); }
-  .opt .txt { flex: 1; min-width: 0; }
-  .opt .n { font-size: 11px; font-weight: 600; }
-  .opt .d { font-size: 9px; line-height: 1.35; color: var(--muted, #8e9498); }
-  /* A 40x22 switch is the smallest a finger hits on a resistive panel. */
-  .sw { flex: none; width: 40px; height: 22px; border-radius: 11px; padding: 0;
-    border: 1px solid var(--line, #2f3438); background: var(--panel, #1e2124);
-    position: relative; cursor: pointer; }
-  .sw::after { content: ""; position: absolute; top: 2px; left: 2px;
-    width: 16px; height: 16px; border-radius: 50%;
-    background: var(--muted, #8e9498);
-    transform: translateX(0); transition: transform 0.16s ease-out; }
-  .sw.on { border-color: var(--accent, #d17a58); }
-  .sw.on::after { background: var(--accent, #d17a58); transform: translateX(18px); }
-  .cats { display: flex; flex-wrap: wrap; gap: 5px; padding: 7px 0 2px; }
-  .cats button { background: var(--panel, #1e2124); color: var(--muted, #8e9498);
-    border: 1px solid var(--line, #2f3438); border-radius: 11px;
-    min-height: 22px; padding: 2px 9px; font-size: 9.5px; cursor: pointer; }
-  .cats button.on { background: var(--accent, #d17a58); color: var(--bg, #16181a);
-    border-color: var(--accent, #d17a58); font-weight: 600; }
-  .cats.off { opacity: 0.4; }
-  .note { padding: 8px 0 2px; font-size: 9px; line-height: 1.45;
-    color: var(--muted, #8e9498); }
-  .note b { color: var(--text, #e8e4dc); }
+  /* Full screen: the picture takes the whole panel and the controls float
+     over it on a scrim. They fade (opacity only) instead of leaving the
+     layout, so the video never jumps when they come and go. A tap on the
+     picture brings them back. */
+  .player.full { background: #000; }
+  .player.full .pbottom { position: absolute; left: 0; right: 0; bottom: 0; padding-top: 22px;
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0)); }
+  .player.full .seek { margin-top: 0; margin-left: 0; margin-right: 0; }
+  .player.full .seek i { background: rgba(255, 255, 255, 0.3); border-radius: 2px; }
+  .player.full .seek b { border-radius: 2px; }
+  .player.full .time { color: rgba(255, 255, 255, 0.85); }
+  .player.full .ptop, .player.full .pbottom { opacity: 0; pointer-events: none; transition: opacity 0.18s linear; }
+  .player.full.chrome .ptop, .player.full.chrome .pbottom { opacity: 1; pointer-events: auto; }
+  .player.full .cap { bottom: 22px; }
+  .player.full.chrome .cap { transform: translateY(-50px); }
+
+  /* ---------- Sheets (settings, transcript) over the whole app ---------- */
+  .sheet { position: absolute; inset: 0; z-index: 6; }
+  .sheet:not(.on) { display: none; }
+  .sheet, .player:not(.full) { background: var(--bg); }
+  :root[data-ui="deep"] .sheet {
+    background: radial-gradient(95% 70% at 50% -12%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 66%), var(--bg); }
+  .sheet .kit-bar .kit-title { font-size: 16px; }
+  :root[data-ui="deep"] .sheet .kit-bar .kit-title { font-size: 17px; }
+  .sbody { display: flex; flex-direction: column; gap: 8px; }
+  .opt { gap: 10px; padding: 8px 12px; }
+  .opt .n { font-size: 12px; font-weight: 600; }
+  .opt .d { margin-top: 2px; font-size: 10px; line-height: 1.35; color: var(--muted); }
+  .opt.cats { padding: 4px 12px 10px; }
+  .opt.cats .kit-chip { min-height: 26px; font-size: 10.5px; }
+  .opt.cats.off { opacity: 0.45; }
+  .kit-btn.small { min-height: 28px; padding: 0 12px; font-size: 11px; flex: none; }
+  .note { padding: 0 4px 4px; font-size: 10px; line-height: 1.45; color: var(--muted); }
+  .note b { color: var(--text); font-weight: 600; }
   /* Transcript lines: tap to jump. The current line is marked by colour
      only, so following along costs no layout. */
-  .line { display: flex; gap: 7px; width: 100%; padding: 5px 2px; border: none;
-    border-bottom: 1px solid var(--line, #2f3438); background: transparent;
-    color: var(--text, #e8e4dc); text-align: left; font-size: 10.5px; line-height: 1.35; cursor: pointer; }
-  .line .ts { flex: none; width: 34px; color: var(--muted, #8e9498); font-variant-numeric: tabular-nums; }
-  .line.now { color: var(--accent, #d17a58); }
+  .line { display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 6px 8px; border: 0;
+    border-radius: 10px; background: transparent; color: var(--text); text-align: left;
+    font: 400 11px/1.4 var(--font); cursor: pointer; }
+  .line .ts { flex: none; min-width: 32px; color: var(--muted); font-size: 10px; font-weight: 600;
+    font-variant-numeric: tabular-nums; }
+  .line.now { background: var(--kit-tonal); color: var(--kit-on-tonal); }
+  .line.now .ts { color: var(--accent); }
+  /* "Loading…" and "no captions" are plain text in the list itself */
+  #tbody { font-size: 11px; line-height: 1.45; color: var(--muted); }
 </style>
 </head>
-<body>
-<div class="wrap">
-  <div class="bar">
-    <input id="q" type="search" data-i18n-placeholder="search.placeholder" data-i18n-aria="search.aria">
-    <button id="go" type="button" data-i18n="search.go"></button>
-    <button id="cog" class="icon" type="button" data-i18n-aria="settings.aria" data-icon="settings"></button>
-  </div>
-  <div class="row2">
-    <div class="seg" id="sort" role="group" data-i18n-aria="sort.aria">
-      <button type="button" data-sort="relevance" data-i18n="sort.relevance"></button>
-      <button type="button" data-sort="date" data-i18n="sort.date"></button>
+<body class="kit">
+<main class="kit-app">
+  <header class="kit-bar">
+    <label class="search">
+      <button id="go" class="fbtn" type="button" data-i18n-aria="search.go" data-icon="search"></button>
+      <input id="q" type="search" enterkeyhint="search" autocomplete="off" data-i18n-placeholder="search.placeholder" data-i18n-aria="search.aria">
+      <button id="clear" class="fbtn" type="button" data-i18n-aria="search.clear" data-icon="close" hidden></button>
+    </label>
+    <button id="cog" class="kit-btn icon" type="button" data-i18n-aria="settings.aria" data-icon="settings"></button>
+  </header>
+  <div class="kit-row tools">
+    <div class="kit-chips" id="sort" role="group" data-i18n-aria="sort.aria">
+      <button class="kit-chip" type="button" data-sort="relevance" data-i18n="sort.relevance"></button>
+      <button class="kit-chip" type="button" data-sort="date" data-i18n="sort.date"></button>
     </div>
     <div class="status" id="status"></div>
   </div>
-  <div class="grid" id="grid"></div>
-</div>
+  <section class="kit-fill kit-scroll" id="grid"></section>
+</main>
 
 <div class="player" id="player">
-  <div class="ptop">
-    <button class="pback ib" id="pback" type="button"><span class="i" data-icon="back"></span><span data-i18n="common.back"></span></button>
-    <div class="ptitle" id="ptitle"></div>
-  </div>
   <div class="vbox">
     <video id="v" playsinline preload="metadata"></video>
     <div class="cap" id="cap"><span id="capText"></span></div>
+    <div class="vmsg" id="vmsg"></div>
   </div>
-  <div class="vmsg" id="vmsg"></div>
+  <div class="ptop glass">
+    <button class="kit-btn icon" id="pback" type="button" data-i18n-aria="common.back" data-icon="back"></button>
+    <div class="pmeta">
+      <div class="ptitle" id="ptitle"></div>
+      <div class="psub" id="psub"></div>
+    </div>
+    <button class="kit-btn icon txtbtn" id="cc" type="button" data-i18n="player.cc" data-i18n-aria="player.ccAria"></button>
+    <button class="kit-btn icon" id="lines" type="button" data-i18n-aria="player.linesAria" data-icon="list"></button>
+  </div>
   <div class="skipped" id="skipped"></div>
-  <div class="ctl">
-    <!-- The step is SYMMETRIC: 10 back, 10 forward. An asymmetric pair looks
-         identical and does different things. -->
-    <button id="seekBack" type="button" data-i18n-aria="player.back10" data-icon="rewind"></button>
-    <button id="pp" type="button" data-i18n-aria="player.playPause"></button>
-    <button id="seekFwd" type="button" data-i18n-aria="player.fwd10" data-icon="forward"></button>
-    <div class="seek" id="seek"><i></i><b id="seekfill"></b></div>
-    <div class="time" id="time">0:00</div>
-    <button id="cc" type="button" data-i18n="player.cc" data-i18n-aria="player.ccAria"></button>
-    <button id="lines" type="button" data-i18n-aria="player.linesAria" data-icon="list"></button>
-    <button id="rate" type="button" data-i18n-aria="player.rate">1x</button>
-    <button id="full" type="button" data-i18n-aria="player.fullAria" data-icon="expand"></button>
+  <div class="pbottom">
+    <div class="seek" id="seek"><i></i><b id="seekfill"></b><u id="seekknob"></u></div>
+    <div class="ctl">
+      <div class="time" id="time">0:00</div>
+      <!-- The step is SYMMETRIC: 10 back, 10 forward. An asymmetric pair looks
+           identical and does different things. -->
+      <div class="mid">
+        <button class="kit-btn icon" id="seekBack" type="button" data-i18n-aria="player.back10" data-icon="rewind"></button>
+        <button class="kit-btn icon primary play" id="pp" type="button" data-i18n-aria="player.playPause"></button>
+        <button class="kit-btn icon" id="seekFwd" type="button" data-i18n-aria="player.fwd10" data-icon="forward"></button>
+      </div>
+      <div class="end">
+        <button class="kit-btn icon txtbtn" id="rate" type="button" data-i18n-aria="player.rate">1x</button>
+        <button class="kit-btn icon" id="full" type="button" data-i18n-aria="player.fullAria" data-icon="expand"></button>
+      </div>
+    </div>
   </div>
 </div>
 
-<div class="sheet" id="transcript">
-  <div class="shead">
-    <button id="tback" class="ib" type="button"><span class="i" data-icon="back"></span><span data-i18n="common.back"></span></button>
-    <div class="ptitle" data-i18n="transcript.head"></div>
-  </div>
-  <div class="sbody" id="tbody"></div>
+<div class="sheet kit-app" id="transcript">
+  <header class="kit-bar">
+    <button id="tback" class="kit-btn icon" type="button" data-i18n-aria="common.back" data-icon="back"></button>
+    <span class="kit-title" data-i18n="transcript.head"></span>
+  </header>
+  <section class="kit-fill kit-scroll" id="tbody"></section>
 </div>
 
-<div class="sheet" id="sheet">
-  <div class="shead">
-    <button id="sback" class="ib" type="button"><span class="i" data-icon="back"></span><span data-i18n="common.back"></span></button>
-    <div class="ptitle" data-i18n="settings.head"></div>
-  </div>
-  <div class="sbody">
-    <div class="opt">
-      <div class="txt">
-        <div class="n" data-i18n="settings.sponsor"></div>
-        <div class="d" data-i18n="settings.sponsorHint"></div>
+<div class="sheet kit-app" id="sheet">
+  <header class="kit-bar">
+    <button id="sback" class="kit-btn icon" type="button" data-i18n-aria="common.back" data-icon="back"></button>
+    <span class="kit-title" data-i18n="settings.head"></span>
+  </header>
+  <section class="kit-fill kit-scroll sbody">
+    <div class="kit-list">
+      <div class="kit-item opt">
+        <div class="kit-grow">
+          <div class="n" data-i18n="settings.sponsor"></div>
+          <div class="d" data-i18n="settings.sponsorHint"></div>
+        </div>
+        <button class="kit-switch" id="swSponsor" type="button" aria-pressed="false" data-i18n-aria="settings.sponsor"></button>
       </div>
-      <button class="sw" id="swSponsor" type="button" role="switch" data-i18n-aria="settings.sponsor"></button>
+      <div class="kit-item opt cats"><div class="kit-chips" id="cats"></div></div>
+      <div class="kit-item opt">
+        <div class="kit-grow">
+          <div class="n" data-i18n="settings.notify"></div>
+          <div class="d" data-i18n="settings.notifyHint"></div>
+        </div>
+        <button class="kit-switch" id="swNotify" type="button" aria-pressed="false" data-i18n-aria="settings.notify"></button>
+      </div>
     </div>
-    <div class="cats" id="cats"></div>
-    <div class="opt">
-      <div class="txt">
-        <div class="n" data-i18n="settings.notify"></div>
-        <div class="d" data-i18n="settings.notifyHint"></div>
+    <div class="kit-list">
+      <div class="kit-item opt">
+        <div class="kit-grow">
+          <div class="n" data-i18n="settings.thumbs"></div>
+          <div class="d" data-i18n="settings.thumbsHint"></div>
+        </div>
+        <button class="kit-switch" id="swThumbs" type="button" aria-pressed="false" data-i18n-aria="settings.thumbs"></button>
       </div>
-      <button class="sw" id="swNotify" type="button" role="switch" data-i18n-aria="settings.notify"></button>
-    </div>
-    <div class="opt">
-      <div class="txt">
-        <div class="n" data-i18n="settings.thumbs"></div>
-        <div class="d" data-i18n="settings.thumbsHint"></div>
+      <div class="kit-item opt">
+        <div class="kit-grow">
+          <div class="n" data-i18n="settings.captions"></div>
+          <div class="d" data-i18n="settings.captionsHint"></div>
+        </div>
+        <button class="kit-switch" id="swCaptions" type="button" aria-pressed="false" data-i18n-aria="settings.captions"></button>
       </div>
-      <button class="sw" id="swThumbs" type="button" role="switch" data-i18n-aria="settings.thumbs"></button>
-    </div>
-    <div class="opt">
-      <div class="txt">
-        <div class="n" data-i18n="settings.captions"></div>
-        <div class="d" data-i18n="settings.captionsHint"></div>
+      <div class="kit-item opt">
+        <div class="kit-grow">
+          <div class="n" data-i18n="settings.history"></div>
+          <div class="d" data-i18n="settings.historyHint"></div>
+        </div>
+        <button class="kit-btn danger small" id="clearHistory" type="button" data-i18n="settings.clear" data-i18n-aria="settings.history"></button>
       </div>
-      <button class="sw" id="swCaptions" type="button" role="switch" data-i18n-aria="settings.captions"></button>
-    </div>
-    <div class="opt">
-      <div class="txt">
-        <div class="n" data-i18n="settings.history"></div>
-        <div class="d" data-i18n="settings.historyHint"></div>
-      </div>
-      <button class="sw" id="clearHistory" type="button" data-i18n-aria="settings.history"></button>
     </div>
     <div class="note" data-i18n-html="settings.note"></div>
-  </div>
+  </section>
 </div>
 <script>
   // YouTube client for the 320x240 screen. Video only: music has its own
@@ -346,6 +368,7 @@
       "search.placeholder": "Що шукати на YouTube?",
       "search.aria": "Пошук",
       "search.go": "Шукати",
+      "search.clear": "Очистити",
       "settings.aria": "Налаштування",
       "sort.aria": "Порядок результатів",
       "sort.relevance": "Найкращі",
@@ -396,6 +419,7 @@
       "settings.captions": "Субтитри одразу",
       "settings.captionsHint": "Вмикати CC для кожного нового відео.",
       "settings.history": "Забути історію",
+      "settings.clear": "Очистити",
       "settings.historyHint": "Прибрати «Продовжити перегляд» і нещодавні пошуки з цього пристрою.",
       "settings.note": "Рекламу, яку вставляє <b>сам YouTube</b>, тут не видно взагалі: відео йде потоком через бота, без плеєра YouTube. Ці перемикачі — про рекламу, <b>вклеєну в саме відео</b>.",
     },
@@ -403,6 +427,7 @@
       "search.placeholder": "Search YouTube",
       "search.aria": "Search",
       "search.go": "Search",
+      "search.clear": "Clear",
       "settings.aria": "Settings",
       "sort.aria": "Result order",
       "sort.relevance": "Top",
@@ -453,6 +478,7 @@
       "settings.captions": "Captions by default",
       "settings.captionsHint": "Turn CC on for every new video.",
       "settings.history": "Forget history",
+      "settings.clear": "Clear",
       "settings.historyHint": "Clear continue-watching and recent searches on this device.",
       "settings.note": "Ads inserted by <b>YouTube itself</b> never show here: video streams through the bot, without YouTube's player. These switches are about sponsor segments <b>baked into the video</b>.",
     },
@@ -466,7 +492,8 @@
     try { localStorage.setItem(key, value); } catch (e) { /* memory only */ }
   }
 
-  let lang = storageGet("botScreenLang", "uk") === "en" ? "en" : "uk";
+  // The kit already knows the screen's language (botScreenLang)
+  let lang = window.BotApp ? BotApp.lang : (storageGet("botScreenLang", "uk") === "en" ? "en" : "uk");
   function t(key, vars) {
     let text = (STR[lang] && STR[lang][key]) || STR.uk[key] || key;
     if (vars) for (const k in vars) text = text.split("{" + k + "}").join(String(vars[k]));
@@ -505,6 +532,13 @@
     rewind:   '<path d="M11.5 6.6 5 12l6.5 5.4z"/><path d="M19 6.6 12.5 12l6.5 5.4z"/>',
     forward:  '<path d="M12.5 6.6 19 12l-6.5 5.4z"/><path d="M5 6.6 11.5 12 5 17.4z"/>',
     expand:   '<path d="M8.5 3.5H3.5v5M15.5 3.5h5v5M20.5 15.5v5h-5M3.5 15.5v5h5"/>',
+    // close and youtube are verbatim from icons.js; search and shrink are
+    // the package's own (the screen's set has neither), drawn to match.
+    close:    '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+    youtube:  '<rect x="3" y="6.2" width="18" height="11.6" rx="3"/>' +
+              '<path d="M10.4 9.6v4.8l4.2-2.4z"/>',
+    search:   '<circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/>',
+    shrink:   '<path d="M3.5 8.5h5v-5M20.5 8.5h-5v-5M15.5 20.5v-5h5M8.5 20.5v-5h-5"/>',
   };
 
   function iconSvg(name) {
@@ -600,16 +634,20 @@
     const history = readList(HISTORY_KEY).filter((x) => x.position > 0);
     if (history.length) {
       grid.appendChild(shelf("home.continue"));
-      for (const item of history.slice(0, 4)) grid.appendChild(card(item));
+      const list = document.createElement("div");
+      list.className = "kit-list";
+      for (const item of history.slice(0, 4)) list.appendChild(card(item));
+      grid.appendChild(list);
     }
     const searches = readList(SEARCHES_KEY);
     if (searches.length) {
       grid.appendChild(shelf("home.recent"));
       const chips = document.createElement("div");
-      chips.className = "chips";
+      chips.className = "kit-chips recent";
       for (const query of searches) {
         const chip = document.createElement("button");
         chip.type = "button";
+        chip.className = "kit-chip";
         chip.textContent = query;
         chip.addEventListener("click", () => { q.value = query; search(); });
         chips.appendChild(chip);
@@ -617,10 +655,16 @@
       grid.appendChild(chips);
     }
     if (!history.length && !searches.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty kit-center";
+      const glyph = document.createElement("div");
+      glyph.className = "glyph";
+      glyph.innerHTML = iconSvg("youtube");
       const hint = document.createElement("div");
       hint.className = "hint";
       hint.innerHTML = t("home.hint");
-      grid.appendChild(hint);
+      empty.append(glyph, hint);
+      grid.appendChild(empty);
     }
     say("status.idle");
   }
@@ -665,8 +709,7 @@
   }
 
   function setSwitch(id, on) {
-    $(id).classList.toggle("on", !!on);
-    $(id).setAttribute("aria-checked", String(!!on));
+    $(id).setAttribute("aria-pressed", String(!!on));
   }
 
   function renderSettings() {
@@ -684,7 +727,7 @@
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = catalog[key];
-      b.className = active.has(key) ? "on" : "";
+      b.className = "kit-chip" + (active.has(key) ? " on" : "");
       b.addEventListener("click", () => {
         const next = new Set(settings.categories || []);
         if (next.has(key)) next.delete(key); else next.add(key);
@@ -720,6 +763,7 @@
     storageSet(KEY, "");
     sheet.classList.remove("on");
     q.value = "";
+    syncClear();
     renderHome();
   });
   $("cog").addEventListener("click", () => {
@@ -757,8 +801,10 @@
   function card(item) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "card";
+    btn.className = "card kit-item";
 
+    const box = document.createElement("div");
+    box.className = "tbox";
     const thumb = document.createElement("img");
     thumb.className = "thumb";
     thumb.loading = "lazy";
@@ -767,7 +813,19 @@
     thumb.src = thumbUrl(item);
     // No network: a grey 16:9 block stays, not a hole in the grid
     thumb.addEventListener("error", () => { thumb.removeAttribute("src"); }, { once: true });
-    btn.appendChild(thumb);
+    box.appendChild(thumb);
+
+    if (item.live) {
+      const live = document.createElement("span");
+      live.className = "badge live";
+      live.textContent = t("card.live");
+      box.appendChild(live);
+    } else if (item.duration) {
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = fmt(item.duration);
+      box.appendChild(badge);
+    }
 
     if (item.position && item.duration) {
       const bar = document.createElement("div");
@@ -775,27 +833,22 @@
       const fill = document.createElement("i");
       fill.style.transform = "scaleX(" + Math.min(1, item.position / item.duration).toFixed(3) + ")";
       bar.appendChild(fill);
-      btn.appendChild(bar);
+      box.appendChild(bar);
     }
+    btn.appendChild(box);
 
+    const text = document.createElement("div");
+    text.className = "kit-grow";
     const title = document.createElement("div");
     title.className = "t";
     title.textContent = item.title;
 
     const sub = document.createElement("div");
     sub.className = "s";
-    if (item.live) {
-      const live = document.createElement("span");
-      live.className = "live";
-      live.textContent = t("card.live");
-      sub.appendChild(live);
-      sub.appendChild(document.createTextNode(" · " + (item.uploader || "YouTube")));
-    } else {
-      sub.textContent = (item.uploader || "YouTube") + (item.duration ? " · " + fmt(item.duration) : "");
-    }
+    sub.textContent = item.uploader || "YouTube";
 
-    btn.appendChild(title);
-    btn.appendChild(sub);
+    text.append(title, sub);
+    btn.appendChild(text);
     btn.addEventListener("click", () => start(item, btn));
     return btn;
   }
@@ -807,12 +860,15 @@
     const top = grid.scrollTop;
     grid.innerHTML = "";
     if (!tracks.length) { say("status.nothing"); return; }
-    for (const item of tracks) grid.appendChild(card(item));
+    const list = document.createElement("div");
+    list.className = "kit-list";
+    for (const item of tracks) list.appendChild(card(item));
+    grid.appendChild(list);
     // A full page means YouTube probably has more; a short one means it ran out.
     if (tracks.length >= searchLimit && searchLimit < MAX_RESULTS) {
       const more = document.createElement("button");
       more.type = "button";
-      more.className = "more";
+      more.className = "more kit-btn tonal block";
       more.textContent = t("search.more");
       more.addEventListener("click", () => {
         more.disabled = true;
@@ -865,6 +921,18 @@
   go.addEventListener("click", () => search());
   q.addEventListener("keydown", (e) => { if (e.key === "Enter") search(); });
   q.addEventListener("search", () => { if (!q.value.trim()) renderHome(); });
+  // The cross shows only when there is something to clear; the on-screen
+  // keyboard fires input on every key, so it follows typing there too.
+  function syncClear() { $("clear").hidden = !q.value; }
+  q.addEventListener("input", syncClear);
+  $("clear").addEventListener("click", () => {
+    q.value = "";
+    syncClear();
+    storageSet(KEY, "");
+    searchSeq += 1;              // a search still in flight must not land
+    go.disabled = false;
+    renderHome();
+  });
 
   /* ---------- play ---------- */
 
@@ -885,6 +953,7 @@
     vmsgKey = key || "";
     vmsg.textContent = key ? t(key) : "";
     vmsg.classList.toggle("on", !!key);
+    vmsg.classList.toggle("busy", key === "player.preparing" || key === "player.buffering");
   }
 
   async function openVideo(item, startAt) {
@@ -900,6 +969,7 @@
     sheet.classList.remove("on");
     $("transcript").classList.remove("on");
     $("ptitle").textContent = item.title || t("player.untitled");
+    $("psub").textContent = item.uploader || "";
     player.classList.add("on");
     // Whoever watched the last video full screen gets the next one that way.
     setFull(storageGet(FULL_KEY, "0") === "1", false);
@@ -908,6 +978,8 @@
     try { await fetch("/api/music/stop", { method: "POST" }); } catch (e) { /* not critical */ }
     vsay("player.preparing");
     $("time").textContent = item.duration ? "0:00 / " + fmt(item.duration) : "0:00";
+    $("seekfill").style.transform = "scaleX(0)";
+    $("seekknob").style.transform = "translateX(0)";
     setRate(0);
     // "Mute" was about THAT video; the next one starting silent looks broken.
     video.muted = false;
@@ -952,10 +1024,10 @@
   $("pback").addEventListener("click", closeVideo);
 
   /* ---------- full screen ----------
-     The app sits in the screen's app layer, under its title bar. Full screen
-     asks the parent to drop that bar and its padding (storeAppFullscreen),
-     and here the controls float over the picture and fade away — the video
-     gets the whole 320x240 panel. A tap on the picture brings them back. */
+     The app already owns the whole panel (the screen draws no title bar for
+     store apps). Full screen here means the player's own chrome floats over
+     the picture and fades away; a tap on the picture brings it back. The
+     parent still hears storeAppFullscreen: it refreshes the island. */
 
   const CHROME_MS = 3000;
   let full = false, chromeTimer = 0;
@@ -964,7 +1036,7 @@
     full = !!on;
     if (remember !== false) storageSet(FULL_KEY, full ? "1" : "0");
     player.classList.toggle("full", full);
-    $("full").classList.toggle("on", full);
+    $("full").innerHTML = iconSvg(full ? "shrink" : "expand");
     try { window.parent.postMessage({ type: "storeAppFullscreen", on: full }, "*"); } catch (e) { /* standalone */ }
     if (full) showChrome();
     else { clearTimeout(chromeTimer); player.classList.remove("chrome"); }
@@ -989,7 +1061,7 @@
     }
   });
   // Any touch on the bars themselves keeps them up.
-  for (const bar of player.querySelectorAll(".ptop, .ctl")) {
+  for (const bar of player.querySelectorAll(".ptop, .pbottom")) {
     bar.addEventListener("pointerdown", () => { if (full) showChrome(); });
   }
 
@@ -1049,6 +1121,7 @@
       const total = video.duration > 0 && isFinite(video.duration) ? video.duration : 0;
       const part = total ? Math.min(1, video.currentTime / total) : 0;
       $("seekfill").style.transform = "scaleX(" + part.toFixed(4) + ")";
+      $("seekknob").style.transform = "translateX(" + (part * 100).toFixed(3) + "%)";
       $("time").textContent = fmt(video.currentTime) + (total ? " / " + fmt(total) : "");
     });
   });
@@ -1144,7 +1217,9 @@
     const el = idx >= 0 ? body.children[idx] : null;
     if (el) {
       el.classList.add("now");
-      if (scroll) el.scrollIntoView({ block: "center" });
+      // Scroll the list itself: scrollIntoView also scrolls every ancestor,
+      // the parent screen's stage included, and shifted the whole app up.
+      if (scroll) body.scrollTop = el.offsetTop - body.offsetTop - (body.clientHeight - el.offsetHeight) / 2;
     }
   }
 
@@ -1352,24 +1427,21 @@
     if (e.source !== window.parent) return;
     const data = e.data;
     if (!data || typeof data !== "object") return;
-    if (data.type === "botSkin") {
-      // Theme is separate from the skin: it also sets color-scheme, which
-      // paints scrollbars and native controls.
-      document.documentElement.dataset.theme = data.theme === "light" ? "light" : "dark";
-      if (data.vars) for (const k in data.vars) document.documentElement.style.setProperty(k, data.vars[k]);
-      if ((data.lang === "uk" || data.lang === "en") && data.lang !== lang) {
-        lang = data.lang;
-        applyI18n();
-        say(statusKey[0], statusKey[1], statusKey[2]);
-        if (vmsgKey) vsay(vmsgKey);
-        if (!lastTracks.length && !player.classList.contains("on")) renderHome();
-        renderSettings();
-      }
-      return;
-    }
     // Commands only from the screen itself, never from anything else that
     // got a handle on this window.
     if (data.type === "botVideo" && e.origin === window.location.origin) botCommand(data);
+  });
+
+  // The screen's style, theme and skin are applied by the kit (app-kit.js);
+  // the app only follows the language.
+  if (window.BotApp) BotApp.onChange((st) => {
+    if (st.lang === lang) return;
+    lang = st.lang;
+    applyI18n();
+    say(statusKey[0], statusKey[1], statusKey[2]);
+    if (vmsgKey) vsay(vmsgKey);
+    if (!lastTracks.length && !player.classList.contains("on")) renderHome();
+    renderSettings();
   });
 
   /* Hidden but not closed: do not keep playing sound from an invisible app. */
@@ -1383,6 +1455,7 @@
   setSort(storageGet(SORT_KEY, "relevance"), false);
   loadSettings();
   q.value = storageGet(KEY, "");
+  syncClear();
   if (q.value) search(); else renderHome();
 </script>
 </body>

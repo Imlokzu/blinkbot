@@ -4,90 +4,76 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>World clock</title>
+  <!-- App kit v1: the screen's own look (Material You or Deep UI, any theme
+       or skin) and its safe insets. See docs/SCREEN-PLATFORM.md §2.6. -->
+  <link rel="stylesheet" href="/static/screen/app-kit.css">
+  <script src="/static/screen/app-kit.js"></script>
   <style>
-    /* Shared look of the bot's own apps: the screen palette (skins overwrite
-       these eight variables at runtime), one bar, one button, one segment. */
-    :root {
-      --bg: #16181a; --panel: #1e2124; --line: #2f3438; --text: #e8e4dc;
-      --muted: #8e9498; --accent: #d17a58; --ok: #8ca879; --off: #6b7175;
-      color-scheme: dark;
-    }
-    :root[data-theme="light"] {
-      --bg: #efe7d9; --panel: #fbf6ec; --line: #ddcdb2; --text: #2f271f;
-      --muted: #7d6d5c; --accent: #b95f3d; --ok: #6f8b5f; --off: #a8998a;
-      color-scheme: light;
-    }
-    * { box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
-    body {
-      background: var(--bg); color: var(--text);
-      font: 12px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
-      -webkit-font-smoothing: antialiased; -webkit-user-select: none; user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    button, input { font: inherit; color: inherit; }
-    .app { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; padding: 6px 8px 8px; gap: 6px; }
-    .bar { display: flex; align-items: center; gap: 6px; flex: none; min-height: 28px; }
-    .bar-title { flex: 1; min-width: 0; overflow: hidden; color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
-    .chip { display: inline-flex; align-items: baseline; gap: 4px; flex: none; padding: 4px 7px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
-    .chip b { color: var(--text); font-size: 12px; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: none; min-width: 28px; min-height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); font-size: 11px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
-    .btn:active { border-color: var(--accent); color: var(--accent); }
-    .btn.primary { border-color: var(--accent); background: var(--accent); color: var(--bg); }
-    .btn.primary:active { opacity: .75; color: var(--bg); }
-    .btn.icon { width: 28px; padding: 0; }
-    .btn.ghost { background: transparent; }
-    .btn:disabled { opacity: .35; pointer-events: none; }
-    .seg { display: flex; gap: 6px; flex: none; padding: 2px; border: 1px solid var(--line); border-radius: 9px; }
-    .seg button { flex: 1; min-width: 0; min-height: 24px; padding: 0 6px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; cursor: pointer; }
-    .seg button.on { background: var(--panel); color: var(--text); }
-    .panel { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-    .num { font-variant-numeric: tabular-nums; }
-    .muted { color: var(--muted); }
+    /* Only what is the world clock's own, laid out like the Pixel Clock's
+       world tab: the local time big on top, then one row per city. The
+       palette, buttons and surfaces come from the kit. */
     [hidden] { display: none !important; }
-    svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+    .kit-btn svg.i { width: 18px; height: 18px; }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; } }
-    .list { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 6px; }
-    .city { display: flex; align-items: center; gap: 8px; flex: 1; min-height: 0; max-height: 54px; padding: 0 10px 0 8px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); }
-    .city .dn { display: grid; place-items: center; width: 26px; height: 26px; flex: none; border-radius: 8px; background: var(--bg); }
-    .city .dn.day { color: var(--accent); }
-    .city .dn.night { color: var(--muted); }
-    .city-copy { flex: 1; min-width: 0; }
-    .city-name { overflow: hidden; font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
-    .city-sub { margin-top: 1px; overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-    .city-time { font-size: 22px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-    .city .btn { color: var(--muted); }
-    .add-row { justify-content: center; gap: 6px; border-style: dashed; background: transparent; color: var(--muted); font-size: 11px; font-weight: 700; cursor: pointer; }
-    .add-row:active { border-color: var(--accent); color: var(--accent); }
-    .empty { margin: auto; color: var(--muted); font-size: 11px; }
-    .bar .btn.on { border-color: var(--accent); color: var(--accent); }
-    .picker { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 6px; padding: 6px 8px 8px; background: var(--bg); opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity .16s ease, transform .16s ease; }
+
+    /* The local clock: the one number this screen is about */
+    .here { flex: none; display: flex; align-items: center; gap: 10px; min-height: 44px; }
+    .here-time { font-size: 40px; line-height: 1; }
+    .here-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .here-copy .kit-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .here-copy .here-name { color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
+    .here-date { font: 600 12px/1.2 var(--font); color: var(--text); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .here-date::first-letter { text-transform: uppercase; }
+    /* While editing, the pencil turns into the screen's "done" */
+    #editBtn[aria-pressed="true"] { background: var(--kit-primary); color: var(--kit-on-accent); }
+
+    /* Cities: a kit list whose rows share the height that is left */
+    .list { flex: 1; min-height: 0; }
+    .city { flex: 1; min-height: 0; max-height: 52px; gap: 10px; padding: 0 12px 0 8px; }
+    .dn { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 50%; background: var(--kit-surface-hi); color: var(--muted); }
+    .dn.day { background: var(--kit-tonal); color: var(--kit-on-tonal); }
+    :root[data-ui="deep"] .dn.day { background: var(--kit-primary); color: var(--kit-on-accent); }
+    .city-name { overflow: hidden; font: 700 13px/1.2 var(--font); text-overflow: ellipsis; white-space: nowrap; }
+    .city-sub { margin-top: 2px; overflow: hidden; color: var(--muted); font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
+    .city-time { font: 400 24px/1 var(--font); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+    :root[data-ui="deep"] .city-time { font-weight: 300; }
+    .city .kit-btn.icon { width: 30px; height: 30px; min-width: 30px; min-height: 30px; }
+    .add-row { justify-content: center; gap: 8px; border: 0; color: var(--accent); font: 600 12px/1 var(--font); cursor: pointer; background: transparent; box-shadow: inset 0 0 0 1.5px var(--kit-surface-hi); }
+    .add-row:active { transform: scale(.98); }
+    .empty { margin: auto; padding: 0 16px; text-align: center; }
+
+    /* The city picker: a page of its own that slides over the list */
+    .picker { position: absolute; inset: 0; background: var(--bg); opacity: 0; pointer-events: none; transform: translateY(10px); transition: opacity .16s ease, transform .16s ease; }
+    :root[data-ui="deep"] .picker { background: radial-gradient(95% 70% at 50% -12%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 66%), var(--bg); }
     .picker.show { opacity: 1; pointer-events: auto; transform: none; }
-    .picks { display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 6px; flex: 1; min-height: 0; overflow-y: auto; touch-action: pan-y; scrollbar-width: none; }
-    .picks::-webkit-scrollbar { display: none; }
-    .pick { display: flex; align-items: baseline; justify-content: space-between; gap: 4px; min-height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); text-align: left; cursor: pointer; }
-    .pick:active { border-color: var(--accent); }
-    .pick span { overflow: hidden; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-    .pick small { flex: none; color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; }
-    @media (max-height: 200px) { .city-time { font-size: 17px; } .city .dn { width: 22px; height: 22px; } .city-sub { display: none; } }
+    .picks { display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 6px; }
+    .pick { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 36px; padding: 0 12px; border: 0; border-radius: 12px; background: var(--kit-surface); color: var(--text); text-align: left; cursor: pointer; transition: transform 110ms ease; }
+    .pick:active { transform: scale(.96); }
+    .pick span { overflow: hidden; font: 600 12px/1.2 var(--font); text-overflow: ellipsis; white-space: nowrap; }
+    .pick small { flex: none; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+    @media (max-height: 200px) { .here-time { font-size: 30px; } .here { min-height: 34px; } .city-time { font-size: 18px; } .dn { width: 24px; height: 24px; } .city-sub { display: none; } }
   </style>
 </head>
-<body>
-  <div class="app" id="app">
-    <header class="bar">
-      <span class="bar-title" data-i18n="title"></span>
-      <span class="chip"><span data-i18n="here"></span><b id="local">00:00</b></span>
-      <button class="btn icon" id="editBtn" type="button" data-icon="pencil" data-i18n-aria="edit"></button>
+<body class="kit">
+  <main class="kit-app" id="app">
+    <header class="here" data-i18n-aria="title">
+      <span class="kit-display here-time" id="local">00:00</span>
+      <div class="here-copy">
+        <span class="kit-label here-name" data-i18n="here"></span>
+        <span class="here-date" id="localDate"></span>
+      </div>
+      <button class="kit-btn icon" id="editBtn" type="button" aria-pressed="false" data-icon="pencil" data-i18n-aria="edit"></button>
     </header>
-    <main class="list" id="list"></main>
-  </div>
-  <div class="picker" id="picker">
-    <header class="bar">
-      <span class="bar-title" data-i18n="pickTitle"></span>
-      <button class="btn icon ghost" id="pickClose" type="button" data-icon="x" data-i18n-aria="close"></button>
+    <section class="kit-list list" id="list"></section>
+  </main>
+  <section class="kit-app picker" id="picker">
+    <header class="kit-bar">
+      <button class="kit-btn icon" id="pickClose" type="button" data-icon="back" data-i18n-aria="close"></button>
+      <span class="kit-title" data-i18n="pickTitle"></span>
     </header>
-    <div class="picks" id="picks"></div>
-  </div>
+    <div class="kit-fill kit-scroll picks" id="picks"></div>
+  </section>
   <script>
     const APP_ID = "world-clock";
     const CITIES = {
@@ -130,11 +116,14 @@
     const ICONS = {
       pencil: '<path d="M4 20h4l10-10a2.1 2.1 0 0 0-3-3L5 17z"/>',
       x: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+      back: '<path d="m14 5-7 7 7 7M7 12h13"/>',
       plus: '<path d="M12 5v14M5 12h14"/>',
       sun: '<circle cx="12" cy="12" r="3.8"/><path d="M12 3v2M12 19v2M21 12h-2M5 12H3M18.4 5.6l-1.4 1.4M7 17l-1.4 1.4M18.4 18.4 17 17M7 7 5.6 5.6"/>',
+      check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
       moon: '<path d="M20 14.2A8.5 8.5 0 0 1 9.8 4a8.5 8.5 0 1 0 10.2 10.2z"/>'
     };
-    /* ---- shared app runtime: storage, i18n, skin, parent messages ---- */
+    /* ---- app runtime: storage, i18n, parent messages. The theme, style
+       and skin are the kit's (app-kit.js). ---- */
 
     // Storage throws inside a sandboxed iframe (a shared .cbp runs with an
     // opaque origin), so every access is guarded and the app keeps its state
@@ -149,11 +138,9 @@
       try { localStorage.setItem(APP_ID + "." + key, JSON.stringify(value)); } catch (_) {}
     }
 
-    // Start in the screen's language; botSkin carries it later, which also
-    // covers the sandbox where localStorage is not readable.
-    let lang = "uk";
-    try { lang = localStorage.getItem("botScreenLang") || "uk"; } catch (_) {}
-    if (lang !== "en") lang = "uk";
+    // Start in the screen's language. The kit knows it (botScreenLang, then
+    // the screen's message, which also covers the sandbox).
+    let lang = window.BotApp ? BotApp.lang : "uk";
 
     function t(key, vars) {
       let text = STR[lang][key];
@@ -180,36 +167,6 @@
     function post(message) {
       try { window.parent.postMessage(message, "*"); } catch (_) {}
     }
-    function cssVar(name) {
-      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    }
-
-    let skinKeys = [];
-    window.addEventListener("message", (event) => {
-      // Only the source is checked: a sandboxed frame sees origin "null".
-      if (event.source !== window.parent) return;
-      const data = event.data;
-      if (!data || data.type !== "botSkin") return;
-      const root = document.documentElement;
-      // Drop the previous skin first, otherwise removing a skin would leave
-      // its colours behind.
-      skinKeys.forEach((key) => root.style.removeProperty(key));
-      skinKeys = [];
-      if (data.vars && typeof data.vars === "object") {
-        for (const key in data.vars) {
-          if (!/^--[a-z-]+$/.test(key)) continue;
-          root.style.setProperty(key, String(data.vars[key]));
-          skinKeys.push(key);
-        }
-      }
-      root.dataset.theme = data.theme === "light" ? "light" : "dark";
-      if (typeof onTheme === "function") onTheme();
-      if ((data.lang === "uk" || data.lang === "en") && data.lang !== lang) {
-        lang = data.lang;
-        applyI18n();
-      }
-    });
-
     document.addEventListener("click", (event) => {
       if (event.target.closest("[data-close]")) post({ type: "closeStoreApp" });
     });
@@ -293,20 +250,32 @@
       };
     }
 
+    // Weekday and date in the screen's language, e.g. "Sat, 27 Sep"
+    const dateFormats = {};
+    function localDate(date) {
+      try {
+        if (!dateFormats[lang]) dateFormats[lang] = new Intl.DateTimeFormat(lang === "en" ? "en-GB" : "uk-UA", { weekday: "short", day: "numeric", month: "short" });
+        return dateFormats[lang].format(date);
+      } catch (_) { return ""; }
+    }
+
     function render() {
       const now = new Date(Math.floor(Date.now() / 60000) * 60000);
       lastMinute = now.getTime();
       document.getElementById("local").textContent = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
-      document.getElementById("editBtn").classList.toggle("on", editing);
+      const editBtn = document.getElementById("editBtn");
+      editBtn.setAttribute("aria-pressed", editing ? "true" : "false");
+      editBtn.innerHTML = icon(editing ? "check" : "pencil");
+      document.getElementById("localDate").textContent = localDate(now);
       const list = document.getElementById("list");
       list.innerHTML = "";
       chosen.forEach((id, i) => {
         const d = describe(id, now);
         if (!d) return;
         const row = document.createElement("div");
-        row.className = "city";
-        row.innerHTML = '<span class="dn ' + (d.day ? "day" : "night") + '">' + icon(d.day ? "sun" : "moon") + '</span><div class="city-copy"><div class="city-name"></div><div class="city-sub"></div></div>' +
-          (editing ? '<button class="btn icon" type="button" data-remove="' + i + '">' + icon("x") + "</button>" : '<span class="city-time"></span>');
+        row.className = "kit-item city";
+        row.innerHTML = '<span class="dn ' + (d.day ? "day" : "night") + '">' + icon(d.day ? "sun" : "moon") + '</span><div class="city-copy kit-grow"><div class="city-name"></div><div class="city-sub"></div></div>' +
+          (editing ? '<button class="kit-btn icon danger" type="button" data-remove="' + i + '">' + icon("x") + "</button>" : '<span class="city-time"></span>');
         row.querySelector(".dn").setAttribute("aria-label", t(d.day ? "day" : "night"));
         row.querySelector(".city-name").textContent = t(id);
         row.querySelector(".city-sub").textContent = d.sub;
@@ -316,14 +285,14 @@
       });
       if ((editing || !chosen.length) && chosen.length < MAX) {
         const add = document.createElement("button");
-        add.type = "button"; add.className = "city add-row"; add.id = "addRow";
+        add.type = "button"; add.className = "kit-item city add-row"; add.id = "addRow";
         add.innerHTML = icon("plus") + "<span></span>";
         add.lastChild.textContent = t("add");
         list.appendChild(add);
       }
       if (!chosen.length && !editing) {
         const empty = document.createElement("div");
-        empty.className = "empty";
+        empty.className = "kit-label empty";
         empty.textContent = t("empty");
         list.prepend(empty);
       }
@@ -374,6 +343,9 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
 
     function onLang() { render(); if (document.getElementById("picker").classList.contains("show")) openPicker(true); }
+    // The screen's style and theme are applied by the kit; the app only
+    // follows the language.
+    if (window.BotApp) BotApp.onChange((st) => { if (st.lang !== lang) { lang = st.lang; applyI18n(); } });
 
     enableSwipeClose(document.getElementById("app"));
     fillIcons();

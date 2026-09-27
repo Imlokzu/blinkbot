@@ -4,7 +4,7 @@
   "label": "Кубики",
   "icon": "dice",
   "tint": "#b48ad8",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": "Клод Бот",
   "description": "Кубики d6 і d20, монетка і випадковий вибір зі свого списку.",
   "category": "fun",

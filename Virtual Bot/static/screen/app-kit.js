@@ -20,7 +20,8 @@
        BotApp.paint(el);
      - gives apps a small API: BotApp.lang / .theme / .ui,
        BotApp.onChange(fn) (called with {lang, theme, ui} on every
-       change), BotApp.close() (leave the app).
+       change), BotApp.close() (leave the app), BotApp.color(token)
+       (a kit colour as a canvas-ready value).
 
    Public API: add to it, never rename; installed apps are copies.
    ============================================================ */
@@ -45,6 +46,24 @@
     },
     close: function () {
       try { window.parent.postMessage({ type: "closeStoreApp" }, "*"); } catch (e) { /* standalone */ }
+    },
+    // A kit colour as a plain value a canvas accepts: "--accent", or any
+    // CSS colour expression ("color-mix(in srgb, var(--accent) 30%, var(--bg))").
+    // Chromium reports mixed colours as color(srgb r g b / a), which older
+    // canvases reject, so that form is turned into rgba().
+    color: function (expr) {
+      var probe = document.createElement("span");
+      probe.style.display = "none";
+      probe.style.color = /^--/.test(expr) ? "var(" + expr + ")" : expr;
+      (document.body || root).appendChild(probe);
+      var value = getComputedStyle(probe).color;
+      probe.remove();
+      var m = /^color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)(?: \/ ([\d.]+))?\)$/.exec(value);
+      if (m) {
+        value = "rgba(" + Math.round(m[1] * 255) + ", " + Math.round(m[2] * 255) + ", " +
+          Math.round(m[3] * 255) + ", " + (m[4] == null ? 1 : Number(m[4])) + ")";
+      }
+      return value;
     },
     paint: function (el) {
       if (el) { paint(el); return; }

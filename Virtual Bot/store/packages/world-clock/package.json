@@ -4,7 +4,7 @@
   "label": "Світовий час",
   "icon": "globe",
   "tint": "#5b9bd5",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "author": "Клод Бот",
   "description": "Час і день чи ніч у чотирьох містах на вибір, працює без мережі.",
   "category": "tools",
