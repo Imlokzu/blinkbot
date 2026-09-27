@@ -76,6 +76,7 @@ import events
 import music
 import integrations
 import screen_store
+import log_redact
 import lyrics
 import ytmusic
 import sponsorblock
@@ -99,6 +100,8 @@ import web_browser
 import workspace
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+# httpx logs request URLs, and Telegram's carry the bot token: cut it out.
+log_redact.install()
 log = logging.getLogger("virtual_bot")
 
 
