@@ -155,6 +155,9 @@ const DICT = {
 
     /* ---- шухляда й екрани ---- */
     "apps.head": "Застосунки",
+    "apps.view.list": "Показати списком",
+    "apps.view.honeycomb": "Показати сотами",
+    "apps.close": "Закрити застосунки",
     "app.head": "Застосунок",
     "screen.face": "Обличчя",
     "screen.clock": "Годинник",
@@ -387,7 +390,6 @@ const DICT = {
     "icons.auto.hint": "Темна — наші, світла — монохром",
     "iconstyle.auto": "Авто",
     "iconstyle.pixel": "Піксельні",
-    "iconstyle.pack": "Pixel",
     "iconstyle.line": "Однотонні",
     "iconstyle.color": "Кольорові",
     "iconstyle.white": "Білі",
@@ -606,6 +608,9 @@ const DICT = {
     "quick.reload": "Restart",
 
     "apps.head": "Apps",
+    "apps.view.list": "Show as a list",
+    "apps.view.honeycomb": "Show as a honeycomb",
+    "apps.close": "Close apps",
     "app.head": "App",
     "screen.face": "Face",
     "screen.clock": "Clock",
@@ -830,7 +835,6 @@ const DICT = {
     "icons.auto.hint": "Dark — ours, light — monochrome",
     "iconstyle.auto": "Auto",
     "iconstyle.pixel": "Pixel art",
-    "iconstyle.pack": "Pixel pack",
     "iconstyle.line": "Single-tone",
     "iconstyle.color": "Colored",
     "iconstyle.white": "White",

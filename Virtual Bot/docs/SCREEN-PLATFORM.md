@@ -55,8 +55,8 @@ store/packages/<id>/
   "id": "metronome",
   "type": "app",
   "label": "Метроном",
-  "icon": "clock",                 // імʼя іконки з наборів екрана
-  "tint": "#d7a65b",               // колір плитки в шухляді (опційно)
+  "icon": "clock",                 // імʼя іконки з наборів екрана (див. 4c)
+  "tint": "#d7a65b",               // колір для старих стилів іконок (опційно)
   "version": "1.0.0",
   "author": "Клод Бот",
   "description": "Одне речення — воно покажеться в каталозі",
@@ -457,6 +457,36 @@ window.addEventListener("message", (e) => {
 
   The logic (`LAYOUTS`, `applyKey`, `initialState`) has no DOM and is
   checked through node in `tests/test_screen_js.py`.
+
+## 4c. The app drawer (`drawer.js`) and app icons (`app-icons.js`)
+
+Swipe up (or long-press, or "покажи застосунки") opens a watch-style
+drawer: a honeycomb of 48 px discs panned in both directions, with a
+fisheye that keeps the middle full size and shrinks the rim. A tap opens
+the app. A drag pans it, with momentum and a snap onto the nearest icon.
+Pulling past the top edge closes the drawer. The pill at the bottom names
+the icon in the middle. The top-left button switches to a list (icon +
+name rows, same lens at the edges). The choice is kept in `localStorage`
+as `botScreenDrawerView`.
+
+The drawer takes the pointer for itself (`stopPropagation`), so a pan
+never becomes a carousel swipe or the stage's long press.
+
+**App icons.** Every icon in the drawer and the store is drawn in
+`app-icons.js`: a coloured gradient disc with one white glyph, viewBox
+48×48. The icon settings (pixel / line / colour / white) now style only
+the small controls. The "Pixel pack" style is gone, because the drawer
+was the only thing it changed. An app's design is picked in this order:
+
+1. its **package id** (`BY_ID`), so the crab game is a crab even though
+   its manifest says `icon: "face"`;
+2. the manifest's **`icon` name** (`BY_ICON`), for third-party packages;
+3. a grey disc with the first **letter** of the label.
+
+A new built-in package should get a design and a `BY_ID` entry.
+`test_every_screen_and_package_has_its_own_design` fails until it does.
+The layout maths (`honeycomb`, `fisheye`, `listLens`, `rubber`) is pure
+and checked from node in `tests/test_screen_js.py`.
 
 ## 5. API довідник (нові ендпоінти)
 

@@ -5,13 +5,15 @@
    переганяє щоразу весь текст. */
 import * as smd from "./vendor/smd.min.js";
 /* Піксельні цифри й іконки — своя графіка, спільна мова з крабом */
-import { drawGlyphString, makeIcon, paintIcon, hasPixelIcon } from "./pixel-ui.js";
+import { drawGlyphString, makeIcon, paintIcon } from "./pixel-ui.js";
 /* Розбір ключового слова — окремо і без DOM, щоб логіку можна було
    перевіряти напряму, не маючи мікрофона (див. wake.js) */
 import { parseWake, findWake } from "./wake.js";
 import { ReplyTurn } from "./reply.js";
 import { activities as islandActivities, selectKey as islandSelect, fmtClock } from "./island.js";
 import { ScreenKeyboard } from "./keyboard.js";
+import { WatchDrawer } from "./drawer.js";
+import { appIconEl } from "./app-icons.js";
 /* Контурні іконки та їхні кольори — у icons.js */
 import { makeSvgIcon, ICON_COLORS } from "./icons.js";
 /* Дві мови інтерфейсу (uk/en) — словник і хелпери в i18n.js */
@@ -618,7 +620,6 @@ const ICON_TINTS = [
 const ICON_STYLES = {
   auto: "iconstyle.auto",
   pixel: "iconstyle.pixel",
-  pack: "iconstyle.pack",
   line: "iconstyle.line",
   color: "iconstyle.color",
   white: "iconstyle.white",
@@ -647,54 +648,6 @@ function activeIconStyle() {
   if (iconStyle !== "auto") return iconStyle;
   return document.documentElement.dataset.theme === "light" ? "white" : "pixel";
 }
-const PIXEL_ICON_ASSETS = {
-  face: "face.svg",
-  clock: "clock.svg",
-  mic: "say.svg",
-  bubble: "chat.svg",
-  gauge: "state.svg",
-  sliders: "quick.svg",
-  camera: "camera.svg",
-  server: "services.svg",
-  monitor: "panel.svg",
-  settings: "settings.svg",
-  memory: "memory.svg",
-  history: "chats.svg",
-  store: "store.svg",
-  music: "music.svg",
-  // Іконки застосунків із магазину. Без них у шухляді ці дві плитки падали
-  // у векторний фолбек — серед піксельних сусідів вони єдині виглядали
-  // «з іншого набору».
-  pencil: "pencil.svg",
-  youtube: "youtube.svg",
-};
-/* Іконки з паку Pixel: готові кольорові кружечки, витягнуті з APK і
-   зменшені до 64px. Діють ТІЛЬКИ в шухляді: у швидких діях іконка
-   малюється 20px, і повноколірний логотип там перетворюється на кляксу,
-   а на «плюс», «список» чи «контраст» у паку картинок і немає. Тому за
-   межами шухляди цей стиль поводиться як контурний. */
-const PACK_ICON_SLOTS = [
-  "face", "clock", "mic", "bubble", "gauge", "sliders", "camera", "server",
-  "monitor", "settings", "memory", "history", "store", "music", "pencil",
-  "youtube",
-];
-
-const PIXEL_ICON_TINTS = {
-  face: "#4ecdc4",
-  clock: "#5b9bd5",
-  mic: "#e74c3c",
-  bubble: "#7ec8e3",
-  gauge: "#3b82f6",
-  sliders: "#5b9bd5",
-  camera: "#00cc6a",
-  server: "#889099",
-  monitor: "#5b9bd5",
-  settings: "#5b9bd5",
-  memory: "#d7a65b",
-  history: "#5b9bd5",
-  store: "#d7a65b",
-  music: "#d98263",
-};
 let iconStyle = "auto";
 let iconTint = DEFAULT_ICON_TINT;
 
@@ -711,67 +664,12 @@ function uiIcon(name, opts) {
   return svg;
 }
 
-/* Великі іконки шухляди беруться з локального pixel-паку, коли обрано
-   піксельний стиль. Для двох інших стилів лишається векторний renderer. */
-function drawerIcon(name, on) {
-  if (activeIconStyle() === "pack" && PACK_ICON_SLOTS.includes(name)) {
-    const image = document.createElement("img");
-    image.className = "pack-icon";
-    image.alt = "";
-    image.setAttribute("aria-hidden", "true");
-    image.decoding = "async";
-    image.draggable = false;
-    image.src = "/static/screen/assets/pack-icons/" + name + ".png";
-    // Немає файлу — падаємо на контурну, а не лишаємо порожнє коло
-    image.addEventListener("error", () => {
-      const svg = makeSvgIcon(name);
-      svg.classList.add("svgicon-big");
-      svg.style.stroke = iconTint;
-      image.replaceWith(svg);
-    }, { once: true });
-    return image;
-  }
-  if (activeIconStyle() === "pixel" && (PIXEL_ICON_ASSETS[name] || hasPixelIcon(name) || name === "server")) {
-    const asset = PIXEL_ICON_ASSETS[name];
-    const fallback = () => {
-      const fallbackName = name === "server" ? "gear" : name;
-      const icon = makeIcon(
-        fallbackName,
-        3,
-        on ? iconColors(true)[0] : (PIXEL_ICON_TINTS[name] || iconTint),
-        "",
-        true,
-      );
-      icon.setAttribute("aria-hidden", "true");
-      return icon;
-    };
-    if (!asset) return fallback();
-
-    const image = document.createElement("img");
-    image.className = "pixel-pack-icon";
-    image.alt = "";
-    image.setAttribute("aria-hidden", "true");
-    image.decoding = "async";
-    image.draggable = false;
-    image.src = "/static/screen/assets/pixel-icons/" + asset;
-    image.addEventListener("error", () => {
-      image.replaceWith(fallback());
-    }, { once: true });
-    return image;
-  }
-  const svg = makeSvgIcon(name);
-  svg.classList.add("svgicon-big");
-  svg.style.stroke = strokeFor(name);
-  return svg;
-}
-
 /* Колір контуру для поточного стилю. Один хелпер на всі місця, де раніше
    стояв той самий тернарник: інакше додавання стилю треба було б не забути
    в трьох файлах-місцях, і одне з них щоразу лишалось старим. */
 function strokeFor(name) {
   const style = activeIconStyle();
   if (style === "white") return monoStroke();
-  if (style === "pack") return iconTint;
   if (style === "color") return ICON_COLORS[name] || iconTint;
   return iconTint;
 }
@@ -2907,49 +2805,33 @@ function closeApps() {
   if (layer === "apps") openLayer(null);
 }
 
+/* The drawer itself is drawer.js: a watch-style honeycomb (or a list) of
+   the icons from app-icons.js. Built once, refilled on every open, because
+   the store may have installed something since the last time. */
+let watchDrawer = null;
+
 function renderApps() {
-  appsGrid.innerHTML = "";
-  const all = SCREENS.concat(installedApps);
-  for (const scr of all) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "app-tile";
-    const here = !scr.app && tiles[tileIndex] &&
-      tiles[tileIndex].dataset.tile === scr.id;
-    btn.classList.toggle("on", here);
-
-    const circle = document.createElement("span");
-    circle.className = "app-icon";
-    circle.dataset.icon = scr.icon;
-    /* Колір КІЛЬЦЯ плитки. У білій темі білий переважує навіть власний
-       колір застосунку з магазину: інакше серед сірих кружечків двоє
-       (метроном, малювання) світились золотим і бірюзовим — і виглядало це
-       не як задум, а як недомитий стиль. */
-    const style = activeIconStyle();
-    // У стилі паку іконка вже сама кольоровий кружечок, тому наше кільце
-    // під нею дало б кружечок у кружечку — як значок на значку. Клас
-    // app-icon-bare прибирає тло й обідок, і плитка виглядає як у лаунчері.
-    circle.classList.toggle("app-icon-bare", style === "pack" && PACK_ICON_SLOTS.includes(scr.icon));
-    const tint = style === "white"
-      ? monoStroke()
-      : scr.tint || (style === "color"
-        ? (ICON_COLORS[scr.icon] || iconTint)
-        : style === "pixel"
-          ? (PIXEL_ICON_TINTS[scr.icon] || iconTint)
-          : iconTint);
-    circle.style.setProperty("--app-tint", tint);
-    circle.appendChild(drawerIcon(scr.icon, here));
-    btn.appendChild(circle);
-
-    const lbl = document.createElement("span");
-    lbl.className = "app-name";
-    // Свої екрани мають ключ, застосунки з магазину — власну назву з пакета
-    lbl.textContent = scr.labelKey ? t(scr.labelKey) : scr.label;
-    btn.appendChild(lbl);
-
-    btn.addEventListener("click", () => { closeApps(); showScreen(scr.id); });
-    appsGrid.appendChild(btn);
+  if (!watchDrawer) {
+    layerApps.classList.add("watch");
+    watchDrawer = new WatchDrawer(appsGrid, {
+      t,
+      iconEl: appIconEl,
+      icon: makeSvgIcon,
+      onLaunch: (id) => { closeApps(); showScreen(id); },
+      onClose: closeApps,
+      onActivity: wake,
+    });
   }
+  const current = tiles[tileIndex] && tiles[tileIndex].dataset.tile;
+  watchDrawer.setApps(SCREENS.concat(installedApps).map((scr) => ({
+    id: scr.id,
+    icon: scr.icon,
+    pkg: scr.pkg,
+    // Own screens have a key, store apps their manifest's own name
+    label: scr.labelKey ? t(scr.labelKey) : scr.label,
+    on: !scr.app && scr.id === current,
+  })));
+  watchDrawer.show();
 }
 
 /* Єдина точка переходу «за назвою» — нею користуються і лаунчер, і бот.
@@ -4618,9 +4500,9 @@ function onVideoCommand(ev) {
   if (!sendVideoCommand(command)) showCaption(t("video.nothing"), "bot");
 }
 
-function storeIconEl(name) {
-  // Same drawerIcon as the app drawer, so a package looks identical in both
-  return drawerIcon(name, false);
+function storeIconEl(name, pkg) {
+  // The drawer's icon, so a package looks identical in the store and there
+  return appIconEl({ icon: name, pkg });
 }
 
 /* A manifest's own strings in the screen's language: `locales.<lang>` wins,
@@ -4696,18 +4578,18 @@ function openStore() {
       return btn;
     }
 
-    function iconBadge(icon, tint, big) {
+    function iconBadge(icon, big, pkg) {
+      // The icon is a full coloured disc now: no ring of our own behind it
       const host = document.createElement("span");
-      host.className = "app-icon" + (big ? " store-icon-big" : "");
-      host.style.setProperty("--app-tint", tint || iconTint);
-      host.appendChild(storeIconEl(icon || "store"));
+      host.className = "app-icon app-icon-bare" + (big ? " store-icon-big" : "");
+      host.appendChild(storeIconEl(icon || "store", pkg));
       return host;
     }
 
-    function infoRow({ icon, tint, name, desc, badge, dots, actions, onOpen }) {
+    function infoRow({ icon, pkg, name, desc, badge, dots, actions, onOpen }) {
       const row = document.createElement("div");
       row.className = "store-row" + (onOpen ? " tappable" : "");
-      row.appendChild(iconBadge(icon, tint));
+      row.appendChild(iconBadge(icon, false, pkg));
       const info = document.createElement("div");
       info.className = "store-info";
       const nameRow = document.createElement("div");
@@ -4848,7 +4730,7 @@ function openStore() {
       card.className = "store-card";
       const head = document.createElement("div");
       head.className = "store-card-head";
-      head.appendChild(iconBadge(pkg.icon, pkg.tint, true));
+      head.appendChild(iconBadge(pkg.icon, true, pkg.id));
       const titles = document.createElement("div");
       titles.className = "store-info";
       const name = document.createElement("div");
@@ -4962,7 +4844,7 @@ function openStore() {
               : null;
             body.appendChild(infoRow({
               icon: pkg.icon,
-              tint: pkg.tint,
+              pkg: pkg.id,
               name: pkgText(pkg, "label") || pkg.id,
               desc: pkgText(pkg, "description"),
               badge: badges(pkg),

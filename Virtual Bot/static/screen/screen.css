@@ -850,35 +850,6 @@ html, body {
 .panel-actions { display: flex; flex-wrap: wrap; gap: 5px; }
 .panel-actions .settings-test { flex: 1 1 82px; }
 
-.apps-grid {
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  grid-auto-rows: min-content;
-  gap: 8px 1px;
-  min-height: 0;
-  overflow-y: auto;
-  touch-action: pan-y;
-  scrollbar-width: none;
-  padding: 2px 0 3px;
-}
-.apps-grid::-webkit-scrollbar { display: none; }
-
-.app-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 0;
-  gap: 3px;
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  font: 400 8px/1.1 var(--font);
-  text-align: center;
-  cursor: pointer;
-  padding: 0;
-}
-
 .svgicon {
   width: 20px;
   height: 20px;
@@ -891,34 +862,9 @@ html, body {
 
 .svgicon-big { width: 24px; height: 24px; }
 
-/* Іконка з паку Pixel: сама собі кружечок, тож малюємо її на всю плитку.
-   38px, а не 42: інакше вона впритул торкається краю там, де в піксельних
-   іконок лишається поле, і в сітці плитки читались би різного розміру. */
-.pack-icon {
-  width: 38px;
-  height: 38px;
-  display: block;
-  object-fit: contain;
-  user-select: none;
-}
-/* Під готовим кружечком наше тло й обідок зайві — див. app-icon-bare
-   в renderApps. */
-.app-icon-bare {
-  background: none !important;
-  border-color: transparent !important;
-}
-.app-tile:active .app-icon-bare,
-.app-tile.on .app-icon-bare { background: none !important; }
-
-.pixel-pack-icon {
-  width: 30px;
-  height: 30px;
-  display: block;
-  image-rendering: pixelated;
-  object-fit: contain;
-  user-select: none;
-}
-
+/* A round badge for an icon (the store's rows). With the app icons from
+   app-icons.js the icon is its own coloured disc, so app-icon-bare drops
+   our ring behind it — otherwise it is a disc inside a disc. */
 .app-icon {
   width: 42px;
   height: 42px;
@@ -932,18 +878,133 @@ html, body {
   justify-content: center;
   flex: none;
 }
-.app-tile:active .app-icon {
-  background: var(--accent);
-  background: color-mix(in srgb, var(--accent) 40%, #25292e);
+.app-icon-bare {
+  background: none !important;
+  border-color: transparent !important;
 }
-.app-tile.on .app-icon {
-  background: var(--accent);
-  background: color-mix(in srgb, var(--accent) 34%, #25292e);
-}
-.app-tile.on { color: var(--accent); }
-.app-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app-glyph { display: block; width: 100%; height: 100%; }
 
-.app-name { width: 100%; max-width: 54px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ---------- The watch drawer (drawer.js) ----------
+   Full bleed, dark, no title bar: the honeycomb is the whole screen, as
+   on a watch. The icons are bright discs and need a dark ground to read;
+   the light theme gets a pale one instead of the dark glass. */
+.layer-apps.watch { padding: 0; background-color: #0b0c0e; }
+.layer-apps.watch::before { background: color-mix(in srgb, #050607 82%, transparent); }
+:root[data-theme="light"] .layer-apps.watch { background-color: #eceef1; }
+:root[data-theme="light"] .layer-apps.watch::before { background: color-mix(in srgb, #eceef1 86%, transparent); }
+.layer-apps.watch > .apps-handle,
+.layer-apps.watch > .apps-head { display: none; }
+
+.layer-apps .watch-drawer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.wd-field { position: absolute; inset: 0; }
+.watch-drawer.wd-enter .wd-field { animation: wd-zoom 280ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+@keyframes wd-zoom {
+  from { transform: scale(1.35); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.wd-app {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
+}
+.wd-disc {
+  display: block;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: 50%;
+  transition: transform 110ms ease;
+}
+.wd-app.pressed .wd-disc { transform: scale(0.88); }
+/* The screen you came from: a ring, as the watch marks the running app */
+.wd-app.on .wd-disc { box-shadow: 0 0 0 2px #0b0c0e, 0 0 0 4px var(--accent); }
+:root[data-theme="light"] .wd-app.on .wd-disc { box-shadow: 0 0 0 2px #eceef1, 0 0 0 4px var(--accent); }
+.wd-app:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.wd-label { display: none; }
+
+/* List view: icon + name rows, still with the lens at the edges */
+.watch-drawer[data-view="list"] .wd-app {
+  width: 232px;
+  height: 36px;
+  margin: -18px 0 0 -116px;
+  padding: 0 12px 0 3px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+}
+:root[data-theme="light"] .watch-drawer[data-view="list"] .wd-app { background: rgba(0, 0, 0, 0.06); }
+.watch-drawer[data-view="list"] .wd-disc { width: 30px; height: 30px; }
+.watch-drawer[data-view="list"] .wd-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: #f2f3f5;
+  font: 500 13px/1.15 var(--font);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:root[data-theme="light"] .watch-drawer[data-view="list"] .wd-label { color: #1c1d20; }
+
+/* Name of the icon in the middle: the honeycomb has no labels of its own */
+.wd-name {
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  z-index: 200;
+  max-width: 72%;
+  padding: 3px 10px;
+  transform: translateX(-50%);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font: 600 11px/1.2 var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.wd-btn {
+  position: absolute;
+  top: 5px;
+  z-index: 201;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: pointer;
+}
+:root[data-theme="light"] .wd-btn { background: rgba(0, 0, 0, 0.1); color: #1c1d20; }
+.wd-btn:active { background: var(--accent); }
+.wd-btn .svgicon { width: 15px; height: 15px; stroke: currentColor; stroke-width: 2; }
+.wd-view { left: 5px; }
+.wd-close { right: 5px; }
 
 /* Панель іде за пальцем: свайп ВГОРУ піднімає шухляду знизу, свайп ВНИЗ
    опускає шторку швидких дій згори (як на телефоні). */

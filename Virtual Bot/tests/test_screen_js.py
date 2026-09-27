@@ -266,3 +266,92 @@ const s = type(m.initialState({autocap: false}), ["т", "а", "к", m.K.ENTER]);
 console.log(JSON.stringify({done: s.done, text: s.text}));
 """)
         assert result == {"done": True, "text": "так"}
+
+
+@needs_node
+class TestWatchDrawer:
+    """drawer.js: the honeycomb layout and the fisheye."""
+
+    def test_honeycomb_packs_without_overlap_and_starts_in_the_middle(self):
+        result = _run("drawer.js", """
+const pts = m.honeycomb(30);
+let closest = Infinity;
+for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+  closest = Math.min(closest, Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y));
+}
+const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+console.log(JSON.stringify({n: pts.length, first: pts[0], closest, pitch: m.PITCH,
+  width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys)}));
+""")
+        assert result["n"] == 30 and result["first"] == {"x": 0, "y": 0}
+        assert result["closest"] >= result["pitch"] - 0.01
+        # Filled as wide as the 4:3 screen, not as a round blob
+        assert result["width"] > result["height"]
+
+    def test_fisheye_keeps_the_middle_and_shrinks_the_rim(self):
+        result = _run("drawer.js", """
+const along = [0, 40, 80, 120, 160, 220].map(x => m.fisheye(x, 0, 320, 240));
+console.log(JSON.stringify({scales: along.map(f => f.scale), xs: along.map(f => f.x)}));
+""")
+        scales, xs = result["scales"], result["xs"]
+        assert scales[0] == 1 and scales[1] == 1
+        assert all(a >= b for a, b in zip(scales, scales[1:])) and scales[-1] >= 0.3
+        # Pulled in, but order is kept: the rim never folds over the middle
+        assert all(a < b for a, b in zip(xs, xs[1:])) and xs[-1] < 220
+
+    def test_rubber_band_and_nearest(self):
+        result = _run("drawer.js", """
+console.log(JSON.stringify([m.rubber(5, 0, 10), m.rubber(-10, 0, 10), m.rubber(30, 0, 10),
+  m.nearest([{x: 0, y: 0}, {x: 54, y: 0}], {x: 40, y: 3})]));
+""")
+        assert result == [5, -4.5, 19, 1]
+
+
+def _screen_ids() -> list[str]:
+    import re
+    source = (SCREEN / "screen.js").read_text("utf-8")
+    block = source[source.index("const SCREENS = ["):]
+    block = block[:block.index("];")]
+    return re.findall(r'\{ id: "([a-z-]+)"', block)
+
+
+def _package_ids() -> list[str]:
+    root = Path(app_config.BASE_DIR) / "store" / "packages"
+    return sorted(p.parent.name for p in root.glob("*/package.json"))
+
+
+@needs_node
+class TestAppIcons:
+    """app-icons.js: every app has its own drawn icon, and every icon is valid SVG."""
+
+    def test_every_screen_and_package_has_its_own_design(self):
+        apps = [{"id": i} for i in _screen_ids()] + [{"id": "app:" + p, "pkg": p} for p in _package_ids()]
+        keys = _run("app-icons.js", f"console.log(JSON.stringify({json.dumps(apps)}.map(a => m.appIconKey(a))));")
+        missing = [a["id"] for a, k in zip(apps, keys) if k == "letter"]
+        assert missing == [], f"no icon drawn for {missing}"
+        assert len(apps) >= 30
+
+    def test_every_design_renders_as_well_formed_svg(self):
+        import xml.etree.ElementTree as ET
+        svgs = _run("app-icons.js", """
+console.log(JSON.stringify(Object.keys(m.DESIGNS).map(k => [k, m.appIconSvg(k, {label: "<Zed & co>"})])));
+""")
+        ids = set()
+        for key, svg in svgs:
+            root = ET.fromstring(svg)                      # raises on broken markup
+            assert root.get("viewBox") == "0 0 48 48", key
+            gradient = root.find(".//{http://www.w3.org/2000/svg}linearGradient")
+            ids.add(gradient.get("id"))
+            assert "NaN" not in svg and "undefined" not in svg, key
+        # SVG ids are page-global: each icon needs its own gradient
+        assert len(ids) == len(svgs)
+
+    def test_unknown_apps_fall_back_to_the_icon_name_then_a_letter(self):
+        result = _run("app-icons.js", """
+console.log(JSON.stringify([
+  m.appIconKey({id: "app:someone-elses", pkg: "someone-elses", icon: "dice"}),
+  m.appIconKey({id: "app:x", pkg: "x", icon: "no-such-icon"}),
+  m.appIconSvg("letter", {label: "ёжик"}).includes(">Ё<"),
+]));
+""")
+        assert result == ["dice", "letter", True]

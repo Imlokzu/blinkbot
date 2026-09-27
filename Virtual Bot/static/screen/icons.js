@@ -154,6 +154,11 @@ const PATHS = {
     '<path d="M12 4 4 12.5h4.5V19h7v-6.5H20z"/>',
   star:
     '<path d="M12 3.8l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.4l-5.1 2.8L8 13.6 3.8 9.7l5.7-.7z"/>',
+  // The watch drawer's own controls: close, and "back to the honeycomb"
+  close: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+  hex:
+    '<circle cx="7.5" cy="8" r="2.6"/><circle cx="16.5" cy="8" r="2.6"/>' +
+    '<circle cx="3.6" cy="15.5" r="2.6"/><circle cx="12" cy="15.5" r="2.6"/><circle cx="20.4" cy="15.5" r="2.6"/>',
 };
 
 /* Кольорова палітра: кожна іконка має свій відтінок, як застосунки на
@@ -207,6 +212,8 @@ export const ICON_COLORS = {
   keyboard: "#9aa3a8",
   backspace: "#9aa3a8",
   shift: "#9aa3a8",
+  close: "#9aa3a8",
+  hex: "#9aa3a8",
 };
 
 /** Готовий <svg> як елемент; колір і товщина — з CSS. */
