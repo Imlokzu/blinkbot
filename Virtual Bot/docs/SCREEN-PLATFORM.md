@@ -375,7 +375,8 @@ caption; any touch silences it). One clock, not two.
 Loads only while the tile is on screen. When the bot's `weather` tool runs,
 its answer is published as SSE `{"type": "weather"}` and the tile shows it.
 
-The tile follows the One UI look:
+In the **One UI** style (see 4c½) the tile looks like this. The
+**Claude** style draws the same data Pixel Weather's way instead.
 - **The whole tile is the sky.** Its colour comes from the WMO `code` and
   `is_day`, and every kind has a darker night version.
 - **Drawn pictures** come from `weather-icons.js`: sun, moon, clouds,
@@ -495,7 +496,8 @@ never becomes a carousel swipe or the stage's long press.
 
 **App icons.** Every icon in the drawer and the store is drawn in
 `app-icons.js`: a coloured gradient disc with one white glyph, viewBox
-48×48. The icon settings (pixel / line / colour / white) now style only
+48×48. That is the One UI look. The Claude style re-inks the same
+drawing in tones of one colour (see 4c½). The icon settings (pixel / line / colour / white) now style only
 the small controls. The "Pixel pack" style is gone, because the drawer
 was the only thing it changed. An app's design is picked in this order:
 
@@ -510,6 +512,34 @@ draw one that fits the set is in the skill
 `test_every_screen_and_package_has_its_own_design` fails until it does.
 The layout maths (`honeycomb`, `fisheye`, `listLens`, `rubber`) is pure
 and checked from node in `tests/test_screen_js.py`.
+
+## 4c½. Interface styles: "Claude" and "One UI"
+
+Settings → Appearance → **Interface style** switches between two design
+systems over the same markup. Nothing is rewritten per style. The choice
+is kept as `botScreenUiStyle` and set on `<html data-ui="…">`.
+
+| | **Claude** (default) | **One UI** |
+|---|---|---|
+| look | the bot's own palette, pixel clock and controls | true black / soft grey, rounded cards, Samsung blue |
+| app icons | **tonal** — Pixel's themed icons, inked in the screen's colour (`themedColors`) | full-colour gradient discs |
+| weather tile | **Pixel Weather**: sky-tinted surface, hours as a temperature curve, days with a range bar | the whole tile is the sky, columns |
+| quick panel | outlined tiles | round buttons, label underneath |
+| sliders, switches | as before | thick filling bars, toggle switches |
+| titles | small spaced capitals | big bold sentence case |
+
+- `oneui.css` holds the whole One UI design system. **Every rule in it
+  is scoped to `:root[data-ui="oneui"]`**, and
+  `test_one_ui_css_never_touches_the_claude_style` enforces that. The
+  default look lives only in `screen.css`.
+- JS asks `uiStyle` in the few places the markup differs: the weather
+  hours and days (`fillHoursPixel` / `fillHoursOneUI`), the app icons
+  (`appIconOpts()`), and the icon style under "auto" (One UI uses line
+  icons, never pixels).
+- One UI's sliders fill up to the thumb through `--pct`, painted by
+  `paintRange()`.
+- Skins still win in both styles: they set their colours inline on the
+  root element.
 
 ## 4d. Getting out of an app: Android gestures (`gesture-nav.js`)
 

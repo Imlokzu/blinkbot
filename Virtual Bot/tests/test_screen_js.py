@@ -441,3 +441,59 @@ console.log(JSON.stringify([m.progress("bottom", 0, 20), m.progress("bottom", 0,
         edge, bottom = result
         # 320×240: the app keeps at least 90% of the width and 90% of the height
         assert 2 * edge <= 32 and bottom <= 24
+
+
+@needs_node
+class TestInterfaceStyles:
+    """Two interface styles over one screen: "Claude" (default) and "One UI"."""
+
+    def test_themed_icons_use_only_their_three_tones(self):
+        import re
+        import xml.etree.ElementTree as ET
+        result = _run("app-icons.js", """
+const out = {};
+for (const theme of ["dark", "light"]) {
+  const tones = m.themedColors("#d98263", theme);
+  out[theme] = {tones, svgs: Object.keys(m.DESIGNS).map(k => [k, m.appIconSvg(k, {label: "Z", themed: tones})])};
+}
+console.log(JSON.stringify(out));
+""")
+        for theme, data in result.items():
+            tones = {c.lower() for c in data["tones"].values()}
+            for key, svg in data["svgs"]:
+                ET.fromstring(svg)
+                assert "url(#" not in svg, key                   # a flat tonal disc, no gradient
+                used = {c.lower() for c in re.findall(r'(?:fill|stroke)="(#[0-9a-fA-F]{3,6})"', svg)}
+                assert used <= tones, (theme, key, used - tones)
+
+    def test_themed_tones_follow_the_theme(self):
+        result = _run("app-icons.js", """
+const lum = (h) => { const n = parseInt(h.slice(1), 16); return (n >> 16) + ((n >> 8) & 255) + (n & 255); };
+const d = m.themedColors("#5fb0a8", "dark"), l = m.themedColors("#5fb0a8", "light");
+console.log(JSON.stringify([lum(d.bg) < lum(d.fg), lum(l.bg) > lum(l.fg), m.mixHex("#000000", "#ffffff", 0.5)]));
+""")
+        assert result == [True, True, "#808080"]
+
+    def test_one_ui_css_never_touches_the_claude_style(self):
+        # Every rule in oneui.css must be scoped to :root[data-ui="oneui"];
+        # an unscoped one would quietly restyle the default look.
+        import re
+        css = (SCREEN / "oneui.css").read_text("utf-8")
+        css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+        selectors = re.findall(r"([^{}]+)\{", css)
+        unscoped = []
+        for group in selectors:
+            for sel in group.split(","):
+                sel = sel.strip()
+                if not sel or sel.startswith("@") or sel in ("from", "to") or sel.endswith("%"):
+                    continue
+                if not sel.startswith(':root[data-ui="oneui"]'):
+                    unscoped.append(sel)
+        assert unscoped == []
+
+    def test_styles_are_worded_and_linked(self):
+        i18n = (SCREEN / "i18n.js").read_text("utf-8")
+        for key in ("set.uiStyle", "uistyle.claude", "uistyle.oneui"):
+            assert i18n.count(f'"{key}"') == 2, key
+        html = (SCREEN / "index.html").read_text("utf-8")
+        assert 'href="/static/screen/oneui.css"' in html and 'data-ui="claude"' in html

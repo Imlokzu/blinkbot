@@ -455,15 +455,71 @@ function firstLetter(label) {
   return ch.toUpperCase();
 }
 
+/* ------------------------------------------------------------ themed
+   The "Claude" interface style draws the same glyphs as Pixel's themed
+   icons: one tonal disc in the screen's colour and the glyph in a darker
+   (light theme) or lighter (dark theme) tone of the same colour. It is
+   the same drawing re-inked, so a new design gets its themed look for
+   free: white → the glyph tone, the disc's own dark cut-outs → the disc
+   tone, any accent → a middle tone that still separates from both. */
+
+function hexRgb(hex) {
+  let h = String(hex || "").replace("#", "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  const n = parseInt(h, 16);
+  return Number.isFinite(n) && h.length === 6 ? [(n >> 16) & 255, (n >> 8) & 255, n & 255] : [128, 128, 128];
+}
+
+/** a → b by t (0…1), as #rrggbb. */
+export function mixHex(a, b, t) {
+  const x = hexRgb(a);
+  const y = hexRgb(b);
+  return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("");
+}
+
+function luminance(hex) {
+  const [r, g, b] = hexRgb(hex);
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+}
+
+/** The three tones of a themed icon for a colour and a theme. */
+export function themedColors(tint, theme = "dark") {
+  if (theme === "light") {
+    return { bg: mixHex(tint, "#ffffff", 0.8), fg: mixHex(tint, "#000000", 0.55), mid: mixHex(tint, "#ffffff", 0.2) };
+  }
+  return { bg: mixHex(tint, "#141518", 0.74), fg: mixHex(tint, "#ffffff", 0.66), mid: mixHex(tint, "#ffffff", 0.18) };
+}
+
+const CUT = "__cut__";
+
+function reink(glyph, tones) {
+  return glyph
+    .split(CUT).join(tones.bg)
+    .replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, (all, attr, color) => {
+      const c = color.toLowerCase();
+      if (c === "#fff" || c === "#ffffff") return `${attr}="${tones.fg}"`;
+      if (luminance(c) < 0.16) return `${attr}="${tones.bg}"`;
+      return `${attr}="${tones.mid}"`;
+    });
+}
+
 let gradientSeq = 0;
 
 /**
  * One icon as an SVG string.
  * @param {string} key    a DESIGNS key (from appIconKey)
- * @param {object} opts   {label} — for the letter fallback
+ * @param {object} opts   {label} — for the letter fallback;
+ *                        {themed: {bg, fg, mid}} — tonal ink (themedColors)
  */
 export function appIconSvg(key, opts = {}) {
   const design = DESIGNS[key] || DESIGNS.letter;
+  if (opts.themed) {
+    const tones = opts.themed;
+    return `<svg class="app-glyph themed" viewBox="0 0 48 48" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">` +
+      `<circle cx="24" cy="24" r="24" fill="${tones.bg}"/>` +
+      reink(design.glyph(CUT, opts.label), tones) +
+      `</svg>`;
+  }
   const [top, bottom] = design.bg;
   const dark = design.d || bottom;
   // Every icon on the page needs its own gradient id: SVG ids are global,
@@ -477,10 +533,11 @@ export function appIconSvg(key, opts = {}) {
     `</svg>`;
 }
 
-/** The icon as an element, for the drawer and the store. */
-export function appIconEl(app = {}) {
+/** The icon as an element, for the drawer and the store.
+ *  @param {object} opts  {themed} as in appIconSvg */
+export function appIconEl(app = {}, opts = {}) {
   const tpl = document.createElement("template");
-  tpl.innerHTML = appIconSvg(appIconKey(app), { label: app.label });
+  tpl.innerHTML = appIconSvg(appIconKey(app), { label: app.label, themed: opts.themed });
   const svg = tpl.content.firstElementChild;
   svg.dataset.design = appIconKey(app);
   return svg;

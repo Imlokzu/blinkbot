@@ -34,6 +34,27 @@ at 96 px.
 | No emoji, no copied brand logos, no `filter`, no shadows | emoji ignore the theme, filters cost frames on the Pi, and the repo is going public |
 | No `id` attributes of your own. `appIconSvg` gives each gradient a unique id | SVG ids are global to the page, so a shared id paints every disc in one icon's colours |
 
+## Two styles, one drawing
+
+Each icon is shown in two interface styles:
+- **One UI** shows it as drawn: the gradient disc, white, `D` and the
+  accent.
+- **Claude** (the default) re-inks the same glyph as a Pixel themed icon:
+  - white → the light tone;
+  - `D` and any very dark colour → the disc tone;
+  - every other colour (the accent) → a middle tone.
+
+So the accent must work as a **middle tone**. Put it on a white shape,
+as a detail (a clock hand), or on the disc as a separate stroke (sun
+rays). Never let it be the only thing that separates two shapes of
+nearly the same lightness.
+
+Check the new icon both ways:
+```js
+m.appIconSvg(key, {themed: m.themedColors('#d98263', 'dark')})
+```
+`test_themed_icons_use_only_their_three_tones` must pass.
+
 ## Colour
 
 - `bg: [top, bottom]`. The bottom is 15–25 % darker than the top and has

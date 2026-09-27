@@ -13,7 +13,7 @@ import { ReplyTurn } from "./reply.js";
 import { activities as islandActivities, selectKey as islandSelect, fmtClock } from "./island.js";
 import { ScreenKeyboard } from "./keyboard.js";
 import { WatchDrawer } from "./drawer.js";
-import { appIconEl } from "./app-icons.js";
+import { appIconEl, themedColors } from "./app-icons.js";
 import { wxKind, wxSky, wxIconSvg, windArrowSvg } from "./weather-icons.js";
 import { GestureNav } from "./gesture-nav.js";
 /* Контурні іконки та їхні кольори — у icons.js */
@@ -180,7 +180,7 @@ function applyFrost(el) {
 function openLayer(name) {
   // Знімок робимо ДО показу шару, поки видно те, що маємо розмити
   if (name === "apps") { renderApps(); applyFrost(layerApps); }
-  else if (name === "quick") applyFrost(layerQuick);
+  else if (name === "quick") { applyFrost(layerQuick); paintRanges(layerQuick); }
   else if (name === "notices") { applyFrost(layerNotices); onNoticesOpened(); }
   layer = name;
   const appsIsOpen = name === "apps";
@@ -649,10 +649,65 @@ function monoStroke() {
    інакше в налаштуваннях підсвічувався б «Піксельні» замість «Авто». */
 function activeIconStyle() {
   if (iconStyle !== "auto") return iconStyle;
+  // One UI draws its small controls as plain line icons, never pixels
+  if (uiStyle === "oneui") return "line";
   return document.documentElement.dataset.theme === "light" ? "white" : "pixel";
 }
 let iconStyle = "auto";
 let iconTint = DEFAULT_ICON_TINT;
+
+/* ---------- Interface style: "Claude" or "One UI" ----------
+   Two looks over the same screens, not two screens. "Claude" is the bot's
+   own: its colour, tonal icons (Pixel's themed icons) and a Pixel Weather
+   style tile. "One UI" is Samsung's: full-colour app icons, the weather
+   tile as the sky, and oneui.css re-dressing cards, toggles and headers.
+   CSS keys off :root[data-ui]; the few renders that differ ask uiStyle. */
+const UI_STYLE_KEY = "botScreenUiStyle";
+const UI_STYLES = { claude: "uistyle.claude", oneui: "uistyle.oneui" };
+let uiStyle = "claude";
+// The weather tile re-renders on a style switch from what it last showed.
+// Declared here, not in the weather section: applyUiStyle runs at start-up,
+// before the script reaches that section.
+let lastWeather = null;
+
+function applyUiStyle(id, save) {
+  uiStyle = UI_STYLES[id] ? id : "claude";
+  document.documentElement.dataset.ui = uiStyle;
+  if (save) {
+    writePref(UI_STYLE_KEY, uiStyle);
+    // Controls built once (quick tiles, slider icons) switch icon style
+    // too; at start-up the icon code runs later on its own.
+    rebuildIcons();
+  }
+  if (lastWeather) renderWeather(lastWeather.w, lastWeather.city);
+  if (appsOpen()) renderApps();
+  paintRanges();
+}
+
+/* One UI's sliders fill up to the thumb. A range input cannot style its
+   own filled part, so the value goes to CSS as --pct. Dragging paints
+   through the input event; values set from code are painted when the
+   panel holding them opens. */
+function paintRange(el) {
+  const min = Number(el.min || 0);
+  const max = Number(el.max || 100);
+  el.style.setProperty("--pct", ((Number(el.value) - min) / Math.max(1, max - min)) * 100 + "%");
+}
+
+function paintRanges(root = document) {
+  root.querySelectorAll('input[type="range"]').forEach(paintRange);
+}
+
+document.addEventListener("input", (e) => {
+  if (e.target && e.target.type === "range") paintRange(e.target);
+}, true);
+
+/* App icons in the current style: One UI's colour discs, or Claude's
+   tonal ones in the screen's own colour and theme. */
+function appIconOpts() {
+  if (uiStyle === "oneui") return {};
+  return { themed: themedColors(iconTint, document.documentElement.dataset.theme === "light" ? "light" : "dark") };
+}
 
 /* Створює іконку в поточному стилі. big — велика сітка для шухляди. */
 function uiIcon(name, opts) {
@@ -1283,6 +1338,7 @@ volRange.addEventListener("input", () => {
 (function initPrefs() {
   const theme = readPref(THEME_KEY, null);
   if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+  applyUiStyle(readPref(UI_STYLE_KEY, "claude"));
 
   idleHomeMs = Number(validOption(readPref(IDLE_HOME_KEY, String(DEFAULT_IDLE_HOME_MS)), IDLE_HOME_OPTIONS, DEFAULT_IDLE_HOME_MS));
   idleSleepMs = Number(validOption(readPref(IDLE_SLEEP_KEY, String(DEFAULT_IDLE_SLEEP_MS)), IDLE_SLEEP_OPTIONS, DEFAULT_IDLE_SLEEP_MS));
@@ -2818,7 +2874,7 @@ function renderApps() {
     layerApps.classList.add("watch");
     watchDrawer = new WatchDrawer(appsGrid, {
       t,
-      iconEl: appIconEl,
+      iconEl: (app) => appIconEl(app, appIconOpts()),
       icon: makeSvgIcon,
       onLaunch: (id) => {
         closeApps();
@@ -3407,12 +3463,13 @@ function openPanel() {
 }
 
 function resetScreenPrefs() {
-  [THEME_KEY, BRIGHT_KEY, VOL_KEY, VOICE_KEY, ORDER_KEY, ICON_KEY, ICON_TINT_KEY, TILES_KEY, KB_MODE_KEY,
+  [THEME_KEY, UI_STYLE_KEY, BRIGHT_KEY, VOL_KEY, VOICE_KEY, ORDER_KEY, ICON_KEY, ICON_TINT_KEY, TILES_KEY, KB_MODE_KEY,
     IDLE_HOME_KEY, IDLE_SLEEP_KEY, CLOCK_FORMAT_KEY, CLOCK_DATE_KEY, MOTION_KEY,
     SKIN_KEY, SKIN_VARS_KEY, PROVIDER_KEY]
     .forEach(removePref);
   document.documentElement.dataset.theme = "dark";
   document.documentElement.dataset.motion = "full";
+  applyUiStyle("claude");
   iconStyle = "auto";
   iconTint = DEFAULT_ICON_TINT;
   bright = 100;
@@ -3443,6 +3500,7 @@ function resetScreenPrefs() {
 function openSettings() {
   openAppLayer("screen.settings", (box) => {
     const langButtons = [];
+    const uiButtons = [];
     const styleButtons = [];
     const tintButtons = [];
     const themeButtons = [];
@@ -3549,6 +3607,21 @@ function openSettings() {
       langGrid.appendChild(button);
     }
     langRow.appendChild(langGrid);
+
+    // The interface style, right after the language: it changes the most
+    const uiRow = row(appearance, t("set.uiStyle"), t("set.uiStyle.hint"));
+    const uiGrid = document.createElement("div");
+    uiGrid.className = "settings-choices settings-choices-two";
+    for (const [id, key] of Object.entries(UI_STYLES)) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "settings-choice";
+      button.textContent = t(key);
+      button.addEventListener("click", () => { applyUiStyle(id, true); sync(); wake(); });
+      uiButtons.push({ id, button });
+      uiGrid.appendChild(button);
+    }
+    uiRow.appendChild(uiGrid);
 
     const styleRow = row(appearance, t("set.iconStyle"), t("set.iconStyle.hint"));
     const styleGrid = document.createElement("div");
@@ -3851,7 +3924,9 @@ function openSettings() {
     box.appendChild(note);
 
     function sync() {
+      requestAnimationFrame(() => paintRanges(box));
       langButtons.forEach(({ id, button }) => button.classList.toggle("on", id === getLang()));
+      uiButtons.forEach(({ id, button }) => button.classList.toggle("on", id === uiStyle));
       styleButtons.forEach(({ id, button }) => button.classList.toggle("on", id === iconStyle));
       tintButtons.forEach(({ value, button }) => button.classList.toggle("on", value === iconTint));
       themeButtons.forEach(({ id, button }) => button.classList.toggle("on", id === document.documentElement.dataset.theme));
@@ -4548,7 +4623,7 @@ function onVideoCommand(ev) {
 
 function storeIconEl(name, pkg) {
   // The drawer's icon, so a package looks identical in the store and there
-  return appIconEl({ icon: name, pkg });
+  return appIconEl({ icon: name, pkg }, appIconOpts());
 }
 
 /* A manifest's own strings in the screen's language: `locales.<lang>` wins,
@@ -5377,6 +5452,7 @@ function fmtDeg(v) {
 let weatherPage = 0;
 
 function renderWeather(w, city) {
+  lastWeather = { w, city };
   const tile = document.querySelector(".tile-weather");
   // The geocoder's own name for the place comes in the right language
   // ("Київ" for "Kyiv"); the query string is the fallback.
@@ -5413,29 +5489,9 @@ function renderWeather(w, city) {
   $("weatherHiLo").textContent = hilo.join("  ");
 
   // Hours: every second hour of the next twelve — six columns fit 320 px
-  hours.innerHTML = "";
-  (w.hourly || []).filter((_, i) => i % 2 === 0).slice(0, 6).forEach((h, i) => {
-    const cell = document.createElement("div");
-    cell.className = "wx-hour";
-    const time = document.createElement("span");
-    time.className = "wx-t";
-    time.textContent = i === 0 ? t("wx.now") : h.time;
-    const pic = document.createElement("span");
-    pic.className = "wx-pic";
-    pic.innerHTML = wxIconSvg(wxKind(h.code), { night: h.is_day === false });
-    const deg = document.createElement("span");
-    deg.className = "wx-v";
-    deg.textContent = fmtDeg(h.temp);
-    cell.append(time, pic, deg);
-    // A real chance of rain is worth a word: "40%" under the picture
-    if (h.pop >= 30) {
-      const pop = document.createElement("span");
-      pop.className = "wx-pop";
-      pop.textContent = h.pop + "%";
-      cell.appendChild(pop);
-    }
-    hours.appendChild(cell);
-  });
+  const nextHours = (w.hourly || []).filter((_, i) => i % 2 === 0).slice(0, 6);
+  if (uiStyle === "oneui") fillHoursOneUI(hours, nextHours);
+  else fillHoursPixel(hours, nextHours);
 
   // Details: what the hours page has no room for
   details.innerHTML = "";
@@ -5463,8 +5519,43 @@ function renderWeather(w, city) {
   showWeatherPage(weatherPage);
 
   // Days: name, picture, high and low
-  days.innerHTML = "";
-  (w.forecast || []).slice(0, 5).forEach((day, i) => {
+  if (uiStyle === "oneui") fillDaysOneUI(days, w.forecast || []);
+  else fillDaysPixel(days, w.forecast || []);
+
+  weatherAt = w.fetched_at ? w.fetched_at * 1000 : Date.now();
+  $("weatherAge").textContent = ago(weatherAt);
+}
+
+/* One UI: plain columns — time, picture, degrees. */
+function fillHoursOneUI(box, list) {
+  box.innerHTML = "";
+  list.forEach((h, i) => {
+    const cell = document.createElement("div");
+    cell.className = "wx-hour";
+    const time = document.createElement("span");
+    time.className = "wx-t";
+    time.textContent = i === 0 ? t("wx.now") : h.time;
+    const pic = document.createElement("span");
+    pic.className = "wx-pic";
+    pic.innerHTML = wxIconSvg(wxKind(h.code), { night: h.is_day === false });
+    const deg = document.createElement("span");
+    deg.className = "wx-v";
+    deg.textContent = fmtDeg(h.temp);
+    cell.append(time, pic, deg);
+    // A real chance of rain is worth a word: "40%" under the picture
+    if (h.pop >= 30) {
+      const pop = document.createElement("span");
+      pop.className = "wx-pop";
+      pop.textContent = h.pop + "%";
+      cell.appendChild(pop);
+    }
+    box.appendChild(cell);
+  });
+}
+
+function fillDaysOneUI(box, list) {
+  box.innerHTML = "";
+  list.slice(0, 5).forEach((day, i) => {
     const cell = document.createElement("div");
     cell.className = "wx-day";
     const name = document.createElement("span");
@@ -5480,11 +5571,97 @@ function renderWeather(w, city) {
     lo.className = "wx-lo";
     lo.textContent = fmtDeg(day.min);
     cell.append(name, pic, hi, lo);
-    days.appendChild(cell);
+    box.appendChild(cell);
   });
+}
 
-  weatherAt = w.fetched_at ? w.fetched_at * 1000 : Date.now();
-  $("weatherAge").textContent = ago(weatherAt);
+/* Claude (Pixel Weather style): the hours as a temperature curve — the
+   shape of the day at a glance, degrees riding on it, pictures and times
+   underneath. Points sit at the column centres; the curve is a smooth
+   path through them, drawn in a stretched SVG with a non-scaling stroke. */
+function fillHoursPixel(box, list) {
+  box.innerHTML = "";
+  if (!list.length) return;
+  const temps = list.map((h) => Number(h.temp)).filter(Number.isFinite);
+  const lo = Math.min(...temps);
+  const hi = Math.max(...temps);
+  const span = Math.max(1, hi - lo);
+  const n = list.length;
+  const xs = list.map((_, i) => ((i + 0.5) / n) * 100);
+  // 0 (warmest) … 1 (coldest) → 4…18 px from the top of the curve band
+  const ys = list.map((h) => 4 + (1 - (Number(h.temp) - lo) / span) * 14);
+  let d = `M${xs[0]} ${ys[0]}`;
+  for (let i = 1; i < n; i++) {
+    const cx = (xs[i - 1] + xs[i]) / 2;
+    d += ` C${cx} ${ys[i - 1]} ${cx} ${ys[i]} ${xs[i]} ${ys[i]}`;
+  }
+  const curve = document.createElement("div");
+  curve.className = "wxp-curve";
+  curve.innerHTML = `<svg viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true">` +
+    `<path d="${d}" fill="none" vector-effect="non-scaling-stroke"/></svg>`;
+  box.appendChild(curve);
+  list.forEach((h, i) => {
+    const cell = document.createElement("div");
+    cell.className = "wxp-hour";
+    const deg = document.createElement("span");
+    deg.className = "wxp-deg";
+    deg.textContent = fmtDeg(h.temp);
+    deg.style.top = Math.round(ys[i] - 3) + "px";
+    const dot = document.createElement("i");
+    dot.className = "wxp-dot";
+    dot.style.top = Math.round(ys[i] + 11) + "px";
+    const pic = document.createElement("span");
+    pic.className = "wx-pic";
+    pic.innerHTML = wxIconSvg(wxKind(h.code), { night: h.is_day === false });
+    const time = document.createElement("span");
+    time.className = "wx-t";
+    time.textContent = i === 0 ? t("wx.now") : h.time;
+    cell.append(deg, dot, pic, time);
+    if (h.pop >= 30) {
+      const pop = document.createElement("span");
+      pop.className = "wx-pop";
+      pop.textContent = h.pop + "%";
+      cell.appendChild(pop);
+    }
+    box.appendChild(cell);
+  });
+}
+
+/* Days with a range bar each, on one scale for the whole week: a warm
+   day's bar sits further right, as in Pixel Weather's list. */
+function fillDaysPixel(box, list) {
+  box.innerHTML = "";
+  const days = list.slice(0, 5);
+  const all = days.flatMap((d) => [Number(d.min), Number(d.max)]).filter(Number.isFinite);
+  const lo = all.length ? Math.min(...all) : 0;
+  const span = all.length ? Math.max(1, Math.max(...all) - lo) : 1;
+  days.forEach((day, i) => {
+    const cell = document.createElement("div");
+    cell.className = "wxp-day";
+    const name = document.createElement("span");
+    name.className = "wx-t";
+    name.textContent = i === 0 ? t("wx.today") : weekdayName(day.day);
+    const pic = document.createElement("span");
+    pic.className = "wx-pic";
+    pic.innerHTML = wxIconSvg(wxKind(day.code));
+    const bar = document.createElement("span");
+    bar.className = "wxp-bar";
+    const fill = document.createElement("i");
+    if (Number.isFinite(Number(day.min)) && Number.isFinite(Number(day.max)) && day.min !== null && day.max !== null) {
+      fill.style.left = Math.round(((day.min - lo) / span) * 100) + "%";
+      fill.style.width = Math.max(8, Math.round(((day.max - day.min) / span) * 100)) + "%";
+    }
+    bar.appendChild(fill);
+    const range = document.createElement("span");
+    range.className = "wxp-range";
+    const hiEl = document.createElement("b");
+    hiEl.textContent = fmtDeg(day.max);
+    const loEl = document.createElement("span");
+    loEl.textContent = fmtDeg(day.min);
+    range.append(hiEl, " ", loEl);
+    cell.append(name, pic, bar, range);
+    box.appendChild(cell);
+  });
 }
 
 function showWeatherPage(page) {
