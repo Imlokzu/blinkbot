@@ -1,35 +1,35 @@
-# Remote Control — USB-пульт (2.4G Composite Device)
+# Remote Control — USB remote (2.4G Composite Device)
 
-Слухач для бездротового USB-пульта/приймача (`lsusb`: `0627:697d Adomax
-Technology 2.4G Composite Device`), підключеного до Raspberry Pi 3. Реєструється
-в системі як три under-пристрої:
+Listener for a wireless USB remote/receiver (`lsusb`: `0627:697d Adomax
+Technology 2.4G Composite Device`), connected to Raspberry Pi 3. Registers
+in the system as three under-devices:
 
-- `event2` — клавіатурна частина
-- `event4` — Consumer Control (гучність, mute, медіа-кнопки)
-- `event5` — System Control (живлення/сон)
+- `event2` — keyboard part
+- `event4` — Consumer Control (volume, mute, media buttons)
+- `event5` — System Control (power/sleep)
 
-## Що робить `remote_listener.py`
+## What `remote_listener.py` does
 
-1. Друкує **кожне** натискання кнопки в консоль (`raw code=...`) — щоб
-   зібрати мапу кнопок конкретного пульта для майбутнього використання
-   (яка кнопка на пульті відповідає якому keycode).
-2. Одразу мапить типові кнопки гучності (`KEY_VOLUMEUP`/`KEY_VOLUMEDOWN`/
-   `KEY_MUTE`) на реальні `amixer`-команди — гучністю вже можна керувати
-   пультом просто зараз.
+1. Prints **every** button press into the console (`raw code=...`) — to
+   collect the button map of a specific remote for future use
+   (which button on the remote corresponds to which keycode).
+2. Immediately maps standard volume buttons (`KEY_VOLUMEUP`/`KEY_VOLUMEDOWN`/
+   `KEY_MUTE`) to real `amixer` commands — volume can already be controlled
+   by the remote right now.
 
-## Встановлення й запуск на Pi
+## Installation and launch on Pi
 
 ```bash
-pip install evdev --break-system-packages   # або в venv Vision Agent
+pip install evdev --break-system-packages   # or in Vision Agent venv
 python3 remote_listener.py
 ```
 
-Користувач має бути в групі `input` (перевірити: `groups`), інакше `/dev/input/eventN`
-недоступні без sudo.
+The user must be in the `input` group (check: `groups`), otherwise `/dev/input/eventN`
+are inaccessible without sudo.
 
-## Що далі
+## What's next
 
-Кнопки, невідомі скрипту (все, крім гучності), поки лише друкуються в
-консоль — зібравши коди реальних кнопок цього пульта, можна домапити їх
-на інші дії (напр. talking/listening toggle для Voice Loop, навігація по
-вкладках у Device Setup Wizard тощо).
+Buttons unknown to the script (everything except volume) are currently only printed to
+the console — having collected the keycodes of this remote's real buttons, they can be mapped
+to other actions (e.g. talking/listening toggle for Voice Loop, navigating through
+tabs in Device Setup Wizard, etc.).

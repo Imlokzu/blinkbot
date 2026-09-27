@@ -1,14 +1,14 @@
-# Voice Loop — Крок 3, підключений до OpenClaw
+# Voice Loop — Step 3, connected to OpenClaw
 
-Замикає "розумну колонку" на ноуті: мікрофон → локальний STT (faster-whisper)
-→ OpenClaw (памʼять, tool use, `vision_check_camera`, сам Claude вже
-всередині) → TTS у колонки. Жодного заліза (RPi) не треба — усе на цьому
-комп'ютері, як заплановано в `claude-bot-dev-order.md`.
+Closes the "smart speaker" loop on the laptop: microphone → local STT (faster-whisper)
+→ OpenClaw (memory, tool use, `vision_check_camera`, Claude itself is already
+inside) → TTS into speakers. No hardware (RPi) needed — everything is on this
+computer, as planned in `claude-bot-dev-order.md`.
 
-## Схема
+## Diagram
 
 ```
-мікрофон -> record_utterance() -> faster-whisper -> текст
+microphone -> record_utterance() -> faster-whisper -> text
                                                         |
                                                         v
                                     OpenClawClient.send_message()
@@ -17,21 +17,21 @@
                         POST http://127.0.0.1:18789/v1/chat/completions
                                                         |
                                                         v
-                                              OpenClaw agent (памʼять,
+                                              OpenClaw agent (memory,
                                               vision_check_camera, Claude)
                                                         |
                                                         v
-                                              текст відповіді -> pyttsx3 -> колонки
+                                              reply text -> pyttsx3 -> speakers
 ```
 
-## Передумови
+## Prerequisites
 
-1. OpenClaw запущений (`openclaw onboard --install-daemon`, Gateway працює на
+1. OpenClaw is running (`openclaw onboard --install-daemon`, Gateway is working at
    `127.0.0.1:18789`).
-2. Vision Agent + OpenClaw Vision Plugin (сусідні папки) вже підключені —
-   тоді бот може відповідати "я бачу когось" через `vision_check_camera`.
-3. Увімкнено OpenAI-сумісний ендпоінт у конфігу Gateway
-   (`~/.openclaw/openclaw.json`) — за замовчуванням він вимкнений:
+2. Vision Agent + OpenClaw Vision Plugin (adjacent folders) are already connected —
+   then the bot can answer "I see someone" via `vision_check_camera`.
+3. Enabled OpenAI-compatible endpoint in the Gateway config
+   (`~/.openclaw/openclaw.json`) — it is disabled by default:
 
 ```json5
 {
@@ -45,55 +45,55 @@
 }
 ```
 
-Перезапусти Gateway після зміни.
+Restart Gateway after the change.
 
-4. Візьми gateway-токен (`gateway.auth.token` або `OPENCLAW_GATEWAY_TOKEN`) і
-   встав у `config.yaml` цього проєкту (`openclaw.token`).
+4. Take the gateway token (`gateway.auth.token` or `OPENCLAW_GATEWAY_TOKEN`) and
+   paste it into the `config.yaml` of this project (`openclaw.token`).
 
-## Встановлення
+## Installation
 
 ```bash
 pip install -r requirements.txt --break-system-packages
 ```
 
-На macOS для pyttsx3 додатково нічого не треба (використовує NSSpeechSynthesizer).
-На Linux знадобиться `espeak`/`espeak-ng`:
+On macOS, nothing extra is needed for pyttsx3 (uses NSSpeechSynthesizer).
+On Linux, `espeak`/`espeak-ng` will be needed:
 
 ```bash
 sudo apt install espeak-ng
 ```
 
-## Запуск
+## Launch
 
 ```bash
 python voice_loop.py
 ```
 
-Говори після "Слухаю…" — фраза завершується автоматично після ~1с тиші.
-Вихід — `Ctrl+C`.
+Speak after "Слухаю…" (Listening...) — the phrase completes automatically after ~1s of silence.
+Exit — `Ctrl+C`.
 
-## Файли
+## Files
 
-- `voice_loop.py` — головний цикл: запис мікрофона (RMS-детекція тиші),
-  faster-whisper STT, виклик OpenClaw, pyttsx3 TTS
-- `openclaw_client.py` — окремий HTTP-клієнт для
-  `/v1/chat/completions` OpenClaw (легко тестується без мікрофона)
-- `config.yaml` — URL/токен OpenClaw, параметри запису, вибір моделі Whisper,
+- `voice_loop.py` — main loop: microphone recording (RMS silence detection),
+  faster-whisper STT, OpenClaw call, pyttsx3 TTS
+- `openclaw_client.py` — separate HTTP client for
+  `/v1/chat/completions` OpenClaw (easily testable without microphone)
+- `config.yaml` — URL/token for OpenClaw, recording parameters, Whisper model selection,
   TTS
-- `requirements.txt` — залежності
+- `requirements.txt` — dependencies
 
-## Верифіковано
+## Verified
 
-- `openclaw_client.py` протестовано проти локального mock-сервера, що
-  відтворює точний формат відповіді OpenClaw (`choices[0].message.content`)
-  — заголовок авторизації і парсинг відповіді підтверджено коректними.
-- Обидва файли синтаксично валідні (`py_compile`).
-- Захоплення мікрофона, реальна модель Whisper і pyttsx3-озвучення — це вже
-  залежить від живого мікрофона/колонок, тому перевіряється безпосередньо на
-  твоєму комп'ютері через `python voice_loop.py`.
+- `openclaw_client.py` tested against a local mock server that
+  reproduces the exact format of the OpenClaw response (`choices[0].message.content`)
+  — authorization header and response parsing confirmed correct.
+- Both files are syntactically valid (`py_compile`).
+- Microphone capture, real Whisper model and pyttsx3 speech synthesis — this already
+  depends on a live microphone/speakers, so it is tested directly on
+  your computer via `python voice_loop.py`.
 
-## Що далі
+## What's next
 
-TTS зараз `pyttsx3` — простий офлайн-MVP з dev-order.md. Коли захочеш
-кращий голос, заміни `speak()` на ElevenLabs API або ChatterboxTTS (локально)
-— решта пайплайну не зміниться.
+TTS right now is `pyttsx3` — a simple offline MVP from dev-order.md. When you want
+a better voice, replace `speak()` with ElevenLabs API or ChatterboxTTS (locally)
+— the rest of the pipeline will not change.
