@@ -15,6 +15,7 @@ secrets_store, never in the repository.
 from __future__ import annotations
 
 import logging
+import os
 from typing import Any
 
 from . import discord, google, telegram
@@ -32,9 +33,21 @@ def statuses() -> list[dict[str, Any]]:
     return out
 
 
+def _disabled(name: str) -> bool:
+    """TELEGRAM_DISABLED=1 / DISCORD_DISABLED=1 keep a messenger off.
+
+    For a second, test copy of the server: a bot token allows only one
+    poller, so a test server that starts Telegram steals the live bot's
+    updates (409 Conflict) for as long as it runs."""
+    return os.environ.get(f"{name.upper()}_DISABLED", "").strip().lower() in ("1", "true", "yes")
+
+
 async def start_all(chat_handler, transcriber=None) -> None:
     for name, bridge in MESSENGERS.items():
         bridge.attach(chat_handler, transcriber)
+        if _disabled(name):
+            log.info("Integration %s is disabled by %s_DISABLED", name, name.upper())
+            continue
         try:
             await bridge.start()
         except Exception:  # noqa: BLE001 — one integration must not block the server start

@@ -396,3 +396,27 @@ def test_google_auth_url_uses_pkce_and_offline_access():
         secrets_store.clear("google")
     assert "code_challenge_method=S256" in url and "access_type=offline" in url
     assert "gmail.readonly" in url and "gmail.send" not in url
+
+
+def test_a_test_server_can_keep_the_messengers_off(monkeypatch):
+    # One token allows one poller: a second, test copy of the server that
+    # starts Telegram takes the live bot's updates away (409 Conflict).
+    import integrations
+
+    started = []
+
+    class Bridge:
+        def __init__(self, name):
+            self.name = name
+
+        def attach(self, chat, transcribe=None):
+            pass
+
+        async def start(self):
+            started.append(self.name)
+
+    monkeypatch.setattr(integrations, "MESSENGERS", {"telegram": Bridge("telegram"), "discord": Bridge("discord")})
+    monkeypatch.setenv("TELEGRAM_DISABLED", "1")
+    monkeypatch.delenv("DISCORD_DISABLED", raising=False)
+    run(integrations.start_all(None))
+    assert started == ["discord"]
