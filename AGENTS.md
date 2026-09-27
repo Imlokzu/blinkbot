@@ -233,6 +233,12 @@ or restyle one, follow the skill
 test and visual check. A new built-in package without a design fails
 `test_every_screen_and_package_has_its_own_design`.
 
+**Every built-in app is native**: full screen, on the app kit
+(`static/screen/app-kit.css` + `app-kit.js`), in whatever style the
+screen wears (Material You or Deep UI, any theme or skin). To write or
+restyle one, follow the skill `.agents/skills/screen-app-native/SKILL.md`.
+Bump the app's version, or installed copies stay old.
+
 ### Do not widen the scope
 
 Build what was asked. If you find a second problem on the way, finish the first

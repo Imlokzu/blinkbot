@@ -4,7 +4,7 @@
   "label": "Метроном",
   "icon": "clock",
   "tint": "#d7a65b",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "author": "Клод Бот",
   "description": "Клацає темп: 40–208 BPM, підсвітка на кожен бит. Працює офлайн.",
   "category": "tools",

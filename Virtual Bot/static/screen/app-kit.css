@@ -1,0 +1,276 @@
+/* ============================================================
+   App kit v1 — native look for store apps
+
+   A store app runs in an iframe, full screen, and CSS does not cross that
+   boundary. Without help every app drew its own buttons in its own
+   colours and looked like a web page in a frame. With the kit it wears
+   the screen's current style — Material You or Deep UI, dark or light,
+   any skin — because app-kit.js receives the screen's resolved tokens
+   (colours, font, style, safe insets) and this sheet builds the parts
+   from them.
+
+   How an app uses it (docs/SCREEN-PLATFORM.md, §2.6, and the skill
+   .agents/skills/screen-app-native/SKILL.md):
+
+     <link rel="stylesheet" href="/static/screen/app-kit.css">
+     <script src="/static/screen/app-kit.js"></script>
+     <body class="kit"> <main class="kit-app"> … </main> </body>
+
+   Contract: the class names and --kit-* tokens here are a public API.
+   Change them compatibly (add, never rename); installed apps are copies
+   that are not rebuilt when this file changes.
+
+   The Pi's rules hold: only transform and opacity move, gradients never
+   animate, nothing that moves casts a shadow. Deep UI gradients stay in
+   one hue (light at the top, deep at the bottom), as on the app icons.
+   ============================================================ */
+
+/* ---------- Tokens. Defaults = the screen's dark Material You; app-kit.js
+   overwrites them with the screen's live values. ---------- */
+:root {
+  --bg: #16181a;
+  --panel: #1e2124;
+  --line: #2f3438;
+  --text: #e8e4dc;
+  --muted: #8e9498;
+  --accent: #d17a58;
+  --ok: #8ca879;
+  --off: #6b7175;
+  --font: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Room the screen's gesture strips take (gesture-nav.js): keep taps out */
+  --kit-inset-side: 12px;
+  --kit-inset-bottom: 16px;
+  --kit-radius: 16px;
+  --kit-on-accent: #ffffff;
+  /* Material You: tonal surfaces made from the accent */
+  --kit-surface: color-mix(in srgb, var(--accent) 7%, var(--panel));
+  --kit-surface-hi: color-mix(in srgb, var(--accent) 14%, var(--panel));
+  --kit-tonal: color-mix(in srgb, var(--accent) 24%, var(--panel));
+  --kit-on-tonal: color-mix(in srgb, var(--accent) 55%, var(--text));
+  --kit-primary: var(--accent);
+  color-scheme: dark;
+}
+:root[data-theme="light"] { color-scheme: light; --kit-on-tonal: color-mix(in srgb, var(--accent) 70%, #000); }
+
+/* Deep UI: glass surfaces, and the accent's own gradient for what is on */
+:root[data-ui="deep"] {
+  --kit-radius: 20px;
+  --kit-surface: color-mix(in srgb, var(--text) 7%, var(--bg));
+  --kit-surface-hi: color-mix(in srgb, var(--text) 11%, var(--bg));
+  --kit-tonal: color-mix(in srgb, var(--accent) 22%, var(--bg));
+  --kit-on-tonal: color-mix(in srgb, var(--accent) 45%, var(--text));
+  --kit-primary: linear-gradient(180deg,
+    color-mix(in srgb, var(--accent) 82%, #ffffff), color-mix(in srgb, var(--accent) 78%, #000000));
+  --kit-edge: linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.03));
+}
+:root[data-ui="deep"][data-theme="light"] { --kit-edge: linear-gradient(180deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.1)); }
+
+/* ---------- Page ---------- */
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body.kit {
+  background: var(--bg);
+  color: var(--text);
+  font: 400 13px/1.35 var(--font);
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-ui="deep"] body.kit {
+  background: radial-gradient(95% 70% at 50% -12%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 66%), var(--bg);
+}
+
+/* The whole panel, minus the gesture strips at the sides and bottom */
+.kit-app {
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px var(--kit-inset-side) var(--kit-inset-bottom);
+  min-height: 0;
+}
+.kit-fill { flex: 1; min-height: 0; }
+.kit-center { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.kit-row { display: flex; align-items: center; gap: 8px; }
+.kit-row.wrap { flex-wrap: wrap; }
+.kit-row.center { justify-content: center; }
+.kit-row.spread { justify-content: space-between; }
+.kit-scroll { overflow-y: auto; min-height: 0; scrollbar-width: none; touch-action: pan-y; }
+.kit-scroll::-webkit-scrollbar { display: none; }
+
+/* ---------- Top app bar: the app's name, big, and its actions ----------
+   The screen draws no title bar for a store app any more; this is it. */
+.kit-bar { display: flex; align-items: center; gap: 8px; min-height: 28px; flex: none; }
+.kit-title { flex: 1; min-width: 0; font: 700 18px/1.15 var(--font); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:root[data-ui="deep"] .kit-title { font-weight: 800; font-size: 19px; }
+.kit-sub { color: var(--muted); font-size: 11px; }
+
+/* ---------- Surfaces ---------- */
+.kit-card {
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: var(--kit-radius);
+  background: var(--kit-surface);
+}
+:root[data-ui="deep"] .kit-card {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.012) 60%) padding-box,
+    linear-gradient(color-mix(in srgb, var(--text) 5%, var(--bg)), color-mix(in srgb, var(--text) 5%, var(--bg))) padding-box,
+    var(--kit-edge) border-box;
+}
+:root[data-ui="deep"][data-theme="light"] .kit-card {
+  background: linear-gradient(#fff, #fff) padding-box, var(--kit-edge) border-box;
+}
+.kit-card.hi { background: var(--kit-surface-hi); }
+
+/* ---------- Big numbers (timers, BPM, scores) ---------- */
+.kit-display { font: 300 48px/1 var(--font); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+:root[data-ui="material"] .kit-display { font-weight: 400; }
+.kit-display small, .kit-unit { font-size: 14px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.kit-label { font: 500 11px/1.2 var(--font); color: var(--muted); }
+
+/* ---------- Buttons ---------- */
+.kit-btn {
+  box-sizing: border-box;
+  min-height: 34px;
+  min-width: 34px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 17px;
+  background: var(--kit-surface-hi);
+  color: var(--text);
+  font: 600 13px/1 var(--font);
+  cursor: pointer;
+  transition: transform 110ms ease, opacity 110ms ease;
+}
+.kit-btn:active { transform: scale(0.94); }
+.kit-btn:disabled { opacity: 0.4; }
+.kit-btn.primary { background: var(--kit-primary); color: var(--kit-on-accent); }
+.kit-btn.tonal { background: var(--kit-tonal); color: var(--kit-on-tonal); }
+.kit-btn.ghost { background: transparent; color: var(--accent); }
+.kit-btn.danger { background: color-mix(in srgb, #ff453a 22%, var(--panel)); color: #ff6b61; }
+/* Round icon button; the icon is an inline SVG, stroke: currentColor */
+.kit-btn.icon { width: 38px; height: 38px; padding: 0; border-radius: 50%; }
+.kit-btn.icon.big { width: 52px; height: 52px; }
+.kit-btn.big { min-height: 44px; padding: 0 22px; border-radius: 22px; font-size: 15px; }
+.kit-btn.block { width: 100%; }
+.kit-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.kit-btn.icon.big svg { width: 24px; height: 24px; }
+
+/* ---------- Chips and segmented choice ---------- */
+.kit-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.kit-chip {
+  min-height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--kit-surface-hi);
+  color: var(--text);
+  font: 600 11px/1 var(--font);
+  cursor: pointer;
+}
+.kit-chip.on, .kit-chip[aria-pressed="true"] { background: var(--kit-primary); color: var(--kit-on-accent); }
+:root[data-ui="material"] .kit-chip.on,
+:root[data-ui="material"] .kit-chip[aria-pressed="true"] { background: var(--kit-tonal); color: var(--kit-on-tonal); }
+.kit-segment { display: flex; padding: 3px; gap: 3px; border-radius: 17px; background: var(--kit-surface); }
+.kit-segment > * { flex: 1; }
+
+/* ---------- Slider: thick bar that fills (app-kit.js keeps --pct) ---------- */
+input[type="range"].kit-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  border-radius: 11px;
+  background:
+    linear-gradient(var(--accent), var(--accent)) 0 0 / var(--pct, 50%) 100% no-repeat,
+    var(--kit-surface-hi);
+  touch-action: pan-x;
+}
+:root[data-ui="deep"] input[type="range"].kit-slider {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 78%, #000), color-mix(in srgb, var(--accent) 85%, #fff)) 0 0 / var(--pct, 50%) 100% no-repeat,
+    var(--kit-surface-hi);
+}
+input[type="range"].kit-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #fff;
+  border: 4px solid var(--accent);
+}
+input[type="range"].kit-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #fff;
+  border: 4px solid var(--accent);
+}
+
+/* ---------- Switch: <button class="kit-switch" aria-pressed="false"> ---------- */
+.kit-switch {
+  position: relative;
+  flex: none;
+  width: 40px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 11px;
+  background: var(--kit-surface-hi);
+  cursor: pointer;
+}
+.kit-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 170ms ease;
+}
+.kit-switch[aria-pressed="true"] { background: var(--kit-primary); }
+.kit-switch[aria-pressed="true"]::after { transform: translateX(18px); background: #fff; }
+
+/* ---------- Lists ---------- */
+.kit-list { display: flex; flex-direction: column; gap: 2px; }
+.kit-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: var(--kit-surface);
+}
+.kit-list > .kit-item:first-child { border-top-left-radius: var(--kit-radius); border-top-right-radius: var(--kit-radius); }
+.kit-list > .kit-item:last-child { border-bottom-left-radius: var(--kit-radius); border-bottom-right-radius: var(--kit-radius); }
+.kit-item .kit-grow { flex: 1; min-width: 0; }
+
+/* ---------- Tiles in a grid (keypads, boards) ---------- */
+.kit-key {
+  border: 0;
+  border-radius: 12px;
+  background: var(--kit-surface-hi);
+  color: var(--text);
+  font: 600 16px/1 var(--font);
+  cursor: pointer;
+  transition: transform 100ms ease;
+}
+.kit-key:active { transform: scale(0.92); }
+.kit-key.accent { background: var(--kit-primary); color: var(--kit-on-accent); }
+.kit-key.tonal { background: var(--kit-tonal); color: var(--kit-on-tonal); }
+:root[data-ui="deep"] .kit-key { border-radius: 14px; }
+
+/* Accent text, for the one number that matters */
+.kit-accent { color: var(--accent); }

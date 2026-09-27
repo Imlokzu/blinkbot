@@ -285,3 +285,21 @@ def test_cli_pack_and_check(store_dir, tmp_path):
     assert screen_store._cli(["check", str(out)]) == 0
     (tmp_path / "bad.cbp").write_bytes(b"nope")
     assert screen_store._cli(["check", str(tmp_path / "bad.cbp")]) == 1
+
+
+def test_a_newer_builtin_version_refreshes_the_installed_copy(store_dir):
+    # An installed app is a copy; without this a redesigned built-in app
+    # never reached a screen that had installed the old one.
+    import json
+    screen_store.install("metronome")
+    installed = store_dir / "installed" / "apps" / "metronome"
+    (installed / "index.html").write_text("old copy", "utf-8")
+    assert screen_store.refresh_builtin_apps() == []                 # same version: left alone
+
+    manifest_path = store_dir / "packages" / "metronome" / "package.json"
+    manifest = json.loads(manifest_path.read_text("utf-8"))
+    manifest["version"] = "99.0.0"
+    manifest_path.write_text(json.dumps(manifest), "utf-8")
+    screen_store.installed_apps()                                    # what the screen calls at start
+    assert (installed / "index.html").read_text("utf-8") != "old copy"
+    assert json.loads((installed / "package.json").read_text("utf-8"))["version"] == "99.0.0"

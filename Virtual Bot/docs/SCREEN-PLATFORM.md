@@ -98,6 +98,51 @@ window.addEventListener("message", (e) => {
   (`store/packages/metronome`, `store/packages/pixel-paint`) — вони ж і
   шаблони для копіювання.
 
+### 2.2½. App kit v1: full screen and the screen's own look
+
+Every store app opens **full screen**. The screen draws no title bar
+and no frame. The way out is the gesture pill and edges (§4d), so the
+app keeps the outer 12 px on each side and the bottom 16 px free of
+taps.
+
+The **app kit** makes an app look native in whichever style the screen
+wears: Material You or Deep UI, dark or light, any skin.
+
+```html
+<link rel="stylesheet" href="/static/screen/app-kit.css">
+<script src="/static/screen/app-kit.js"></script>
+<body class="kit"><main class="kit-app"> … </main></body>
+```
+
+- `botSkin` now carries three more fields:
+  - `tokens`: the screen's resolved `--bg --panel --line --text --muted
+    --accent --ok --off --font`;
+  - `ui`: `material` | `deep`;
+  - `insets`: `{side, bottom}`.
+
+  It is sent on load and again whenever the theme, style or skin
+  changes. `app-kit.js` applies all of it, plus `vars`, `theme` and
+  `lang` as before. Apps just use the tokens.
+- `app-kit.css` offers the parts: `kit-bar`, `kit-title`, `kit-card`,
+  `kit-display`, `kit-btn` (`primary`/`tonal`/`ghost`/`icon`/`big`),
+  `kit-chip`, `kit-segment`, `kit-slider`, `kit-switch`, `kit-list` /
+  `kit-item`, `kit-key`. Colours for an app's own CSS: `--kit-surface`,
+  `--kit-surface-hi`, `--kit-tonal`, `--kit-primary`.
+- JS: `BotApp.lang / .theme / .ui`, `BotApp.onChange(fn)`,
+  `BotApp.paint(slider)`, `BotApp.close()`.
+- The class names and tokens are a public API. Add to them, never
+  rename: installed apps are copies.
+- **Built-in apps must use the kit**: `test_builtin_app_is_native`
+  checks this. The how-to is the skill
+  `.agents/skills/screen-app-native/SKILL.md`, and the reference app is
+  `store/packages/metronome`.
+- **Bump the version** of a built-in app you change. The screen re-copies
+  an installed built-in app whose repository version differs from its
+  copy (`screen_store.refresh_builtin_apps`, run when the screen lists
+  installed apps). Without a bump, screens keep the old copy.
+- Apps not on the kit (old or third-party) keep working as before, with
+  the `botSkin` listener below.
+
 ### 2.3. Обмеження (перевір список перед публікацією)
 
 - [ ] Вміщається в 320×240; скрол — вертикальний, `touch-action: pan-y`.

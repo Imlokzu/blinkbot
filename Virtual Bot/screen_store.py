@@ -332,8 +332,49 @@ def _remove_installed(pkg_id: str, kind: str) -> None:
         raise StoreError("filesystem error during removal", code="io_error") from exc
 
 
+def _installed_version(pkg_id: str) -> str:
+    try:
+        data = json.loads((installed_dir("apps") / pkg_id / "package.json").read_text("utf-8"))
+        return str(data.get("version") or "")
+    except (OSError, ValueError):
+        return ""
+
+
+def refresh_builtin_apps() -> list[str]:
+    """Re-copy installed built-in apps whose repository version moved on.
+
+    An installed app is a copy, so a better built-in package (a new look, a
+    fix) never reached a screen that had installed the old one. The version
+    in package.json is the signal: when the repository's differs from the
+    installed copy's, the copy is replaced. Shared (imported) apps are left
+    alone — their author ships updates as a new .cbp. Returns what changed.
+    """
+    changed: list[str] = []
+    for manifest in _manifests():
+        pkg_id = manifest["id"]
+        if manifest["type"] != "app" or not is_installed(pkg_id):
+            continue
+        root = _source_root(pkg_id)
+        if not root or root[1] != "builtin":
+            continue
+        if _installed_version(pkg_id) == str(manifest.get("version") or ""):
+            continue
+        try:
+            install(pkg_id)
+            changed.append(pkg_id)
+        except StoreError:
+            log.exception("Store: could not refresh %s", pkg_id)
+    if changed:
+        log.info("Store: refreshed built-in apps %s", ", ".join(changed))
+    return changed
+
+
 def installed_apps() -> list[dict[str, Any]]:
-    """Manifests of INSTALLED apps — the screen's app drawer shows these."""
+    """Manifests of INSTALLED apps — the screen's app drawer shows these.
+
+    Built-in copies are brought up to date first (refresh_builtin_apps):
+    this is what the screen asks for when it starts."""
+    refresh_builtin_apps()
     return [m for m in _manifests() if m["type"] == "app" and is_installed(m["id"])]
 
 

@@ -3,99 +3,114 @@
 <head>
 <meta charset="UTF-8">
 <title>Metronome</title>
+<!-- App kit v1: the screen's own look (Material You or Deep UI, any theme
+     or skin) and its safe insets. See docs/SCREEN-PLATFORM.md §2.6. -->
+<link rel="stylesheet" href="/static/screen/app-kit.css">
+<script src="/static/screen/app-kit.js"></script>
 <style>
-  /* A screen app: the parent is a 320x240 iframe. Colours come from the
-     screen palette (the skin overrides these variables at runtime), so the
-     package does not look foreign next to the screen's own apps. */
-  :root {
-    --bg: #16181a; --panel: #1e2124; --line: #2f3438; --text: #e8e4dc;
-    --muted: #8e9498; --accent: #d17a58; --ok: #8ca879; --off: #6b7175;
-    color-scheme: dark;
-  }
-  :root[data-theme="light"] {
-    --bg: #efe7d9; --panel: #fbf6ec; --line: #ddcdb2; --text: #2f271f;
-    --muted: #7d6d5c; --accent: #b95f3d; --ok: #6f8b5f; --off: #a8998a;
-    color-scheme: light;
-  }
-  html, body { margin: 0; height: 100%; overflow: hidden;
-    background: var(--bg, #16181a); color: var(--text, #e8e4dc);
-    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    -webkit-user-select: none; user-select: none; }
-  .wrap { display: flex; flex-direction: column; align-items: center;
-    justify-content: center; height: 100%; gap: 10px; }
-  .beat { width: 44px; height: 44px; border-radius: 50%;
-    background: var(--line, #2f3438); transition: background-color 60ms; }
-  .beat.on { background: var(--accent, #d17a58); }
-  .bpm { font-size: 40px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .bpm small { font-size: 14px; color: var(--muted, #8e9498); font-weight: 400; }
-  .row { display: flex; gap: 8px; align-items: center; }
-  button { background: var(--panel, #1e2124); color: var(--text, #e8e4dc);
-    border: 1px solid var(--line, #2f3438); border-radius: 10px;
-    padding: 8px 14px; font-size: 16px; }
-  button:active { background: var(--accent, #d17a58); }
-  input[type=range] { width: 180px; accent-color: var(--accent, #d17a58); }
-  @media (max-height: 200px) { .wrap { gap: 6px; } .beat { width: 30px; height: 30px; } .bpm { font-size: 32px; } }
+  /* Only what is the metronome's own: the bar of four beats. Everything
+     else is a kit part in the screen's style. */
+  .beats { display: flex; gap: 10px; }
+  .beat { width: 16px; height: 16px; border-radius: 50%; background: var(--kit-surface-hi);
+    transition: transform 80ms ease; }
+  .beat.first { width: 22px; height: 16px; border-radius: 8px; }
+  .beat.on { background: var(--accent); transform: scale(1.25); }
+  :root[data-ui="deep"] .beat.on { background: var(--kit-primary); }
+  .tempo { text-transform: capitalize; }
+  .kit-slider { max-width: 250px; }
+  @media (max-height: 200px) { .kit-display { font-size: 40px; } }
 </style>
 </head>
-<body>
-  <div class="wrap">
-    <div class="beat" id="beat"></div>
-    <div class="bpm"><span id="val">100</span> <small>BPM</small></div>
-    <input type="range" id="range" min="40" max="208" value="100" data-i18n-aria="tempo">
-    <div class="row">
-      <button id="minus" data-i18n-aria="slower">−</button>
-      <button id="start" data-i18n="start"></button>
-      <button id="plus" data-i18n-aria="faster">+</button>
-    </div>
-  </div>
+<body class="kit">
+  <main class="kit-app">
+    <header class="kit-bar">
+      <span class="kit-title" data-i18n="title"></span>
+      <button class="kit-chip" id="tap" data-i18n="tap"></button>
+    </header>
+    <section class="kit-fill kit-center" style="gap: 10px">
+      <div class="beats" id="beats">
+        <i class="beat first"></i><i class="beat"></i><i class="beat"></i><i class="beat"></i>
+      </div>
+      <div class="kit-display"><span id="val">100</span> <small>BPM</small></div>
+      <div class="kit-label tempo" id="tempo"></div>
+      <input type="range" class="kit-slider" id="range" min="40" max="208" value="100" data-i18n-aria="tempo">
+    </section>
+    <footer class="kit-row center" style="gap: 14px">
+      <button class="kit-btn icon" id="minus" data-i18n-aria="slower">
+        <svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg>
+      </button>
+      <button class="kit-btn primary big" id="start" data-i18n="start"></button>
+      <button class="kit-btn icon" id="plus" data-i18n-aria="faster">
+        <svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg>
+      </button>
+    </footer>
+  </main>
 <script>
   const STR = {
-    uk: { title: "Метроном", tempo: "Темп", slower: "Повільніше", faster: "Швидше", start: "Старт", stop: "Стоп" },
-    en: { title: "Metronome", tempo: "Tempo", slower: "Slower", faster: "Faster", start: "Start", stop: "Stop" },
+    uk: { title: "Метроном", tempo: "Темп", slower: "Повільніше", faster: "Швидше", start: "Старт", stop: "Стоп", tap: "Тап",
+          largo: "ларго", adagio: "адажіо", andante: "анданте", moderato: "модерато", allegro: "алегро", presto: "престо" },
+    en: { title: "Metronome", tempo: "Tempo", slower: "Slower", faster: "Faster", start: "Start", stop: "Stop", tap: "Tap",
+          largo: "largo", adagio: "adagio", andante: "andante", moderato: "moderato", allegro: "allegro", presto: "presto" },
   };
   // Storage throws in a sandboxed frame; the metronome then just forgets
   // the tempo instead of breaking.
   function readStore(key, fallback) { try { const v = localStorage.getItem(key); return v == null ? fallback : v; } catch (_) { return fallback; } }
   function writeStore(key, value) { try { localStorage.setItem(key, value); } catch (_) {} }
-  let lang = readStore("botScreenLang", "uk") === "en" ? "en" : "uk";
+  // The kit already knows the screen's language (botScreenLang)
+  let lang = window.BotApp ? BotApp.lang : (readStore("botScreenLang", "uk") === "en" ? "en" : "uk");
   function t(key) { return STR[lang][key] ?? STR.uk[key] ?? key; }
+
+  // The tempo marking musicians use for this speed
+  function marking(v) {
+    return v < 60 ? "largo" : v < 76 ? "adagio" : v < 108 ? "andante" : v < 120 ? "moderato" : v < 168 ? "allegro" : "presto";
+  }
 
   // WebAudio metronome: clicks are scheduled ahead (lookahead), because
   // setTimeout on a slow device drifts by tens of milliseconds.
   const $ = (id) => document.getElementById(id);
-  const beatEl = $("beat"), valEl = $("val"), range = $("range"), startBtn = $("start");
+  const valEl = $("val"), range = $("range"), startBtn = $("start");
+  const beats = Array.from(document.querySelectorAll(".beat"));
   let bpm = Number(readStore("metronome.bpm", 100)) || 100;
   let running = false, nextAt = 0, beatNo = 0, timer = 0, ctx = null;
 
   function applyI18n() {
     document.documentElement.lang = lang;
     document.title = t("title");
+    document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
     document.querySelectorAll("[data-i18n-aria]").forEach((el) => el.setAttribute("aria-label", t(el.dataset.i18nAria)));
     startBtn.textContent = t(running ? "stop" : "start");
+    draw();
+  }
+  function setBpm(v) {
+    bpm = Math.max(40, Math.min(208, Math.round(v)));
+    writeStore("metronome.bpm", String(bpm));
+    draw();
   }
   function draw() {
     valEl.textContent = String(bpm);
     range.value = String(bpm);
+    $("tempo").textContent = t(marking(bpm));
+    if (window.BotApp) BotApp.paint(range);
   }
-  function click(strong) {
+  function click(n) {
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
     const t0 = ctx.currentTime;
     const osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.frequency.value = strong ? 1200 : 800;
+    osc.frequency.value = n === 0 ? 1200 : 800;
     gain.gain.setValueAtTime(0.5, t0);
     gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05);
     osc.connect(gain).connect(ctx.destination);
     osc.start(t0);
     osc.stop(t0 + 0.06);
-    beatEl.classList.toggle("on", true);
-    setTimeout(() => beatEl.classList.remove("on"), 90);
+    beats.forEach((b, i) => b.classList.toggle("on", i === n));
+    setTimeout(() => beats[n].classList.remove("on"), 110);
   }
   function tick() {
     const ahead = ctx.currentTime + 0.12;
     while (nextAt < ahead) {
       const delay = Math.max(0, (nextAt - ctx.currentTime) * 1000);
-      const strong = beatNo % 4 === 0;
-      setTimeout(() => click(strong), delay);
+      const n = beatNo % 4;
+      setTimeout(() => click(n), delay);
       nextAt += 60 / bpm;
       beatNo += 1;
     }
@@ -116,26 +131,25 @@
     tick();
     timer = setInterval(tick, 60);
   }
-  startBtn.addEventListener("click", start);
-  range.addEventListener("input", () => {
-    bpm = Number(range.value);
-    writeStore("metronome.bpm", String(bpm));
-    draw();
+  // Tap tempo: the gap between the last taps is the beat
+  let taps = [];
+  $("tap").addEventListener("click", () => {
+    const now = performance.now();
+    taps = taps.filter((x) => now - x < 2500).concat(now);
+    if (taps.length >= 2) {
+      const gaps = taps.slice(1).map((x, i) => x - taps[i]);
+      setBpm(60000 / (gaps.reduce((a, b) => a + b, 0) / gaps.length));
+    }
   });
-  $("minus").addEventListener("click", () => { bpm = Math.max(40, bpm - 1); writeStore("metronome.bpm", String(bpm)); draw(); });
-  $("plus").addEventListener("click", () => { bpm = Math.min(208, bpm + 1); writeStore("metronome.bpm", String(bpm)); draw(); });
-  draw();
+  startBtn.addEventListener("click", start);
+  range.addEventListener("input", () => setBpm(Number(range.value)));
+  $("minus").addEventListener("click", () => setBpm(bpm - 1));
+  $("plus").addEventListener("click", () => setBpm(bpm + 1));
   applyI18n();
 
-  // The screen's skin, theme and language arrive as a message: CSS
-  // variables do not cross the iframe boundary. Only the source is
-  // checked, since a sandboxed frame sees origin "null".
-  window.addEventListener("message", (e) => {
-    if (e.source !== window.parent || !e.data || e.data.type !== "botSkin") return;
-    if (e.data.vars) for (const k in e.data.vars) document.documentElement.style.setProperty(k, e.data.vars[k]);
-    document.documentElement.dataset.theme = e.data.theme === "light" ? "light" : "dark";
-    if ((e.data.lang === "uk" || e.data.lang === "en") && e.data.lang !== lang) { lang = e.data.lang; applyI18n(); }
-  });
+  // The screen's style and theme are applied by the kit; the app only
+  // follows the language.
+  if (window.BotApp) BotApp.onChange((s) => { if (s.lang !== lang) { lang = s.lang; applyI18n(); } });
 </script>
 </body>
 </html>

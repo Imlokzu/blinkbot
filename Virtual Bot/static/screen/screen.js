@@ -15,7 +15,7 @@ import { ScreenKeyboard } from "./keyboard.js";
 import { WatchDrawer } from "./drawer.js";
 import { appIconEl, themedColors } from "./app-icons.js";
 import { wxKind, wxSky, wxIconSvg, windArrowSvg } from "./weather-icons.js";
-import { GestureNav } from "./gesture-nav.js";
+import { GestureNav, EDGE as GESTURE_EDGE, BOTTOM as GESTURE_BOTTOM } from "./gesture-nav.js";
 /* Контурні іконки та їхні кольори — у icons.js */
 import { makeSvgIcon, ICON_COLORS } from "./icons.js";
 /* Дві мови інтерфейсу (uk/en) — словник і хелпери в i18n.js */
@@ -686,6 +686,7 @@ function applyUiStyle(id, save) {
   if (lastWeather) renderWeather(lastWeather.w, lastWeather.city);
   if (appsOpen()) renderApps();
   paintRanges();
+  if (save) postStoreAppSkin();
 }
 
 /* Deep UI's sliders fill up to the thumb. A range input cannot style its
@@ -1220,6 +1221,7 @@ function toggleTheme() {
 function applyTheme() {
   repaintPixels();
   rebuildIcons();
+  postStoreAppSkin();          // an open app follows the theme at once
 }
 
 function toggleFullscreen() {
@@ -4499,6 +4501,19 @@ function currentSkinVars() {
   try { return JSON.parse(readPref(SKIN_VARS_KEY, "null")) || {}; } catch (e) { return {}; }
 }
 
+/* The tokens an app kit page needs, as the screen resolves them now. */
+const APP_TOKENS = ["--bg", "--panel", "--line", "--text", "--muted", "--accent", "--ok", "--off", "--font"];
+
+function resolvedTokens() {
+  const css = getComputedStyle(document.documentElement);
+  const out = {};
+  for (const name of APP_TOKENS) {
+    const value = css.getPropertyValue(name).trim();
+    if (value) out[name] = value;
+  }
+  return out;
+}
+
 function postStoreAppSkin(frame = null) {
   const target = frame || layerApp.querySelector(".storeapp-frame");
   if (!target?.contentWindow) return;
@@ -4509,6 +4524,11 @@ function postStoreAppSkin(frame = null) {
     target.contentWindow.postMessage({
       type: "botSkin",
       vars: currentSkinVars(),
+      // App kit v1 (app-kit.js): the screen's RESOLVED look, so an app
+      // matches whatever style, theme or skin is on right now
+      tokens: resolvedTokens(),
+      ui: uiStyle,
+      insets: { side: GESTURE_EDGE, bottom: GESTURE_BOTTOM },
       theme: document.documentElement.dataset.theme === "light" ? "light" : "dark",
       // Apps localise themselves; without this they would stay in the
       // language they started in after the screen switched.
@@ -4520,6 +4540,9 @@ function postStoreAppSkin(frame = null) {
 function openStoreApp(entry, opts) {
   openAppLayer(entry.title || "app.head", (box) => {
     box.classList.add("storeapp-body");
+    // Store apps own the whole panel: no title bar, no frame. The way out
+    // is the gesture pill and edges (gesture-nav.js), as on a phone.
+    layerApp.classList.add("full");
     const frame = document.createElement("iframe");
     frame.className = "storeapp-frame";
     // opts.hash: where to land inside the app ("#player" from the island)
@@ -4554,9 +4577,9 @@ window.addEventListener("message", (event) => {
   const expected = frame.dataset.sandboxed === "1" ? "null" : window.location.origin;
   if (event.origin !== expected) return;
   if (event.data?.type === "closeStoreApp") closeAppLayer();
-  // The app asked for the whole panel (the YouTube player): the layer drops
-  // its title bar and padding. The app keeps its own way back.
-  if (event.data?.type === "storeAppFullscreen") { layerApp.classList.toggle("full", !!event.data.on); renderIsland(); }
+  // Older apps ask for the whole panel (the YouTube player) — every store
+  // app has it now, so the request only refreshes the island.
+  if (event.data?.type === "storeAppFullscreen") renderIsland();
   // The YouTube player reports where it is, so closing it can hand the
   // video over as sound from that exact second.
   if (event.data?.type === "botVideoState" && frame.dataset.pkg === VIDEO_PKG) {

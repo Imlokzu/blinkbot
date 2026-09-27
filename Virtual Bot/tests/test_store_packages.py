@@ -79,10 +79,13 @@ def test_app_markup_rules(pkg: Path):
     assert not found, f"emoji/pictographs in UI: {found}"
 
     # Light theme arrives with the skin message; without these the app stays
-    # dark on a light screen.
-    assert ':root[data-theme="light"]' in markup
-    assert "dataset.theme" in markup
-    assert "botSkin" in markup
+    # dark on a light screen. An app on the app kit gets all of it from
+    # app-kit.js (theme, style, skin, language).
+    kit = _uses_app_kit(markup)
+    if not kit:
+        assert ':root[data-theme="light"]' in markup
+        assert "dataset.theme" in markup
+        assert "botSkin" in markup
 
     # Offline: the Pi may have no network, and a shared package must not phone
     # home. Only the SVG namespace string is allowed.
@@ -94,12 +97,16 @@ def test_app_markup_rules(pkg: Path):
 
     # i18n: both dictionaries, and the language comes from the screen.
     assert re.search(r"\buk\s*:\s*\{", markup) and re.search(r"\ben\s*:\s*\{", markup), "needs uk and en dictionaries"
-    assert "botScreenLang" in markup, "must start in the screen's language (localStorage botScreenLang)"
+    assert kit or "botScreenLang" in markup, "must start in the screen's language (localStorage botScreenLang)"
 
     # No hardcoded Ukrainian outside scripts: static text is filled from the
     # dictionary, otherwise the English screen shows Ukrainian labels.
     html_only = re.sub(r"<script.*?</script>", "", markup, flags=re.S)
     assert not _CYRILLIC.search(html_only), "hardcoded Cyrillic in HTML — use data-i18n keys"
+
+
+def _uses_app_kit(markup: str) -> bool:
+    return "/static/screen/app-kit.css" in markup and "/static/screen/app-kit.js" in markup
 
 
 @pytest.mark.parametrize("pkg", _app_dirs(), ids=lambda p: p.name)
