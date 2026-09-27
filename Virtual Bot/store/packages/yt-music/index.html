@@ -626,8 +626,18 @@
   // The screen's island opens this app at #player: go straight to the song.
   let wantPlayer = location.hash === "#player";
 
+  // A direct call when the screen allows it (same origin): it runs inside
+  // this tap, and Safari starts sound only from a tap. A message arrives
+  // after the tap is over, so "play" did nothing there.
   function control(action, extra) {
-    try { window.parent.postMessage({ type: "botMusicControl", action, ...(extra || {}) }, "*"); } catch (e) {}
+    const msg = { type: "botMusicControl", action, ...(extra || {}) };
+    try {
+      if (window.parent !== window && typeof window.parent.botMusicControl === "function") {
+        window.parent.botMusicControl(msg);
+        return;
+      }
+    } catch (e) { /* sandboxed: fall through to the message */ }
+    try { window.parent.postMessage(msg, "*"); } catch (e) {}
   }
   function fullScreen(on) {
     try { window.parent.postMessage({ type: "storeAppFullscreen", on: !!on }, "*"); } catch (e) {}

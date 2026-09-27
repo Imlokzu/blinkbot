@@ -1541,10 +1541,11 @@ function addMsg(role, text) {
    можна з вимкненим синтезом, а набрати з клавіатури — з увімкненим. Від
    нього залежить, чи попросять мозок писати одиниці словами: «120 км/год»
    синтез читає як «ка-ем-скісна-риска-год», і це чути. */
-async function sendChat(message, fromVoice) {
+async function sendChat(message, fromVoice, shown) {
   chatBusy = true;
   micButtons.forEach((b) => { b.classList.add("busy"); b.disabled = true; });
-  const userEl = addMsg("user", message);
+  // shown: a short bubble for a long message (a shared video's transcript)
+  const userEl = addMsg("user", shown || message);
 
   /* One status line under the reply while the bot works: "thinking",
      "searching the web · …". Bubbles are inserted ABOVE it, so a narration
@@ -4379,6 +4380,9 @@ function onAppMusicControl(data) {
   const action = String(data.action || "");
   if (action === "state") { postMusicToApp(true); return; }
   if (!musicState.track) return;
+  // The touch that pressed "play" already started a song the browser had
+  // held back (runNextTouch); toggling now would pause it at once.
+  if (action === "toggle" && Date.now() - nextTouchRanAt < 1500) { postMusicToApp(true); return; }
   if (action === "toggle") musicToggle();
   else if (action === "next") musicStep(1);
   else if (action === "prev") {
@@ -4393,6 +4397,12 @@ function onAppMusicControl(data) {
   }
   postMusicToApp(true);
 }
+
+// YT Music calls this directly (same origin) instead of posting a message:
+// the call runs inside the person's tap, which Safari needs to start sound.
+window.botMusicControl = (data) => {
+  if (data && typeof data === "object") onAppMusicControl(data);
+};
 
 /* Шіт плеєра: вибір джерела, перемотка, список станцій/черги */
 
@@ -4641,6 +4651,7 @@ function postStoreAppSkin(frame = null) {
    panel now, so that touch usually lands inside an app's iframe, which the
    stage never hears; forwardFrameTouches() passes those on as well. */
 const nextTouch = new Set();
+let nextTouchRanAt = 0;
 
 function onNextTouch(fn) {
   nextTouch.add(fn);
@@ -4649,6 +4660,7 @@ function onNextTouch(fn) {
 function runNextTouch() {
   const fns = [...nextTouch];
   nextTouch.clear();
+  if (fns.length) nextTouchRanAt = Date.now();
   for (const fn of fns) {
     try { fn(); } catch (e) { /* one failed retry must not stop the rest */ }
   }
@@ -4722,8 +4734,38 @@ window.addEventListener("message", (event) => {
   // A touch inside an app never reaches the stage's "any touch silences
   // the alarm", so the Clock app says so when a rung timer is on its screen.
   if (event.data?.type === "botTimerSilence") stopRing();
+  if (event.data?.type === "botShareVideo" && frame.dataset.pkg === VIDEO_PKG) shareVideoWithBot(event.data);
   if (event.data?.type === "botMusicControl" && frame.dataset.sandboxed !== "1") onAppMusicControl(event.data);
 });
+
+/* "Send to the bot" in the YouTube app: the video's title, channel and
+   transcript become a chat message, and the chat tile shows the answer.
+   The bubble says only which video it was; the transcript is for the
+   brain. The app paused the video, so closing it hands nothing over as
+   sound; forgetting its last state makes sure of it. */
+function shareVideoWithBot(data) {
+  const clip = (v, n) => String(v || "").replace(/\s+/g, " ").trim().slice(0, n);
+  const id = clip(data.id, 20);
+  const title = clip(data.title, 200) || id;
+  if (!id) return;
+  if (chatBusy) { showCaption(t("share.busy"), "bot"); return; }
+  const transcript = clip(data.transcript, 12000);
+  const at = Math.max(0, Math.floor(Number(data.position) || 0));
+  const message = t("share.prompt", {
+    title,
+    uploader: clip(data.uploader, 80) || "—",
+    url: "https://youtu.be/" + encodeURIComponent(id) + (at ? "?t=" + at : ""),
+    time: fmtTime(at),
+    transcript: transcript
+      ? transcript + (data.trimmed ? "\n" + t("share.trimmed") : "")
+      : t("share.noTranscript"),
+  });
+  lastVideoState = null;
+  closeAppLayer();
+  openLayer(null);
+  goTile(chatTile());
+  sendChat(message, false, t("share.bubble", { title }));
+}
 
 /* ---------- Бот керує відео-плеєром (SSE «video») ----------
 

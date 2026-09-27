@@ -272,6 +272,7 @@
     </div>
     <button class="kit-btn icon txtbtn" id="cc" type="button" data-i18n="player.cc" data-i18n-aria="player.ccAria"></button>
     <button class="kit-btn icon" id="lines" type="button" data-i18n-aria="player.linesAria" data-icon="list"></button>
+    <button class="kit-btn icon" id="share" type="button" data-i18n-aria="player.shareAria" data-icon="send"></button>
   </div>
   <div class="skipped" id="skipped"></div>
   <div class="pbottom">
@@ -396,6 +397,8 @@
       "player.cc": "CC",
       "player.ccAria": "Субтитри",
       "player.linesAria": "Текст відео",
+      "player.shareAria": "Надіслати боту: назву і текст відео",
+      "player.sharing": "Беру текст відео для бота…",
       "player.untitled": "Відео",
       "player.preparing": "Готую відео… перше з'єднання — кілька секунд.",
       "player.tapToPlay": "Тапни кнопку пуску, щоб почати.",
@@ -455,6 +458,8 @@
       "player.cc": "CC",
       "player.ccAria": "Captions",
       "player.linesAria": "Transcript",
+      "player.shareAria": "Send to the bot: the title and the transcript",
+      "player.sharing": "Getting the transcript for the bot…",
       "player.untitled": "Video",
       "player.preparing": "Preparing video… the first connection takes a few seconds.",
       "player.tapToPlay": "Tap play to start.",
@@ -539,6 +544,8 @@
               '<path d="M10.4 9.6v4.8l4.2-2.4z"/>',
     search:   '<circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/>',
     shrink:   '<path d="M3.5 8.5h5v-5M20.5 8.5h-5v-5M15.5 20.5v-5h5M8.5 20.5v-5h-5"/>',
+    // A paper plane: "send to the bot"
+    send:     '<path d="M20.5 3.5 3.5 10.6l6.8 2.6 2.6 6.8z"/><path d="m10.3 13.2 4.4-4.4"/>',
   };
 
   function iconSvg(name) {
@@ -1209,6 +1216,39 @@
     updateCaption();
   }
   $("cc").addEventListener("click", () => setCaptions(!captionsOn));
+
+  /* Send to the bot: the title, the channel and the transcript go to the
+     screen, which asks the bot about the video in the chat. The video is
+     paused first, so leaving the app does not hand it over as sound. The
+     transcript is capped: an hour of talk is ~60k characters, far more
+     than a reply needs, and the bot can fetch the rest by the link. */
+  const SHARE_MAX_CHARS = 12000;
+  let sharing = false;
+  $("share").addEventListener("click", async () => {
+    if (!current || sharing) return;
+    sharing = true;
+    try { video.pause(); } catch (e) { /* not started */ }
+    vsay("player.sharing");
+    const item = current;
+    const segs = await loadCaptions();
+    sharing = false;
+    if (!current || current.id !== item.id) return;
+    vsay("");
+    const full = segs.map((x) => String(x.text).trim()).filter(Boolean).join(" ");
+    rememberWatch(item, video.currentTime, video.duration);
+    try {
+      window.parent.postMessage({
+        type: "botShareVideo",
+        id: item.id,
+        title: item.title || "",
+        uploader: item.uploader || "",
+        position: Number(video.currentTime) || 0,
+        transcript: full.slice(0, SHARE_MAX_CHARS),
+        trimmed: full.length > SHARE_MAX_CHARS,
+        error: full ? "" : (captionsError || ""),
+      }, window.location.origin);
+    } catch (e) { /* standalone */ }
+  });
 
   function markLine(idx, scroll) {
     const body = $("tbody");
