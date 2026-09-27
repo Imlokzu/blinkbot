@@ -11,6 +11,8 @@ a worse copy of what it already does well.
 from __future__ import annotations
 
 import logging
+import re
+from datetime import datetime, timedelta
 
 import screen_widgets
 
@@ -59,6 +61,53 @@ async def timer_status() -> dict:
     }
 
 
+_AT_RE = re.compile(r"^\s*(?:(\d{4})-(\d{2})-(\d{2})[ T])?(\d{1,2})[:.](\d{2})\s*$")
+
+
+def _seconds_until(at: str, now: datetime | None = None) -> float:
+    """
+    "18:30" → seconds until the next 18:30 (tomorrow if it has passed);
+    "2026-10-02 09:00" → until that moment. Local time of the server, which
+    is the bot's own clock — the same one the system prompt tells the model.
+    """
+    match = _AT_RE.match(str(at or ""))
+    if not match:
+        raise ValueError("time must look like 18:30 or 2026-10-02 09:00")
+    year, month, day, hour, minute = match.groups()
+    now = now or datetime.now().astimezone()
+    hour, minute = int(hour), int(minute)
+    if not (0 <= hour < 24 and 0 <= minute < 60):
+        raise ValueError("no such time of day")
+    if year:
+        target = now.replace(year=int(year), month=int(month), day=int(day),
+                             hour=hour, minute=minute, second=0, microsecond=0)
+    else:
+        target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if target <= now:
+            target += timedelta(days=1)
+    return (target - now).total_seconds()
+
+
+async def set_reminder(text: str, minutes: float = 0, hours: float = 0, at: str = "") -> dict:
+    try:
+        total = _seconds_until(at) if at else _seconds(hours, minutes, 0)
+        reminder = screen_widgets.add_timer(total, text, kind="reminder")
+    except ValueError as exc:
+        return {"error": str(exc)}
+    when = datetime.now().astimezone() + timedelta(seconds=reminder["left"])
+    log.info("🔔 Reminder «%s» at %s", reminder["label"], when.strftime("%Y-%m-%d %H:%M"))
+    return {"ok": True, "reminder": reminder, "at": when.strftime("%Y-%m-%d %H:%M"),
+            "left": _spoken_left(reminder["left"])}
+
+
+async def post_notification(title: str = "", text: str = "", level: str = "info") -> dict:
+    try:
+        notice = screen_widgets.notify("", title=title, body=text, level=level, source="bot")
+    except ValueError as exc:
+        return {"error": str(exc)}
+    return {"ok": True, "notice": notice}
+
+
 SCHEMAS: list[dict] = [
     {
         "type": "function",
@@ -85,7 +134,7 @@ SCHEMAS: list[dict] = [
         "function": {
             "name": "timer_control",
             "description": (
-                "Change running timers: cancel one (by label, or the nearest if no label), "
+                "Change running timers and reminders: cancel one (by label, or the nearest if no label), "
                 "cancel_all, pause, resume, or add minutes/seconds to one."
             ),
             "parameters": {
@@ -104,13 +153,59 @@ SCHEMAS: list[dict] = [
         "type": "function",
         "function": {
             "name": "timer_status",
-            "description": "Which timers are running and how long each has left.",
+            "description": "Which timers and reminders are running and how long each has left (kind: timer or reminder).",
             "parameters": {"type": "object", "properties": {}},
         },
     },
 ]
 
+SCHEMAS += [
+    {
+        "type": "function",
+        "function": {
+            "name": "set_reminder",
+            "description": (
+                "Remind the person about something later: it rings on the bot's screen and "
+                "waits in the notification shade. «нагадай о 18:30 подзвонити мамі» → at=18:30; "
+                "«нагадай через годину випити воду» → hours=1. Up to 7 days ahead. "
+                "Cancel or list reminders with timer_control / timer_status."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "What to remind about, as the person would read it."},
+                    "minutes": {"type": "number"},
+                    "hours": {"type": "number"},
+                    "at": {"type": "string", "description": "Local clock time 'HH:MM' or 'YYYY-MM-DD HH:MM'."},
+                },
+                "required": ["text"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "post_notification",
+            "description": (
+                "Put a notice in the screen's notification shade — for something the person "
+                "should see later rather than hear now (a long task finished, a problem you hit). "
+                "Not for normal replies."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "text": {"type": "string"},
+                    "level": {"type": "string", "enum": ["info", "warn", "error"]},
+                },
+            },
+        },
+    },
+]
+
 HANDLERS = {
+    "set_reminder": set_reminder,
+    "post_notification": post_notification,
     "set_timer": set_timer,
     "timer_control": timer_control,
     "timer_status": timer_status,

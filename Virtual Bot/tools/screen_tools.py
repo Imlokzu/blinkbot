@@ -27,6 +27,7 @@ SCREENS: dict[str, str] = {
     "chat": "Розмова",
     "timer": "Таймер",
     "weather": "Погода",
+    "notices": "Сповіщення",
     "quick": "Швидкі дії",
     "memory": "Памʼять",
     "chats": "Розмови",
@@ -43,6 +44,8 @@ _ALIASES: dict[str, str] = {
     "розмова": "chat", "чат": "chat",
     "таймер": "timer", "таймери": "timer", "timer": "timer", "timers": "timer",
     "погода": "weather", "weather": "weather", "прогноз": "weather",
+    "сповіщення": "notices", "повідомлення": "notices", "нагадування": "notices",
+    "notifications": "notices", "notices": "notices",
     "памʼять": "memory", "память": "memory", "нотатки": "memory", "notes": "memory", "memory": "memory",
     "розмови": "chats", "історія чатів": "chats", "історія": "chats", "chats": "chats", "history": "chats",
     "швидкі дії": "quick", "налаштування": "quick", "settings": "quick",
@@ -93,7 +96,7 @@ SCHEMAS: list[dict] = [
                         "description": (
                             "Який екран відкрити: face (обличчя), clock (годинник), "
                             "say (остання репліка), state (стан систем), chat (розмова), "
-                            "timer (таймери), weather (погода), "
+                            "timer (таймери), weather (погода), notices (сповіщення й нагадування), "
                             "quick (швидкі дії), memory (памʼять), chats (розмови), "
                             "apps (усі застосунки)."
                         ),

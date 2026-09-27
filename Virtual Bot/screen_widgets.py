@@ -37,11 +37,19 @@ log = logging.getLogger("virtual_bot.screen_widgets")
 router = APIRouter(prefix="/api/screen", tags=["screen"])
 
 MAX_TIMERS = 5
+MAX_REMINDERS = 20
 MAX_TIMER_S = 24 * 3600
+# A reminder can be for later this week ("нагадай у пʼятницю"), a kitchen
+# timer cannot sensibly run for days.
+MAX_REMINDER_S = 7 * 24 * 3600
 MAX_LABEL = 40
+MAX_REMINDER_TEXT = 200
 # A finished timer stays listed for a while, so "did my tea timer go off?"
-# still has an answer after it rang.
+# still has an answer after it rang. A reminder that fired stays much
+# longer: it may have gone off while nobody was in the room, and the
+# notification shade is where it waits to be seen.
 DONE_KEEP_S = 10 * 60
+REMINDER_KEEP_S = 12 * 3600
 
 _lock = Lock()
 
@@ -88,6 +96,7 @@ def _view(timer: dict, now: float) -> dict:
         state = "done" if left <= 0 else "running"
     return {
         "id": timer["id"],
+        "kind": timer.get("kind", "timer"),
         "label": timer.get("label", ""),
         "seconds": int(timer["seconds"]),
         "ends_at": timer.get("ends_at"),
@@ -99,7 +108,8 @@ def _view(timer: dict, now: float) -> dict:
 def _alive(timers: list[dict], now: float) -> list[dict]:
     keep = []
     for timer in timers:
-        if timer.get("paused_left") is None and float(timer["ends_at"]) + DONE_KEEP_S < now:
+        grace = REMINDER_KEEP_S if timer.get("kind") == "reminder" else DONE_KEEP_S
+        if timer.get("paused_left") is None and float(timer["ends_at"]) + grace < now:
             continue
         keep.append(timer)
     return keep
@@ -120,15 +130,25 @@ def _publish(action: str, timer: dict | None = None) -> None:
         log.exception("Could not publish the timer event")
 
 
-def add_timer(seconds: float, label: str = "") -> dict:
-    """Start a timer. Raises ValueError on a duration nobody means."""
+def add_timer(seconds: float, label: str = "", kind: str = "timer") -> dict:
+    """
+    Start a timer, or a reminder (kind="reminder": the label is what to
+    remind about, and it may be days away). Raises ValueError on a duration
+    nobody means.
+    """
     seconds = float(seconds)
-    if not 1 <= seconds <= MAX_TIMER_S:
-        raise ValueError("duration must be between 1 second and 24 hours")
+    reminder = kind == "reminder"
+    ceiling = MAX_REMINDER_S if reminder else MAX_TIMER_S
+    if not 1 <= seconds <= ceiling:
+        raise ValueError("duration must be between 1 second and " + ("7 days" if reminder else "24 hours"))
     now = _now()
+    text = " ".join(str(label or "").split())[:MAX_REMINDER_TEXT] if reminder else _clean_label(label)
+    if reminder and not text:
+        raise ValueError("a reminder needs a text")
     timer = {
         "id": uuid.uuid4().hex[:8],
-        "label": _clean_label(label),
+        "kind": "reminder" if reminder else "timer",
+        "label": text,
         "seconds": int(round(seconds)),
         "ends_at": now + seconds,
         "paused_left": None,
@@ -136,9 +156,11 @@ def add_timer(seconds: float, label: str = "") -> dict:
     with _lock:
         data = _load()
         timers = _alive(data.get("timers") or [], now)
-        running = [t for t in timers if _view(t, now)["state"] != "done"]
-        if len(running) >= MAX_TIMERS:
-            raise ValueError(f"at most {MAX_TIMERS} timers at once")
+        running = [t for t in timers
+                   if _view(t, now)["state"] != "done" and t.get("kind", "timer") == timer["kind"]]
+        limit = MAX_REMINDERS if reminder else MAX_TIMERS
+        if len(running) >= limit:
+            raise ValueError(f"at most {limit} {'reminders' if reminder else 'timers'} at once")
         timers.append(timer)
         data["timers"] = timers
         _save(data)
@@ -197,6 +219,122 @@ def update_timer(action: str, key: str = "", seconds: float = 0) -> list[dict]:
     changed = [_view(t, now) for t in targets]
     _publish(action, changed[0] if changed else None)
     return changed
+
+
+# ------------------------------------------------------------------ notices
+
+# The notification shade (swipe down from the left). Two kinds of notice:
+#   - system ones, raised by the service when something is wrong (no brain,
+#     the voice fell back to Piper, recognition failing). Each has a stable
+#     `key`, so a failure that repeats every turn updates ONE notice with a
+#     count instead of filling the shade, and `resolve(key)` removes it by
+#     itself once things work again — a notice about a fixed problem is
+#     just noise;
+#   - the bot's own (tool post_notification), freeform text.
+# System notices carry `code` + `params` and the screen words them in its
+# own language; the bot's carry `title`/`body` as written.
+
+MAX_NOTICES = 30
+NOTICE_LEVELS = ("info", "warn", "error")
+
+
+def _notice_view(notice: dict) -> dict:
+    return {k: notice.get(k) for k in ("id", "key", "code", "params", "title", "body", "level", "source", "at", "count")}
+
+
+def list_notices() -> list[dict]:
+    with _lock:
+        notices = _load().get("notices") or []
+    return [_notice_view(n) for n in sorted(notices, key=lambda n: -float(n.get("at") or 0))]
+
+
+def _publish_notices(action: str, notice: dict | None = None) -> None:
+    try:
+        events.publish({"type": "notice", "action": action, "notice": notice, "notices": list_notices()})
+    except Exception:  # noqa: BLE001 — a lost screen update must not break the caller
+        log.exception("Could not publish the notice event")
+
+
+def notify(key: str = "", *, code: str = "", params: dict | None = None, title: str = "",
+           body: str = "", level: str = "info", source: str = "system") -> dict:
+    """Raise a notice, or refresh the one with the same key."""
+    level = level if level in NOTICE_LEVELS else "info"
+    now = _now()
+    clean = {
+        "code": str(code or "")[:40],
+        "params": {str(k)[:20]: str(v)[:120] for k, v in (params or {}).items()},
+        "title": " ".join(str(title or "").split())[:80],
+        "body": " ".join(str(body or "").split())[:400],
+        "level": level,
+        "source": str(source or "system")[:20],
+        "at": now,
+    }
+    if not (clean["code"] or clean["title"] or clean["body"]):
+        raise ValueError("a notice needs a code, a title or a body")
+    key = str(key or "")[:60]
+    with _lock:
+        data = _load()
+        notices = data.get("notices") or []
+        same = next((n for n in notices if key and n.get("key") == key), None)
+        if same:
+            same.update(clean)
+            same["count"] = int(same.get("count") or 1) + 1
+            notice = same
+        else:
+            notice = {"id": uuid.uuid4().hex[:8], "key": key, "count": 1, **clean}
+            notices.append(notice)
+        notices = sorted(notices, key=lambda n: -float(n.get("at") or 0))[:MAX_NOTICES]
+        data["notices"] = notices
+        _save(data)
+    view = _notice_view(notice)
+    _publish_notices("add", view)
+    return view
+
+
+def resolve(key: str) -> bool:
+    """The problem behind a system notice is gone: drop the notice."""
+    if not key:
+        return False
+    with _lock:
+        data = _load()
+        notices = data.get("notices") or []
+        keep = [n for n in notices if n.get("key") != key]
+        if len(keep) == len(notices):
+            return False
+        data["notices"] = keep
+        _save(data)
+    _publish_notices("resolve")
+    return True
+
+
+def dismiss_notice(notice_id: str) -> int:
+    """The person swiped it away; "all" clears the shade."""
+    with _lock:
+        data = _load()
+        notices = data.get("notices") or []
+        keep = [] if notice_id == "all" else [n for n in notices if n.get("id") != notice_id]
+        gone = len(notices) - len(keep)
+        if gone:
+            data["notices"] = keep
+            _save(data)
+    if gone:
+        _publish_notices("dismiss")
+    return gone
+
+
+def notify_safely(key: str, **kwargs) -> None:
+    """For hooks inside chat/TTS/ASR: a notice must never break the thing it reports on."""
+    try:
+        notify(key, **kwargs)
+    except Exception:  # noqa: BLE001
+        log.exception("Could not raise notice %s", key)
+
+
+def resolve_safely(key: str) -> None:
+    try:
+        resolve(key)
+    except Exception:  # noqa: BLE001
+        log.exception("Could not resolve notice %s", key)
 
 
 # ------------------------------------------------------------------ weather
@@ -260,6 +398,7 @@ class TimerAction(BaseModel):
     seconds: float = 0
     label: str = Field(default="", max_length=200)
     id: str = Field(default="", max_length=40)
+    kind: str = Field(default="timer", pattern="^(timer|reminder)$")
 
 
 @router.get("/timers")
@@ -271,7 +410,7 @@ async def api_timers() -> dict:
 async def api_timer_action(req: TimerAction) -> dict:
     try:
         if req.action == "set":
-            add_timer(req.seconds, req.label)
+            add_timer(req.seconds, req.label, req.kind)
         else:
             update_timer(req.action, req.id or req.label, req.seconds)
     except ValueError as exc:
@@ -296,3 +435,18 @@ async def api_weather_city(req: CityRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"city": city, "weather": await weather_now(city)}
+
+
+class DismissRequest(BaseModel):
+    id: str = Field(min_length=1, max_length=40)
+
+
+@router.get("/notices")
+async def api_notices() -> dict:
+    return {"notices": list_notices(), "now": _now()}
+
+
+@router.post("/notices/dismiss")
+async def api_dismiss_notice(req: DismissRequest) -> dict:
+    dismiss_notice(req.id)
+    return {"notices": list_notices(), "now": _now()}

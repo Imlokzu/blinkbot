@@ -1781,6 +1781,23 @@ async def chat_demo(message: str, history: ChatHistory, emit=None) -> tuple[str,
 
 # ------------------------------------------------------------------ головна точка
 
+def _screen_notice(key: str = "", resolve: str = "", **kwargs) -> None:
+    """
+    The notification shade on the device screen: "no brain" appears when the
+    gateway fails and goes away by itself on the next good answer. Imported
+    lazily — screen_widgets pulls in FastAPI, and brains must stay importable
+    on its own (tests, scripts).
+    """
+    try:
+        import screen_widgets
+        if resolve:
+            screen_widgets.resolve_safely(resolve)
+        if key:
+            screen_widgets.notify_safely(key, **kwargs)
+    except Exception:  # noqa: BLE001 — the shade must never break a reply
+        log.debug("screen notice failed", exc_info=True)
+
+
 async def chat(
     message: str,
     history: ChatHistory | None = None,
@@ -1846,6 +1863,7 @@ async def chat(
                 reply, inline_results = await _run_inline_tool_calls(reply, emit=emit)
                 tool_results = [*tool_results, *inline_results]
                 _openclaw_note_success()
+                _screen_notice(resolve="brain.offline")
                 _remember_brain("openclaw", actual_model or _openclaw_agent_model())
                 trace_log.step("brain", "openclaw", "ok", cfg.OPENCLAW_AGENT, _elapsed_ms(started))
                 return reply, emotion, "openclaw", tool_results
@@ -1870,6 +1888,7 @@ async def chat(
         # поломку: бот бадьоро вітався, а насправді ланцюг лежав, і побачити
         # це можна було лише в логах.
         _remember_brain("offline", "мозок недоступний")
+        _screen_notice("brain.offline", code="brainOffline", level="error")
         trace_log.step("brain", "offline", "fail", "жоден мозок не відповів")
         log.error("Жоден мозок не відповів — віддаю offline (демо вимкнено)")
         return _OFFLINE_REPLY, "sad", "offline", []

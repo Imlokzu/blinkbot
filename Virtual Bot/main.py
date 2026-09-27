@@ -2969,6 +2969,13 @@ async def api_tts(req: TTSRequest):
                 # speaker хмарного провайдера в Piper не має сенсу (інші id) —
                 # відкочуємось на його ж активний голос
                 audio = await asyncio.to_thread(piper_voice.synthesize, req.text, None, req.speed)
+                # The voice changed without anyone saying so; the shade says
+                # why (an exhausted cloud quota looked like "the bot sounds
+                # worse today").
+                screen_widgets.notify_safely(
+                    "tts.fallback", code="ttsFallback", level="warn",
+                    params={"provider": provider, "reason": "quota" if "quota" in str(exc).lower() else "error"},
+                )
                 provider, backend = "piper", piper_voice
                 log.info("TTS відкотився на Piper")
             except Exception as exc2:  # noqa: BLE001
@@ -2976,7 +2983,13 @@ async def api_tts(req: TTSRequest):
         if audio is None:
             trace_log.step("tts", provider, "fail",
                            f"{type(exc).__name__}: {exc}", (time.perf_counter() - started) * 1000)
+            screen_widgets.notify_safely("tts.fail", code="ttsFail", level="error", params={"provider": provider})
             return JSONResponse(status_code=503, content={"error": "TTS недоступний"})
+    else:
+        # The configured voice worked: whatever went wrong before is over
+        screen_widgets.resolve_safely("tts.fallback")
+    if audio is not None:
+        screen_widgets.resolve_safely("tts.fail")
     media_type = getattr(backend, "MEDIA_TYPE", "audio/wav")
     trace_log.step("tts", provider, "ok",
                    f"{len(req.text)} символів → {len(audio)} байт ({media_type})",
@@ -3036,7 +3049,11 @@ async def api_asr(request: Request, audio: UploadFile = File(...)) -> dict:
             if provider == "regolo"
             else "Локальне розпізнавання не впоралось"
         )
+        # Also in the notification shade: the caption above is gone in
+        # seconds, and "it stopped hearing me" needs a cause you can find.
+        screen_widgets.notify_safely("asr.fail", code="asrFail", params={"provider": provider}, level="warn")
         return JSONResponse(status_code=503, content={"error": detail})
+    screen_widgets.resolve_safely("asr.fail")
     # Канонічні назви моделей ДО журналу й відповіді: у консолі має бути видно
     # той самий текст, який отримає мозок, інакше розбір «чому не перемкнулось»
     # шукає «кван» у логах, а в мозок пішло «Qwen».
