@@ -649,29 +649,33 @@ function monoStroke() {
    інакше в налаштуваннях підсвічувався б «Піксельні» замість «Авто». */
 function activeIconStyle() {
   if (iconStyle !== "auto") return iconStyle;
-  // One UI draws its small controls as plain line icons, never pixels
-  if (uiStyle === "oneui") return "line";
+  // Deep UI draws its small controls as plain line icons, never pixels
+  if (uiStyle === "deep") return "line";
   return document.documentElement.dataset.theme === "light" ? "white" : "pixel";
 }
 let iconStyle = "auto";
 let iconTint = DEFAULT_ICON_TINT;
 
-/* ---------- Interface style: "Claude" or "One UI" ----------
-   Two looks over the same screens, not two screens. "Claude" is the bot's
-   own: its colour, tonal icons (Pixel's themed icons) and a Pixel Weather
-   style tile. "One UI" is Samsung's: full-colour app icons, the weather
-   tile as the sky, and oneui.css re-dressing cards, toggles and headers.
+/* ---------- Interface style: "Material You" or "Deep UI" ----------
+   Two looks over the same screens, not two screens. "Material You" is
+   the default, as on a Pixel: the bot's own colour, tonal (themed) app
+   icons and a Pixel Weather style tile. "Deep UI" is deep colour: the
+   full gradient app icons, the weather tile as the sky, and deep.css
+   re-dressing cards, toggles and headers (One UI was the model).
    CSS keys off :root[data-ui]; the few renders that differ ask uiStyle. */
 const UI_STYLE_KEY = "botScreenUiStyle";
-const UI_STYLES = { claude: "uistyle.claude", oneui: "uistyle.oneui" };
-let uiStyle = "claude";
+const UI_STYLES = { material: "uistyle.material", deep: "uistyle.deep" };
+// Names these styles had for their first hour, still in some localStorage
+const UI_STYLE_RENAMED = { claude: "material", oneui: "deep" };
+let uiStyle = "material";
 // The weather tile re-renders on a style switch from what it last showed.
 // Declared here, not in the weather section: applyUiStyle runs at start-up,
 // before the script reaches that section.
 let lastWeather = null;
 
 function applyUiStyle(id, save) {
-  uiStyle = UI_STYLES[id] ? id : "claude";
+  id = UI_STYLE_RENAMED[id] || id;
+  uiStyle = UI_STYLES[id] ? id : "material";
   document.documentElement.dataset.ui = uiStyle;
   if (save) {
     writePref(UI_STYLE_KEY, uiStyle);
@@ -684,7 +688,7 @@ function applyUiStyle(id, save) {
   paintRanges();
 }
 
-/* One UI's sliders fill up to the thumb. A range input cannot style its
+/* Deep UI's sliders fill up to the thumb. A range input cannot style its
    own filled part, so the value goes to CSS as --pct. Dragging paints
    through the input event; values set from code are painted when the
    panel holding them opens. */
@@ -702,10 +706,10 @@ document.addEventListener("input", (e) => {
   if (e.target && e.target.type === "range") paintRange(e.target);
 }, true);
 
-/* App icons in the current style: One UI's colour discs, or Claude's
-   tonal ones in the screen's own colour and theme. */
+/* App icons in the current style: Deep UI's gradient discs, or Material
+   You's tonal ones in the screen's own colour and theme. */
 function appIconOpts() {
-  if (uiStyle === "oneui") return {};
+  if (uiStyle === "deep") return {};
   return { themed: themedColors(iconTint, document.documentElement.dataset.theme === "light" ? "light" : "dark") };
 }
 
@@ -1338,7 +1342,7 @@ volRange.addEventListener("input", () => {
 (function initPrefs() {
   const theme = readPref(THEME_KEY, null);
   if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
-  applyUiStyle(readPref(UI_STYLE_KEY, "claude"));
+  applyUiStyle(readPref(UI_STYLE_KEY, "material"));
 
   idleHomeMs = Number(validOption(readPref(IDLE_HOME_KEY, String(DEFAULT_IDLE_HOME_MS)), IDLE_HOME_OPTIONS, DEFAULT_IDLE_HOME_MS));
   idleSleepMs = Number(validOption(readPref(IDLE_SLEEP_KEY, String(DEFAULT_IDLE_SLEEP_MS)), IDLE_SLEEP_OPTIONS, DEFAULT_IDLE_SLEEP_MS));
@@ -3469,7 +3473,7 @@ function resetScreenPrefs() {
     .forEach(removePref);
   document.documentElement.dataset.theme = "dark";
   document.documentElement.dataset.motion = "full";
-  applyUiStyle("claude");
+  applyUiStyle("material");
   iconStyle = "auto";
   iconTint = DEFAULT_ICON_TINT;
   bright = 100;
@@ -5490,8 +5494,8 @@ function renderWeather(w, city) {
 
   // Hours: every second hour of the next twelve — six columns fit 320 px
   const nextHours = (w.hourly || []).filter((_, i) => i % 2 === 0).slice(0, 6);
-  if (uiStyle === "oneui") fillHoursOneUI(hours, nextHours);
-  else fillHoursPixel(hours, nextHours);
+  if (uiStyle === "deep") fillHoursDeep(hours, nextHours);
+  else fillHoursMaterial(hours, nextHours);
 
   // Details: what the hours page has no room for
   details.innerHTML = "";
@@ -5519,15 +5523,15 @@ function renderWeather(w, city) {
   showWeatherPage(weatherPage);
 
   // Days: name, picture, high and low
-  if (uiStyle === "oneui") fillDaysOneUI(days, w.forecast || []);
-  else fillDaysPixel(days, w.forecast || []);
+  if (uiStyle === "deep") fillDaysDeep(days, w.forecast || []);
+  else fillDaysMaterial(days, w.forecast || []);
 
   weatherAt = w.fetched_at ? w.fetched_at * 1000 : Date.now();
   $("weatherAge").textContent = ago(weatherAt);
 }
 
-/* One UI: plain columns — time, picture, degrees. */
-function fillHoursOneUI(box, list) {
+/* Deep UI: plain columns — time, picture, degrees. */
+function fillHoursDeep(box, list) {
   box.innerHTML = "";
   list.forEach((h, i) => {
     const cell = document.createElement("div");
@@ -5553,7 +5557,7 @@ function fillHoursOneUI(box, list) {
   });
 }
 
-function fillDaysOneUI(box, list) {
+function fillDaysDeep(box, list) {
   box.innerHTML = "";
   list.slice(0, 5).forEach((day, i) => {
     const cell = document.createElement("div");
@@ -5575,11 +5579,11 @@ function fillDaysOneUI(box, list) {
   });
 }
 
-/* Claude (Pixel Weather style): the hours as a temperature curve — the
+/* Material You (Pixel Weather style): the hours as a temperature curve — the
    shape of the day at a glance, degrees riding on it, pictures and times
    underneath. Points sit at the column centres; the curve is a smooth
    path through them, drawn in a stretched SVG with a non-scaling stroke. */
-function fillHoursPixel(box, list) {
+function fillHoursMaterial(box, list) {
   box.innerHTML = "";
   if (!list.length) return;
   const temps = list.map((h) => Number(h.temp)).filter(Number.isFinite);
@@ -5629,7 +5633,7 @@ function fillHoursPixel(box, list) {
 
 /* Days with a range bar each, on one scale for the whole week: a warm
    day's bar sits further right, as in Pixel Weather's list. */
-function fillDaysPixel(box, list) {
+function fillDaysMaterial(box, list) {
   box.innerHTML = "";
   const days = list.slice(0, 5);
   const all = days.flatMap((d) => [Number(d.min), Number(d.max)]).filter(Number.isFinite);

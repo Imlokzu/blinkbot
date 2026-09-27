@@ -1,6 +1,6 @@
 ---
 name: screen-app-icons
-description: Draw or redraw an app icon for the bot's screen (the watch-style app drawer and the store) in its One UI-style look — a gradient disc with one bold white glyph, in Virtual Bot/static/screen/app-icons.js. Use whenever a new screen, a new built-in store package, or a skin needs an icon; when an app shows the grey letter fallback; when someone asks to "draw an icon", "make an app icon", "icon in the same style", or to fix, recolour or restyle one of the existing app icons.
+description: Draw or redraw an app icon for the bot's screen (the watch-style app drawer and the store) in its Deep UI look (and, re-inked, Material You) — a gradient disc with one bold white glyph, in Virtual Bot/static/screen/app-icons.js. Use whenever a new screen, a new built-in store package, or a skin needs an icon; when an app shows the grey letter fallback; when someone asks to "draw an icon", "make an app icon", "icon in the same style", or to fix, recolour or restyle one of the existing app icons.
 ---
 
 # Screen app icons
@@ -12,7 +12,7 @@ how to add one that looks like the rest of the set.
 
 ## The look
 
-The style is One UI / watch: a **full coloured disc** with a top-to-bottom
+The style is Deep UI / watch (modelled on One UI): a **full coloured disc** with a top-to-bottom
 gradient and **one bold white glyph** in the middle. The colour tells you
 which app it is; the glyph only has to read at a glance.
 
@@ -37,9 +37,9 @@ at 96 px.
 ## Two styles, one drawing
 
 Each icon is shown in two interface styles:
-- **One UI** shows it as drawn: the gradient disc, white, `D` and the
+- **Deep UI** shows it as drawn: the gradient disc, white, `D` and the
   accent.
-- **Claude** (the default) re-inks the same glyph as a Pixel themed icon:
+- **Material You** (the default) re-inks the same glyph as a Pixel themed icon:
   - white → the light tone;
   - `D` and any very dark colour → the disc tone;
   - every other colour (the accent) → a middle tone.

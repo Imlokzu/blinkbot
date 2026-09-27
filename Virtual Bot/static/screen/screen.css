@@ -2084,7 +2084,7 @@ html, body {
 }
 
 /* ---------- Weather tile ----------
-   One UI style: the tile is the sky (renderWeather sets --wx-top and
+   Deep UI style: the tile is the sky (renderWeather sets --wx-top and
    --wx-bottom from the weather and the time of day), white type on it, a
    drawn picture, and two frosted cards: the next hours (tap → details)
    and five days. The gradient never animates, so it costs nothing. */
@@ -2159,34 +2159,34 @@ html, body {
 .wx-pager i { width: 3px; height: 3px; border-radius: 50%; background: #fff; opacity: 0.35; }
 .wx-pager i.on { opacity: 0.95; }
 
-/* ---------- Weather tile, "Claude" style (Pixel Weather) ----------
+/* ---------- Weather tile, "Material You" style (Pixel Weather) ----------
    The same tile in the bot's own look: its theme surface with a soft wash
    of the sky at the top instead of the sky itself, tonal cards, the hours
    as a temperature curve and the days with a range bar on one scale. */
-:root:not([data-ui="oneui"]) .tile-weather {
+:root:not([data-ui="deep"]) .tile-weather {
   color: var(--text);
   background: linear-gradient(180deg,
     color-mix(in srgb, var(--wx-top, #71829a) 34%, var(--bg)) 0%,
     color-mix(in srgb, var(--wx-top, #71829a) 10%, var(--bg)) 55%,
     var(--bg) 100%);
 }
-:root:not([data-ui="oneui"]) .wx-top { height: 88px; }
-:root:not([data-ui="oneui"]) .wx-temp { font: 500 44px/1 var(--font); letter-spacing: -0.02em; margin: 3px 0 2px -1px; }
-:root:not([data-ui="oneui"]) .wx-cond { font-weight: 500; }
-:root:not([data-ui="oneui"]) .wx-hilo { color: var(--muted); opacity: 1; }
-:root:not([data-ui="oneui"]) .wx-age { color: var(--muted); opacity: 1; }
-:root:not([data-ui="oneui"]) .wx-art { width: 80px; height: 80px; margin: 0; }
-:root:not([data-ui="oneui"]) .wx-card {
+:root:not([data-ui="deep"]) .wx-top { height: 88px; }
+:root:not([data-ui="deep"]) .wx-temp { font: 500 44px/1 var(--font); letter-spacing: -0.02em; margin: 3px 0 2px -1px; }
+:root:not([data-ui="deep"]) .wx-cond { font-weight: 500; }
+:root:not([data-ui="deep"]) .wx-hilo { color: var(--muted); opacity: 1; }
+:root:not([data-ui="deep"]) .wx-age { color: var(--muted); opacity: 1; }
+:root:not([data-ui="deep"]) .wx-art { width: 80px; height: 80px; margin: 0; }
+:root:not([data-ui="deep"]) .wx-card {
   border: 0;
   border-radius: 16px;
   background: color-mix(in srgb, var(--accent) 9%, var(--panel));
 }
-:root:not([data-ui="oneui"]) .wx-mid { height: 56px; }
-:root:not([data-ui="oneui"]) .wx-days { height: 58px; }
-:root:not([data-ui="oneui"]) .wx-t { color: var(--muted); opacity: 1; }
-:root:not([data-ui="oneui"]) .wx-k { color: var(--muted); opacity: 1; }
-:root:not([data-ui="oneui"]) .wx-pop { color: #5aa9e6; }
-:root:not([data-ui="oneui"]) .wx-pager i { background: var(--text); }
+:root:not([data-ui="deep"]) .wx-mid { height: 56px; }
+:root:not([data-ui="deep"]) .wx-days { height: 58px; }
+:root:not([data-ui="deep"]) .wx-t { color: var(--muted); opacity: 1; }
+:root:not([data-ui="deep"]) .wx-k { color: var(--muted); opacity: 1; }
+:root:not([data-ui="deep"]) .wx-pop { color: #5aa9e6; }
+:root:not([data-ui="deep"]) .wx-pager i { background: var(--text); }
 .wx-hours { position: relative; }
 .wxp-curve { position: absolute; left: 0; right: 6px; top: 11px; height: 22px; pointer-events: none; }
 .wxp-curve svg { width: 100%; height: 100%; display: block; overflow: visible; }

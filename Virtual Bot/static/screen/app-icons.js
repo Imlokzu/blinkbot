@@ -456,7 +456,7 @@ function firstLetter(label) {
 }
 
 /* ------------------------------------------------------------ themed
-   The "Claude" interface style draws the same glyphs as Pixel's themed
+   The "Material You" interface style draws the same glyphs as Pixel's themed
    icons: one tonal disc in the screen's colour and the glyph in a darker
    (light theme) or lighter (dark theme) tone of the same colour. It is
    the same drawing re-inked, so a new design gets its themed look for

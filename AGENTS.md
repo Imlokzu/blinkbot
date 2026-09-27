@@ -226,7 +226,8 @@ Read `Virtual Bot/docs/SCREEN-PLATFORM.md` before writing one.
 
 **Every app needs its own icon** in the drawer and the store. Icons are
 drawn in code in `Virtual Bot/static/screen/app-icons.js`, a gradient disc
-with one bold white glyph in the One UI style, not as image files. To add
+with one bold white glyph (Deep UI, re-inked tonally for Material You),
+not as image files. To add
 or restyle one, follow the skill
 `.agents/skills/screen-app-icons/SKILL.md`: its rules, palette, helpers,
 test and visual check. A new built-in package without a design fails

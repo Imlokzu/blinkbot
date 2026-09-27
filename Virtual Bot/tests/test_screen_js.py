@@ -445,7 +445,7 @@ console.log(JSON.stringify([m.progress("bottom", 0, 20), m.progress("bottom", 0,
 
 @needs_node
 class TestInterfaceStyles:
-    """Two interface styles over one screen: "Claude" (default) and "One UI"."""
+    """Two interface styles over one screen: "Material You" (default) and "Deep UI"."""
 
     def test_themed_icons_use_only_their_three_tones(self):
         import re
@@ -474,11 +474,11 @@ console.log(JSON.stringify([lum(d.bg) < lum(d.fg), lum(l.bg) > lum(l.fg), m.mixH
 """)
         assert result == [True, True, "#808080"]
 
-    def test_one_ui_css_never_touches_the_claude_style(self):
-        # Every rule in oneui.css must be scoped to :root[data-ui="oneui"];
+    def test_deep_css_never_touches_the_material_style(self):
+        # Every rule in deep.css must be scoped to :root[data-ui="deep"];
         # an unscoped one would quietly restyle the default look.
         import re
-        css = (SCREEN / "oneui.css").read_text("utf-8")
+        css = (SCREEN / "deep.css").read_text("utf-8")
         css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
         selectors = re.findall(r"([^{}]+)\{", css)
         unscoped = []
@@ -487,13 +487,13 @@ console.log(JSON.stringify([lum(d.bg) < lum(d.fg), lum(l.bg) > lum(l.fg), m.mixH
                 sel = sel.strip()
                 if not sel or sel.startswith("@") or sel in ("from", "to") or sel.endswith("%"):
                     continue
-                if not sel.startswith(':root[data-ui="oneui"]'):
+                if not sel.startswith(':root[data-ui="deep"]'):
                     unscoped.append(sel)
         assert unscoped == []
 
     def test_styles_are_worded_and_linked(self):
         i18n = (SCREEN / "i18n.js").read_text("utf-8")
-        for key in ("set.uiStyle", "uistyle.claude", "uistyle.oneui"):
+        for key in ("set.uiStyle", "uistyle.material", "uistyle.deep"):
             assert i18n.count(f'"{key}"') == 2, key
         html = (SCREEN / "index.html").read_text("utf-8")
-        assert 'href="/static/screen/oneui.css"' in html and 'data-ui="claude"' in html
+        assert 'href="/static/screen/deep.css"' in html and 'data-ui="material"' in html
