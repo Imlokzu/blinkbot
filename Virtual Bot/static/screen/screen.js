@@ -4557,6 +4557,7 @@ async function refreshInstalledApps() {
       pkg: pkg.id,
       title: pkgText(pkg, "label") || pkg.id,
       source: pkg.source || "builtin",
+      version: pkg.version || "",
     }));
   } catch (e) {
     installedApps = [];
@@ -4673,7 +4674,10 @@ function openStoreApp(entry, opts) {
     const frame = document.createElement("iframe");
     frame.className = "storeapp-frame";
     // opts.hash: where to land inside the app ("#player" from the island)
-    frame.src = "/store-apps/" + encodeURIComponent(entry.pkg) + "/index.html" + ((opts && opts.hash) || "");
+    // ?v=: a new version is a new address, so no browser cache can keep
+    // showing the old app (the server also says no-cache)
+    frame.src = "/store-apps/" + encodeURIComponent(entry.pkg) + "/index.html" +
+      (entry.version ? "?v=" + encodeURIComponent(entry.version) : "") + ((opts && opts.hash) || "");
     frame.title = entry.title || entry.pkg;
     // dataset.pkg — щоб команди бота знайшли САМЕ той застосунок, а не
     // будь-який відкритий (перевірка в videoFrame)
