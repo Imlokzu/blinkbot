@@ -54,8 +54,8 @@
   .ctl button svg { width: 13px; height: 13px; display: block; margin: 0 auto; }
   .ib { display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
 
-  /* Mode row + status. The mode is REMEMBERED, so a tap on a card plays at
-     once — no second question about how. */
+  /* Sort row + status. The order is REMEMBERED: whoever wants the newest
+     uploads does not want to pick it again on every search. */
   .row2 { display: flex; align-items: center; gap: 6px; flex: none; min-height: 20px; }
   .seg { display: flex; flex: none; border: 1px solid var(--line, #2f3438);
     border-radius: 10px; overflow: hidden; }
@@ -107,6 +107,13 @@
     margin-right: 3px; border-radius: 50%; background: currentColor;
     vertical-align: 1px; }
 
+  /* "More videos" under the results: a full-width row, not a card, so it
+     never reads as one more video. */
+  .more { grid-column: 1 / -1; height: 28px; border-radius: 14px; cursor: pointer;
+    background: var(--panel, #1e2124); color: var(--text, #e8e4dc);
+    border: 1px solid var(--line, #2f3438); font-size: 11px; }
+  .more:disabled { color: var(--muted, #8e9498); }
+
   .hint { grid-column: 1 / -1; padding: 6px 2px; font-size: 10.5px;
     line-height: 1.45; color: var(--muted, #8e9498); }
   .hint b { color: var(--text, #e8e4dc); }
@@ -156,6 +163,18 @@
     text-align: center; font-size: 11px; line-height: 1.45;
     color: var(--muted, #8e9498); }
   .vmsg.on { display: flex; }
+
+  /* Full screen: the picture takes the whole panel and the bars float over
+     it. They fade (opacity only) instead of leaving the layout, so the video
+     never jumps when they come and go. A tap brings them back. */
+  .player.full .ptop, .player.full .ctl { position: absolute; left: 0; right: 0; z-index: 2;
+    opacity: 0; pointer-events: none; transition: opacity .18s linear;
+    background: color-mix(in srgb, var(--panel, #1e2124) 82%, transparent); }
+  .player.full .ptop { top: 0; }
+  .player.full .ctl { bottom: 0; }
+  .player.full.chrome .ptop, .player.full.chrome .ctl { opacity: 1; pointer-events: auto; }
+  .player.full video { height: 100%; object-fit: contain; }
+  .player.full .vmsg { inset: 0; }
 
   /* "Skipped" pill: opacity only, no reflow, does not catch taps. */
   .skipped { position: absolute; left: 6px; bottom: 36px; max-width: 260px;
@@ -221,9 +240,9 @@
     <button id="cog" class="icon" type="button" data-i18n-aria="settings.aria" data-icon="settings"></button>
   </div>
   <div class="row2">
-    <div class="seg" id="mode" role="group" data-i18n-aria="mode.aria">
-      <button type="button" class="ib" data-mode="video"><span class="i" data-icon="play"></span><span data-i18n="mode.video"></span></button>
-      <button type="button" class="ib" data-mode="audio"><span class="i" data-icon="music"></span><span data-i18n="mode.audio"></span></button>
+    <div class="seg" id="sort" role="group" data-i18n-aria="sort.aria">
+      <button type="button" data-sort="relevance" data-i18n="sort.relevance"></button>
+      <button type="button" data-sort="date" data-i18n="sort.date"></button>
     </div>
     <div class="status" id="status"></div>
   </div>
@@ -252,6 +271,7 @@
     <button id="cc" type="button" data-i18n="player.cc" data-i18n-aria="player.ccAria"></button>
     <button id="lines" type="button" data-i18n-aria="player.linesAria" data-icon="list"></button>
     <button id="rate" type="button" data-i18n-aria="player.rate">1x</button>
+    <button id="full" type="button" data-i18n-aria="player.fullAria" data-icon="expand"></button>
   </div>
 </div>
 
@@ -309,9 +329,9 @@
   </div>
 </div>
 <script>
-  // YouTube client for the 320x240 screen.
+  // YouTube client for the 320x240 screen. Video only: music has its own
+  // app (yt-music), and the bot's play_music goes to Now Playing.
   //   search     -> /api/music/search (yt-dlp on the backend, no keys)
-  //   audio      -> /api/music/play: SSE to the bot, plays in Now Playing
   //   video      -> /api/music/video: muxed mp4 straight into <video>
   //   sponsors   -> /api/video/segments: SponsorBlock segments to jump over
   //   captions   -> /api/music/transcript: segments shown over the video
@@ -327,24 +347,22 @@
       "search.aria": "Пошук",
       "search.go": "Шукати",
       "settings.aria": "Налаштування",
-      "mode.aria": "Режим відтворення",
-      "mode.video": "Відео",
-      "mode.audio": "Звук",
+      "sort.aria": "Порядок результатів",
+      "sort.relevance": "Найкращі",
+      "sort.date": "Нові",
+      "search.more": "Ще відео",
+      "search.loadingMore": "Довантажую…",
       "common.back": "Назад",
       "status.idle": "Пошук по YouTube.",
       "status.searching": "Шукаю «{q}»…",
-      "status.found": "Знайдено: {n}. Тап — {what}.",
-      "status.watch": "дивитись",
-      "status.listen": "слухати",
+      "status.found": "Знайдено: {n}.",
       "status.nothing": "Нічого не знайшлось.",
       "status.searchDown": "Пошук недоступний.",
       "status.offline": "Бот недоступний.",
       "status.live": "Прямий ефір поки не граємо — тільки записи.",
-      "status.starting": "Вмикаю: {title}",
-      "status.playing": "Грає в Now Playing угорі: {title}",
       "status.failed": "Не вийшло: {error}",
       "status.ads": "Знайдено вклеєної реклами: {time}",
-      "home.hint": "Два режими. <b>Відео</b> — грає тут, з картинкою. <b>Звук</b> — іде в <b>Now Playing</b> угорі екрана й не спиняється, коли застосунок закрито. Вклеєну рекламу плеєр пропускає сам.",
+      "home.hint": "Відео грає тут, а кнопка з рамкою розгортає його <b>на весь екран</b>. Вклеєну рекламу плеєр пропускає сам. Музика живе окремо — у застосунку <b>YT Music</b>.",
       "home.continue": "Продовжити перегляд",
       "home.recent": "Нещодавні пошуки",
       "card.live": "ЕФІР",
@@ -360,7 +378,8 @@
       "player.tapToPlay": "Тапни кнопку пуску, щоб почати.",
       "player.tapToResume": "Тапни кнопку пуску, щоб продовжити.",
       "player.buffering": "Буферизую…",
-      "player.error": "Відео не пішло. Спробуй режим «Звук» — він іде іншим шляхом.",
+      "player.error": "Відео не пішло. Спробуй ще раз або інше відео.",
+      "player.fullAria": "На весь екран",
       "player.startFailed": "Не вдалося запустити.",
       "player.skipped": "{label} — {time}",
       "player.ad": "реклама",
@@ -385,24 +404,22 @@
       "search.aria": "Search",
       "search.go": "Search",
       "settings.aria": "Settings",
-      "mode.aria": "Playback mode",
-      "mode.video": "Video",
-      "mode.audio": "Audio",
+      "sort.aria": "Result order",
+      "sort.relevance": "Top",
+      "sort.date": "Newest",
+      "search.more": "More videos",
+      "search.loadingMore": "Loading more…",
       "common.back": "Back",
       "status.idle": "Search YouTube.",
       "status.searching": "Searching “{q}”…",
-      "status.found": "Found {n}. Tap to {what}.",
-      "status.watch": "watch",
-      "status.listen": "listen",
+      "status.found": "Found {n}.",
       "status.nothing": "Nothing found.",
       "status.searchDown": "Search unavailable.",
       "status.offline": "The bot is offline.",
       "status.live": "Live streams can't play yet — recordings only.",
-      "status.starting": "Starting: {title}",
-      "status.playing": "Playing in Now Playing: {title}",
       "status.failed": "Failed: {error}",
       "status.ads": "Sponsor segments found: {time}",
-      "home.hint": "Two modes. <b>Video</b> plays here, with picture. <b>Audio</b> goes to <b>Now Playing</b> at the top and keeps going after you close the app. Sponsor segments are skipped automatically.",
+      "home.hint": "Videos play here; the frame button makes them <b>full screen</b>. Sponsor segments are skipped automatically. Music has its own app — <b>YT Music</b>.",
       "home.continue": "Continue watching",
       "home.recent": "Recent searches",
       "card.live": "LIVE",
@@ -418,7 +435,8 @@
       "player.tapToPlay": "Tap play to start.",
       "player.tapToResume": "Tap play to continue.",
       "player.buffering": "Buffering…",
-      "player.error": "The video didn't start. Try Audio mode — it takes a different path.",
+      "player.error": "The video didn't start. Try again or pick another one.",
+      "player.fullAria": "Full screen",
       "player.startFailed": "Couldn't start.",
       "player.skipped": "{label} — {time}",
       "player.ad": "sponsor",
@@ -470,7 +488,7 @@
 
   const ICONS = {
     // Copied VERBATIM from static/screen/icons.js (play, pause, next,
-    // settings, music, list) so the screen never shows two near-identical
+    // settings, music, list, expand) so the screen never shows two near-identical
     // versions of one icon. "back" follows device-settings.
     play:     '<path d="M8 5.4v13.2L19.2 12z"/>',
     pause:    '<path d="M8.6 5.5v13M15.4 5.5v13"/>',
@@ -486,6 +504,7 @@
     // transport icons read the same size in a row.
     rewind:   '<path d="M11.5 6.6 5 12l6.5 5.4z"/><path d="M19 6.6 12.5 12l6.5 5.4z"/>',
     forward:  '<path d="M12.5 6.6 19 12l-6.5 5.4z"/><path d="M5 6.6 11.5 12 5 17.4z"/>',
+    expand:   '<path d="M8.5 3.5H3.5v5M15.5 3.5h5v5M20.5 15.5v5h-5M3.5 15.5v5h5"/>',
   };
 
   function iconSvg(name) {
@@ -498,13 +517,20 @@
   const q = $("q"), go = $("go"), grid = $("grid"), status = $("status");
   const player = $("player"), video = $("v"), vmsg = $("vmsg"), sheet = $("sheet");
   const KEY = "youtube.lastQuery";
-  const MODE_KEY = "youtube.mode";
+  const SORT_KEY = "youtube.sort";
+  const FULL_KEY = "youtube.full";
   const HISTORY_KEY = "youtube.history";
   const SEARCHES_KEY = "youtube.searches";
   const CAPTIONS_KEY = "youtube.captions";
   const RATES = [1, 1.25, 1.5, 1.75, 2];
 
-  let mode = "video";
+  // One YouTube results page is ~20 videos and ~2 s; "More" adds a page up
+  // to the backend ceiling (music.SEARCH_MAX), which it enforces anyway.
+  const PAGE = 24;
+  const MAX_RESULTS = 48;
+  let sort = "relevance";
+  let searchLimit = PAGE;
+  let searchSeq = 0;           // a newer search wins over a slow older one
   let rateIdx = 0;
   let seekRaf = false;
   let current = null;          // track in the player
@@ -703,16 +729,19 @@
   });
   $("sback").addEventListener("click", () => { sheet.classList.remove("on"); });
 
-  /* ---------- mode ---------- */
+  /* ---------- sort order ---------- */
 
-  function setMode(next) {
-    mode = next === "audio" ? "audio" : "video";
-    storageSet(MODE_KEY, mode);
-    for (const b of $("mode").querySelectorAll("button")) b.classList.toggle("on", b.dataset.mode === mode);
+  function setSort(next, rerun) {
+    const changed = next !== sort;
+    sort = next === "date" ? "date" : "relevance";
+    storageSet(SORT_KEY, sort);
+    for (const b of $("sort").querySelectorAll("button")) b.classList.toggle("on", b.dataset.sort === sort);
+    // Switching the order on shown results means "show them the other way".
+    if (rerun && changed && lastTracks.length) search();
   }
-  $("mode").addEventListener("click", (e) => {
-    const b = e.target.closest("button[data-mode]");
-    if (b) setMode(b.dataset.mode);
+  $("sort").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-sort]");
+    if (b) setSort(b.dataset.sort, true);
   });
 
   /* ---------- results ---------- */
@@ -773,69 +802,76 @@
 
   function render(tracks) {
     lastTracks = tracks;
+    // Keep the scroll position: "More" re-renders the list, and jumping back
+    // to the top would lose the place the finger was at.
+    const top = grid.scrollTop;
     grid.innerHTML = "";
     if (!tracks.length) { say("status.nothing"); return; }
     for (const item of tracks) grid.appendChild(card(item));
-    say("status.found", { n: tracks.length, what: t(mode === "video" ? "status.watch" : "status.listen") });
+    // A full page means YouTube probably has more; a short one means it ran out.
+    if (tracks.length >= searchLimit && searchLimit < MAX_RESULTS) {
+      const more = document.createElement("button");
+      more.type = "button";
+      more.className = "more";
+      more.textContent = t("search.more");
+      more.addEventListener("click", () => {
+        more.disabled = true;
+        more.textContent = t("search.loadingMore");
+        search(true);
+      });
+      grid.appendChild(more);
+    }
+    grid.scrollTop = top;
+    say("status.found", { n: tracks.length });
   }
 
-  async function search() {
+  // more === true: the same query, one page longer (the button, not the event
+  // object a click listener would pass in).
+  async function search(more) {
     const query = q.value.trim();
     if (!query) { renderHome(); return; }
-    storageSet(KEY, query);
-    rememberSearch(query);
-    say("status.searching", { q: query });
-    grid.innerHTML = "";
+    const seq = ++searchSeq;
+    if (more === true) {
+      searchLimit = Math.min(MAX_RESULTS, searchLimit + PAGE);
+    } else {
+      searchLimit = PAGE;
+      storageSet(KEY, query);
+      rememberSearch(query);
+      say("status.searching", { q: query });
+      grid.innerHTML = "";
+      grid.scrollTop = 0;
+    }
     go.disabled = true;
     try {
-      // limit=8 is the endpoint's own ceiling; 10 returned 422.
-      const r = await fetch("/api/music/search?q=" + encodeURIComponent(query) + "&limit=8");
+      const r = await fetch("/api/music/search?q=" + encodeURIComponent(query) +
+        "&limit=" + searchLimit + "&sort=" + sort);
+      if (seq !== searchSeq) return;
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
         status.textContent = detailText(err, t("status.searchDown"));
+        if (more === true && lastTracks.length) render(lastTracks);
         return;
       }
       const d = await r.json();
+      if (seq !== searchSeq) return;
       render(d.tracks || []);
     } catch (e) {
-      say("status.offline");
+      if (seq === searchSeq) say("status.offline");
     } finally {
-      go.disabled = false;
+      if (seq === searchSeq) go.disabled = false;
     }
   }
 
-  go.addEventListener("click", search);
+  go.addEventListener("click", () => search());
   q.addEventListener("keydown", (e) => { if (e.key === "Enter") search(); });
   q.addEventListener("search", () => { if (!q.value.trim()) renderHome(); });
 
-  /* ---------- play in the chosen mode ---------- */
+  /* ---------- play ---------- */
 
-  function start(item, btn) {
+  function start(item) {
     // A live stream has only HLS; say so now instead of "playing" and silence.
     if (item.live) { say("status.live"); return; }
-    if (mode === "video") openVideo(item, item.position || 0);
-    else playAudio(item, btn);
-  }
-
-  async function playAudio(item, btn) {
-    if (btn) btn.disabled = true;
-    say("status.starting", { title: item.title }, true);
-    try {
-      const r = await fetch("/api/music/play", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: item.id, title: item.title, uploader: item.uploader || "", duration: item.duration || 0 }),
-      });
-      if (!r.ok) {
-        const err = await r.json().catch(() => ({}));
-        say("status.failed", { error: detailText(err, String(r.status)) });
-      } else {
-        say("status.playing", { title: item.title }, true);
-      }
-    } catch (e) {
-      say("status.offline");
-    }
-    if (btn) btn.disabled = false;
+    openVideo(item, item.position || 0);
   }
 
   /* ---------- the video player ---------- */
@@ -865,6 +901,8 @@
     $("transcript").classList.remove("on");
     $("ptitle").textContent = item.title || t("player.untitled");
     player.classList.add("on");
+    // Whoever watched the last video full screen gets the next one that way.
+    setFull(storageGet(FULL_KEY, "0") === "1", false);
     // Now Playing and video are two sound sources; without this they would
     // play TOGETHER.
     try { await fetch("/api/music/stop", { method: "POST" }); } catch (e) { /* not critical */ }
@@ -904,6 +942,7 @@
     try { video.load(); } catch (e) { /* ignore */ }
     vsay("");
     current = null;
+    setFull(false, false);
     resetSkips();
     resetCaptions();
     stopStateReports();
@@ -912,9 +951,52 @@
   }
   $("pback").addEventListener("click", closeVideo);
 
-  video.addEventListener("playing", () => { vsay(""); setPlayIcon(true); startStateReports(); pushState(); });
+  /* ---------- full screen ----------
+     The app sits in the screen's app layer, under its title bar. Full screen
+     asks the parent to drop that bar and its padding (storeAppFullscreen),
+     and here the controls float over the picture and fade away — the video
+     gets the whole 320x240 panel. A tap on the picture brings them back. */
+
+  const CHROME_MS = 3000;
+  let full = false, chromeTimer = 0;
+
+  function setFull(on, remember) {
+    full = !!on;
+    if (remember !== false) storageSet(FULL_KEY, full ? "1" : "0");
+    player.classList.toggle("full", full);
+    $("full").classList.toggle("on", full);
+    try { window.parent.postMessage({ type: "storeAppFullscreen", on: full }, "*"); } catch (e) { /* standalone */ }
+    if (full) showChrome();
+    else { clearTimeout(chromeTimer); player.classList.remove("chrome"); }
+  }
+  // Shown bars hide again after a pause in touching — but never while the
+  // video is paused: then the controls are exactly what you need.
+  function showChrome() {
+    player.classList.add("chrome");
+    clearTimeout(chromeTimer);
+    chromeTimer = setTimeout(() => {
+      if (full && !video.paused) player.classList.remove("chrome");
+    }, CHROME_MS);
+  }
+  $("full").addEventListener("click", () => setFull(!full));
+  player.querySelector(".vbox").addEventListener("click", () => {
+    if (!full) return;
+    if (player.classList.contains("chrome") && !video.paused) {
+      clearTimeout(chromeTimer);
+      player.classList.remove("chrome");
+    } else {
+      showChrome();
+    }
+  });
+  // Any touch on the bars themselves keeps them up.
+  for (const bar of player.querySelectorAll(".ptop, .ctl")) {
+    bar.addEventListener("pointerdown", () => { if (full) showChrome(); });
+  }
+
+  video.addEventListener("playing", () => { vsay(""); setPlayIcon(true); startStateReports(); pushState(); if (full) showChrome(); });
   video.addEventListener("pause", () => {
     setPlayIcon(false);
+    if (full) showChrome();
     pushState();
     if (current) rememberWatch(current, video.currentTime, video.duration);
   });
@@ -1222,7 +1304,6 @@
     if (action === "play") {
       const tr = cmd.track || {};
       if (!tr.id) return;
-      setMode("video");
       sheet.classList.remove("on");
       await openVideo({
         id: tr.id,
@@ -1293,7 +1374,7 @@
   applyI18n();
   paintIcons();
   setPlayIcon(false);
-  setMode(storageGet(MODE_KEY, "video"));
+  setSort(storageGet(SORT_KEY, "relevance"), false);
   loadSettings();
   q.value = storageGet(KEY, "");
   if (q.value) search(); else renderHome();

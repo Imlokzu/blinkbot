@@ -137,12 +137,25 @@ _YDL_BASE: dict[str, Any] = {
 }
 
 
-def _search_sync(query: str, limit: int) -> list[dict[str, Any]]:
-    """Блокуючий пошук yt-dlp — викликати only через asyncio.to_thread."""
+# Search sort orders: yt-dlp's own search prefixes. "date" is YouTube's
+# "upload date" filter, i.e. newest first.
+SEARCH_SORTS = {"relevance": "ytsearch", "date": "ytsearchdate"}
+# Ceiling for one search. YouTube pages come ~20 results at a time, so 48 is
+# about three page fetches (~2-4 s) — past that the screen waits too long.
+SEARCH_MAX = 48
+# Extra results asked for on top of the limit: the first hit for a name is
+# usually a channel, which is filtered out below. Asking for exactly `limit`
+# is why a search for 8 used to come back with 7.
+_SEARCH_SLACK = 3
+
+
+def _search_sync(query: str, limit: int, sort: str = "relevance") -> list[dict[str, Any]]:
+    """Blocking yt-dlp search — call only through asyncio.to_thread."""
     opts = dict(_YDL_BASE)
-    opts["extract_flat"] = "in_playlist"   # метадані без витягу стрімів — швидко
+    opts["extract_flat"] = "in_playlist"   # metadata without extracting streams — fast
+    prefix = SEARCH_SORTS.get(sort, "ytsearch")
     with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(f"ytsearch{limit}:{query}", download=False)
+        info = ydl.extract_info(f"{prefix}{limit + _SEARCH_SLACK}:{query}", download=False)
     entries = (info or {}).get("entries") or []
     out: list[dict[str, Any]] = []
     for entry in entries:
@@ -171,23 +184,29 @@ def _search_sync(query: str, limit: int) -> list[dict[str, Any]]:
             "live": live,
             "provider": "youtube",
         })
+        if len(out) >= limit:
+            break
     return out
 
 
-async def search(query: str, limit: int = 5) -> list[dict[str, Any]]:
-    """Пошук треків на YouTube. Повертає [] якщо yt-dlp немає/помилка мережі."""
+async def search(query: str, limit: int = 5, sort: str = "relevance") -> list[dict[str, Any]]:
+    """Search YouTube videos. Returns [] when yt-dlp is missing or the network fails.
+
+    sort: "relevance" (YouTube's default order) or "date" (newest first).
+    """
     if yt_dlp is None:
         return []
     query = (query or "").strip()[:200]
     if not query:
         return []
-    limit = max(1, min(8, int(limit)))
-    key = f"{query}|{limit}"
+    limit = max(1, min(SEARCH_MAX, int(limit)))
+    sort = sort if sort in SEARCH_SORTS else "relevance"
+    key = f"{query}|{limit}|{sort}"
     cached = _SEARCH_CACHE.get(key)
     if cached and time.monotonic() - cached[0] < _SEARCH_TTL_S:
         return cached[1]
     try:
-        tracks = await asyncio.to_thread(_search_sync, query, limit)
+        tracks = await asyncio.to_thread(_search_sync, query, limit, sort)
     except Exception as exc:  # noqa: BLE001 — мережа/юнікод/любий збій yt-dlp
         log.warning("Пошук yt-dlp не вдався: %s: %s", type(exc).__name__, exc)
         return []

@@ -81,6 +81,70 @@ def test_search_without_ytdlp_returns_empty(monkeypatch):
     assert run_async(music.search("lofi")) == []
 
 
+class _FakeYDL:
+    """Stands in for yt_dlp.YoutubeDL: records the search string and returns
+    a channel first, the way a real search for a name does."""
+
+    calls: list[str] = []
+
+    def __init__(self, opts):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def extract_info(self, url, download=False):
+        _FakeYDL.calls.append(url)
+        count = int(url.split(":", 1)[0].lstrip("ytsearchdate"))
+        channel = {"id": "UC" + "x" * 22, "title": "A channel", "_type": "url"}
+        videos = [{"id": f"vid{i:08d}", "title": f"Video {i}"} for i in range(count - 1)]
+        return {"entries": [channel] + videos}
+
+
+def test_search_fills_the_limit_despite_a_channel_and_sorts_by_date(monkeypatch):
+    # A search for 8 used to come back with 7: yt-dlp was asked for exactly
+    # 8, and the channel in first place was filtered out.
+    class FakeModule:
+        YoutubeDL = _FakeYDL
+
+    monkeypatch.setattr(music, "yt_dlp", FakeModule)
+    music._SEARCH_CACHE.clear()
+    _FakeYDL.calls = []
+
+    tracks = run_async(music.search("taras topolia", limit=24))
+    assert len(tracks) == 24
+    assert all(len(t["id"]) == 11 for t in tracks)
+    assert _FakeYDL.calls[-1].startswith("ytsearch27:")
+
+    newest = run_async(music.search("taras topolia", limit=24, sort="date"))
+    assert len(newest) == 24
+    assert _FakeYDL.calls[-1].startswith("ytsearchdate27:")
+
+    # Unknown order falls back to relevance; the ceiling holds.
+    run_async(music.search("x", limit=500, sort="bogus"))
+    assert _FakeYDL.calls[-1] == f"ytsearch{music.SEARCH_MAX + 3}:x"
+
+
+def test_search_endpoint_accepts_pages_and_sort(monkeypatch):
+    from main import app
+
+    seen = []
+
+    async def fake_search(query, limit=5, sort="relevance"):
+        seen.append((query, limit, sort))
+        return [{"provider": "youtube", "id": "aaaaaaaaaaa", "title": "T", "uploader": "", "duration": 1}]
+
+    monkeypatch.setattr(music, "search", fake_search)
+    with TestClient(app) as client:
+        assert client.get("/api/music/search", params={"q": "a", "limit": 48, "sort": "date"}).status_code == 200
+        assert seen[-1] == ("a", 48, "date")
+        assert client.get("/api/music/search", params={"q": "a", "limit": 49}).status_code == 422
+        assert client.get("/api/music/search", params={"q": "a", "sort": "views"}).status_code == 422
+
+
 def test_audio_url_invidious_first_then_cached(monkeypatch):
     calls = {"probe": 0, "extract": 0}
 

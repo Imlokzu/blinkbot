@@ -621,6 +621,10 @@ html, body {
   transition: transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 160ms ease;
 }
 .layer-app.open { transform: scale(1); opacity: 1; pointer-events: auto; }
+/* A store app asked for full screen (storeAppFullscreen): no title bar and
+   no padding, the iframe takes the whole panel. */
+.layer-app.full { padding: 0; }
+.layer-app.full > .layer-head { display: none; }
 
 .app-body {
   flex: 1;

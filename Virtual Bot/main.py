@@ -1315,8 +1315,10 @@ async def api_music_status() -> dict:
 
 
 @app.get("/api/music/search")
-async def api_music_search(q: str = Query(min_length=1, max_length=200), limit: int = Query(default=5, ge=1, le=8)) -> dict:
-    tracks = await music.search(q, limit)
+async def api_music_search(q: str = Query(min_length=1, max_length=200),
+                           limit: int = Query(default=5, ge=1, le=music.SEARCH_MAX),
+                           sort: str = Query(default="relevance", pattern="^(relevance|date)$")) -> dict:
+    tracks = await music.search(q, limit, sort)
     if not tracks:
         detail = "Пошук недоступний: встанови yt-dlp (pip install yt-dlp)" if music.yt_dlp is None \
             else "Нічого не знайшлось або YouTube не відповів"

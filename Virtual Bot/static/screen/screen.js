@@ -3016,6 +3016,7 @@ function openAppLayer(titleKey, build) {
   // iframe in a border it never asked for.
   appBody.className = "app-body";
   appBody.removeAttribute("style");
+  layerApp.classList.remove("full");     // full screen belongs to one app only
   build(appBody);
   layerApp.classList.add("open");
   stage.classList.add("layered");
@@ -3038,7 +3039,7 @@ function closeAppLayer() {
   // The keyboard may be typing into this app's field; that field is gone
   if (osk) osk.close(true);
   openApp = null;
-  layerApp.classList.remove("open");
+  layerApp.classList.remove("open", "full");
   appBody.innerHTML = "";                 // MJPEG-стрім інакше тягнеться далі
   if (!layer && !appsOpen()) stage.classList.remove("layered");
 }
@@ -4434,6 +4435,9 @@ window.addEventListener("message", (event) => {
   const expected = frame.dataset.sandboxed === "1" ? "null" : window.location.origin;
   if (event.origin !== expected) return;
   if (event.data?.type === "closeStoreApp") closeAppLayer();
+  // The app asked for the whole panel (the YouTube player): the layer drops
+  // its title bar and padding. The app keeps its own way back.
+  if (event.data?.type === "storeAppFullscreen") layerApp.classList.toggle("full", !!event.data.on);
   if (event.data?.type === "storeAppSwipe" && ["left", "right", "down"].includes(event.data.direction)) closeAppLayer();
   if (event.data?.type === "botKeyboard") onAppKeyboardRequest(frame, event.data);
 });

@@ -4,15 +4,15 @@
   "label": "YouTube",
   "icon": "youtube",
   "tint": "#d95a5a",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "author": "Клод Бот",
-  "description": "Відео й музика з YouTube: пошук, продовження перегляду, субтитри, пропуск вклеєної реклами. Бот керує голосом.",
+  "description": "Відео з YouTube: пошук із найновішими, повний екран, продовження перегляду, субтитри, пропуск вклеєної реклами. Музика — у YT Music.",
   "entry": "index.html",
   "category": "media",
   "locales": {
     "en": {
       "label": "YouTube",
-      "description": "YouTube video and music: search, continue watching, captions, sponsor skipping. Voice-controlled by the bot."
+      "description": "YouTube video: search with newest-first, full screen, continue watching, captions, sponsor skipping. Music lives in YT Music."
     }
   }
 }
