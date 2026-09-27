@@ -364,3 +364,17 @@ func TestFormatSessionWithoutState(t *testing.T) {
 		t.Errorf("empty state should read STARTING:\n%s", out)
 	}
 }
+
+func TestSilentProgressUpdatesAreSkipped(t *testing.T) {
+	var acts []Activity
+	raw := `[{"createTime":"2026-09-27T09:45:22Z","originator":"agent","progressUpdated":{},
+	          "artifacts":[{"changeSet":{"gitPatch":{"unidiffPatch":"x"}}}]},
+	         {"createTime":"2026-09-27T09:45:48Z","originator":"agent","progressUpdated":{"title":"Replaced comments"}}]`
+	if err := json.Unmarshal([]byte(raw), &acts); err != nil {
+		t.Fatal(err)
+	}
+	out := formatActivities(acts, 0)
+	if strings.Count(out, "\n") != 1 || !strings.Contains(out, "Replaced comments") {
+		t.Errorf("want one line, got:\n%q", out)
+	}
+}

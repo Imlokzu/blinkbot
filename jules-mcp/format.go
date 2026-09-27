@@ -64,6 +64,16 @@ func formatSessionLine(s *Session) string {
 // the command and a failing exit code — the full logs are noise here and are
 // one click away in the web app.
 func formatActivities(acts []Activity, n int) string {
+	// Jules posts a silent progress update with every patch snapshot; drop
+	// them before counting so "last n" means n lines worth reading.
+	kept := acts[:0:0]
+	for _, a := range acts {
+		if p := a.ProgressUpdated; p != nil && p.Title == "" && p.Description == "" {
+			continue
+		}
+		kept = append(kept, a)
+	}
+	acts = kept
 	if n > 0 && len(acts) > n {
 		acts = acts[len(acts)-n:]
 	}
@@ -88,6 +98,9 @@ func formatActivities(acts []Activity, n int) string {
 			fmt.Fprintf(&b, "[%s] plan approved\n", ts)
 		case a.ProgressUpdated != nil:
 			line := a.ProgressUpdated.Title
+			if line == "" {
+				line = a.ProgressUpdated.Description
+			}
 			if line == "Ran bash command" {
 				line = bashSummary(a)
 			}
