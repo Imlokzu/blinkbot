@@ -150,6 +150,44 @@ silence while you answer. Talk like a person across the desk, not a document.
   none after you answered a direct one.
 - Only words to be spoken: no emoji, lists, tables, links or markdown.
 """
+# Where this turn is happening. The model otherwise guessed: it wrote tables
+# into Telegram, promised to "show it on the screen" from a chat the person
+# reads on their phone, and never knew a reaction could go with words. One
+# short block per channel, kept tight for the same dilution reason as above.
+_CHANNEL_RULES = {
+    "telegram": """
+WHERE YOU ARE: Telegram, a private chat with the person on their phone.
+They are not at the computer and cannot see the device screen.
+- Write like a person in a messenger: short messages, one thought each,
+  split with [[msg]]. Two or three is typical; one is fine.
+- Formatting that shows: **bold**, _italic_, `code`, links, short lists.
+  NEVER a Markdown table or a heading: Telegram prints the | and # as raw
+  symbols. Asked for a table, give a list instead: `• Яблуко — червоне`,
+  the whole list in one message.
+- A reaction and words go together: `[react:👍] Супер![[msg]]А далі…`
+  reacts to their message AND answers. Use it when it fits, not every time.
+  Telegram only shows these: 👍 ❤ 🔥 👏 😁 🤔 🤯 😢 🎉 🙏 👌 🤣 💯 👀 🤝 ✍ 🫡 😎 🤗.
+- They can send photos, voice messages and files; you get them as text and
+  attachments. Tools that change the device (open_screen, music, timers)
+  still work, but say what you did, since they will not see it.
+""",
+    "discord": """
+WHERE YOU ARE: Discord, a direct message. The person is not at the device.
+- Short messages split with [[msg]]; Markdown shows, tables do not.
+- Tools that change the device still work — say what you did.
+""",
+    "screen": """
+WHERE YOU ARE: the device's own screen, 320x240, a few lines at a time.
+- One or two short messages. No Markdown, lists, tables or links.
+""",
+    "chat": """
+WHERE YOU ARE: the control panel on the computer. Markdown, lists and
+tables render here; longer answers are fine when they are asked for.
+""",
+}
+
+CHANNELS = tuple(_CHANNEL_RULES)
+
 _SELF_KNOWLEDGE = """
 ЩО ТИ ТАКЕ — службова довідка про себе.
 
@@ -158,10 +196,13 @@ _SELF_KNOWLEDGE = """
 запити йдуть через єдиний шлюз, а він уже обирає провайдера. Якщо шлюз
 мовчить, замість тебе відповідають офлайн-заготовки.
 
-Три поверхні, куди потрапляє відповідь:
+Поверхні, куди потрапляє відповідь:
 - ПАНЕЛЬ на компʼютері — там Markdown видно, таблиці й списки читаються;
 - ЕКРАН ПРИСТРОЮ 320x240 — там влазить кілька рядків, не більше;
 - ГОЛОС — синтез мови читає відповідь уголос.
+- МЕСЕНДЖЕРИ (Telegram, Discord) — людина пише з телефона й не бачить ні
+  панелі, ні екрана.
+Де саме йде ця розмова, сказано нижче, у блоці WHERE YOU ARE.
 
 Вхід і вихід НЕЗАЛЕЖНІ: репліку могли сказати в мікрофон, а могли набрати
 з клавіатури; відповідь можуть озвучити, а можуть лише показати. Коли
@@ -210,7 +251,7 @@ def _self_instruction() -> str:
 
 
 def system_prompt_parts(
-    user_message: str, voice: bool = False, spoken: bool = False
+    user_message: str, voice: bool = False, spoken: bool = False, channel: str | None = None
 ) -> list[tuple[str, str]]:
     """
     Той самий системний промпт, але РОЗІБРАНИЙ на іменовані шматки.
@@ -221,7 +262,10 @@ def system_prompt_parts(
     одна, а `build_system_prompt` — просто її склейка.
 
     Ключі шматків: persona, self, time, tools, profile, memory_rule, notes,
-    voice, tts, asr.
+    channel, voice, tts, asr.
+
+    channel: where the turn comes from ("chat", "screen", "telegram",
+    "discord"); unknown or None adds nothing.
 
     voice і spoken НЕЗАЛЕЖНІ: можна надиктувати в мікрофон і читати
     відповідь очима, а можна набрати з клавіатури й слухати її вголос.
@@ -283,6 +327,10 @@ def system_prompt_parts(
         for note in notes:
             lines.append(f"--- {note['title']} ({note['path']}) ---\n{note['snippet']}")
         parts.append(("notes", "\n".join(lines)))
+    # Where the conversation is, before the voice blocks: a spoken turn on
+    # the screen is still refined by the voice rules below.
+    if channel in _CHANNEL_RULES:
+        parts.append(("channel", _CHANNEL_RULES[channel]))
     # How to talk at all — any turn that goes through the voice cascade.
     # First of the voice blocks, so the specific ones below refine it.
     if voice or spoken:
@@ -301,7 +349,7 @@ def system_prompt_parts(
 
 
 def build_system_prompt(
-    user_message: str, voice: bool = False, spoken: bool = False
+    user_message: str, voice: bool = False, spoken: bool = False, channel: str | None = None
 ) -> str:
     """
     Системний промпт із ПРОФІЛЮ (майстер налаштування): імʼя, мова, характер —
@@ -318,7 +366,7 @@ def build_system_prompt(
     як невідоме слово й перепитував замість того, щоб зрозуміти «Qwen».
     """
     return "\n".join(
-        text for _name, text in system_prompt_parts(user_message, voice, spoken)
+        text for _name, text in system_prompt_parts(user_message, voice, spoken, channel)
     )
 
 
@@ -1807,6 +1855,7 @@ async def chat(
     voice: bool = False,
     spoken: bool = False,
     session_key: str | None = None,
+    channel: str | None = None,
 ) -> tuple[str, str, str, list[dict]]:
     """
     Обробляє повідомлення користувача. Повертає (reply, emotion, mode, tool_results).
@@ -1824,7 +1873,7 @@ async def chat(
     image block.
     """
     history = history or []
-    system_prompt = build_system_prompt(message, voice=voice, spoken=spoken)
+    system_prompt = build_system_prompt(message, voice=voice, spoken=spoken, channel=channel)
 
     # OpenClaw gateway — єдиний шлях для тексту й vision. Gateway вибирає
     # текстову або image-модель із власної конфігурації.

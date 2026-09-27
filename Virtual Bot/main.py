@@ -1914,6 +1914,13 @@ def _chat_image_kwargs(images: list[dict[str, str]]) -> dict[str, list[dict[str,
     return {"images": images} if images else {}
 
 
+def _chat_channel_kwargs(turn_source: str) -> dict[str, str]:
+    """Where the turn comes from, for the prompt's "where you are" block.
+    Passed only when known, like the voice flags, so test adapters without
+    the kwarg keep working."""
+    return {"channel": turn_source} if turn_source in brains.CHANNELS else {}
+
+
 def _chat_voice_kwargs(voice: bool, spoken: bool = False) -> dict[str, bool]:
     """
     Той самий принцип: чого нема — того й не передаємо, щоб старі мозки й
@@ -2150,6 +2157,7 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat",
                         **({"emit": note_emit} if on_note else {}),
                         **_chat_reasoning_kwargs(req.reasoning_effort),
                         **_chat_voice_kwargs(req.voice, req.spoken),
+                        **_chat_channel_kwargs(turn_source),
                         session_key=openclaw_session_key,
                     )
                 except Exception as exc:  # noqa: BLE001 — хід треба закрити, помилку віддаємо далі
@@ -2321,6 +2329,7 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat",
                 agent_message, history, emit=emit, **_chat_image_kwargs(images),
                 **_chat_reasoning_kwargs(req.reasoning_effort),
                 **_chat_voice_kwargs(req.voice, req.spoken),
+                **_chat_channel_kwargs(turn_source),
                 session_key=openclaw_session_key,
             ))
 
