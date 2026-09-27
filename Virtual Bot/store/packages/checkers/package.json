@@ -1,0 +1,18 @@
+{
+  "id": "checkers",
+  "type": "app",
+  "label": "Шашки",
+  "icon": "grid",
+  "tint": "#c44b37",
+  "version": "1.0.0",
+  "author": "Клод Бот",
+  "description": "Класичні шашки проти бота: думай на кілька ходів уперед і забирай дамку.",
+  "category": "games",
+  "entry": "index.html",
+  "locales": {
+    "en": {
+      "label": "Checkers",
+      "description": "Classic draughts against the bot: think a few moves ahead and crown your kings."
+    }
+  }
+}

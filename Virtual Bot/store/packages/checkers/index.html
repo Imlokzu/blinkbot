@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Checkers</title>
+<!-- App kit v1: the screen's own look (Material You or Deep UI, any theme
+     or skin) and its safe insets. See docs/SCREEN-PLATFORM.md §2.6. -->
+<link rel="stylesheet" href="/static/screen/app-kit.css">
+<script src="/static/screen/app-kit.js"></script>
+<style>
+  /* Only what is Checkers's own: board grid, pieces, animations and sidebar layout.
+     All colors are derived from the screen's tokens. */
+  [hidden] { display: none !important; }
+  .main { display: flex; gap: 8px; align-items: center; }
+
+  /* ---- Board & Cells ---- */
+  .board-box {
+    position: relative;
+    display: grid;
+    place-items: center;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    touch-action: none;
+  }
+  .board {
+    display: grid;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px var(--line), 0 4px 14px rgba(0, 0, 0, 0.25);
+    background: var(--kit-surface);
+  }
+  :root[data-ui="deep"] .board {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent), 0 4px 18px rgba(0, 0, 0, 0.4);
+  }
+  .cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    margin: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cell.light {
+    background: color-mix(in srgb, var(--text) 4%, var(--bg));
+  }
+  .cell.dark {
+    background: var(--kit-surface);
+  }
+  :root[data-ui="deep"] .cell.dark {
+    background: color-mix(in srgb, var(--text) 8%, var(--bg));
+  }
+  .cell.last-from, .cell.last-to {
+    background: color-mix(in srgb, var(--accent) 18%, var(--kit-surface));
+  }
+
+  /* ---- Target Indicator ---- */
+  .cell .target-pip {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.8;
+    pointer-events: none;
+    transform: scale(0.85);
+    animation: pipPulse 1.2s ease-in-out infinite;
+  }
+  .cell.can-jump .target-pip {
+    width: 10px;
+    height: 10px;
+    background: var(--ok);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--ok) 80%, transparent);
+  }
+  @keyframes pipPulse {
+    0%, 100% { transform: scale(0.85); opacity: 0.7; }
+    50% { transform: scale(1.15); opacity: 1; }
+  }
+
+  /* ---- Draughts Pieces ---- */
+  .piece {
+    position: relative;
+    width: 82%;
+    height: 82%;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+    will-change: transform;
+    cursor: pointer;
+  }
+  .piece.p-you {
+    background: var(--accent);
+    color: var(--kit-on-accent);
+    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.4), inset 0 0 0 3.5px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  :root[data-ui="deep"] .piece.p-you {
+    background: var(--kit-primary);
+    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.55), inset 0 0 0 3.5px rgba(0, 0, 0, 0.25), 0 2px 5px rgba(0, 0, 0, 0.35);
+  }
+  .piece.p-bot {
+    background: color-mix(in srgb, var(--panel) 80%, #000);
+    color: var(--text);
+    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.14), inset 0 0 0 3.5px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  :root[data-ui="deep"] .piece.p-bot {
+    background: linear-gradient(180deg, #383a3e, #18191b);
+    box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.2), inset 0 0 0 3.5px rgba(0, 0, 0, 0.6), 0 2px 5px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Piece selection & must-capture hints */
+  .cell.selected .piece {
+    transform: scale(1.14);
+    box-shadow: 0 0 0 2px var(--kit-on-accent), 0 0 10px var(--accent);
+    z-index: 2;
+  }
+  .cell.hint-capture .piece {
+    animation: capturePulse 1s ease-in-out infinite;
+  }
+  @keyframes capturePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+
+  /* King Crown */
+  .crown {
+    width: 60%;
+    height: 60%;
+    fill: #ffd60a;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5));
+    animation: crownIn 180ms ease-out;
+  }
+  @keyframes crownIn {
+    from { opacity: 0; transform: scale(0.4) rotate(-20deg); }
+    to { opacity: 1; transform: scale(1) rotate(0); }
+  }
+
+  /* ---- Sidebar ---- */
+  .side {
+    width: 90px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+  }
+  .header-box { display: flex; flex-direction: column; gap: 1px; }
+  .status {
+    display: flex;
+    align-items: center;
+    min-height: 18px;
+    font: 700 13px/1.2 var(--font);
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .status.you { color: var(--accent); }
+  .status.bot { color: var(--ok); }
+  .status.thinking { color: var(--muted); font-size: 12px; }
+  .dots { display: inline-flex; gap: 2px; margin-left: 4px; }
+  .dots i { width: 3px; height: 3px; border-radius: 50%; background: currentColor; animation: blink 1s ease-in-out infinite; }
+  .dots i:nth-child(2) { animation-delay: 0.15s; }
+  .dots i:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+
+  /* Tally / Piece count card */
+  .tally {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 5px 4px;
+    text-align: center;
+  }
+  .score-col { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .score-val { display: inline-flex; align-items: center; gap: 4px; }
+  .score-val b { font: 700 16px/1 var(--font); font-variant-numeric: tabular-nums; }
+  .score-col.you b { color: var(--accent); }
+  .score-col.bot b { color: var(--ok); }
+  .score-sub { font-size: 9px; color: var(--muted); font-weight: 500; display: inline-flex; gap: 2px; }
+  .score-sep { font-weight: 700; color: var(--line); font-size: 14px; }
+  .p-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+  }
+  .p-dot.you { background: var(--accent); }
+  .p-dot.bot { background: color-mix(in srgb, var(--panel) 80%, #000); border: 1px solid var(--line); }
+
+  /* Level selector segment */
+  .kit-segment { margin: 0; }
+  .kit-segment .kit-chip { padding: 0 4px; font-size: 11px; height: 22px; flex: 1; }
+  .kit-segment .kit-chip:not(.on) { background: transparent; color: var(--muted); }
+
+  /* Actions */
+  .actions { display: flex; gap: 4px; margin-top: auto; align-items: center; }
+  .actions .kit-btn { height: 28px; padding: 0 8px; }
+  .actions .kit-btn.btn-undo { width: 28px; padding: 0; flex: none; }
+  .actions .kit-btn svg { width: 15px; height: 15px; stroke-width: 2.2; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
+  }
+</style>
+</head>
+<body class="kit">
+  <main class="kit-app" id="app">
+    <section class="kit-fill main">
+      <div class="board-box" id="boardBox">
+        <div class="board" id="board"></div>
+      </div>
+      <aside class="side">
+        <div class="header-box">
+          <div class="kit-label" data-i18n="title"></div>
+          <div class="status" id="status"></div>
+        </div>
+        <div class="kit-card tally">
+          <div class="score-col you">
+            <div class="score-val"><span class="p-dot you"></span><b id="cYou">12</b></div>
+            <span class="score-sub"><span data-i18n="you"></span> <small id="wYou">(0)</small></span>
+          </div>
+          <div class="score-sep">:</div>
+          <div class="score-col bot">
+            <div class="score-val"><span class="p-dot bot"></span><b id="cBot">12</b></div>
+            <span class="score-sub"><span data-i18n="bot"></span> <small id="wBot">(0)</small></span>
+          </div>
+        </div>
+        <div class="kit-segment" id="level">
+          <button class="kit-chip" type="button" data-level="easy" data-i18n="easy"></button>
+          <button class="kit-chip" type="button" data-level="hard" data-i18n="hard"></button>
+        </div>
+        <div class="actions">
+          <button class="kit-btn tonal btn-undo" id="btnUndo" type="button" aria-label="Undo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v2.5"/></svg>
+          </button>
+          <button class="kit-btn primary block" id="btnAgain" type="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"/></svg><span data-i18n="again"></span>
+          </button>
+        </div>
+      </aside>
+    </section>
+  </main>
+<script>
+  const APP_ID = "checkers";
+  const STR = {
+    uk: {
+      title: "Шашки",
+      you: "Ти",
+      bot: "Бот",
+      draw: "Нічия",
+      easy: "Легко",
+      hard: "Складно",
+      again: "Раунд",
+      undo: "Назад",
+      yourTurn: "Твій хід",
+      botTurn: "Бот думає",
+      mustCapture: "Бий шашку!",
+      youWin: "Ти виграв!",
+      botWin: "Бот виграв",
+      tie: "Нічия",
+      cell: "Клітинка {c}{r}",
+    },
+    en: {
+      title: "Checkers",
+      you: "You",
+      bot: "Bot",
+      draw: "Draw",
+      easy: "Easy",
+      hard: "Hard",
+      again: "Round",
+      undo: "Undo",
+      yourTurn: "Your move",
+      botTurn: "Bot is thinking",
+      mustCapture: "Must capture!",
+      youWin: "You win!",
+      botWin: "Bot wins",
+      tie: "It's a draw",
+      cell: "Square {c}{r}",
+    },
+  };
+
+  /* ---- storage & i18n ---- */
+  function load(key, fallback) {
+    try {
+      const raw = localStorage.getItem(APP_ID + "." + key);
+      return raw == null ? fallback : JSON.parse(raw);
+    } catch (_) { return fallback; }
+  }
+  function save(key, value) {
+    try { localStorage.setItem(APP_ID + "." + key, JSON.stringify(value)); } catch (_) {}
+  }
+
+  let lang = window.BotApp ? BotApp.lang : "uk";
+  function t(key, vars) {
+    let text = (STR[lang] && STR[lang][key]) || STR.uk[key] || key;
+    if (vars) text = text.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m));
+    return text;
+  }
+  function applyI18n() {
+    document.documentElement.lang = lang;
+    document.title = t("title");
+    document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    render();
+  }
+
+  function post(message) {
+    try { window.parent.postMessage(message, "*"); } catch (_) {}
+  }
+
+  function enableSwipeClose(root) {
+    let start = null;
+    root.addEventListener("pointerdown", (event) => {
+      if (start || event.target.closest("input, select, textarea, [data-noswipe]")) return;
+      start = { x: event.clientX, y: event.clientY, id: event.pointerId };
+      if (!event.target.closest("button")) {
+        try { root.setPointerCapture(event.pointerId); } catch (_) {}
+      }
+    });
+    function finish(event) {
+      if (!start || start.id !== event.pointerId) return;
+      const s = start;
+      start = null;
+      try { if (root.hasPointerCapture(s.id)) root.releasePointerCapture(s.id); } catch (_) {}
+      if (event.type === "pointercancel") return;
+      const dx = event.clientX - s.x, dy = event.clientY - s.y;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 28) return;
+      if (Math.abs(dx) >= Math.abs(dy)) post({ type: "storeAppSwipe", direction: dx < 0 ? "left" : "right" });
+      else if (dy > 0) post({ type: "storeAppSwipe", direction: "down" });
+    }
+    root.addEventListener("pointerup", finish);
+    root.addEventListener("pointercancel", finish);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+    root.addEventListener("lostpointercapture", (event) => { if (start && start.id === event.pointerId) start = null; });
+  }
+
+  /* ---- Synthesized Audio (Web Audio API) ---- */
+  const Sound = (() => {
+    let ctx = null;
+    function getCtx() {
+      try {
+        if (!ctx) {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (AC) ctx = new AC();
+        }
+        if (ctx && ctx.state === "suspended") ctx.resume();
+        return ctx;
+      } catch (_) { return null; }
+    }
+    function tone(freq, dur, type = "sine", gainVal = 0.12) {
+      try {
+        const c = getCtx();
+        if (!c) return;
+        const osc = c.createOscillator();
+        const gain = c.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, c.currentTime);
+        gain.gain.setValueAtTime(gainVal, c.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
+        osc.connect(gain);
+        gain.connect(c.destination);
+        osc.start();
+        osc.stop(c.currentTime + dur);
+      } catch (_) {}
+    }
+    return {
+      select() { tone(260, 0.035, "triangle", 0.08); },
+      move() { tone(190, 0.05, "sine", 0.12); },
+      capture() {
+        tone(440, 0.06, "triangle", 0.15);
+        setTimeout(() => tone(320, 0.07, "sine", 0.12), 25);
+      },
+      crown() {
+        tone(523.25, 0.08, "sine", 0.14);
+        setTimeout(() => tone(659.25, 0.08, "sine", 0.14), 70);
+        setTimeout(() => tone(783.99, 0.12, "sine", 0.16), 140);
+      },
+      win() {
+        [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => setTimeout(() => tone(f, 0.12, "sine", 0.14), i * 80));
+      },
+      lose() {
+        [380, 310, 240].forEach((f, i) => setTimeout(() => tone(f, 0.14, "triangle", 0.1), i * 90));
+      },
+    };
+  })();
+
+  /* ---- Checkers Rules & Move Generation ----
+     Values:
+       0: empty
+       1: player man (white/accent)
+       2: player king
+      -1: bot man (black/dark)
+      -2: bot king
+  */
+  const DIRS = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+  function inBounds(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+  function cloneBoard(b) { return b.map((row) => row.slice()); }
+
+  function getPieceCaptures(b, r, c, jumpedSet = new Set()) {
+    const p = b[r][c];
+    if (!p) return [];
+    const isPlayer = p > 0;
+    const isKing = Math.abs(p) === 2;
+    const opp = isPlayer ? ((v) => v < 0) : ((v) => v > 0);
+    const promoRow = isPlayer ? 0 : 7;
+    const captures = [];
+
+    if (!isKing) {
+      for (const [dr, dc] of DIRS) {
+        const mr = r + dr, mc = c + dc;
+        const lr = r + 2 * dr, lc = c + 2 * dc;
+        if (inBounds(lr, lc) && b[lr][lc] === 0 && inBounds(mr, mc) && opp(b[mr][mc])) {
+          const key = mr * 8 + mc;
+          if (jumpedSet.has(key)) continue;
+          const becomesKing = lr === promoRow;
+          const nextBoard = cloneBoard(b);
+          nextBoard[lr][lc] = becomesKing ? (isPlayer ? 2 : -2) : p;
+          nextBoard[r][c] = 0;
+          nextBoard[mr][mc] = 0;
+          const nextJumped = new Set(jumpedSet);
+          nextJumped.add(key);
+          const sub = getPieceCaptures(nextBoard, lr, lc, nextJumped);
+          if (sub.length > 0) {
+            for (const s of sub) {
+              captures.push({
+                from: [r, c], to: [lr, lc], jump: [mr, mc], becomesKing,
+                board: s.board, final: s.final,
+                steps: [{ from: [r, c], to: [lr, lc], jump: [mr, mc], becomesKing }].concat(s.steps),
+              });
+            }
+          } else {
+            captures.push({
+              from: [r, c], to: [lr, lc], jump: [mr, mc], becomesKing,
+              board: nextBoard, final: [lr, lc],
+              steps: [{ from: [r, c], to: [lr, lc], jump: [mr, mc], becomesKing }],
+            });
+          }
+        }
+      }
+    } else {
+      // Flying king capture
+      for (const [dr, dc] of DIRS) {
+        let mr = r + dr, mc = c + dc;
+        while (inBounds(mr, mc) && b[mr][mc] === 0) { mr += dr; mc += dc; }
+        if (inBounds(mr, mc) && opp(b[mr][mc])) {
+          const key = mr * 8 + mc;
+          if (jumpedSet.has(key)) continue;
+          let lr = mr + dr, lc = mc + dc;
+          while (inBounds(lr, lc) && b[lr][lc] === 0) {
+            const nextBoard = cloneBoard(b);
+            nextBoard[lr][lc] = p;
+            nextBoard[r][c] = 0;
+            nextBoard[mr][mc] = 0;
+            const nextJumped = new Set(jumpedSet);
+            nextJumped.add(key);
+            const sub = getPieceCaptures(nextBoard, lr, lc, nextJumped);
+            if (sub.length > 0) {
+              for (const s of sub) {
+                captures.push({
+                  from: [r, c], to: [lr, lc], jump: [mr, mc], becomesKing: false,
+                  board: s.board, final: s.final,
+                  steps: [{ from: [r, c], to: [lr, lc], jump: [mr, mc], becomesKing: false }].concat(s.steps),
+                });
+              }
+            } else {
+              captures.push({
+                from: [r, c], to: [lr, lc], jump: [mr, mc], becomesKing: false,
+                board: nextBoard, final: [lr, lc],
+                steps: [{ from: [r, c], to: [lr, lc], jump: [mr, mc], becomesKing: false }],
+              });
+            }
+            lr += dr; lc += dc;
+          }
+        }
+      }
+    }
+    return captures;
+  }
+
+  function getPieceMoves(b, r, c) {
+    const p = b[r][c];
+    if (!p) return [];
+    const isPlayer = p > 0;
+    const isKing = Math.abs(p) === 2;
+    const promoRow = isPlayer ? 0 : 7;
+    const moves = [];
+
+    if (!isKing) {
+      const dr = isPlayer ? -1 : 1;
+      for (const dc of [-1, 1]) {
+        const nr = r + dr, nc = c + dc;
+        if (inBounds(nr, nc) && b[nr][nc] === 0) {
+          const becomesKing = nr === promoRow;
+          const nextBoard = cloneBoard(b);
+          nextBoard[nr][nc] = becomesKing ? (isPlayer ? 2 : -2) : p;
+          nextBoard[r][c] = 0;
+          moves.push({
+            from: [r, c], to: [nr, nc], becomesKing, board: nextBoard, final: [nr, nc],
+            steps: [{ from: [r, c], to: [nr, nc], becomesKing }],
+          });
+        }
+      }
+    } else {
+      for (const [dr, dc] of DIRS) {
+        let nr = r + dr, nc = c + dc;
+        while (inBounds(nr, nc) && b[nr][nc] === 0) {
+          const nextBoard = cloneBoard(b);
+          nextBoard[nr][nc] = p;
+          nextBoard[r][c] = 0;
+          moves.push({
+            from: [r, c], to: [nr, nc], becomesKing: false, board: nextBoard, final: [nr, nc],
+            steps: [{ from: [r, c], to: [nr, nc], becomesKing: false }],
+          });
+          nr += dr; nc += dc;
+        }
+      }
+    }
+    return moves;
+  }
+
+  function getAllLegalMoves(b, isPlayer) {
+    let allCaptures = [];
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        if ((isPlayer && b[r][c] > 0) || (!isPlayer && b[r][c] < 0)) {
+          const caps = getPieceCaptures(b, r, c);
+          if (caps.length > 0) allCaptures.push(...caps);
+        }
+      }
+    }
+    if (allCaptures.length > 0) return { moves: allCaptures, isCapture: true };
+    let allMoves = [];
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        if ((isPlayer && b[r][c] > 0) || (!isPlayer && b[r][c] < 0)) {
+          const m = getPieceMoves(b, r, c);
+          if (m.length > 0) allMoves.push(...m);
+        }
+      }
+    }
+    return { moves: allMoves, isCapture: false };
+  }
+
+  function evaluate(b) {
+    let score = 0;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const v = b[r][c];
+        if (!v) continue;
+        const isP = v > 0;
+        const isK = Math.abs(v) === 2;
+        let val = isK ? 300 : 100;
+        if (!isK) val += isP ? (7 - r) * 5 : r * 5;
+        if (c >= 2 && c <= 5 && r >= 2 && r <= 5) val += 5;
+        if (c === 0 || c === 7) val += 3;
+        if (isP && r === 7) val += 10;
+        if (!isP && r === 0) val += 10;
+        score += isP ? val : -val;
+      }
+    }
+    return score;
+  }
+
+  function minimax(b, depth, alpha, beta, isPlayer) {
+    const { moves } = getAllLegalMoves(b, isPlayer);
+    if (moves.length === 0) {
+      return { score: isPlayer ? -10000 + (4 - depth) : 10000 - (4 - depth), move: null };
+    }
+    if (depth === 0) {
+      return { score: evaluate(b), move: null };
+    }
+
+    let bestMove = moves[0];
+    if (isPlayer) {
+      let maxEval = -Infinity;
+      for (const m of moves) {
+        const { score } = minimax(m.board, depth - 1, alpha, beta, false);
+        if (score > maxEval) { maxEval = score; bestMove = m; }
+        alpha = Math.max(alpha, score);
+        if (beta <= alpha) break;
+      }
+      return { score: maxEval, move: bestMove };
+    } else {
+      let minEval = Infinity;
+      for (const m of moves) {
+        const { score } = minimax(m.board, depth - 1, alpha, beta, true);
+        if (score < minEval) { minEval = score; bestMove = m; }
+        beta = Math.min(beta, score);
+        if (beta <= alpha) break;
+      }
+      return { score: minEval, move: bestMove };
+    }
+  }
+
+  function botChooseMove() {
+    const { moves, isCapture } = getAllLegalMoves(board, false);
+    if (moves.length === 0) return null;
+    if (level === "easy" && Math.random() < 0.45 && !isCapture) {
+      return moves[Math.floor(Math.random() * moves.length)];
+    }
+    const res = minimax(board, 3, -Infinity, Infinity, false);
+    return res.move || moves[0];
+  }
+
+  /* ---- Game State ---- */
+  const boardEl = document.getElementById("board");
+  const boxEl = document.getElementById("boardBox");
+  let board = Array.from({ length: 8 }, () => Array(8).fill(0));
+  let turn = "you"; // "you" | "bot"
+  let selected = null; // [r, c]
+  let result = null; // null | "you" | "bot" | "draw"
+  let tally = Object.assign({ you: 0, bot: 0, draw: 0 }, load("tally", {}));
+  let level = load("level", "easy") === "hard" ? "hard" : "easy";
+  let botTimer = 0;
+  let lastMove = null; // { from: [r,c], to: [r,c] }
+  let inMultiJump = null; // current jumping piece info
+  const history = [];
+
+  function makeInitialBoard() {
+    const b = Array.from({ length: 8 }, () => Array(8).fill(0));
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 8; c++) {
+        if ((r + c) % 2 === 1) b[r][c] = -1;
+      }
+    }
+    for (let r = 5; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        if ((r + c) % 2 === 1) b[r][c] = 1;
+      }
+    }
+    return b;
+  }
+
+  function countPieces() {
+    let you = 0, bot = 0;
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        if (board[r][c] > 0) you++;
+        else if (board[r][c] < 0) bot++;
+      }
+    }
+    return { you, bot };
+  }
+
+  function checkEndGame() {
+    const counts = countPieces();
+    if (counts.bot === 0) return "you";
+    if (counts.you === 0) return "bot";
+    const nextMoves = getAllLegalMoves(board, turn === "you").moves;
+    if (nextMoves.length === 0) return turn === "you" ? "bot" : "you";
+    return null;
+  }
+
+  function newRound() {
+    clearTimeout(botTimer);
+    board = makeInitialBoard();
+    turn = "you";
+    selected = null;
+    result = null;
+    lastMove = null;
+    inMultiJump = null;
+    history.length = 0;
+    render();
+  }
+
+  /* ---- Player & Bot Action Execution ---- */
+  function executeBotMove() {
+    if (result || turn !== "bot") return;
+    const move = botChooseMove();
+    if (!move) {
+      finishGame("you");
+      return;
+    }
+
+    let stepIdx = 0;
+    function playStep() {
+      const step = move.steps[stepIdx];
+      const from = step.from;
+      const to = step.to;
+      const p = board[from[0]][from[1]];
+      board[from[0]][from[1]] = 0;
+      if (step.jump) {
+        board[step.jump[0]][step.jump[1]] = 0;
+        Sound.capture();
+      } else {
+        Sound.move();
+      }
+      board[to[0]][to[1]] = step.becomesKing ? -2 : p;
+      if (step.becomesKing) Sound.crown();
+
+      lastMove = { from, to };
+      stepIdx++;
+      render();
+
+      if (stepIdx < move.steps.length) {
+        botTimer = setTimeout(playStep, 260);
+      } else {
+        turn = "you";
+        const w = checkEndGame();
+        if (w) finishGame(w);
+        else render();
+      }
+    }
+
+    botTimer = setTimeout(playStep, 380 + Math.random() * 200);
+  }
+
+  function executePlayerStep(step, nextMovesFromLand) {
+    history.push({ board: cloneBoard(board), turn, lastMove });
+    const from = step.from;
+    const to = step.to;
+    const p = board[from[0]][from[1]];
+    board[from[0]][from[1]] = 0;
+
+    let isCap = false;
+    if (step.jump) {
+      board[step.jump[0]][step.jump[1]] = 0;
+      isCap = true;
+      Sound.capture();
+    } else {
+      Sound.move();
+    }
+    board[to[0]][to[1]] = step.becomesKing ? 2 : p;
+    if (step.becomesKing) Sound.crown();
+
+    lastMove = { from, to };
+
+    // Check if more jumps required from to
+    if (isCap) {
+      const moreCaps = getPieceCaptures(board, to[0], to[1]);
+      if (moreCaps.length > 0) {
+        selected = to;
+        inMultiJump = to;
+        render();
+        return;
+      }
+    }
+
+    selected = null;
+    inMultiJump = null;
+    turn = "bot";
+    const w = checkEndGame();
+    if (w) {
+      finishGame(w);
+    } else {
+      render();
+      executeBotMove();
+    }
+  }
+
+  function finishGame(winner) {
+    result = winner;
+    if (winner === "you") {
+      tally.you++;
+      Sound.win();
+    } else if (winner === "bot") {
+      tally.bot++;
+      Sound.lose();
+    } else {
+      tally.draw++;
+    }
+    save("tally", tally);
+    render();
+  }
+
+  function undoMove() {
+    if (turn !== "you" || result || history.length === 0) return;
+    clearTimeout(botTimer);
+    const prev = history.pop();
+    board = prev.board;
+    turn = prev.turn;
+    lastMove = prev.lastMove;
+    selected = null;
+    inMultiJump = null;
+    Sound.move();
+    render();
+  }
+
+  /* ---- Layout & Rendering ---- */
+  function layout() {
+    const max = Math.min(boxEl.clientWidth, boxEl.clientHeight);
+    const cell = Math.max(18, Math.floor(max / 8));
+    const boardSize = cell * 8;
+    boardEl.style.width = boardSize + "px";
+    boardEl.style.height = boardSize + "px";
+    boardEl.style.gridTemplateColumns = `repeat(8, ${cell}px)`;
+    boardEl.style.gridTemplateRows = `repeat(8, ${cell}px)`;
+  }
+
+  const CROWN_SVG = '<svg class="crown" viewBox="0 0 24 24"><path d="M5 16h14l-1.5-7-3.5 3.5-2-5-2 5-3.5-3.5z"/></svg>';
+
+  function render() {
+    if (boardEl.children.length !== 64) {
+      boardEl.innerHTML = "";
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "cell " + ((r + c) % 2 === 1 ? "dark" : "light");
+          btn.dataset.r = r;
+          btn.dataset.c = c;
+          boardEl.appendChild(btn);
+        }
+      }
+    }
+
+    const { moves: legalMoves, isCapture: mustCapture } = turn === "you" && !result
+      ? (inMultiJump
+          ? { moves: getPieceCaptures(board, inMultiJump[0], inMultiJump[1]), isCapture: true }
+          : getAllLegalMoves(board, true))
+      : { moves: [], isCapture: false };
+
+    // Set of pieces that can make a legal move
+    const movablePieces = new Set(legalMoves.map((m) => m.from[0] * 8 + m.from[1]));
+    // Valid destinations for currently selected piece
+    const selectedMoves = selected
+      ? legalMoves.filter((m) => m.from[0] === selected[0] && m.from[1] === selected[1])
+      : [];
+    const targetMap = new Map();
+    selectedMoves.forEach((m) => targetMap.set(m.to[0] * 8 + m.to[1], m));
+
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const idx = r * 8 + c;
+        const cellEl = boardEl.children[idx];
+        const val = board[r][c];
+
+        // Classes for last move
+        cellEl.classList.toggle("last-from", !!lastMove && lastMove.from[0] === r && lastMove.from[1] === c);
+        cellEl.classList.toggle("last-to", !!lastMove && lastMove.to[0] === r && lastMove.to[1] === c);
+
+        const isSel = selected && selected[0] === r && selected[1] === c;
+        cellEl.classList.toggle("selected", !!isSel);
+        cellEl.classList.toggle("hint-capture", mustCapture && movablePieces.has(idx) && !isSel);
+
+        const isTarget = targetMap.has(idx);
+        cellEl.classList.toggle("can-jump", isTarget && targetMap.get(idx).jump != null);
+
+        // Piece markup
+        let pieceHtml = "";
+        if (val !== 0) {
+          const isPlayer = val > 0;
+          const isKing = Math.abs(val) === 2;
+          pieceHtml = `<div class="piece ${isPlayer ? "p-you" : "p-bot"} ${isKing ? "king" : ""}">` +
+            (isKing ? CROWN_SVG : "") +
+            `</div>`;
+        } else if (isTarget) {
+          pieceHtml = `<span class="target-pip"></span>`;
+        }
+
+        if (cellEl.innerHTML !== pieceHtml) cellEl.innerHTML = pieceHtml;
+        cellEl.setAttribute("aria-label", t("cell", { c: String.fromCharCode(65 + c), r: 8 - r }));
+      }
+    }
+
+    // Update Counts & Wins
+    const counts = countPieces();
+    document.getElementById("cYou").textContent = counts.you;
+    document.getElementById("cBot").textContent = counts.bot;
+    document.getElementById("wYou").textContent = `(${tally.you})`;
+    document.getElementById("wBot").textContent = `(${tally.bot})`;
+
+    // Level Chips
+    document.querySelectorAll("[data-level]").forEach((b) => b.classList.toggle("on", b.dataset.level === level));
+
+    // Status message
+    const statusEl = document.getElementById("status");
+    statusEl.className = "status";
+    if (result === "you") {
+      statusEl.classList.add("you");
+      statusEl.textContent = t("youWin");
+    } else if (result === "bot") {
+      statusEl.classList.add("bot");
+      statusEl.textContent = t("botWin");
+    } else if (result === "draw") {
+      statusEl.textContent = t("tie");
+    } else if (turn === "you") {
+      statusEl.classList.add("you");
+      statusEl.textContent = mustCapture ? t("mustCapture") : t("yourTurn");
+    } else {
+      statusEl.classList.add("thinking");
+      statusEl.innerHTML = `<span>${t("botTurn")}</span><span class="dots"><i></i><i></i><i></i></span>`;
+    }
+  }
+
+  /* ---- Board Interaction Event Delegation ---- */
+  boardEl.addEventListener("click", (event) => {
+    if (turn !== "you" || result) return;
+    const cellEl = event.target.closest(".cell");
+    if (!cellEl) return;
+    const r = Number(cellEl.dataset.r);
+    const c = Number(cellEl.dataset.c);
+    const idx = r * 8 + c;
+    const val = board[r][c];
+
+    // Check if in multi-jump lock
+    if (inMultiJump) {
+      if (selected && selected[0] === inMultiJump[0] && selected[1] === inMultiJump[1]) {
+        const caps = getPieceCaptures(board, inMultiJump[0], inMultiJump[1]);
+        const match = caps.find((m) => m.to[0] === r && m.to[1] === c);
+        if (match) executePlayerStep(match.steps[0], caps);
+      }
+      return;
+    }
+
+    // Clicking own piece
+    if (val > 0) {
+      const { moves, isCapture } = getAllLegalMoves(board, true);
+      const pieceCanMove = moves.some((m) => m.from[0] === r && m.from[1] === c);
+      if (pieceCanMove) {
+        selected = [r, c];
+        Sound.select();
+        render();
+      } else if (isCapture) {
+        Sound.select();
+        const statusEl = document.getElementById("status");
+        statusEl.textContent = t("mustCapture");
+      }
+      return;
+    }
+
+    // Clicking an empty cell with a piece selected
+    if (selected && val === 0) {
+      const { moves } = getAllLegalMoves(board, true);
+      const match = moves.find(
+        (m) => m.from[0] === selected[0] && m.from[1] === selected[1] && m.to[0] === r && m.to[1] === c
+      );
+      if (match) executePlayerStep(match.steps[0], moves);
+    }
+  });
+
+  document.getElementById("level").addEventListener("click", (event) => {
+    const chip = event.target.closest("[data-level]");
+    if (!chip) return;
+    level = chip.dataset.level;
+    save("level", level);
+    render();
+  });
+
+  document.getElementById("btnUndo").addEventListener("click", undoMove);
+  document.getElementById("btnAgain").addEventListener("click", newRound);
+  window.addEventListener("resize", layout);
+
+  enableSwipeClose(document.getElementById("app"));
+  layout();
+  applyI18n();
+  newRound();
+
+  if (window.BotApp) {
+    BotApp.onChange((s) => {
+      if (s.lang !== lang) {
+        lang = s.lang;
+        applyI18n();
+      }
+    });
+  }
+</script>
+</body>
+</html>

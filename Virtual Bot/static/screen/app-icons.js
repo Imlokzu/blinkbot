@@ -312,6 +312,14 @@ export const DESIGNS = {
       line("M21.8 21.8l4.4 4.4M26.2 21.8l-4.4 4.4M13.8 29.8l4.4 4.4M18.2 29.8l-4.4 4.4", "#ff9f0a", 2.6) +
       `<circle cx="32" cy="16" r="2.5" fill="none" stroke="#64d2ff" stroke-width="2.4"/>`,
   },
+  checkers: {
+    bg: ["#c44b37", "#6b1f14"],
+    glyph: (D) =>
+      `<circle cx="24" cy="24" r="14" fill="${W}"/>` +
+      `<circle cx="24" cy="24" r="10.2" fill="none" stroke="${D}" stroke-width="2.2"/>` +
+      `<circle cx="24" cy="24" r="6.6" fill="none" stroke="${D}" stroke-width="2.2"/>` +
+      `<path d="M19 25h10l-1-5.5-2.5 2.5-1.5-3.5-1.5 3.5-2.5-2.5z" fill="#ffd60a"/>`,
+  },
   globe: {
     bg: ["#32ade6", "#1668b8"],
     glyph: () =>
@@ -420,7 +428,7 @@ const BY_ID = {
   breathe: "petals", calculator: "calc", "device-settings": "chip", dice: "dice",
   "flappy-crab": "crab", "game-2048": "tile2048", metronome: "metronome",
   "pixel-paint": "pixelheart", pomodoro: "tomato", reaction: "bolt", snake: "snake",
-  stopwatch: "stopwatch", "tic-tac-toe": "tictactoe", "world-clock": "globe",
+  stopwatch: "stopwatch", "tic-tac-toe": "tictactoe", checkers: "checkers", "world-clock": "globe",
   youtube: "play", "yt-music": "note",
   "skin-amoled": "moon", "skin-sunset": "sunset", "skin-terminal": "terminal",
 };
