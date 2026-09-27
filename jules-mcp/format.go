@@ -15,7 +15,11 @@ func formatSession(s *Session) string {
 		title = firstLine(s.Prompt, 80)
 	}
 	fmt.Fprintf(&b, "session %s — %s\n", s.ID, title)
-	fmt.Fprintf(&b, "state:   %s%s\n", s.State, stateHint(s.State))
+	state := s.State
+	if state == "" {
+		state = "STARTING" // the create response carries no state yet
+	}
+	fmt.Fprintf(&b, "state:   %s%s\n", state, stateHint(state))
 	if s.SourceContext.Source != "" {
 		fmt.Fprintf(&b, "repo:    %s @ %s\n", strings.TrimPrefix(s.SourceContext.Source, "sources/github/"),
 			s.SourceContext.GithubRepoContext.StartingBranch)

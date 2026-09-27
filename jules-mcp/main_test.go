@@ -302,6 +302,9 @@ func TestCLIStartReadsPromptFromStdin(t *testing.T) {
 	if _, ok := f.created["automationMode"]; ok {
 		t.Error("--no-pr must drop automationMode")
 	}
+	if !strings.Contains(out.String(), "state:   QUEUED") {
+		t.Errorf("start should show the state:\n%s", out.String())
+	}
 	if !strings.Contains(out.String(), "jules wait 42") {
 		t.Errorf("start should say how to wait:\n%s", out.String())
 	}
@@ -352,5 +355,12 @@ func TestToolsListIsValid(t *testing.T) {
 	}
 	if r := callTool("jules_nope", map[string]any{}); !r.IsError {
 		t.Error("unknown tool must be an error")
+	}
+}
+
+func TestFormatSessionWithoutState(t *testing.T) {
+	out := formatSession(&Session{ID: "1", Prompt: "p"})
+	if !strings.Contains(out, "state:   STARTING") {
+		t.Errorf("empty state should read STARTING:\n%s", out)
 	}
 }
