@@ -332,8 +332,8 @@
 
 /* ---------- Carousel dots: the current one is a gradient pill ---------- */
 :root[data-ui="deep"] .dots { gap: 8px; }
-:root[data-ui="deep"] .dots i { transition: opacity 180ms ease, transform 180ms ease; }
-:root[data-ui="deep"] .dots i.on { background: var(--deep-grad); transform: scaleX(2.4); border-radius: 3px; }
+/* The current tile is a dot in colour, not a stretched pill (owner's call) */
+:root[data-ui="deep"] .dots i.on { background: var(--deep-grad); }
 
 /* ---------- Line icons take the text colour ----------
    uiIcon() inks each icon inline with the screen's icon tint; Deep UI's
