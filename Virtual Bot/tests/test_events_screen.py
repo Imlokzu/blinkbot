@@ -48,7 +48,11 @@ def test_a_bad_token_is_still_refused(monkeypatch):
     assert err.value.status_code == 401
 
 
-def test_without_a_token_only_events_for_everyone_arrive():
+def test_without_a_token_only_events_for_everyone_arrive(monkeypatch):
+    # An app shutdown in an earlier test leaves the bus closed
+    monkeypatch.setattr(events, "_shutting_down", False)
     got = _first_events(None, [({"type": "music", "action": "stop"}, None),
                                ({"type": "ui", "kind": "todo"}, "user-a")])
+    # Log lines ride the same bus once the log handler is installed
+    got = [line for line in got if '"type": "log"' not in line]
     assert len(got) == 1 and '"music"' in got[0]
