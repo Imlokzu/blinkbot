@@ -76,6 +76,7 @@ import events
 import music
 import integrations
 import screen_store
+import lyrics
 import ytmusic
 import sponsorblock
 import system_status
@@ -1517,6 +1518,19 @@ async def api_ytm_cover(u: str = Query(min_length=12, max_length=1000)) -> Respo
     except image_proxy.ImageProxyError as exc:
         raise HTTPException(status_code=exc.status, detail=exc.message) from exc
     return Response(content=data, media_type=media, headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.get("/api/ytm/synced")
+async def api_ytm_synced(
+    id: str = Query(min_length=11, max_length=11, pattern="^[A-Za-z0-9_-]{11}$"),
+    title: str = Query(default="", max_length=200),
+    artist: str = Query(default="", max_length=200),
+    duration: float = Query(default=0, ge=0, le=36000),
+) -> dict:
+    """Lyrics with line timings for the music player (LRCLIB), or the plain
+    YouTube Music text when no synced version exists. Defined before the
+    generic /api/ytm/{command} route, which would otherwise swallow it."""
+    return await lyrics.timed_lyrics(id, title, artist, duration)
 
 
 @app.get("/api/ytm/{command}")

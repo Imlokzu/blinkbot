@@ -63,6 +63,31 @@ def test_run_errors_are_typed(fake_helper):
         asyncio.run(ytmusic.run("rm", "x"))
 
 
+def test_misread_layout_is_retried_then_repaired(monkeypatch):
+    """YouTube Music sometimes answers in a layout rustypipe misreads: the
+    length lands in `artists`. One retry, then repair, and no caching."""
+    broken = {"tracks": [{"id": "BSTsnWoslP4", "title": "Bohemian Rhapsody", "artists": ["5:55"], "duration": 0}]}
+    good = {"tracks": [{"id": "BSTsnWoslP4", "title": "Bohemian Rhapsody", "artists": ["Queen"], "duration": 355}]}
+    answers = []
+
+    async def fake_call(command, arg, limit):
+        return json.loads(json.dumps(answers.pop(0)))
+
+    monkeypatch.setattr(ytmusic, "_call", fake_call)
+    ytmusic._CACHE.clear()
+
+    answers[:] = [broken, good]
+    assert asyncio.run(ytmusic.run("search", "queen"))["tracks"][0]["artists"] == ["Queen"]
+
+    ytmusic._CACHE.clear()
+    answers[:] = [broken, broken]
+    track = asyncio.run(ytmusic.run("search", "queen"))["tracks"][0]
+    assert track["artists"] == [] and track["duration"] == 355
+    # Not cached: the next search asks the helper again
+    answers[:] = [good]
+    assert asyncio.run(ytmusic.run("search", "queen"))["tracks"][0]["artists"] == ["Queen"]
+
+
 def test_run_is_cached(fake_helper):
     first = asyncio.run(ytmusic.run("search", "Same"))
     fake_helper.write_text("#!/bin/sh\nexit 3\n")  # a second call would now fail

@@ -107,17 +107,23 @@ def pick_synced(results: list[dict[str, Any]], duration: float) -> dict[str, Any
 
 
 async def _lrclib(client: httpx.AsyncClient, artist: str, title: str, duration: float) -> dict[str, Any] | None:
-    params: dict[str, Any] = {"artist_name": artist, "track_name": title}
-    if duration:
-        params["duration"] = int(round(duration))
+    search: dict[str, Any] = {"track_name": title}
+    if artist:
+        search["artist_name"] = artist
     try:
-        resp = await client.get(LRCLIB + "/get", params=params)
-        if resp.status_code == 200:
-            hit = resp.json()
-            if isinstance(hit, dict) and hit.get("syncedLyrics"):
-                return hit
-        # /get is an exact match; search forgives spelling and album names.
-        resp = await client.get(LRCLIB + "/search", params={"artist_name": artist, "track_name": title})
+        # /get is an exact match and needs the artist; without one only the
+        # search (checked against the duration) is worth asking.
+        if artist:
+            params: dict[str, Any] = {"artist_name": artist, "track_name": title}
+            if duration:
+                params["duration"] = int(round(duration))
+            resp = await client.get(LRCLIB + "/get", params=params)
+            if resp.status_code == 200:
+                hit = resp.json()
+                if isinstance(hit, dict) and hit.get("syncedLyrics"):
+                    return hit
+        # Search forgives spelling and album names.
+        resp = await client.get(LRCLIB + "/search", params=search)
         if resp.status_code == 200:
             return pick_synced(resp.json() or [], duration)
     except (httpx.HTTPError, ValueError) as exc:

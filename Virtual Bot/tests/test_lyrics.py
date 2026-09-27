@@ -117,3 +117,18 @@ def test_synced_endpoint_validates_the_id(monkeypatch):
         ok = client.get("/api/ytm/synced", params={"id": "dQw4w9WgXcQ", "title": "T"})
         assert ok.status_code == 200 and ok.json()["id"] == "dQw4w9WgXcQ"
         assert client.get("/api/ytm/synced", params={"id": "../../etc/pw"}).status_code == 422
+
+
+def test_no_artist_skips_the_exact_match(monkeypatch):
+    seen = []
+
+    def handler(request):
+        seen.append((request.url.path, dict(request.url.params)))
+        return httpx.Response(200, json=[{"duration": 355, "syncedLyrics": "[00:00.15]Is this the real life?"}])
+
+    monkeypatch.setattr(lyrics.httpx, "AsyncClient", _mock_transport(handler))
+    monkeypatch.setattr(ytmusic, "available", lambda: False)
+    result = run(lyrics.timed_lyrics("BSTsnWoslP4", "Bohemian Rhapsody", "", 355))
+    assert result["kind"] == "synced"
+    assert [path for path, _ in seen] == ["/api/search"]
+    assert "artist_name" not in seen[0][1]

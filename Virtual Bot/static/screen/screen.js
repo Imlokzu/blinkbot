@@ -4193,6 +4193,76 @@ function musicStep(dir) {
   if (next) musicPlayTrack(next);
 }
 
+/* ---------- Now Playing for store apps (botMusic / botMusicControl) ----------
+
+   Music plays HERE, in the screen, so it keeps going after an app closes.
+   An app that wants to be the player (yt-music) gets the state pushed to
+   it and sends controls back; it never owns an <audio> of its own, or two
+   sources would play at once. Trusted (built-in) apps only: a shared app
+   from a .cbp has no business steering the owner's music. */
+
+function trustedAppFrame() {
+  const frame = layerApp.querySelector(".storeapp-frame");
+  return frame && frame.dataset.sandboxed !== "1" && frame.contentWindow ? frame : null;
+}
+
+let musicPostAt = 0;
+function postMusicToApp(force) {
+  const frame = trustedAppFrame();
+  if (!frame) return;
+  // timeupdate fires ~4x a second; the app interpolates between messages,
+  // so twice a second is plenty for a lyric line to land on time.
+  const now = performance.now();
+  if (!force && now - musicPostAt < 450) return;
+  musicPostAt = now;
+  const tr = musicState.track;
+  const known = tr && Number(tr.duration) > 0 ? Number(tr.duration) : 0;
+  const q = musicState.queue;
+  const idx = tr ? q.findIndex((x) => x.id === tr.id) : -1;
+  try {
+    frame.contentWindow.postMessage({
+      type: "botMusic",
+      track: tr ? { id: tr.id, title: tr.title || "", uploader: tr.uploader || "",
+                    duration: known, provider: tr.provider, cover: tr.cover || "" } : null,
+      position: Number(musicAudio.currentTime) || 0,
+      duration: musicAudio.duration > 0 && isFinite(musicAudio.duration) ? musicAudio.duration : known,
+      // A dead stream leaves paused === false: without the error check the
+      // app would count seconds (and move lyrics) over silence.
+      playing: !musicAudio.paused && !musicAudio.error,
+      loading: !musicAudio.error && ($("nowPlaying").classList.contains("np-loading") ||
+               (!musicAudio.paused && musicAudio.readyState < 3)),
+      failed: !!musicAudio.error,
+      live: !!musicState.live,
+      hasPrev: idx > 0,
+      hasNext: idx >= 0 && idx < q.length - 1,
+    }, window.location.origin);
+  } catch (e) { /* the frame is going away */ }
+}
+
+for (const name of ["loadstart", "play", "pause", "playing", "loadedmetadata", "ended", "emptied", "error", "seeked", "canplay"]) {
+  musicAudio.addEventListener(name, () => postMusicToApp(true));
+}
+musicAudio.addEventListener("timeupdate", () => postMusicToApp(false));
+
+function onAppMusicControl(data) {
+  const action = String(data.action || "");
+  if (action === "state") { postMusicToApp(true); return; }
+  if (!musicState.track) return;
+  if (action === "toggle") musicToggle();
+  else if (action === "next") musicStep(1);
+  else if (action === "prev") {
+    // Like every player: a few seconds in, "back" restarts the song.
+    if (musicAudio.currentTime > 4) musicAudio.currentTime = 0;
+    else musicStep(-1);
+  }
+  else if (action === "seek" && !musicState.live) {
+    const total = musicAudio.duration;
+    const to = Number(data.position);
+    if (total > 0 && isFinite(to)) musicAudio.currentTime = Math.max(0, Math.min(total - 0.5, to));
+  }
+  postMusicToApp(true);
+}
+
 /* Шіт плеєра: вибір джерела, перемотка, список станцій/черги */
 
 const musicSheet = $("musicSheet");
@@ -4434,6 +4504,7 @@ function openStoreApp(entry) {
     }
     frame.addEventListener("load", () => {
       postStoreAppSkin(frame);
+      postMusicToApp(true);
       bridgeFrameKeyboard(frame);
       if (videoPending && entry.pkg === VIDEO_PKG) {
         const command = videoPending;
@@ -4456,6 +4527,7 @@ window.addEventListener("message", (event) => {
   if (event.data?.type === "storeAppFullscreen") layerApp.classList.toggle("full", !!event.data.on);
   if (event.data?.type === "storeAppSwipe" && ["left", "right", "down"].includes(event.data.direction)) closeAppLayer();
   if (event.data?.type === "botKeyboard") onAppKeyboardRequest(frame, event.data);
+  if (event.data?.type === "botMusicControl" && frame.dataset.sandboxed !== "1") onAppMusicControl(event.data);
 });
 
 /* ---------- Бот керує відео-плеєром (SSE «video») ----------

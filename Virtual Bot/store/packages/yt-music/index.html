@@ -81,6 +81,79 @@
   .ahead img, .ahead .ph { width: 56px; height: 56px; border-radius: 6px; object-fit: cover; background: var(--line); flex: none; }
   .lyrics { white-space: pre-wrap; font-size: 11.5px; line-height: 1.5; }
   .source { margin-top: 8px; color: var(--muted); font-size: 9px; }
+
+  /* Mini bar under the list: what the screen is playing right now. */
+  .app { position: relative; }
+  .mini-np { flex: none; display: flex; align-items: center; gap: 7px; width: 100%; height: 34px;
+    padding: 0 3px 0 0; border: 1px solid var(--line); border-radius: 9px; background: var(--panel);
+    text-align: left; cursor: pointer; overflow: hidden; }
+  .mini-np img { width: 32px; height: 32px; flex: none; object-fit: cover; background: var(--line); }
+  .mini-np .ti { flex: 1; min-width: 0; }
+  .mini-np .mini { border: 0; color: var(--text); }
+
+  /* ---- The player: the whole panel, like the YouTube video player ----
+     Cover on the left, title and transport on its right, the lyrics under
+     both. Only transform and opacity move: on the Pi's A53 a reflow per
+     lyric line would be felt. */
+  .player { position: absolute; inset: 0; display: flex; flex-direction: column;
+    background: var(--bg); overflow: hidden; }
+  .pbg { position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--tint, var(--accent)) 42%, var(--bg)) 0%,
+      color-mix(in srgb, var(--tint, var(--accent)) 14%, var(--bg)) 55%, var(--bg) 100%);
+    transition: opacity .4s linear; }
+  .ptop { position: relative; flex: none; display: flex; gap: 9px; padding: 8px 8px 4px; }
+  .pcover { width: 86px; height: 86px; flex: none; border-radius: 7px; object-fit: cover;
+    background: var(--line); box-shadow: 0 4px 14px rgba(0, 0, 0, .35); }
+  .pinfo { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
+  .phead { display: flex; align-items: flex-start; gap: 4px; }
+  .ptext { flex: 1; min-width: 0; }
+  .ptitle { font-size: 13px; font-weight: 800; line-height: 1.2; display: -webkit-box;
+    -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .partist { margin-top: 2px; font-size: 10px; color: var(--muted); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .pclose { flex: none; width: 26px; height: 26px; margin: -3px -3px 0 0; border: 0; border-radius: 13px;
+    background: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+  .pclose:active { background: var(--line); }
+  .pctl { display: flex; align-items: center; gap: 10px; }
+  .pctl button { width: 30px; height: 30px; border: 0; border-radius: 15px; background: transparent;
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+  .pctl button svg.i { width: 17px; height: 17px; }
+  .pctl button:disabled { opacity: .35; }
+  .pctl button:active { background: var(--line); }
+  .pctl .big { width: 38px; height: 38px; border-radius: 19px; background: var(--text); color: var(--bg); }
+  .pctl .big svg.i { width: 18px; height: 18px; }
+  .pctl .big:active { background: var(--accent); }
+  .pctl .big.wait { opacity: .6; }
+  .pseek { display: flex; align-items: center; gap: 6px; font-size: 9px; color: var(--muted);
+    font-variant-numeric: tabular-nums; }
+  .pbar { flex: 1; height: 16px; position: relative; cursor: pointer; }
+  .pbar i, .pbar b { position: absolute; left: 0; right: 0; top: 7px; height: 3px; border-radius: 2px; display: block; }
+  .pbar i { background: color-mix(in srgb, var(--text) 22%, transparent); }
+  .pbar b { background: var(--text); transform: scaleX(0); transform-origin: left center; }
+
+  /* Lyrics: a column that slides up so the current line sits a third of
+     the way down. The current line grows by transform and fills left to
+     right as it is sung (background-clip: text). */
+  .plyr { position: relative; flex: 1; min-height: 0; overflow: hidden; padding: 0 12px;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 78%, transparent 100%);
+            mask-image: linear-gradient(180deg, transparent 0, #000 16%, #000 78%, transparent 100%); }
+  .plines { will-change: transform; transition: transform .5s cubic-bezier(.22, .61, .36, 1); }
+  .l { width: 88%; padding: 3px 0; font-size: 13px; font-weight: 800; line-height: 1.25;
+    color: color-mix(in srgb, var(--text) 42%, transparent); transform-origin: left center;
+    transition: transform .3s ease, color .3s linear, opacity .3s linear; cursor: pointer; }
+  .l.past { opacity: .55; }
+  .l.now { transform: scale(1.1); color: transparent;
+    background-image: linear-gradient(90deg, var(--text) 50%, color-mix(in srgb, var(--text) 42%, transparent) 50%);
+    background-size: 200% 100%; background-position-x: 100%;
+    -webkit-background-clip: text; background-clip: text; }
+  .l.gap { font-size: 12px; }
+  .plain .l { font-size: 11.5px; font-weight: 600; color: color-mix(in srgb, var(--text) 78%, transparent); cursor: default; }
+  .pmsg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    padding: 0 20px; text-align: center; color: var(--muted); font-size: 11px; line-height: 1.45; }
+  .psrc.bad { color: var(--accent); }
+  .psrc { position: relative; flex: none; height: 13px; padding: 0 12px 2px; font-size: 8.5px;
+    color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>
 </head>
 <body>
@@ -98,6 +171,32 @@
     <div class="status" id="status"></div>
   </div>
   <div class="list" id="list"></div>
+  <button class="mini-np" id="miniNp" type="button" hidden>
+    <img id="miniCover" alt="">
+    <div class="ti"><div class="tt" id="miniTitle"></div><div class="ts" id="miniArtist"></div></div>
+    <span class="mini" id="miniPlay" role="button"></span>
+  </button>
+</div>
+
+<div class="player" id="player" hidden>
+  <div class="pbg"></div>
+  <div class="ptop">
+    <img class="pcover" id="pcover" alt="">
+    <div class="pinfo">
+      <div class="phead">
+        <div class="ptext"><div class="ptitle" id="ptitle"></div><div class="partist" id="partist"></div></div>
+        <button class="pclose" id="pclose" type="button" data-i18n-aria="player.close" data-icon="down"></button>
+      </div>
+      <div class="pctl">
+        <button id="pprev" type="button" data-i18n-aria="player.prev" data-icon="prev"></button>
+        <button id="pplay" class="big" type="button" data-i18n-aria="player.playPause"></button>
+        <button id="pnext" type="button" data-i18n-aria="player.next" data-icon="next"></button>
+      </div>
+      <div class="pseek"><span id="pcur">0:00</span><div class="pbar" id="pbar"><i></i><b id="pfill"></b></div><span id="pdur">0:00</span></div>
+    </div>
+  </div>
+  <div class="plyr" id="plyr"><div class="plines" id="plines"></div><div class="pmsg" id="pmsg" hidden></div></div>
+  <div class="psrc" id="psrc"></div>
 </div>
 
 <div class="sheet" id="sheet" hidden>
@@ -144,7 +243,17 @@
       "lyrics.title": "Текст",
       "lyrics.none": "Тексту для цієї пісні немає.",
       "lyrics.aria": "Текст пісні",
-      "hint.empty": "Шукай пісні й альбоми. Тап по пісні вмикає її в Now Playing і додає радіо «далі» — схожі треки, як у YouTube Music.",
+      "hint.empty": "Шукай пісні й альбоми. Тап по пісні відкриває плеєр із текстом, що йде за музикою, і додає радіо «далі» — схожі треки, як у YouTube Music.",
+      "player.close": "Згорнути плеєр",
+      "player.prev": "Попередній",
+      "player.next": "Наступний",
+      "player.playPause": "Грати або пауза",
+      "player.lyricsLoading": "Шукаю текст…",
+      "player.noLyrics": "Тексту для цієї пісні не знайшлось.",
+      "player.plainSource": "Текст без таймінгу · {source}",
+      "player.syncedSource": "Текст синхронізовано · {source}",
+      "player.starting": "Вмикаю…",
+      "player.streamFailed": "Звук не пішов: YouTube не віддав потік. Спробуй ще раз.",
     },
     en: {
       "search.placeholder": "Song, artist, album",
@@ -173,7 +282,17 @@
       "lyrics.title": "Lyrics",
       "lyrics.none": "No lyrics for this song.",
       "lyrics.aria": "Lyrics",
-      "hint.empty": "Search songs and albums. Tapping a song plays it in Now Playing with an up-next radio of similar tracks, like YouTube Music.",
+      "hint.empty": "Search songs and albums. Tapping a song opens the player with lyrics that follow the music, plus an up-next radio of similar tracks, like YouTube Music.",
+      "player.close": "Collapse player",
+      "player.prev": "Previous",
+      "player.next": "Next",
+      "player.playPause": "Play or pause",
+      "player.lyricsLoading": "Looking for lyrics…",
+      "player.noLyrics": "No lyrics found for this song.",
+      "player.plainSource": "Unsynced lyrics · {source}",
+      "player.syncedSource": "Synced lyrics · {source}",
+      "player.starting": "Starting…",
+      "player.streamFailed": "No sound: YouTube did not hand over the stream. Try again.",
     },
   };
 
@@ -195,9 +314,13 @@
     for (const el of document.querySelectorAll("[data-i18n-aria]")) el.setAttribute("aria-label", t(el.dataset.i18nAria));
   }
 
-  // play/list/music copied verbatim from static/screen/icons.js
+  // play/pause/prev/next/list/music copied verbatim from static/screen/icons.js
   const ICONS = {
     play: '<path d="M8 5.4v13.2L19.2 12z"/>',
+    pause: '<path d="M8.6 5.5v13M15.4 5.5v13"/>',
+    prev: '<path d="M17.5 5.5v13L8.2 12z"/><path d="M6.5 5.5v13"/>',
+    next: '<path d="M6.5 5.5v13L15.8 12z"/><path d="M17.5 5.5v13"/>',
+    down: '<path d="m6 9.5 6 6 6-6"/>',
     list: '<path d="M4 6.5h.01M4 12h.01M4 17.5h.01M8.5 6.5h11.5M8.5 12h11.5M8.5 17.5h11.5"/>',
     music: '<path d="M9.2 18V6.2l9.3-2v11.6"/><circle cx="6.9" cy="18" r="2.4"/><circle cx="16.2" cy="15.8" r="2.4"/>',
     back: '<path d="m14 5-7 7 7 7M7 12h13"/>',
@@ -214,6 +337,9 @@
   let view = "home";            // what the list shows, for relocalising
   let lastData = null;
   let playingId = "";
+  // Covers by video id: the screen's Now Playing knows the track, not its
+  // album art, so the player looks the cover up in what this app has shown.
+  const covers = {};
 
   function say(key, vars, now) {
     statusState = [key, vars || null, !!now];
@@ -260,6 +386,7 @@
   /* A track row. `queue` is what should follow it: the rest of an album, or
      nothing — then the YouTube Music radio for that track is fetched. */
   function trackRow(track, opts) {
+    if (track.id && track.cover) covers[track.id] = track.cover;
     const row = document.createElement("div");
     row.className = "track" + (track.id === playingId ? " on" : "");
     row.setAttribute("role", "button");
@@ -310,6 +437,8 @@
 
   async function play(track, queue) {
     say("status.starting", { title: track.title }, true);
+    openPlayer({ id: track.id, title: track.title, uploader: (track.artists || []).join(", "),
+                 duration: track.duration || 0, cover: track.cover || "" }, true);
     let upNext = queue;
     if (!upNext) {
       // Radio first, then play: two plays would restart the stream. The
@@ -331,6 +460,8 @@
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
         say("status.failed", { error: errorText(err, String(resp.status)) });
+        pending = null;
+        showLyricsMessage(t("status.failed", { error: errorText(err, String(resp.status)) }));
         return;
       }
       playingId = track.id;
@@ -479,6 +610,285 @@
     }
   }
 
+  /* ---------- the player ----------
+     The sound plays in the screen (Now Playing), which pushes its state here
+     as {type:"botMusic"} and takes {type:"botMusicControl"} back. So music
+     keeps going when this app closes, and there is never a second <audio>.
+     Between messages the position is interpolated, so a lyric line changes
+     on time rather than on the next message. */
+
+  const player = $("player"), plines = $("plines"), pmsg = $("pmsg");
+  let np = null;               // last botMusic state
+  let npAt = 0;                // performance.now() when it arrived
+  let pending = null;          // {id, until}: a tap we are waiting on
+  let shown = null;            // track the player shows
+  let lyr = { id: "", kind: "none", lines: [], els: [] };
+  let lineIdx = -2;
+  let raf = 0, lastSec = -1;
+
+  function control(action, extra) {
+    try { window.parent.postMessage({ type: "botMusicControl", action, ...(extra || {}) }, "*"); } catch (e) {}
+  }
+  function fullScreen(on) {
+    try { window.parent.postMessage({ type: "storeAppFullscreen", on: !!on }, "*"); } catch (e) {}
+  }
+
+  function coverFor(tr) {
+    if (!tr) return "";
+    const c = tr.cover || covers[tr.id];
+    // Fallback: the video thumbnail, which for a song is its album art
+    // (the square box crops the 16:9 frame to its middle).
+    return c ? coverUrl(c) : "/api/video/thumb?id=" + encodeURIComponent(tr.id);
+  }
+
+  /* Tint the background with the cover's own colour: an 8x8 average,
+     computed once per track. Same-origin images only, which ours are. */
+  function tintFrom(imgEl) {
+    try {
+      const c = document.createElement("canvas");
+      c.width = c.height = 8;
+      const g = c.getContext("2d", { willReadFrequently: true });
+      g.drawImage(imgEl, 0, 0, 8, 8);
+      const d = g.getImageData(0, 0, 8, 8).data;
+      let r = 0, gg = 0, b = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; n++; }
+      player.style.setProperty("--tint", "rgb(" + [r, gg, b].map((v) => Math.round(v / n)).join(",") + ")");
+    } catch (e) { player.style.removeProperty("--tint"); }
+  }
+  $("pcover").addEventListener("load", (e) => tintFrom(e.target));
+  $("pcover").addEventListener("error", (e) => { e.target.removeAttribute("src"); player.style.removeProperty("--tint"); });
+
+  function showTrack(tr) {
+    const same = shown && shown.id === tr.id;
+    shown = { ...(shown && same ? shown : {}), ...tr };
+    if (!shown.cover && covers[tr.id]) shown.cover = covers[tr.id];
+    $("ptitle").textContent = shown.title || "";
+    $("partist").textContent = shown.uploader || "";
+    if (!same) {
+      $("pcover").src = coverFor(shown);
+      loadLyrics(shown);
+    }
+  }
+
+  function openPlayer(tr, starting) {
+    player.hidden = false;
+    fullScreen(true);
+    if (tr) {
+      if (starting) pending = { id: tr.id, until: performance.now() + 20000 };
+      showTrack(tr);
+      if (starting) setPlayButton(false, true);
+    }
+    control("state");
+    startLoop();
+  }
+  function closePlayer() {
+    player.hidden = true;
+    fullScreen(false);
+    cancelAnimationFrame(raf);
+    raf = 0;
+    renderMini();
+  }
+  $("pclose").addEventListener("click", closePlayer);
+
+  function setPlayButton(playing, waiting) {
+    const b = $("pplay");
+    b.innerHTML = icon(playing ? "pause" : "play");
+    b.classList.toggle("wait", !!waiting);
+  }
+  $("pplay").addEventListener("click", () => control("toggle"));
+  $("pprev").addEventListener("click", () => control("prev"));
+  $("pnext").addEventListener("click", () => control("next"));
+  $("pbar").addEventListener("click", (e) => {
+    const total = np && np.duration;
+    if (!total || np.live) return;
+    const box = e.currentTarget.getBoundingClientRect();
+    control("seek", { position: Math.max(0, Math.min(1, (e.clientX - box.left) / box.width)) * total });
+  });
+
+  // Swipe down collapses the player, the way phones do it.
+  (function swipeDown() {
+    let start = null;
+    player.addEventListener("pointerdown", (e) => { start = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+    player.addEventListener("pointerup", (e) => {
+      if (!start || start.id !== e.pointerId) return;
+      const dx = e.clientX - start.x, dy = e.clientY - start.y;
+      start = null;
+      if (dy > 60 && dy > Math.abs(dx) * 2) closePlayer();
+    });
+    player.addEventListener("pointercancel", () => { start = null; });
+  })();
+
+  function position() {
+    if (!np) return 0;
+    const drift = np.playing && !np.loading ? (performance.now() - npAt) / 1000 : 0;
+    return Math.min(np.duration || Infinity, (np.position || 0) + drift);
+  }
+
+  /* ---------- lyrics ---------- */
+
+  function showLyricsMessage(text) {
+    plines.innerHTML = "";
+    plines.style.transform = "";
+    pmsg.textContent = text;
+    pmsg.hidden = !text;
+  }
+
+  async function loadLyrics(tr) {
+    const id = tr.id;
+    lyr = { id, kind: "loading", lines: [], els: [] };
+    lineIdx = -2;
+    $("psrc").textContent = "";
+    showLyricsMessage(t("player.lyricsLoading"));
+    let data;
+    try {
+      data = await api("/api/ytm/synced?id=" + encodeURIComponent(id) +
+        "&title=" + encodeURIComponent(tr.title || "") +
+        "&artist=" + encodeURIComponent(tr.uploader || "") +
+        "&duration=" + encodeURIComponent(Math.round(tr.duration || 0)));
+    } catch (e) { data = { kind: "none" }; }
+    if (!shown || shown.id !== id) return;       // the song changed meanwhile
+    plines.innerHTML = "";
+    plines.classList.toggle("plain", data.kind === "plain");
+    if (data.kind === "synced" && (data.lines || []).length) {
+      lyr = { id, kind: "synced", lines: data.lines, els: [] };
+      for (const line of data.lines) {
+        const el = document.createElement("div");
+        el.className = "l" + (line.text ? "" : " gap");
+        el.textContent = line.text || "· · ·";   // an instrumental gap
+        el.addEventListener("click", () => control("seek", { position: line.t }));
+        plines.appendChild(el);
+        lyr.els.push(el);
+      }
+      lyr.srcText = t("player.syncedSource", { source: data.source || "LRCLIB" });
+      $("psrc").textContent = lyr.srcText;
+    } else if (data.kind === "plain" && data.text) {
+      lyr = { id, kind: "plain", lines: [], els: [] };
+      for (const text of String(data.text).split("\n")) {
+        const el = document.createElement("div");
+        el.className = "l";
+        el.textContent = text || " ";
+        plines.appendChild(el);
+      }
+      lyr.srcText = t("player.plainSource", { source: data.source || "YouTube Music" });
+      $("psrc").textContent = lyr.srcText;
+    } else {
+      lyr = { id, kind: "none", lines: [], els: [] };
+      showLyricsMessage(t("player.noLyrics"));
+      return;
+    }
+    pmsg.hidden = true;
+    lineIdx = -2;
+    tick(true);
+  }
+
+  // The last line whose start has passed. Binary search: a song has ~60
+  // lines and this runs every frame.
+  function currentLine(pos) {
+    const lines = lyr.lines;
+    let lo = 0, hi = lines.length - 1, ans = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (lines[mid].t <= pos + 0.15) { ans = mid; lo = mid + 1; } else hi = mid - 1;
+    }
+    return ans;
+  }
+
+  function placeLines(targetEl) {
+    const box = $("plyr").clientHeight;
+    const y = targetEl ? targetEl.offsetTop - box * 0.34 : 0;
+    plines.style.transform = "translate3d(0," + (-Math.max(0, y)).toFixed(1) + "px,0)";
+  }
+
+  function tick(force) {
+    const pos = position();
+    const total = np ? np.duration || 0 : 0;
+    const sec = Math.floor(pos);
+    if (force || sec !== lastSec) {
+      lastSec = sec;
+      $("pcur").textContent = fmt(pos);
+      $("pdur").textContent = total ? fmt(total) : "0:00";
+    }
+    $("pfill").style.transform = "scaleX(" + (total ? Math.min(1, pos / total) : 0).toFixed(4) + ")";
+
+    if (lyr.kind === "synced") {
+      const idx = currentLine(pos);
+      if (idx !== lineIdx || force) {
+        if (lyr.els[lineIdx]) lyr.els[lineIdx].classList.remove("now");
+        lyr.els.forEach((el, i) => el.classList.toggle("past", i < idx));
+        lineIdx = idx;
+        const el = lyr.els[idx];
+        if (el) el.classList.add("now");
+        placeLines(el || null);
+      }
+      const el = lyr.els[lineIdx];
+      if (el) {
+        const start = lyr.lines[lineIdx].t;
+        const next = lyr.lines[lineIdx + 1];
+        const end = next ? next.t : start + 4;
+        const p = Math.max(0, Math.min(1, (pos - start) / Math.max(0.3, end - start)));
+        el.style.backgroundPositionX = ((1 - p) * 100).toFixed(1) + "%";
+      }
+    } else if (lyr.kind === "plain" && total) {
+      // No timing: glide through the text by progress, no fake highlight.
+      const room = Math.max(0, plines.scrollHeight - $("plyr").clientHeight * 0.6);
+      const y = room * Math.min(1, pos / total);
+      if (force || Math.abs(y - (tick.lastY || 0)) > 2) {
+        tick.lastY = y;
+        plines.style.transform = "translate3d(0," + (-y).toFixed(1) + "px,0)";
+      }
+    }
+  }
+
+  function loop() {
+    raf = 0;
+    if (player.hidden) return;
+    tick(false);
+    if (np && np.playing) raf = requestAnimationFrame(loop);
+  }
+  function startLoop() {
+    if (!raf && !player.hidden) raf = requestAnimationFrame(loop);
+  }
+
+  function onMusicState(data) {
+    np = data;
+    npAt = performance.now();
+    const tr = data.track;
+    if (pending && (!tr || tr.id !== pending.id)) {
+      // The previous song is still reporting while ours resolves: do not let
+      // it take the player back.
+      if (performance.now() < pending.until) { renderMini(); return; }
+      pending = null;
+    }
+    if (tr && pending && tr.id === pending.id && (data.playing || data.failed || !data.loading)) pending = null;
+    if (tr && tr.provider === "youtube" && !player.hidden) showTrack(tr);
+    const waiting = !data.failed && (!!pending || data.loading);
+    setPlayButton(data.playing && !data.loading, waiting);
+    // Say it where the eye already is, instead of a player frozen at 0:00.
+    $("psrc").classList.toggle("bad", !!data.failed);
+    $("psrc").textContent = data.failed ? t("player.streamFailed") : (lyr.srcText || "");
+    $("pprev").disabled = !tr;
+    $("pnext").disabled = !data.hasNext;
+    if (!player.hidden) { tick(true); startLoop(); }
+    renderMini();
+  }
+
+  /* Mini bar in the list: the screen is playing a song, one tap opens it. */
+  function renderMini() {
+    const tr = np && np.track;
+    const bar = $("miniNp");
+    if (!tr || tr.provider !== "youtube" || !player.hidden) { bar.hidden = true; return; }
+    bar.hidden = false;
+    $("miniTitle").textContent = tr.title || "";
+    $("miniArtist").textContent = tr.uploader || "";
+    const src = coverFor(tr);
+    if ($("miniCover").dataset.src !== src) { $("miniCover").dataset.src = src; $("miniCover").src = src; }
+    $("miniPlay").innerHTML = icon(np.playing ? "pause" : "play");
+  }
+  $("miniNp").addEventListener("click", (e) => {
+    if (e.target.closest("#miniPlay")) { control("toggle"); return; }
+    if (np && np.track) openPlayer(np.track, false);
+  });
+
   /* ---------- controls ---------- */
 
   $("go").addEventListener("click", search);
@@ -513,7 +923,12 @@
   })();
 
   window.addEventListener("message", (e) => {
-    if (e.source !== window.parent || !e.data || e.data.type !== "botSkin") return;
+    if (e.source !== window.parent || !e.data) return;
+    if (e.data.type === "botMusic") {
+      if (e.origin === window.location.origin) onMusicState(e.data);
+      return;
+    }
+    if (e.data.type !== "botSkin") return;
     if (e.data.vars) for (const k in e.data.vars) document.documentElement.style.setProperty(k, e.data.vars[k]);
     document.documentElement.dataset.theme = e.data.theme === "light" ? "light" : "dark";
     if ((e.data.lang === "uk" || e.data.lang === "en") && e.data.lang !== lang) {
@@ -521,11 +936,14 @@
       applyI18n();
       say(statusState[0], statusState[1], statusState[2]);
       if (view === "home") showHome(); else if (view === "search") search();
+      if (shown && !player.hidden) { const tr = shown; shown = null; showTrack(tr); }
     }
   });
 
   applyI18n();
   paintIcons();
+  setPlayButton(false, false);
+  control("state");
   q.value = storageGet("yt-music.lastQuery", "");
   if (q.value) search(); else showHome();
 </script>

@@ -19,6 +19,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shutil
 import time
 from pathlib import Path
@@ -67,6 +68,36 @@ def available() -> bool:
     return helper_path() is not None
 
 
+_CLOCK_RE = re.compile(r"^\d{1,2}:\d{2}(?::\d{2})?$")
+
+
+def _broken_track(track: Any) -> bool:
+    """YouTube Music sometimes answers a search in a newer layout that
+    rustypipe misreads: the song length lands in `artists` (["5:55"]), the
+    duration is 0 and the real artist is lost. Seen on ~1 search in 3."""
+    artists = track.get("artists") if isinstance(track, dict) else None
+    return bool(artists) and all(_CLOCK_RE.match(str(a).strip()) for a in artists)
+
+
+def _repair_tracks(data: dict[str, Any]) -> int:
+    """Move a misread length back into `duration`; returns how many tracks
+    were broken. The artist cannot be recovered, so it is left empty rather
+    than shown as a time."""
+    broken = 0
+    for track in data.get("tracks") or []:
+        if not _broken_track(track):
+            continue
+        broken += 1
+        clock = str(track["artists"][0]).strip()
+        if not track.get("duration"):
+            seconds = 0
+            for part in clock.split(":"):
+                seconds = seconds * 60 + int(part)
+            track["duration"] = seconds
+        track["artists"] = []
+    return broken
+
+
 async def run(command: str, arg: str = "", limit: int = 20) -> dict[str, Any]:
     """Run one helper command and return its JSON. Cached per (command, arg)."""
     if command not in COMMANDS:
@@ -78,6 +109,24 @@ async def run(command: str, arg: str = "", limit: int = 20) -> dict[str, Any]:
     if cached and time.monotonic() - cached[0] < _TTL[command]:
         return cached[1]
 
+    data = await _call(command, arg, limit)
+    if any(_broken_track(t) for t in data.get("tracks") or []):
+        # The layout is chosen per request, so one retry usually gets the
+        # old one back. A result still broken after that is repaired and
+        # not cached, so the next search asks again.
+        log.info("ytm-helper %s %r: misread layout, retrying", command, arg[:60])
+        data = await _call(command, arg, limit)
+        if _repair_tracks(data):
+            return data
+    _CACHE[key] = (time.monotonic(), data)
+    if len(_CACHE) > 300:
+        oldest = sorted(_CACHE, key=lambda k: _CACHE[k][0])[:100]
+        for k in oldest:
+            _CACHE.pop(k, None)
+    return data
+
+
+async def _call(command: str, arg: str, limit: int) -> dict[str, Any]:
     binary = helper_path()
     if not binary:
         raise YtmError("ytm-helper is not built (cargo build --release in ytm-helper/)", "unavailable")
@@ -104,11 +153,6 @@ async def run(command: str, arg: str = "", limit: int = 20) -> dict[str, Any]:
         message = str(data.get("error") or err.decode("utf-8", "replace")[:200] or "helper failed")
         log.warning("ytm-helper %s %r failed: %s", command, arg[:60], message)
         raise YtmError(message, "upstream")
-    _CACHE[key] = (time.monotonic(), data)
-    if len(_CACHE) > 300:
-        oldest = sorted(_CACHE, key=lambda k: _CACHE[k][0])[:100]
-        for k in oldest:
-            _CACHE.pop(k, None)
     return data
 
 
