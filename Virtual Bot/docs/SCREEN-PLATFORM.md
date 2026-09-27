@@ -395,6 +395,28 @@ while the bot talks — its own voice must not stop it). After only the name
 the bot waits 8 s for the command; after each answer it keeps listening 8 s
 without the name, so a back-and-forth does not need "Claude" every time.
 
+## 4a½. Shades: notifications (left) and quick settings (right)
+
+As on Android: swipe down on the **left half** → notification shade, on the
+**right half** → quick settings. Swipe up closes either; when the list is
+long enough to scroll, the pull handle at the bottom still closes it. A bell
+with the unread count sits on the face (red when an error is among them).
+
+The shade shows timers and reminders, then notices. Contract
+(`screen_widgets.py`):
+
+| What | How |
+|---|---|
+| reminders | tool `set_reminder {text, minutes\|hours\|at: "18:30"\|"2026-10-02 09:00"}` — a timer of `kind: "reminder"`, up to 7 days, kept 12 h after it fires |
+| system notices | `screen_widgets.notify(key, code=…, params=…, level=…)` — same key = one notice with a `count`; `resolve(key)` removes it once fixed. Raised today for `brainOffline`, `ttsFallback` (`reason: quota\|error`), `ttsFail`, `asrFail` |
+| the bot's notices | tool `post_notification {title, text, level}` |
+| screen-only | `linkLost` — with the link down the server cannot say so itself |
+| API | `GET /api/screen/notices`, `POST /api/screen/notices/dismiss {id\|"all"}`, SSE `{"type": "notice", "notices"}` |
+
+System notices carry `code` + `params` and the screen words them through
+`notice.<code>` / `notice.<code>.<reason|body>` keys in `i18n.js`, so a
+new code needs its two keys in both languages.
+
 ## 4b. On-screen keyboard (`keyboard.js`)
 
 Voice cannot do everything: a search query, a name, a word recognition
@@ -453,18 +475,42 @@ window.addEventListener("message", (e) => {
 | Метод/шлях | Що повертає |
 |---|---|
 | `GET /api/music/status` | `{youtube, transcript}` — що доступно |
-| `GET /api/music/search?q=&limit=` | `{tracks:[{id,title,uploader,duration}]}` |
+| `GET /api/music/search?q=&limit=&sort=` | `{tracks:[{id,title,uploader,duration}]}`; `limit` up to 48, `sort` = `relevance` (default) or `date` (newest first) |
 | `GET /api/music/radio` | `{stations:[{id,title,genre,url}]}` |
 | `GET /api/music/stream?provider=youtube|radio&id=` | аудіо-потік з Range (206/Content-Range) |
 | `GET /api/music/transcript?id=&lang=&text=` | сегменти субтитрів або склеєний текст |
 | `POST /api/music/play` | `{"id","title","uploader","duration"}` або `{"query"}` → SSE `music` (так застосунки вмикають музику в барі) |
 | `POST /api/music/stop` | зупинити Now Playing |
+| `GET /api/ytm/synced?id=&title=&artist=&duration=` | `{kind:"synced", lines:[{t,text}], source}` from LRCLIB, or `{kind:"plain", text, source}` from YouTube Music, or `{kind:"none"}` |
 
 Архітектурне правило: застосунок у iframe НІКОЛИ не грає аудіо сам —
 він передає трек у Now Playing через `POST /api/music/play`, і музика
 живе далі після закриття застосунку. Якщо тап стався всередині iframe і
 браузер заблокував автоплей — бар показує ▶ і дограє на першому дотику
 по екрану (ретрай в `musicPlayTrack`).
+
+An app can still be the *player* for that sound (YT Music does it): the
+screen pushes the Now Playing state to the open trusted app, and the app
+sends controls back. Imported (sandboxed) apps get neither.
+
+```js
+// parent → app, on every state change and ~2x a second while playing
+{type: "botMusic", track: {id, title, uploader, duration, provider} | null,
+ position, duration, playing, loading, failed, live, hasPrev, hasNext}
+// app → parent
+parent.postMessage({type: "botMusicControl", action: "toggle"}, "*");  // also next, prev, state
+parent.postMessage({type: "botMusicControl", action: "seek", position: 42}, "*");
+```
+
+`playing` is true only while sound is actually coming (`failed` covers a
+dead stream), so an app can interpolate the position between messages.
+
+### Full screen for an app
+
+`parent.postMessage({type: "storeAppFullscreen", on: true}, "*")` drops the
+app layer's title bar and padding, so the iframe gets the whole 320×240
+panel; `on: false` brings them back, and closing the app always does. The
+app must then offer its own way back (the YouTube and YT Music players do).
 
 ### Відео на екрані
 
