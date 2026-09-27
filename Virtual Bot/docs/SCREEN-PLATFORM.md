@@ -511,6 +511,30 @@ draw one that fits the set is in the skill
 The layout maths (`honeycomb`, `fisheye`, `listLens`, `rubber`) is pure
 and checked from node in `tests/test_screen_js.py`.
 
+## 4d. Getting out of an app: Android gestures (`gesture-nav.js`)
+
+While an app is open (camera, settings, the store, any store app), the
+screen lays Android's edges over it. They lie above the app, iframes
+included, so they work in every app, even a full-screen one:
+
+- **Swipe up from the pill at the bottom → home.** Every layer closes and
+  the carousel goes to its first screen. The app shrinks and rises under
+  the finger.
+- **Swipe in from the left or right edge → back.** Back goes to the
+  previous app (store → app → back to the store). If the app was
+  launched from the drawer, it goes back to the drawer. Otherwise it
+  closes the app. An arrow grows at the edge and turns the accent colour
+  once letting go will count.
+- Letting go early cancels either gesture. The title bar's "Назад ✕",
+  a horizontal swipe on a non-iframe app and an app's own
+  `storeAppSwipe` message all mean **back** too. On a desktop, Escape
+  means home and Backspace means back.
+- The pill hops once when an app opens, to show where the way out is.
+
+**For app authors:** the strips take the outer **12 px on each side**
+and the bottom **16 px** of the 320×240 panel. Keep buttons out of them.
+Content may run underneath, as it does on a phone.
+
 ## 5. API довідник (нові ендпоінти)
 
 ### Магазин екрана

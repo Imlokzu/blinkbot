@@ -627,6 +627,56 @@ html, body {
 /* A store app asked for full screen (storeAppFullscreen): no title bar and
    no padding, the iframe takes the whole panel. */
 .layer-app.full { padding: 0; }
+
+/* ---------- Gesture navigation over open apps (gesture-nav.js) ----------
+   Android's edges: the pill at the bottom (swipe up → home) and the side
+   strips (swipe in → back). The strips are invisible and lie above the
+   app, iframes included; only the pill is drawn. */
+.gnav { display: none; }
+.gnav.on { display: block; }
+.gnav-zone { position: absolute; z-index: 5; touch-action: none; }
+.gnav-left { left: 0; top: 0; bottom: 16px; width: 12px; }
+.gnav-right { right: 0; top: 0; bottom: 16px; width: 12px; }
+.gnav-bottom { left: 0; right: 0; bottom: 0; height: 16px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px; }
+/* White with a dark rim, so it reads over a light app and a dark one */
+.gnav-pill {
+  width: 44px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+/* On open the pill hops once: this is where the way out is */
+.gnav-pill.hint { animation: gnav-hint 900ms ease-out 250ms 1; }
+@keyframes gnav-hint {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  30% { transform: translate3d(0, -5px, 0); }
+  60% { transform: translate3d(0, 0, 0); }
+  75% { transform: translate3d(0, -2px, 0); }
+}
+.gnav-arrow {
+  position: absolute;
+  z-index: 5;
+  width: 30px;
+  height: 30px;
+  margin-top: 0;
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 22, 26, 0.82);
+  pointer-events: none;
+}
+.gnav-arrow.show { display: flex; }
+.gnav-arrow.left { left: -6px; }
+.gnav-arrow.right { right: -6px; }
+.gnav-arrow.right svg { transform: scaleX(-1); }
+.gnav-arrow.ready { background: var(--accent); }
+.gnav-arrow svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+/* While the finger drives the app, no transition may lag behind it */
+.layer-app.gnav-dragging { transition: none; }
+@media (prefers-reduced-motion: reduce) { .gnav-pill.hint { animation: none; } }
 .layer-app.full > .layer-head { display: none; }
 
 .app-body {

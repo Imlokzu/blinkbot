@@ -15,6 +15,7 @@ import { ScreenKeyboard } from "./keyboard.js";
 import { WatchDrawer } from "./drawer.js";
 import { appIconEl } from "./app-icons.js";
 import { wxKind, wxSky, wxIconSvg, windArrowSvg } from "./weather-icons.js";
+import { GestureNav } from "./gesture-nav.js";
 /* Контурні іконки та їхні кольори — у icons.js */
 import { makeSvgIcon, ICON_COLORS } from "./icons.js";
 /* Дві мови інтерфейсу (uk/en) — словник і хелпери в i18n.js */
@@ -369,7 +370,7 @@ function finishStagePointer(e) {
   if (adx < SWIPE_MIN && ady < SWIPE_MIN) return;
 
   if (adx > ady) {
-    if (layerApp.classList.contains("open")) { closeAppLayer(); return; }
+    if (layerApp.classList.contains("open")) { appGoBack(); return; }
     if (appsOpen()) { closeApps(); return; }
     if (layer) { openLayer(null); return; }      // горизонталь у шарі = назад
     goTileCyclic(dx < 0 ? 1 : -1);
@@ -415,7 +416,8 @@ window.addEventListener("keydown", (e) => {
   else if (e.key === "ArrowUp") openLayer(layer === "quick" ? null : "apps");
   else if (e.key === "ArrowDown") openLayer(layer === "apps" ? null : "quick");
   else if (e.key === "n") openLayer(layer === "notices" ? null : "notices");
-  else if (e.key === "Escape") goHome();
+  else if (e.key === "Escape") { if (layerApp.classList.contains("open")) appGoHome(); else goHome(); }
+  else if (e.key === "Backspace" && layerApp.classList.contains("open")) appGoBack();
 });
 
 /* ---------- Годинник ---------- */
@@ -2818,7 +2820,11 @@ function renderApps() {
       t,
       iconEl: appIconEl,
       icon: makeSvgIcon,
-      onLaunch: (id) => { closeApps(); showScreen(id); },
+      onLaunch: (id) => {
+        closeApps();
+        launchingFromDrawer = true;
+        try { showScreen(id); } finally { launchingFromDrawer = false; }
+      },
       onClose: closeApps,
       onActivity: wake,
     });
@@ -2915,9 +2921,17 @@ let videoPending = null;
    спокійно йде і власна назва застосунку з магазину. Пару (ключ, build)
    памʼятаємо: після зміни мови шар перезбирається тим самим build. */
 let openApp = null;
+/* What the back gesture returns to: apps opened one from another (the
+   store → an app), and "drawer" at the bottom when the first one was
+   launched from the drawer. Home ignores all of it. */
+let appHistory = [];
+let launchingFromDrawer = false;
+let gestureNav = null;       // built below, once the layer functions exist
 
 function openAppLayer(titleKey, build) {
   clearTimeout(camTimer);
+  if (openApp) appHistory.push(openApp);
+  else appHistory = launchingFromDrawer ? ["drawer"] : [];
   applyFrost(layerApp);
   openApp = { key: titleKey, build };
   $("appTitle").textContent = t(titleKey);
@@ -2931,6 +2945,7 @@ function openAppLayer(titleKey, build) {
   build(appBody);
   layerApp.classList.add("open");
   stage.classList.add("layered");
+  gestureNav?.setOn(true, true);
   renderIsland();
   wake();
 }
@@ -2952,13 +2967,43 @@ function closeAppLayer() {
   // The keyboard may be typing into this app's field; that field is gone
   if (osk) osk.close(true);
   openApp = null;
+  appHistory = [];
+  gestureNav?.setOn(false);
   layerApp.classList.remove("open", "full");
   appBody.innerHTML = "";                 // MJPEG-стрім інакше тягнеться далі
   if (!layer && !appsOpen()) stage.classList.remove("layered");
   renderIsland();
 }
 
-document.querySelector("[data-app-close]").addEventListener("click", closeAppLayer);
+/* Back: the previous app, or the drawer it was launched from, or the
+   carousel as it was. */
+function appGoBack() {
+  const prev = appHistory.pop();
+  const rest = appHistory;
+  closeAppLayer();
+  if (prev === "drawer") { openApps(); return; }
+  if (prev) {
+    openAppLayer(prev.key, prev.build);
+    appHistory = rest;
+  }
+}
+
+/* Home: everything off, the carousel's first screen — the swipe up. */
+function appGoHome() {
+  closeAppLayer();
+  goHome();
+}
+
+/* Android's edges over every open app, iframes included (gesture-nav.js). */
+gestureNav = new GestureNav(stage, {
+  target: () => layerApp,
+  onHome: appGoHome,
+  onBack: appGoBack,
+  onActivity: wake,
+  scale: stageScale,
+});
+
+document.querySelector("[data-app-close]").addEventListener("click", appGoBack);
 
 /* --- Камера: потік беремо НАПРЯМУ з Vision (8000), не через бекенд --- */
 function openCamera() {
@@ -4438,7 +4483,7 @@ window.addEventListener("message", (event) => {
   if (event.data?.type === "botVideoState" && frame.dataset.pkg === VIDEO_PKG) {
     lastVideoState = { ...event.data, at: Date.now() };
   }
-  if (event.data?.type === "storeAppSwipe" && ["left", "right", "down"].includes(event.data.direction)) closeAppLayer();
+  if (event.data?.type === "storeAppSwipe" && ["left", "right", "down"].includes(event.data.direction)) appGoBack();
   if (event.data?.type === "botKeyboard") onAppKeyboardRequest(frame, event.data);
   if (event.data?.type === "botMusicControl" && frame.dataset.sandboxed !== "1") onAppMusicControl(event.data);
 });

@@ -400,3 +400,44 @@ console.log(JSON.stringify(m.KINDS.filter(k => !(lum(m.wxSky(k, true)[0]) < lum(
         kinds = _run("weather-icons.js", "console.log(JSON.stringify(m.KINDS));")
         for kind in kinds:
             assert text.count(f'"wx.c.{kind}"') == 2, kind
+
+
+@needs_node
+class TestGestureNav:
+    """gesture-nav.js: Android's edges over an open app."""
+
+    def test_swipe_up_from_the_pill_is_home(self):
+        result = _run("gesture-nav.js", """
+console.log(JSON.stringify([
+  m.classify("bottom", 0, -60),          // a clear pull up
+  m.classify("bottom", 3, -20, 120),     // a short flick
+  m.classify("bottom", 0, -20, 400),     // short and slow: nothing
+  m.classify("bottom", 60, -30),         // mostly sideways: nothing
+  m.classify("bottom", 0, 30),           // down: nothing
+]));
+""")
+        assert result == ["home", "home", None, None, None]
+
+    def test_swipe_in_from_either_edge_is_back(self):
+        result = _run("gesture-nav.js", """
+console.log(JSON.stringify([
+  m.classify("left", 50, 4),
+  m.classify("right", -50, -4),
+  m.classify("left", -50, 0),            // outwards: nothing
+  m.classify("right", -20, 40),          // mostly vertical: nothing
+  m.classify("left", 16, 0, 100),        // flick
+]));
+""")
+        assert result == ["back", "back", None, None, "back"]
+
+    def test_progress_is_clamped(self):
+        result = _run("gesture-nav.js", """
+console.log(JSON.stringify([m.progress("bottom", 0, 20), m.progress("bottom", 0, -500), m.progress("left", 24, 0)]));
+""")
+        assert result[0] == 0 and result[1] == 1 and 0 < result[2] < 1
+
+    def test_the_strips_leave_the_app_most_of_the_screen(self):
+        result = _run("gesture-nav.js", "console.log(JSON.stringify([m.EDGE, m.BOTTOM]));")
+        edge, bottom = result
+        # 320×240: the app keeps at least 90% of the width and 90% of the height
+        assert 2 * edge <= 32 and bottom <= 24
