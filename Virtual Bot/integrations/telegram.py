@@ -27,6 +27,7 @@ import re
 import secrets
 import time
 import uuid
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
 
@@ -42,6 +43,8 @@ log = logging.getLogger("virtual_bot.integrations.telegram")
 NAME = "telegram"
 API = "https://api.telegram.org"
 TEXT_LIMIT = 4096
+# Bot messages a reaction can still be traced back to (see _sent).
+SENT_MEMORY = 500
 # The Bot API refuses downloads above 20 MB anyway; 10 MB is the vision limit.
 MAX_DOWNLOAD = 10 * 1024 * 1024
 MAX_TEXT_FILE = 200_000
@@ -77,6 +80,12 @@ class TelegramBridge:
         self._locks: dict[str, asyncio.Lock] = {}
         self._lang: dict[str, str] = {}
         self._last_own: dict[str, int] = {}
+        self._on_reaction: Optional[Callable[..., Awaitable[None]]] = None
+        # Telegram message -> (session, stored bot message, bubble index), so
+        # a reaction on it lands on the right bubble. The newest few hundred.
+        self._sent: "OrderedDict[tuple[str, int], tuple[str, str, int]]" = OrderedDict()
+        # Seconds of "typing…" between two bubbles, per character; 0 in tests.
+        self.pace = 1.0
         self._stranger_replied: dict[int, float] = {}
         self._me: dict[str, Any] = {}
         self.last_error = ""
@@ -87,6 +96,10 @@ class TelegramBridge:
     def attach(self, chat: ChatHandler, transcribe: Optional[Transcriber] = None) -> None:
         self._chat = chat
         self._transcribe = transcribe
+
+    def attach_reactions(self, handler: Callable[..., Awaitable[None]]) -> None:
+        """`async (session_id, message_id, bubble, emoji | None, meta)`."""
+        self._on_reaction = handler
 
     def config(self) -> dict[str, Any]:
         return secrets_store.load(NAME)
@@ -229,7 +242,7 @@ class TelegramBridge:
                 try:
                     updates = await self.call(
                         "getUpdates", offset=offset, timeout=50,
-                        allowed_updates=["message", "callback_query"],
+                        allowed_updates=["message", "callback_query", "message_reaction"],
                     )
                     backoff = 2.0
                     self.last_error = ""
@@ -265,6 +278,9 @@ class TelegramBridge:
     async def handle_update(self, update: dict[str, Any]) -> None:
         if "callback_query" in update:
             await self._on_callback(update["callback_query"])
+            return
+        if "message_reaction" in update:
+            await self._on_user_reaction(update["message_reaction"])
             return
         msg = update.get("message")
         if not isinstance(msg, dict):
@@ -500,20 +516,35 @@ class TelegramBridge:
             if len(message) > MAX_TURN_CHARS:
                 message = message[:MAX_TURN_CHARS] + "\n[…truncated]"
             reply_to = self._last_own.get(chat_id)
+            session_id = self.session_id(chat_id)
+            # What goes out this turn, in order: (telegram id, bubble index).
+            # The stored message id is only known when the turn ends.
+            turn = {"sent": [], "bubble": 0, "replied": False}
+
+            async def on_note(bubbles: list[str], reaction: Optional[str]) -> None:
+                # "Hi, one sec, I'll look" goes out NOW, like a person typing,
+                # not together with the answer half a minute later.
+                await self._react(chat_id, reply_to, reaction)
+                await self._send_bubbles(chat_id, bubbles, reply_to, turn)
+
             typing = asyncio.create_task(self._typing(chat_id))
             try:
                 if not self._chat:
                     raise RuntimeError("chat is not wired")
                 result = await self._chat(
-                    message, self.session_id(chat_id), attachments, "telegram",
-                    {"clerk_user_id": self.config().get("clerk_user_id", "")},
+                    message, session_id, attachments, "telegram",
+                    {"clerk_user_id": self.config().get("clerk_user_id", ""), "on_note": on_note},
                 )
             except Exception as exc:  # noqa: BLE001 — say it in the chat, not only the log
                 log.exception("Telegram turn failed")
                 result = {"bubbles": [t(lang, "tg.error", error=type(exc).__name__)]}
             finally:
                 typing.cancel()
-            await self.deliver(chat_id, result, reply_to)
+            await self.deliver(chat_id, result, reply_to, turn)
+            stored = str(result.get("assistant_message_id") or "")
+            if stored:
+                for tg_id, bubble in turn["sent"]:
+                    self._remember(chat_id, tg_id, (session_id, stored, bubble))
 
     async def _typing(self, chat_id: str) -> None:
         # "typing…" lasts 5 s on Telegram's side; a brain turn with tools can
@@ -528,26 +559,77 @@ class TelegramBridge:
         except asyncio.CancelledError:
             pass
 
-    async def deliver(self, chat_id: str, result: dict[str, Any], reply_to: Optional[int] = None) -> None:
+    async def deliver(self, chat_id: str, result: dict[str, Any], reply_to: Optional[int] = None,
+                      turn: Optional[dict[str, Any]] = None) -> None:
         """Brain reply -> Telegram: one message per bubble, reaction on yours."""
+        turn = turn if turn is not None else {"sent": [], "bubble": 0, "replied": False}
         bubbles = [b for b in (result.get("bubbles") or []) if str(b).strip()]
         if not bubbles and result.get("reply"):
             bubbles = [result["reply"]]
-        reaction = _telegram_reaction(result.get("reaction"))
-        if reaction and reply_to:
-            try:
-                await self.call("setMessageReaction", chat_id=chat_id, message_id=reply_to,
-                                reaction=[{"type": "emoji", "emoji": reaction}])
-            except Exception:  # noqa: BLE001 — a reaction is decoration
-                pass
-        first = True
+        await self._react(chat_id, reply_to, result.get("reaction"))
+        await self._send_bubbles(chat_id, bubbles, reply_to, turn)
+
+    async def _react(self, chat_id: str, message_id: Optional[int], emoji: Any) -> None:
+        reaction = _telegram_reaction(emoji)
+        if not reaction or not message_id:
+            return
+        try:
+            await self.call("setMessageReaction", chat_id=chat_id, message_id=message_id,
+                            reaction=[{"type": "emoji", "emoji": reaction}])
+        except Exception:  # noqa: BLE001 — a reaction is decoration
+            pass
+
+    async def _send_bubbles(self, chat_id: str, bubbles: list[str], reply_to: Optional[int],
+                            turn: dict[str, Any]) -> None:
+        """One Telegram message per bubble, with a short "typing…" before each
+        one after the first, so they arrive like someone writing them, not as
+        a pasted block. Only the turn's very first message quotes yours."""
         for bubble in bubbles:
+            if not str(bubble).strip():
+                turn["bubble"] += 1
+                continue
             for chunk in formatting.split_text(str(bubble), TEXT_LIMIT - 200):
-                await self._send(chat_id, chunk, markdown=True, reply_to=reply_to if first else None)
-                first = False
+                if turn["sent"] and self.pace:
+                    try:
+                        await self.call("sendChatAction", chat_id=chat_id, action="typing")
+                    except Exception:  # noqa: BLE001
+                        pass
+                    await asyncio.sleep(typing_pause(chunk) * self.pace)
+                tg_id = await self._send(chat_id, chunk, markdown=True,
+                                         reply_to=None if turn["replied"] else reply_to)
+                turn["replied"] = True
+                if tg_id:
+                    turn["sent"].append((tg_id, turn["bubble"]))
+            turn["bubble"] += 1
+
+    def _remember(self, chat_id: str, tg_id: int, target: tuple[str, str, int]) -> None:
+        self._sent[(chat_id, tg_id)] = target
+        while len(self._sent) > SENT_MEMORY:
+            self._sent.popitem(last=False)
+
+    async def _on_user_reaction(self, update: dict[str, Any]) -> None:
+        """You reacted to one of the bot's messages. Not a turn — nobody
+        expects an answer to a thumbs-up — but the bot hears of it with your
+        next message, like in the dashboard."""
+        chat = update.get("chat") or {}
+        user = update.get("user") or {}
+        if chat.get("type") != "private" or int(user.get("id") or 0) not in self.owners():
+            return
+        target = self._sent.get((str(chat.get("id")), int(update.get("message_id") or 0)))
+        if not target or not self._on_reaction:
+            return
+        emojis = [r.get("emoji") for r in (update.get("new_reaction") or [])
+                  if isinstance(r, dict) and r.get("type") == "emoji" and r.get("emoji")]
+        session_id, stored, bubble = target
+        try:
+            await self._on_reaction(session_id, stored, bubble, emojis[-1] if emojis else None,
+                                    {"clerk_user_id": self.config().get("clerk_user_id", "")})
+        except Exception:  # noqa: BLE001 — a reaction is decoration
+            log.exception("Storing a Telegram reaction failed")
 
     async def _send(self, chat_id: str, text: str, *, markdown: bool = False,
-                    reply_to: Optional[int] = None, reply_markup: Optional[dict] = None) -> None:
+                    reply_to: Optional[int] = None, reply_markup: Optional[dict] = None) -> Optional[int]:
+        """Send one message; returns its Telegram id when Telegram gave one."""
         params: dict[str, Any] = {"chat_id": chat_id, "text": text, "link_preview_options": {"is_disabled": True}}
         if markdown:
             params["text"] = formatting.to_telegram_html(text)
@@ -557,16 +639,19 @@ class TelegramBridge:
         if reply_markup:
             params["reply_markup"] = reply_markup
         try:
-            await self.call("sendMessage", **params)
+            sent = await self.call("sendMessage", **params)
         except TelegramError as exc:
             if markdown and exc.code == 400:
                 # Our HTML was not good enough for Telegram's parser: send the
                 # words plain rather than lose the message.
                 params.pop("parse_mode", None)
                 params["text"] = text
-                await self.call("sendMessage", **params)
+                sent = await self.call("sendMessage", **params)
             else:
                 raise
+        if isinstance(sent, dict) and sent.get("message_id"):
+            return int(sent["message_id"])
+        return None
 
     # ------------------------------------------------------------ outbound
 
@@ -634,6 +719,12 @@ def _forward_origin(msg: dict[str, Any]) -> str:
     if msg.get("forward_from"):
         return str(msg["forward_from"].get("first_name") or "user")
     return str(msg.get("forward_sender_name") or "")
+
+
+def typing_pause(text: str) -> float:
+    """How long "typing…" shows before a bubble: longer text, longer pause,
+    but never so long that the chat feels stuck."""
+    return min(2.2, 0.5 + len(text) / 90)
 
 
 def _telegram_reaction(emoji: Any) -> str:

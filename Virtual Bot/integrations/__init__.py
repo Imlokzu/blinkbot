@@ -42,9 +42,12 @@ def _disabled(name: str) -> bool:
     return os.environ.get(f"{name.upper()}_DISABLED", "").strip().lower() in ("1", "true", "yes")
 
 
-async def start_all(chat_handler, transcriber=None) -> None:
+async def start_all(chat_handler, transcriber=None, reaction_handler=None) -> None:
     for name, bridge in MESSENGERS.items():
         bridge.attach(chat_handler, transcriber)
+        # Reactions on the bot's messages: only bridges that can see them.
+        if reaction_handler and hasattr(bridge, "attach_reactions"):
+            bridge.attach_reactions(reaction_handler)
         if _disabled(name):
             log.info("Integration %s is disabled by %s_DISABLED", name, name.upper())
             continue

@@ -105,6 +105,45 @@ class MessengerStreamTests(unittest.TestCase):
         self.assertEqual(body["reaction"], "🔥")
 
 
+class MessengerNoteTests(unittest.TestCase):
+    def test_messenger_gets_notes_live_and_they_are_stored_first(self) -> None:
+        """A messenger turn hears "one sec, checking" while the tools still
+        run, and a reopened chat shows the note before the answer."""
+        delivered: list[tuple] = []
+        during: list[int] = []
+
+        async def chat(message, history, emit=None, **kwargs):
+            self.assertIsNotNone(emit)
+            await emit({"type": "note", "id": "r:1", "text": "Секунду, гля", "done": False})
+            await emit({"type": "note", "id": "r:1", "text": "[емоція:спокій] Привіт![[msg]]Секунду, гляну.", "done": True})
+            await emit({"type": "note", "id": "r:1", "text": "Секунду, гляну.", "done": True})   # repeat: ignored
+            during.append(len(delivered))
+            return "Надворі +19°.", "happy", "test", []
+
+        async def on_note(bubbles, reaction):
+            delivered.append((bubbles, reaction))
+
+        async def turn():
+            req = main.ChatRequest(message="яка погода?", session_id="messenger-notes")
+            return await main.chat_turn(req, "", "telegram", on_note=on_note)
+
+        import asyncio
+        with patch.object(main.brains, "chat", chat), patch.object(main, "_autoname_chat", AsyncMock()):
+            loop = asyncio.new_event_loop()
+            try:
+                result = loop.run_until_complete(turn())
+            finally:
+                loop.close()
+        self.assertEqual(delivered, [(["Привіт!", "Секунду, гляну."], None)])
+        self.assertEqual(during, [1])                  # sent before the answer came back
+        self.assertEqual(result["bubbles"], ["Надворі +19°."])
+        self.assertEqual(result["notes"], ["Привіт!", "Секунду, гляну."])
+        saved = TestClient(main.app).get("/api/sessions/messenger-notes").json()
+        parts = saved["messages"][-1]["parts"]
+        self.assertEqual([(p["text"], bool(p.get("note"))) for p in parts],
+                         [("Привіт!", True), ("Секунду, гляну.", True), ("Надворі +19°.", False)])
+
+
 class UserReactionTests(unittest.TestCase):
     def test_bot_sees_the_reaction_on_its_next_turn_once(self) -> None:
         seen: list[str] = []

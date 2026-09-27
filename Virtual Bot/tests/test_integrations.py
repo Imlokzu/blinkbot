@@ -204,6 +204,7 @@ class FakeTelegram:
 def tg():
     bridge = telegram.TelegramBridge()
     bridge._batcher = batching.TurnBatcher(bridge._on_turn, quiet_s=0.05)
+    bridge.pace = 0          # no "typing…" pauses between bubbles in tests
     secrets_store.save("telegram", {"token": "1:x", "owners": [42], "pair_code": "ABCD2345"})
     fake = FakeTelegram(bridge)
     chats: list[dict] = []
@@ -237,6 +238,60 @@ def test_owner_message_runs_one_turn_and_replies_in_bubbles(tg):
     assert "reply_parameters" not in sent[1]
     reactions = [p for m, p in fake.calls if m == "setMessageReaction"]
     assert reactions and reactions[0]["reaction"][0]["emoji"] == "❤"
+
+
+def test_a_note_goes_out_before_the_answer_and_reactions_come_back(tg):
+    """ "One sec, I'll look" is sent the moment the bot says it, before the
+    tools run; your reaction on any of its messages reaches the next turn."""
+    bridge, fake, chats = tg
+    order: list[str] = []
+    reactions: list[tuple] = []
+
+    async def chat(message, session_id, attachments, channel, meta):
+        await meta["on_note"](["Привіт!", "Зараз гляну"], None)
+        order.append("tools ran")
+        return {"bubbles": ["Готово: +19°"], "reaction": None, "assistant_message_id": "m9"}
+
+    async def on_reaction(session_id, message_id, bubble, emoji, meta):
+        reactions.append((session_id, message_id, bubble, emoji))
+
+    bridge.attach(chat)
+    bridge.attach_reactions(on_reaction)
+    real_call = fake.call
+
+    async def call(method, **params):
+        if method == "sendMessage":
+            order.append(params["text"])
+        return await real_call(method, **params)
+
+    bridge.call = call
+
+    async def scenario():
+        await bridge.handle_update(_msg(42, "яка погода?"))
+        await asyncio.sleep(0.25)
+        sent = [(i + 1, p) for i, (m, p) in enumerate(fake.calls)]
+        ids = {p["text"]: i for i, p in sent if fake.calls[i - 1][0] == "sendMessage"}
+        # Reacting to the second note and then to the answer
+        for text, emoji in (("Зараз гляну", "🔥"), ("Готово: +19°", "👍")):
+            await bridge.handle_update({"update_id": 2, "message_reaction": {
+                "chat": {"id": 42, "type": "private"}, "user": {"id": 42}, "message_id": ids[text],
+                "new_reaction": [{"type": "emoji", "emoji": emoji}]}})
+        # A stranger's reaction is ignored
+        await bridge.handle_update({"update_id": 3, "message_reaction": {
+            "chat": {"id": 7, "type": "private"}, "user": {"id": 7}, "message_id": ids["Привіт!"],
+            "new_reaction": [{"type": "emoji", "emoji": "💩"}]}})
+
+    run(scenario())
+    assert order == ["Привіт!", "Зараз гляну", "tools ran", "Готово: +19°"]
+    sent = [p for m, p in fake.calls if m == "sendMessage"]
+    assert "reply_parameters" in sent[0] and all("reply_parameters" not in p for p in sent[1:])
+    # Bubble indexes count the notes first, as chat_turn stores them
+    assert reactions == [("tg42", "m9", 1, "🔥"), ("tg42", "m9", 2, "👍")]
+
+
+def test_typing_pause_grows_with_the_text_but_stays_short():
+    assert telegram.typing_pause("ок") < telegram.typing_pause("а" * 120) <= 2.2
+    assert telegram.typing_pause("а" * 5000) == 2.2
 
 
 def test_forwarded_batch_waits_for_own_message(tg):

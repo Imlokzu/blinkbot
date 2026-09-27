@@ -216,7 +216,7 @@ async def lifespan(_app: FastAPI):
     vision_watcher.start()
     # Messengers (Telegram, Discord) poll in the background; each one that has
     # no token configured simply does not start.
-    await integrations.start_all(_messenger_chat, _messenger_transcribe)
+    await integrations.start_all(_messenger_chat, _messenger_transcribe, _messenger_reaction)
     scheduler = None
     try:
         scheduler = AsyncIOScheduler()
@@ -2076,7 +2076,7 @@ async def api_chat(request: Request, req: ChatRequest):
     return await chat_turn(req, clerk_uid, turn_source)
 
 
-async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat"):
+async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat", on_note=None):
     """
     One conversation turn, whoever asked for it.
 
@@ -2085,6 +2085,11 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat")
     disk, same tools. Only the shape of the reply differs, so the turn itself
     lives here once and each channel only formats what comes back. With
     stream=False this returns the reply dict; with stream=True an SSE stream.
+
+    on_note (stream=False only): `async (bubbles, reaction)`, called with what
+    the bot says BEFORE it goes to work ("one sec, checking"), the moment each
+    such message is finished. A messenger sends it right away instead of
+    holding it back until the whole turn is over.
     """
     message = req.message.strip()
     images = await asyncio.to_thread(_load_chat_images, req.attachments)
@@ -2118,10 +2123,31 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat")
         await asyncio.to_thread(_extract_and_save_facts, message)
 
         if not req.stream:
+            note_bubbles: list[str] = []
+            seen_notes: set[str] = set()
+
+            async def note_emit(event: dict) -> None:
+                # Only finished notes: a messenger cannot take a growing one.
+                if event.get("type") != "note" or not event.get("done"):
+                    return
+                note_id = str(event.get("id") or "")
+                if note_id in seen_notes:
+                    return
+                seen_notes.add(note_id)
+                shaped, note_reaction = chat_bubbles.shape(emotions.extract_emotion(str(event.get("text") or ""))[0])
+                if not shaped and not note_reaction:
+                    return
+                note_bubbles.extend(shaped)
+                try:
+                    await on_note(shaped, note_reaction)
+                except Exception:  # noqa: BLE001 — a lost note must not lose the turn
+                    log.exception("Delivering a note failed")
+
             with trace_log.bind(turn_id):
                 try:
                     reply, emotion, mode, tool_results = await brains.chat(
                         agent_message, history, **_chat_image_kwargs(images),
+                        **({"emit": note_emit} if on_note else {}),
                         **_chat_reasoning_kwargs(req.reasoning_effort),
                         **_chat_voice_kwargs(req.voice, req.spoken),
                         session_key=openclaw_session_key,
@@ -2134,10 +2160,14 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat")
             log.info("Чат (режим=%s, емоція=%s, tools=%d)", mode, emotion, len(tool_results))
             bubbles, reaction = chat_bubbles.shape(reply)
             reply = "\n\n".join(bubbles)
+            # Notes first, as they happened: a reopened chat reads the same,
+            # and a reaction's bubble index counts them too.
+            parts = [{"type": "text", "text": b, "note": True} for b in note_bubbles]
+            parts += [{"type": "text", "text": b} for b in bubbles]
             ids = _save_history(
                 sid, history, message, reply,
                 attachments=req.attachments, participant_name=participant_name,
-                parts=[{"type": "text", "text": b} for b in bubbles], reaction=reaction,
+                parts=parts, reaction=reaction,
             )
             # Назву чату генеруємо у фоні — відповідь на неї не чекає
             asyncio.create_task(_autoname_chat(sid, message, reply))
@@ -2170,6 +2200,7 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat")
                 "tool_results": tool_results,
                 "user_message_id": ids[0] if ids else "",
                 "assistant_message_id": ids[1] if ids else "",
+                "notes": note_bubbles,
             }
 
     async def stream_response():
@@ -2424,10 +2455,18 @@ async def _messenger_chat(message: str, session_id: str, attachments: list, chan
     # local model (empty uid), like every other dev request.
     clerk_uid = "" if auth_clerk.is_auth_disabled() else str((meta or {}).get("clerk_user_id") or "")
     req = ChatRequest(message=(message or "…")[:32_000], session_id=session_id, attachments=list(attachments or [])[:8])
-    result = await chat_turn(req, clerk_uid, channel)
+    result = await chat_turn(req, clerk_uid, channel, on_note=(meta or {}).get("on_note"))
     with brain_context.set_clerk_user(clerk_uid):
         chat_store.set_channel(session_id, channel)
     return result if isinstance(result, dict) else {}
+
+
+async def _messenger_reaction(session_id: str, message_id: str, bubble: int, emoji: str | None, meta: dict) -> None:
+    """The user's reaction on a bot message in a messenger: the same pending
+    reaction the dashboard records, so the bot notices it on the next turn."""
+    clerk_uid = "" if auth_clerk.is_auth_disabled() else str((meta or {}).get("clerk_user_id") or "")
+    with brain_context.set_clerk_user(clerk_uid):
+        await asyncio.to_thread(chat_store.set_user_reaction, session_id, message_id, bubble, emoji)
 
 
 async def _messenger_transcribe(data: bytes, filename: str, lang: str) -> str:
