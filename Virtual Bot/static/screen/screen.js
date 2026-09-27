@@ -4265,7 +4265,7 @@ async function musicPlayTrack(track, opts) {
       syncMusicVolume();
       musicAudio.play().catch(() => {});
     };
-    stage.addEventListener("pointerdown", retry, { once: true });
+    onNextTouch(retry);
   }
   updateNpChrome();
   if (musicSheetOpen) renderNpList();
@@ -4635,6 +4635,35 @@ function postStoreAppSkin(frame = null) {
   } catch (e) {}
 }
 
+/* Work that waits for the person's next touch: a song the browser would
+   not start without one (autoplay), mostly. Store apps fill the whole
+   panel now, so that touch usually lands inside an app's iframe, which the
+   stage never hears; forwardFrameTouches() passes those on as well. */
+const nextTouch = new Set();
+
+function onNextTouch(fn) {
+  nextTouch.add(fn);
+}
+
+function runNextTouch() {
+  const fns = [...nextTouch];
+  nextTouch.clear();
+  for (const fn of fns) {
+    try { fn(); } catch (e) { /* one failed retry must not stop the rest */ }
+  }
+}
+
+stage.addEventListener("pointerdown", runNextTouch, true);
+
+function forwardFrameTouches(frame) {
+  if (frame.dataset.sandboxed === "1") return;       // opaque origin: no access
+  try {
+    // Runs inside the app's own pointerdown, so the browser still counts
+    // it as the person's gesture and lets the music play.
+    frame.contentDocument.addEventListener("pointerdown", () => { runNextTouch(); stopRing(); }, true);
+  } catch (e) { /* not same-origin after all */ }
+}
+
 function openStoreApp(entry, opts) {
   openAppLayer(entry.title || "app.head", (box) => {
     box.classList.add("storeapp-body");
@@ -4656,6 +4685,7 @@ function openStoreApp(entry, opts) {
       frame.dataset.sandboxed = "1";
     }
     frame.addEventListener("load", () => {
+      forwardFrameTouches(frame);
       postStoreAppSkin(frame);
       postMusicToApp(true);
       bridgeFrameKeyboard(frame);

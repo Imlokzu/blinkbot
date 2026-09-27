@@ -269,6 +269,8 @@ def test_cbp_api_and_sandbox(store_dir):
         client.post("/api/screen-store/install", json={"id": "metronome"})
         builtin = client.get("/store-apps/metronome/index.html")
         assert "content-security-policy" not in builtin.headers
+        # Revalidated on every open, or an updated app keeps its old look
+        assert builtin.headers.get("cache-control") == "no-cache"
 
         # A request from a sandboxed page cannot change state.
         blocked = client.post("/api/screen-store/uninstall", json={"id": "metronome"},

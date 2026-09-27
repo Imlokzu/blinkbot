@@ -1302,7 +1302,10 @@ async def store_app_file(pkg_id: str, file_path: str) -> FileResponse:
         raise HTTPException(status_code=404) from None
     if not target.is_file():
         raise HTTPException(status_code=404)
-    return FileResponse(target)
+    # no-cache, as for /static: the browser revalidates (304 when unchanged).
+    # Without it an updated app (a new version re-copied into installed/)
+    # stayed in its old design for hours, from the browser's heuristic cache.
+    return FileResponse(target, headers={"Cache-Control": "no-cache"})
 app.include_router(system_status.router)
 app.include_router(screen_widgets.router)
 
