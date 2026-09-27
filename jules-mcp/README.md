@@ -1,7 +1,8 @@
-# jules-mcp
+# jules-mcp — `jude`
 
 Delegate long coding tasks to [Jules](https://jules.google), Google's
-asynchronous cloud coding agent, and get told when it comes back.
+asynchronous cloud coding agent, and get told when it comes back. In this
+repo the agent goes by **Jude** and the command is `jude`.
 
 Jules clones a GitHub repo into its own VM, plans, edits, runs commands and
 opens a pull request. That makes it a good helper for another agent: Claude
@@ -11,8 +12,8 @@ when Jules is done or has a question.
 
 One Go binary, no dependencies, two modes:
 
-- `jules mcp` — MCP server over stdio (Claude Code, Cursor, Virtual Bot);
-- `jules <command>` — CLI for a terminal or a shell-driving agent.
+- `jude mcp` — MCP server over stdio (Claude Code, Cursor, Virtual Bot);
+- `jude <command>` — CLI for a terminal or a shell-driving agent.
 
 ## Setup
 
@@ -32,22 +33,22 @@ One Go binary, no dependencies, two modes:
 
    ```bash
    cd jules-mcp
-   go build -o bin/jules .
-   claude mcp add jules --scope local -- "$PWD/bin/jules" mcp
+   go build -o bin/jude .
+   claude mcp add jude --scope local -- "$PWD/bin/jude" mcp
    ```
 
 ## MCP tools
 
 | Tool | What it does |
 |---|---|
-| `jules_start` | Start a session: prompt, repo (default: origin remote), branch, `auto_pr` (default true), `require_plan_approval` |
-| `jules_wait` | Block until the session hands control back or `timeout_seconds` passes (default 480) |
-| `jules_status` | State, PR, recent activities |
-| `jules_list` | Recent sessions |
-| `jules_reply` | Answer the agent or give follow-up work |
-| `jules_approve` | Approve a pending plan |
-| `jules_patch` | Latest unified diff plus suggested commit message |
-| `jules_sources` | Repos connected to Jules |
+| `jude_start` | Start a session: prompt, repo (default: origin remote), branch, `auto_pr` (default true), `require_plan_approval` |
+| `jude_wait` | Block until the session hands control back or `timeout_seconds` passes (default 480) |
+| `jude_status` | State, PR, recent activities |
+| `jude_list` | Recent sessions |
+| `jude_reply` | Answer the agent or give follow-up work |
+| `jude_approve` | Approve a pending plan |
+| `jude_patch` | Latest unified diff plus suggested commit message |
+| `jude_sources` | Repos connected to Jules |
 
 "Hands control back" means one of `COMPLETED`, `FAILED`,
 `AWAITING_USER_FEEDBACK`, `AWAITING_PLAN_APPROVAL`, `PAUSED`. The wait result
@@ -57,17 +58,17 @@ with the notice that it stopped.
 ## CLI
 
 ```bash
-jules start --title "Translate comments" "Translate every Ukrainian comment in Voice Loop/ to English..."
-jules start - < task.md          # long prompt from a file
-jules wait 1234567890 --timeout 3h
-jules status 1234567890
-jules reply 1234567890 "Yes, cover the CLI too"
-jules patch 1234567890 | git apply
+jude start --title "Translate comments" "Translate every Ukrainian comment in Voice Loop/ to English..."
+jude start - < task.md          # long prompt from a file
+jude wait 1234567890 --timeout 3h
+jude status 1234567890
+jude reply 1234567890 "Yes, cover the CLI too"
+jude patch 1234567890 | git apply
 ```
 
 `wait` exit codes: `0` completed · `1` failed or error · `2` timed out ·
 `3` needs you (a question, plan approval, or paused). An agent can run
-`jules wait` in the background and branch on the code when it exits.
+`jude wait` in the background and branch on the code when it exits.
 
 ## Environment
 

@@ -305,7 +305,7 @@ func TestCLIStartReadsPromptFromStdin(t *testing.T) {
 	if !strings.Contains(out.String(), "state:   QUEUED") {
 		t.Errorf("start should show the state:\n%s", out.String())
 	}
-	if !strings.Contains(out.String(), "jules wait 42") {
+	if !strings.Contains(out.String(), "jude wait 42") {
 		t.Errorf("start should say how to wait:\n%s", out.String())
 	}
 }
@@ -313,7 +313,7 @@ func TestCLIStartReadsPromptFromStdin(t *testing.T) {
 func TestBadKeyIsReported(t *testing.T) {
 	setup(t, "QUEUED")
 	t.Setenv("JULES_API_KEY", "wrong")
-	r := callTool("jules_list", map[string]any{})
+	r := callTool("jude_list", map[string]any{})
 	if !r.IsError || !strings.Contains(r.Content[0].Text, "401") {
 		t.Errorf("want a 401 error, got %+v", r)
 	}
@@ -348,12 +348,12 @@ func TestToolsListIsValid(t *testing.T) {
 		}
 		names[tl.Name] = true
 	}
-	for _, n := range []string{"jules_start", "jules_wait", "jules_status", "jules_list", "jules_reply", "jules_approve", "jules_patch", "jules_sources"} {
+	for _, n := range []string{"jude_start", "jude_wait", "jude_status", "jude_list", "jude_reply", "jude_approve", "jude_patch", "jude_sources"} {
 		if !names[n] {
 			t.Errorf("tool %s missing", n)
 		}
 	}
-	if r := callTool("jules_nope", map[string]any{}); !r.IsError {
+	if r := callTool("jude_nope", map[string]any{}); !r.IsError {
 		t.Error("unknown tool must be an error")
 	}
 }

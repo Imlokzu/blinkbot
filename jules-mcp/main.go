@@ -1,10 +1,10 @@
 package main
 
-// jules — hand long coding tasks to Google's Jules agent and hear back when
+// jude — hand long coding tasks to Google's Jules agent and hear back when
 // it is done. Two faces over one client:
 //
-//	jules mcp           MCP server on stdio (Claude Code, Cursor, the bot)
-//	jules <command>     CLI for a terminal or a shell-driving agent
+//	jude mcp           MCP server on stdio (Claude Code, Cursor, the bot)
+//	jude <command>     CLI for a terminal or a shell-driving agent
 //
 // The CLI's `wait` exits with a code that says why Jules came back, so an
 // agent can run it in the background and branch on the result.
@@ -19,19 +19,19 @@ import (
 	"time"
 )
 
-const usage = `jules — delegate coding tasks to Google Jules
+const usage = `jude — delegate coding tasks to Google Jules
 
 usage:
-  jules start [--repo owner/repo] [--branch main] [--title T] [--no-pr] [--plan] "prompt"
+  jude start [--repo owner/repo] [--branch main] [--title T] [--no-pr] [--plan] "prompt"
               (prompt "-" reads it from stdin)
-  jules wait <session> [--timeout 2h] [--every 30s]
-  jules status <session> [-n 15]
-  jules list [-n 10]
-  jules reply <session> "message"
-  jules approve <session>
-  jules patch <session>        unified diff on stdout, commit message on stderr
-  jules sources
-  jules mcp                    run as an MCP server on stdio
+  jude wait <session> [--timeout 2h] [--every 30s]
+  jude status <session> [-n 15]
+  jude list [-n 10]
+  jude reply <session> "message"
+  jude approve <session>
+  jude patch <session>        unified diff on stdout, commit message on stderr
+  jude sources
+  jude mcp                    run as an MCP server on stdio
 
 wait exit codes: 0 completed · 1 failed or error · 2 timed out · 3 needs you
 (asked a question, awaiting plan approval, or paused)
@@ -65,7 +65,7 @@ func main() {
 
 func runCLI(cmd string, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fail := func(err error) int {
-		fmt.Fprintln(stderr, "jules:", err)
+		fmt.Fprintln(stderr, "jude:", err)
 		return exitFail
 	}
 	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
@@ -105,7 +105,7 @@ func runCLI(cmd string, args []string, stdin io.Reader, stdout, stderr io.Writer
 			return fail(err)
 		}
 		fmt.Fprint(stdout, formatSession(s))
-		fmt.Fprintf(stdout, "\nnext: jules wait %s\n", s.ID)
+		fmt.Fprintf(stdout, "\nnext: jude wait %s\n", s.ID)
 		return exitOK
 
 	case "wait":
@@ -113,7 +113,7 @@ func runCLI(cmd string, args []string, stdin io.Reader, stdout, stderr io.Writer
 		every := fs.Duration("every", pollInterval(), "poll interval")
 		pos, err := parseInterspersed(fs, args)
 		if err != nil || len(pos) != 1 {
-			return fail(errors.New("usage: jules wait <session> [--timeout 2h]"))
+			return fail(errors.New("usage: jude wait <session> [--timeout 2h]"))
 		}
 		c, err := NewClientFromEnv()
 		if err != nil {
@@ -141,35 +141,35 @@ func runCLI(cmd string, args []string, stdin io.Reader, stdout, stderr io.Writer
 		n := fs.Int("n", 15, "recent activities to show (0 = all)")
 		pos, err := parseInterspersed(fs, args)
 		if err != nil || len(pos) != 1 {
-			return fail(errors.New("usage: jules status <session> [-n 15]"))
+			return fail(errors.New("usage: jude status <session> [-n 15]"))
 		}
-		return printTool(stdout, stderr, "jules_status", map[string]any{"session": pos[0], "activities": float64(*n)})
+		return printTool(stdout, stderr, "jude_status", map[string]any{"session": pos[0], "activities": float64(*n)})
 
 	case "list":
 		n := fs.Int("n", 10, "how many")
 		if _, err := parseInterspersed(fs, args); err != nil {
 			return exitFail
 		}
-		return printTool(stdout, stderr, "jules_list", map[string]any{"limit": float64(*n)})
+		return printTool(stdout, stderr, "jude_list", map[string]any{"limit": float64(*n)})
 
 	case "reply":
 		pos, err := parseInterspersed(fs, args)
 		if err != nil || len(pos) < 2 {
-			return fail(errors.New(`usage: jules reply <session> "message"`))
+			return fail(errors.New(`usage: jude reply <session> "message"`))
 		}
-		return printTool(stdout, stderr, "jules_reply", map[string]any{"session": pos[0], "message": strings.Join(pos[1:], " ")})
+		return printTool(stdout, stderr, "jude_reply", map[string]any{"session": pos[0], "message": strings.Join(pos[1:], " ")})
 
 	case "approve":
 		pos, err := parseInterspersed(fs, args)
 		if err != nil || len(pos) != 1 {
-			return fail(errors.New("usage: jules approve <session>"))
+			return fail(errors.New("usage: jude approve <session>"))
 		}
-		return printTool(stdout, stderr, "jules_approve", map[string]any{"session": pos[0]})
+		return printTool(stdout, stderr, "jude_approve", map[string]any{"session": pos[0]})
 
 	case "patch":
 		pos, err := parseInterspersed(fs, args)
 		if err != nil || len(pos) != 1 {
-			return fail(errors.New("usage: jules patch <session>"))
+			return fail(errors.New("usage: jude patch <session>"))
 		}
 		c, err := NewClientFromEnv()
 		if err != nil {
@@ -183,7 +183,7 @@ func runCLI(cmd string, args []string, stdin io.Reader, stdout, stderr io.Writer
 		if p == nil {
 			return fail(errors.New("no patch in this session yet"))
 		}
-		// Diff alone on stdout so `jules patch ID | git apply` works.
+		// Diff alone on stdout so `jude patch ID | git apply` works.
 		if p.SuggestedCommitMessage != "" {
 			fmt.Fprintln(stderr, p.SuggestedCommitMessage)
 		}
@@ -191,10 +191,10 @@ func runCLI(cmd string, args []string, stdin io.Reader, stdout, stderr io.Writer
 		return exitOK
 
 	case "sources":
-		return printTool(stdout, stderr, "jules_sources", map[string]any{})
+		return printTool(stdout, stderr, "jude_sources", map[string]any{})
 	}
 
-	fmt.Fprintf(stderr, "jules: unknown command %q\n\n%s", cmd, usage)
+	fmt.Fprintf(stderr, "jude: unknown command %q\n\n%s", cmd, usage)
 	return exitFail
 }
 
@@ -207,7 +207,7 @@ func printTool(stdout, stderr io.Writer, name string, a map[string]any) int {
 		text = r.Content[0].Text
 	}
 	if r.IsError {
-		fmt.Fprintln(stderr, "jules:", text)
+		fmt.Fprintln(stderr, "jude:", text)
 		return exitFail
 	}
 	fmt.Fprint(stdout, strings.TrimRight(text, "\n")+"\n")
@@ -215,7 +215,7 @@ func printTool(stdout, stderr io.Writer, name string, a map[string]any) int {
 }
 
 // parseInterspersed lets flags sit after positional args
-// (`jules wait 123 --timeout 1h`), which the flag package does not.
+// (`jude wait 123 --timeout 1h`), which the flag package does not.
 func parseInterspersed(fs *flag.FlagSet, args []string) ([]string, error) {
 	var pos []string
 	for {

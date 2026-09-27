@@ -70,12 +70,12 @@ var sessionArg = str("Session id (digits) or sessions/<id>")
 func tools() []toolInfo {
 	return []toolInfo{
 		{
-			Name: "jules_start",
+			Name: "jude_start",
 			Description: "Hand a coding task to Jules, Google's asynchronous cloud coding agent. It clones the " +
 				"GitHub repo into its own VM, plans, edits, runs commands and (by default) opens a pull request. " +
 				"Use it for long, self-contained work you do not need to watch: translating comments, adding " +
 				"tests, mechanical refactors, dependency bumps. Returns at once with a session id; follow up with " +
-				"jules_wait or jules_status. The prompt is all the context Jules gets — name files, the goal, " +
+				"jude_wait or jude_status. The prompt is all the context Jules gets — name files, the goal, " +
 				"how to verify, and what not to touch.",
 			InputSchema: obj(map[string]any{
 				"prompt":                str("Full task description. Jules sees only this and the repo."),
@@ -83,11 +83,11 @@ func tools() []toolInfo {
 				"branch":                str("Starting branch (default main)."),
 				"title":                 str("Short session title (optional)."),
 				"auto_pr":               boolean("Open a PR when the patch is ready (default true)."),
-				"require_plan_approval": boolean("Stop after planning until jules_approve is called (default false)."),
+				"require_plan_approval": boolean("Stop after planning until jude_approve is called (default false)."),
 			}, "prompt"),
 		},
 		{
-			Name: "jules_wait",
+			Name: "jude_wait",
 			Description: "Block until a Jules session hands control back — COMPLETED, FAILED, " +
 				"AWAITING_USER_FEEDBACK, AWAITING_PLAN_APPROVAL or PAUSED — or until timeout. Returns the state, " +
 				"the PR link if any, and the latest activity including the agent's last message.",
@@ -97,7 +97,7 @@ func tools() []toolInfo {
 			}, "session"),
 		},
 		{
-			Name:        "jules_status",
+			Name:        "jude_status",
 			Description: "Current state of a Jules session, its PR if any, and its most recent activities.",
 			InputSchema: obj(map[string]any{
 				"session":    sessionArg,
@@ -105,30 +105,30 @@ func tools() []toolInfo {
 			}, "session"),
 		},
 		{
-			Name:        "jules_list",
+			Name:        "jude_list",
 			Description: "Recent Jules sessions with state, title and PR link.",
 			InputSchema: obj(map[string]any{"limit": integer("How many (default 10).")}),
 		},
 		{
-			Name: "jules_reply",
+			Name: "jude_reply",
 			Description: "Send a message into a Jules session: answer its question, correct course, or give " +
-				"follow-up work. The reply arrives as a later activity — use jules_wait afterwards.",
+				"follow-up work. The reply arrives as a later activity — use jude_wait afterwards.",
 			InputSchema: obj(map[string]any{"session": sessionArg, "message": str("What to tell the agent.")},
 				"session", "message"),
 		},
 		{
-			Name:        "jules_approve",
+			Name:        "jude_approve",
 			Description: "Approve the pending plan of a session started with require_plan_approval.",
 			InputSchema: obj(map[string]any{"session": sessionArg}, "session"),
 		},
 		{
-			Name: "jules_patch",
+			Name: "jude_patch",
 			Description: "The latest patch Jules produced in a session, as a unified diff with its suggested " +
 				"commit message. Use it to review the change, or to apply it locally when no PR was opened.",
 			InputSchema: obj(map[string]any{"session": sessionArg}, "session"),
 		},
 		{
-			Name:        "jules_sources",
+			Name:        "jude_sources",
 			Description: "GitHub repos connected to Jules. A repo must be connected (Jules GitHub app) before a session can use it.",
 			InputSchema: obj(map[string]any{}),
 		},
@@ -173,7 +173,7 @@ func callTool(name string, a map[string]any) toolResult {
 	}
 
 	switch name {
-	case "jules_start":
+	case "jude_start":
 		prompt := argStr(a, "prompt")
 		if prompt == "" {
 			return textErr("'prompt' is required")
@@ -189,9 +189,9 @@ func callTool(name string, a map[string]any) toolResult {
 		if err != nil {
 			return textErr(err.Error())
 		}
-		return textOK(formatSession(s) + "\nStarted. Check back with jules_wait session=" + s.ID)
+		return textOK(formatSession(s) + "\nStarted. Check back with jude_wait session=" + s.ID)
 
-	case "jules_wait":
+	case "jude_wait":
 		if r, ok := needSession(); !ok {
 			return r
 		}
@@ -208,7 +208,7 @@ func callTool(name string, a map[string]any) toolResult {
 		}
 		return textOK(report(c, s, err))
 
-	case "jules_status":
+	case "jude_status":
 		if r, ok := needSession(); !ok {
 			return r
 		}
@@ -222,7 +222,7 @@ func callTool(name string, a map[string]any) toolResult {
 		}
 		return textOK(formatSession(s) + "\n" + formatActivities(acts, argInt(a, "activities", 15)))
 
-	case "jules_list":
+	case "jude_list":
 		ss, err := c.ListSessions(argInt(a, "limit", 10))
 		if err != nil {
 			return textErr(err.Error())
@@ -236,7 +236,7 @@ func callTool(name string, a map[string]any) toolResult {
 		}
 		return textOK(b.String())
 
-	case "jules_reply":
+	case "jude_reply":
 		if r, ok := needSession(); !ok {
 			return r
 		}
@@ -247,9 +247,9 @@ func callTool(name string, a map[string]any) toolResult {
 		if err := c.SendMessage(sid, msg); err != nil {
 			return textErr(err.Error())
 		}
-		return textOK("sent. The answer comes as a new activity — jules_wait session=" + sid)
+		return textOK("sent. The answer comes as a new activity — jude_wait session=" + sid)
 
-	case "jules_approve":
+	case "jude_approve":
 		if r, ok := needSession(); !ok {
 			return r
 		}
@@ -258,7 +258,7 @@ func callTool(name string, a map[string]any) toolResult {
 		}
 		return textOK("plan approved")
 
-	case "jules_patch":
+	case "jude_patch":
 		if r, ok := needSession(); !ok {
 			return r
 		}
@@ -272,7 +272,7 @@ func callTool(name string, a map[string]any) toolResult {
 		}
 		return textOK(formatPatch(p))
 
-	case "jules_sources":
+	case "jude_sources":
 		srcs, err := c.ListSources()
 		if err != nil {
 			return textErr(err.Error())
@@ -294,7 +294,7 @@ func callTool(name string, a map[string]any) toolResult {
 func report(c *Client, s *Session, waitErr error) string {
 	var b strings.Builder
 	if waitErr == ErrWaitTimeout {
-		b.WriteString("Still working (wait timed out) — call jules_wait again.\n\n")
+		b.WriteString("Still working (wait timed out) — call jude_wait again.\n\n")
 	} else if waitErr != nil {
 		b.WriteString("Polling stopped: " + waitErr.Error() + "\n\n")
 	}
@@ -354,7 +354,7 @@ func serveMCP() {
 			send(req.ID, map[string]any{
 				"protocolVersion": mcpVersion,
 				"capabilities":    map[string]any{"tools": map[string]any{}},
-				"serverInfo":      map[string]any{"name": "jules-mcp", "version": "1.0.0"},
+				"serverInfo":      map[string]any{"name": "jude", "version": "1.0.0"},
 			}, nil)
 		case "ping":
 			send(req.ID, map[string]any{}, nil)
