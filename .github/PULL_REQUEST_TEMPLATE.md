@@ -1,33 +1,33 @@
-## Мета
+## Goal
 
-Що змінює цей pull request і чому?
+What does this pull request change and why?
 
 ## Scope
 
-- [ ] Зміна не виходить за погоджений обсяг
-- [ ] Секрети та credentials не додані
+- [ ] The change does not exceed the agreed scope
+- [ ] Secrets and credentials are not added
 
-## Змінені файли
+## Changed files
 
-Перелічіть ключові файли та коротко поясніть зміни.
+List the key files and briefly explain the changes.
 
-## Перевірки та evidence
+## Checks and evidence
 
-Команди й результати:
+Commands and results:
 
 - 
 
-Smoke test (якщо застосовно):
+Smoke test (if applicable):
 
 - 
 
 ## Residual risks / manual steps
 
-Опишіть залишкові ризики або ручні кроки.
+Describe residual risks or manual steps.
 
 ## Checklist
 
-- [ ] Документація оновлена
-- [ ] Adversarial review виконано
-- [ ] Diff переглянуто
-- [ ] Conventional Commit використано
+- [ ] Documentation updated
+- [ ] Adversarial review completed
+- [ ] Diff reviewed
+- [ ] Conventional Commit used

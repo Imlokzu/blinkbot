@@ -1,52 +1,45 @@
-# Поточний статус
+# Current Status
 
-**Дата огляду:** 2026-09-03
-**Scope:** документація, roadmap і стан компонентів за `HANDOFF.md`, специфікацією та README модулів.
+**Review Date:** 2026-09-03
+**Scope:** documentation, roadmap, and state of components based on `HANDOFF.md`, specification, and README of modules.
 
-Це оперативний сумарний файл: після кожного суттєвого блоку тут мають з’являтися
-статус, короткий опис, перевірки та залишкові ризики. Детальний історичний
-контекст залишається в [`HANDOFF.md`](HANDOFF.md).
+This is an operational summary file: after every significant block, the status, brief description, checks, and residual risks should appear here. Detailed historical context remains in [`HANDOFF.md`](HANDOFF.md).
 
-## Roadmap і розділи
+## Roadmap and sections
 
-| Напрям | Статус | Опис | Перевірка |
+| Direction | Status | Description | Verification |
 |---|---|---|---|
-| Фаза 0: програмний прототип | Виконується | Віртуальна робота модулів до придбання заліза | Частково перевірено |
-| Крок 1: зір | Зроблено | Vision Agent: детекція обличчя/руху, HTTP і MJPEG | Тести й ручні перевірки виконані |
-| Крок 2: RAG/пам’ять | Зроблено | Довготривала пам’ять, reasoning і пошук | `memory.py`, `dream_cycle.py`, `test_memory_reasoning.py` |
-| Крок 3: голос | Зроблено з ризиком | Whisper STT → OpenClaw → pyttsx3 TTS | Перевірено; є критичний баг |
-| Крок 4: емоції | Не почато | Емоційний шар і стани | Тестів немає |
-| Крок 5: камери | Частково | Інтеграція камер і просторове сприйняття | Частково |
-| Крок 6: UI/дисплей | Частково зроблено | Pixel eyes, екрани й WebSocket | Build і 6 pytest чисті |
-| Віртуальний бот | У роботі | Вебпанель до появи фізичного пристрою; Agent Talk/Watch і учасники розмови | Базово: 218 passed, 1 skipped; `npm run build` чистий |
+| Phase 0: software prototype | In progress | Virtual operation of modules before purchasing hardware | Partially verified |
+| Step 1: vision | Done | Vision Agent: face/motion detection, HTTP and MJPEG | Tests and manual checks completed |
+| Step 2: RAG/memory | Done | Long-term memory, reasoning, and search | `memory.py`, `dream_cycle.py`, `test_memory_reasoning.py` |
+| Step 3: voice | Done with risk | Whisper STT → OpenClaw → pyttsx3 TTS | Verified; has critical bug |
+| Step 4: emotions | Not started | Emotional layer and states | No tests |
+| Step 5: cameras | Partial | Camera integration and spatial awareness | Partial |
+| Step 6: UI/display | Partially done | Pixel eyes, screens, and WebSocket | Build and 6 pytest clean |
+| Virtual Bot | In progress | Web dashboard before physical device appears; Agent Talk/Watch and chat participants | Base: 218 passed, 1 skipped; `npm run build` clean |
 
-Remote Control і Device Setup Wizard пройшли доступну верифікацію.
+Remote Control and Device Setup Wizard passed available verification.
 
-## Поточний зріз: 2026-09-03
+## Current snapshot: 2026-09-03
 
-- Гілка: `feat/bot-tools-workspace-and-chat-ui`, HEAD `070ef2b`.
-- У робочій копії незакомічена фіча «учасники розмови»: бекенд, панель,
-  зібрані статичні assets і тест `tests/test_chat_participants.py`.
-- Перед комітом фіча має закрити leave-контракт, безпечну нормалізацію імен,
-  прибирання порожніх сесій без обходу `_prune`, а також UI-помилки гарячої
-  клавіші й системних повідомлень.
-- Базові перевірки поточного зрізу: `.venv/bin/pytest -q` — **218 passed,
-  1 skipped**; `npm run build` у `Virtual Bot/chat-panel` — чистий.
+- Branch: `feat/bot-tools-workspace-and-chat-ui`, HEAD `070ef2b`.
+- In the working copy there is an uncommitted "chat participants" feature: backend, dashboard, compiled static assets, and test `tests/test_chat_participants.py`.
+- Before committing, the feature must close the leave-contract, safe name normalization, cleanup of empty sessions without bypassing `_prune`, as well as UI errors with the hotkey and system messages.
+- Base checks of the current snapshot: `.venv/bin/pytest -q` — **218 passed, 1 skipped**; `npm run build` in `Virtual Bot/chat-panel` — clean.
 
-## Критичні та відомі баги
+## Critical and known bugs
 
-1. **Voice Loop (P1):** повторне використання pyttsx3 на macOS може зависати або мовчати; у разі помилки кешований двигун не скидається.
-2. **Vision Agent (P2):** великі зображення декодуються до перевірки ліміту; порожній буфер може дати 500 замість 400.
-3. **Display (P2):** cleanup WebSocket у StrictMode може залишати дублікати; спільний idle-таймер конфліктує з довгими кастомними екранами.
-4. **Низький пріоритет:** вузька гонка shutdown камери та дрейф таймера дисплея.
+1. **Voice Loop (P1):** repeated use of pyttsx3 on macOS can hang or stay silent; on error, the cached engine is not reset.
+2. **Vision Agent (P2):** large images decode before size limit check; empty buffer can yield 500 instead of 400.
+3. **Display (P2):** WebSocket cleanup in StrictMode may leave duplicates; shared idle timer conflicts with long custom screens.
+4. **Low priority:** narrow race condition in camera shutdown and display timer drifts.
 
-## Наступні кроки
+## Next steps
 
-1. Завершити й закомітити фічу учасників розмови за узгодженим API-контрактом.
-2. Запустити adversarial review і smoke test Virtual Bot, включно з
-   path-traversal → 400.
-3. Виправити P1 Voice Loop, потім P2 Vision Agent і display.
-4. Завершити офлайн `wiki.html` українською.
-5. Оновлювати цей файл після суттєвих змін.
+1. Complete and commit the chat participants feature based on the agreed API contract.
+2. Run adversarial review and smoke test for Virtual Bot, including path-traversal → 400.
+3. Fix P1 Voice Loop, then P2 Vision Agent and display.
+4. Complete offline `wiki.html` in Ukrainian.
+5. Update this file after significant changes.
 
-Статуси є оперативними й не означають, що невиконані пункти готові до production.
+Statuses are operational and do not imply that incomplete items are ready for production.

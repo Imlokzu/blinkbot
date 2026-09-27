@@ -1,125 +1,125 @@
-# Клод Бот — Порядок розробки (Agent-first підхід)
+# Claude Bot — Development Order (Agent-first approach)
 
-**Версія:** 1.0
-**Принцип:** будуємо "мозок" (агента) повністю спочатку, і тільки потім навішуємо на нього органи чуття й обличчя.
+**Version:** 1.0
+**Principle:** we build the «мозок» (brain) (agent) completely first, and only then attach the sense organs and face to it.
 
 ---
 
-## Крок 1: OpenCV Agent Setup (база)
+## Step 1: OpenCV Agent Setup (base)
 
-Мета цього кроку — підняти сам бекенд-процес, який є "тілом" майбутнього агента, ще без жодних сенсорів. Просто скелет, який вміє приймати кадр і щось із ним робити.
+The goal of this step is to spin up the backend process itself, which is the «тіло» (body) of the future agent, without any sensors yet. Just a skeleton that can take a frame and do something with it.
 
-**Що робимо:**
+**What we do:**
 ```bash
 pip install fastapi uvicorn opencv-python --break-system-packages
 ```
 
-- FastAPI-сервер з одним ендпоінтом `/vision/frame` (з попереднього документа, §5.2)
-- OpenCV Haar Cascade — детекція обличчя/руху
-- Тестуємо на вебці ноутбука (`cv2.VideoCapture(0)`) — жодного заліза чекати не треба
-- Режим обробки (local/cloud/hybrid) — закладаємо перемикач у `config.yaml` одразу, навіть якщо зараз усе локально
+- FastAPI server with one endpoint `/vision/frame` (from the previous document, §5.2)
+- OpenCV Haar Cascade — face/motion detection
+- Test on the laptop webcam (`cv2.VideoCapture(0)`) — no need to wait for any hardware
+- Processing mode (local/cloud/hybrid) — we lay down the switch in `config.yaml` immediately, even if everything is local right now
 
-**Результат кроку:** працюючий сервіс, що каже "бачу обличчя" / "бачу рух" на кадрі з будь-якої камери.
+**Step result:** a working service that says «бачу обличчя» / «бачу рух» (I see a face / I see motion) on a frame from any camera.
 
 ---
 
-## Крок 2: RAG-пам'ять ("наш RAG")
+## Step 2: RAG memory («наш RAG» (our RAG))
 
-Мета — дати агенту пам'ять ще до того, як він взагалі щось "бачить" чи "чує" насправді.
+The goal is to give the agent a memory even before it actually "sees" or "hears" us in reality.
 
-**Що робимо:**
+**What we do:**
 ```bash
 pip install chromadb anthropic --break-system-packages
 ```
 
-- Структура нотаток `brain/people/`, `brain/topics/`, `brain/logs/`
-- ChromaDB (embedded mode) — векторний пошук по нотатках
-- Функція `search_memory(query) → top-5 relevant notes`
-- Функція `save_memory(text)` — Claude сам вирішує, що записати після розмови
-- Простий тест: вручну кладете кілька нотаток → питаєте щось related → перевіряєте, що витягується правильний контекст
+- Structure of notes `brain/people/`, `brain/topics/`, `brain/logs/`
+- ChromaDB (embedded mode) — vector search across notes
+- Function `search_memory(query) → top-5 relevant notes`
+- Function `save_memory(text)` — Claude decides what to write down after a conversation
+- Simple test: manually put a few notes → ask something related → verify that the correct context is pulled
 
-**Результат кроку:** агент "пам'ятає" — RAG-пошук працює і підключений до Claude API як контекст перед кожним запитом.
+**Step result:** the agent «пам'ятає» (remembers) — RAG search works and is connected to the Claude API as context before every request.
 
 ---
 
-## Крок 3: Голосове (STT + TTS)
+## Step 3: Voice (STT + TTS)
 
-Мета — агент чує і говорить.
+The goal is for the agent to hear and speak.
 
-**Що робимо:**
+**What we do:**
 ```bash
 pip install faster-whisper sounddevice --break-system-packages
 ```
 
-- STT: `faster-whisper` (локально на i5) — голос → текст
-- Текст → Claude (з підключеним RAG з кроку 2) → відповідь
-- TTS: підбираємо провайдера (варіанти: ElevenLabs API, ChatterboxTTS локально, або простіший `pyttsx3` як тимчасовий MVP) — відповідь Claude → голос
-- Поки все на i5/ноутбуці — мікрофон+колонки комп'ютера як тимчасовий "рот і вуха"
+- STT: `faster-whisper` (locally on i5) — voice → text
+- Text → Claude (with connected RAG from step 2) → response
+- TTS: we pick a provider (options: ElevenLabs API, ChatterboxTTS locally, or simpler `pyttsx3` as a temporary MVP) — Claude's response → voice
+- While everything is on the i5/laptop — the computer's mic+speakers act as a temporary «рот і вуха» (mouth and ears)
 
-**Результат кроку:** повноцінна "розумна колонка" з пам'яттю — говорите з ним, він пам'ятає і відповідає голосом.
-
----
-
-## Крок 4: Контроль емоціями
-
-Мета — агент виражає стан/настрій, ще до того, як з'явиться фізичний екран чи LED.
-
-**Що робимо:**
-- Визначаємо базовий набір станів: `idle`, `listening`, `thinking`, `speaking`, `happy`, `confused`
-- Claude (або проміжна легка логіка) визначає поточний емоційний стан із контексту відповіді → повертає тег стану разом із текстом
-- Поки немає екрана/LED — виводимо стан просто в консоль/лог або примітивним текстовим індикатором на ПК, щоб перевірити саму логіку перемикання станів
-- Це той шар, який потім керуватиме LED-стрічкою, "обличчям" на екрані — але спочатку перевіряємо саму логіку окремо від заліза
-
-**Результат кроку:** агент не тільки відповідає, а супроводжує відповідь визначеним емоційним станом — готовий шар для майбутньої візуалізації.
+**Step result:** a fully fledged «розумна колонка» (smart speaker) with memory — you talk to it, it remembers and answers with voice.
 
 ---
 
-## Крок 5: Камери
+## Step 4: Emotion control
 
-Мета — тепер підключаємо реальний зір (а не тестову вебку) і зв'язуємо з OpenCV-пайплайном із кроку 1.
+The goal is for the agent to express state/mood, even before a physical screen or LED appears.
 
-**Що робимо:**
-- Підключення CSI-камери OV5647 до RPi3
-- RPi шле кадри на бекенд (той самий `/vision/frame` з кроку 1, тепер з реального джерела)
-- Face recognition (розпізнавання "хто це") поверх базової OpenCV-детекції
-- Зв'язуємо з RAG (крок 2): "бачу [ім'я]" → підтягується нотатка про цю людину
-- Зв'язуємо з емоціями (крок 4): побачив знайому людину → стан `happy`
+**What we do:**
+- Define the base set of states: `idle`, `listening`, `thinking`, `speaking`, `happy`, `confused`
+- Claude (or intermediate lightweight logic) determines the current emotional state from the response context → returns a state tag along with the text
+- While there is no screen/LED — we output the state directly to the console/log or via a primitive text indicator on the PC to verify the state switching logic itself
+- This is the layer that will later control the LED strip, the «обличчя» (face) on the screen — but first we test the logic itself isolated from the hardware
 
-**Результат кроку:** агент бачить, впізнає і реагує емоційним станом — усе, що було окремими шматками, тепер працює разом.
-
----
-
-## Крок 6: UI (додатки + фізичний екран)
-
-Мета — те, що раніше обговорювали як companion-застосунок і "обличчя" на дисплеї — робиться останнім, коли вся логіка вже перевірена і стабільна.
-
-**Що робимо:**
-- Мобільний + ПК додаток (сетап, пара, налаштування) — з попереднього документа
-- SPI-екран 2.4" на RPi — рендеринг "обличчя" (Kivy/pygame), яке відображає емоційний стан з кроку 4
-- Свайп між екранами (обличчя/статус/налаштування)
-- LED-стрічка (опційно) — той самий емоційний стан, продубльований кольором
-
-**Результат кроку:** повний UI-шар зверху на вже готовому й перевіреному "мозку".
+**Step result:** the agent not only answers but accompanies the answer with a defined emotional state — a ready layer for future visualization.
 
 ---
 
-## Чому саме такий порядок логічний
+## Step 5: Cameras
 
-Кожен наступний крок **спирається на попередній, а не блокується залізом**:
+The goal is now to connect real vision (not a test webcam) and link it to the OpenCV pipeline from step 1.
 
-| Крок | Що перевіряємо | Чи потрібне спецзалізо |
+**What we do:**
+- Connect the CSI camera OV5647 to the RPi3
+- RPi sends frames to the backend (the same `/vision/frame` from step 1, now from a real source)
+- Face recognition (recognizing «хто це» (who this is)) on top of base OpenCV detection
+- Link with RAG (step 2): «бачу [ім'я]» (I see [name]) → pulls up the note about this person
+- Link with emotions (step 4): saw a familiar person → `happy` state
+
+**Step result:** the agent sees, recognizes, and reacts with an emotional state — everything that was separate pieces now works together.
+
+---
+
+## Step 6: UI (apps + physical screen)
+
+The goal is what was previously discussed as a companion app and a «обличчя» (face) on the display — done last, when all the logic is already tested and stable.
+
+**What we do:**
+- Mobile + PC app (setup, pairing, settings) — from the previous document
+- SPI screen 2.4" on RPi — rendering the «обличчя» (face) (Kivy/pygame), which displays the emotional state from step 4
+- Swipe between screens (face/status/settings)
+- LED strip (optional) — the same emotional state duplicated by color
+
+**Step result:** a complete UI layer on top of an already ready and tested «мозок» (brain).
+
+---
+
+## Why exactly this order is logical
+
+Each subsequent step **relies on the previous one, and is not blocked by hardware**:
+
+| Step | What we test | Special hardware needed |
 |---|---|---|
-| 1. OpenCV Agent | Базовий сервіс + зір на тестовій вебці | Ні |
-| 2. RAG | Пам'ять і контекст | Ні |
-| 3. Голос | STT/TTS на комп'ютері | Ні (мік/колонки ноута) |
-| 4. Емоції | Логіка станів (поки просто в консолі) | Ні |
-| 5. Камери | Реальний зір на RPi | Так — RPi + камера |
-| 6. UI | Візуалізація й додатки | Так — екран, мобільний/ПК |
+| 1. OpenCV Agent | Base service + vision on a test webcam | No |
+| 2. RAG | Memory and context | No |
+| 3. Voice | STT/TTS on a computer | No (laptop mic/speakers) |
+| 4. Emotions | State logic (for now just in the console) | No |
+| 5. Cameras | Real vision on RPi | Yes — RPi + camera |
+| 6. UI | Visualization and apps | Yes — screen, mobile/PC |
 
-Перші чотири кроки повністю можна зробити вже зараз, без жодної деталі з AliExpress — весь "мозок" готовий і протестований до того, як приїде перше залізо.
+The first four steps can be done completely right now, without a single part from AliExpress — the entire «мозок» (brain) is ready and tested before the first piece of hardware arrives.
 
 ---
 
-## З чого почати прямо зараз
+## Where to start right now
 
-Крок 1 — файл `main.py` з FastAPI + OpenCV Haar Cascade (каркас уже був показаний раніше). Хочете, щоб я написав повний робочий код цього кроку одразу, з тестовим скриптом для вебки ноутбука?
+Step 1 — the `main.py` file with FastAPI + OpenCV Haar Cascade (the skeleton was already shown earlier). Do you want me to write the full working code for this step immediately, with a test script for the laptop webcam?

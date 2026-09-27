@@ -1,227 +1,226 @@
-# HANDOFF — Клод Бот (сесія 2026-07-26, Claude Code / Fable 5)
+# HANDOFF — Claude Bot (session 2026-07-26, Claude Code / Fable 5)
 
-Файл-передача контексту для продовження роботи в іншій сесії (Claude Desktop).
-Прочитай його повністю перед будь-якими змінами.
+Context handover file for continuing work in another session (Claude Desktop).
+Read it completely before making any changes.
 
 ---
 
-## 1. Що це за проєкт
+## 1. What is this project
 
-**Клод Бот** — DIY персональний AI-компаньйон: Raspberry Pi 3 (камера, мік, динамік, SPI-екран) + домашній сервер i5 + Claude API як "особистість". Підхід — **софт спочатку, залізо потім**: власник ще НЕ купив бота, тому все має працювати віртуально на macOS.
+**Claude Bot** is a DIY personal AI companion: Raspberry Pi 3 (camera, mic, speaker, SPI display) + home i5 server + Claude API as a "personality". The approach is **software first, hardware later**: the owner has NOT yet bought the bot, so everything must work virtually on macOS.
 
-Повна спека: `claude-bot-full-spec-v3.md` (архітектура Edge/Fog/Cloud, BOM, roadmap).
-Порядок розробки: `claude-bot-dev-order.md` (6 кроків: зір → RAG → голос → емоції → камери → UI).
+Full spec: `claude-bot-full-spec-v3.md` (Edge/Fog/Cloud architecture, BOM, roadmap).
+Development order: `claude-bot-dev-order.md` (6 steps: vision → RAG → voice → emotions → cameras → UI).
 
-## 2. Структура репозиторію (`/Users/hhh/projects/claude bot/`)
+## 2. Repository structure (`/Users/hhh/projects/claude bot/`)
 
-| Папка | Що це | Стек | Порт |
+| Folder | What it is | Stack | Port |
 |---|---|---|---|
-| `Vision Agent/` | Очі: детекція обличчя/руху | FastAPI + OpenCV | 8000 |
-| `Voice Loop/` | Вуха/рот: Whisper STT → OpenClaw → pyttsx3 TTS | Python | — |
-| `OpenClaw Vision Plugin/` | Інструмент `vision_check_camera` для агента | TypeScript | — |
-| `claude-bot-display/` | Обличчя: піксельні очі, 15 емоцій, 4 екрани | FastAPI + React/Vite | 8001 (WS) |
-| `Remote Control/` | USB-пульт (VID:PID 0627:697d) + I2C LCD статус | Python (Pi) | — |
-| `Device Setup Wizard/` | "Claude Bot Studio" — налаштування | Electron + Vite/React/TS | — |
+| `Vision Agent/` | Eyes: face/motion detection | FastAPI + OpenCV | 8000 |
+| `Voice Loop/` | Ears/mouth: Whisper STT → OpenClaw → pyttsx3 TTS | Python | — |
+| `OpenClaw Vision Plugin/` | `vision_check_camera` tool for the agent | TypeScript | — |
+| `claude-bot-display/` | Face: pixel eyes, 15 emotions, 4 screens | FastAPI + React/Vite | 8001 (WS) |
+| `Remote Control/` | USB remote (VID:PID 0627:697d) + I2C LCD status | Python (Pi) | — |
+| `Device Setup Wizard/` | «Claude Bot Studio» — setup | Electron + Vite/React/TS | — |
 
-OpenClaw gateway (мозок): `127.0.0.1:18789`, токен — env `OPENCLAW_TOKEN` (пріоритет) або `Voice Loop/config.yaml`. **Токен — секрет, нікуди не публікувати.**
+OpenClaw gateway (brain): `127.0.0.1:18789`, token — env `OPENCLAW_TOKEN` (priority) or `Voice Loop/config.yaml`. **The token is a secret, do not publish it anywhere.**
 
-## 3. Що зроблено в цій сесії (все застосовано і зібрано)
+## 3. What was done in this session (everything applied and built)
 
-- **OpenClaw Vision Plugin**: виправлено тест (`"echo"` → `"vision_check_camera"`), нормальні повідомлення помилок. Тести + tsc чисті.
-- **Vision Agent** (`main.py`): лок навколо `_prev_gray` (гонка потоків), перевірка `.empty()` Haar-каскаду, MJPEG-стрім завершується після 30 невдалих кадрів (не спінить CPU), ліміт 8МП на кадр, перевідкриття камери після збою.
-- **Voice Loop**: `OPENCLAW_TOKEN` env, try/except у `transcribe()`, TTS-двигун реюзається (⚠️ див. п.4 — це внесло регресію), `validate_config()`.
-- **Remote Control**: автопошук пульта за VID/PID з фолбеком, перепідключення при OSError, LCD-цикл не крашиться без aplay/arecord, помилки друкуються.
-- **Device Setup Wizard**: слайдер чутливості руху тепер в одній шкалі з API (ratio 0.002–0.05), обробка помилок Vision-fetch, очікування старту 6с → 15с. tsc чистий.
-- **claude-bot-display**: WS URL динамічний (`VITE_WS_URL` або hostname сторінки), експоненційний backoff 2с→30с, таймер-відлік реалізовано, `duration_seconds` за контрактом, ErrorBoundary, прибрано pyserial. Build + pytest (6) чисті.
+- **OpenClaw Vision Plugin**: test fixed (`"echo"` → `"vision_check_camera"`), proper error messages. Tests + tsc clean.
+- **Vision Agent** (`main.py`): lock around `_prev_gray` (thread race condition), Haar cascade `.empty()` check, MJPEG stream ends after 30 failed frames (doesn't spin CPU), 8MP per frame limit, camera reopening after failure.
+- **Voice Loop**: `OPENCLAW_TOKEN` env, try/except in `transcribe()`, TTS engine is reused (⚠️ see point 4 — this introduced a regression), `validate_config()`.
+- **Remote Control**: remote auto-search by VID/PID with fallback, reconnection on OSError, LCD loop doesn't crash without aplay/arecord, errors are printed.
+- **Device Setup Wizard**: motion sensitivity slider now on the same scale as API (ratio 0.002–0.05), Vision-fetch error handling, start wait 6s → 15s. tsc clean.
+- **claude-bot-display**: WS URL dynamic (`VITE_WS_URL` or page hostname), exponential backoff 2s→30s, countdown timer implemented, `duration_seconds` per contract, ErrorBoundary, pyserial removed. Build + pytest (6) clean.
 
-## 4. ⚠️ ЗАЛИШКОВІ БАГИ (знайдені адверсарною верифікацією, ЩЕ НЕ ВИПРАВЛЕНІ)
+## 4. ⚠️ RESIDUAL BUGS (found by adversarial verification, NOT YET FIXED)
 
-Пріоритет 1 — **критичне**:
-1. **Voice Loop `voice_loop.py:~109-132`** — реюз pyttsx3 двигуна: на macOS (nsss) другий `runAndWait()` на тому самому двигуні часто висне або мовчки нічого не каже, БЕЗ виключення — try/except не спрацює. Плюс: якщо TTS таки кидає помилку, `_tts_engine` не скидається в None — зламаний двигун закешовано назавжди. Фікс: на darwin — init на кожен виклик (або watchdog + reinit), і скидати кеш в except.
+Priority 1 — **critical**:
+1. **Voice Loop `voice_loop.py:~109-132`** — pyttsx3 engine reuse: on macOS (nsss) the second `runAndWait()` on the same engine often hangs or silently says nothing, WITHOUT an exception — try/except won't work. Plus: if TTS does throw an error, `_tts_engine` is not reset to None — the broken engine is cached forever. Fix: on darwin — init on every call (or watchdog + reinit), and drop the cache in except.
 
-Пріоритет 2 — помірне:
-2. **Vision Agent `main.py:~209-218`** — перевірка 8МП стоїть ПІСЛЯ `cv2.imdecode`: PNG-бомба ~300КБ (100МП) з'їдає ~0.7с CPU і ~900МБ RAM до відмови (заміряно). Фікс: ліміт на довжину БАЙТІВ до декодування (напр. 5МБ).
-3. **Vision Agent `main.py:~107`** — `cv2.imdecode` на порожньому буфері КИДАЄ `cv2.error` (не повертає None) → 500 замість 400. Фікс: `arr.size == 0` → None або try/except.
-4. **display `useWebSocket.js:~50`** — `onclose` без guard навмисного закриття: у dev під React.StrictMode виходить 2 живі сокети (події обробляються двічі, send() губиться). Фікс: прапорець `closedByCleanup` у cleanup ефекту + `if (wsRef.current === ws)` перед NULL.
-5. **display `App.jsx:~64-78`** — `resetIdle` і `scheduleReturn` ділять один `idleTimer` ref: подія `speaking`/`speaking_end` під час кастом-екрана з `duration_seconds=0` («показувати доки не замінять») скидає його на face через 10с, а тривалості >10с обрізаються. Фікс: окремі refs / пропускати resetIdle коли активний duration-managed екран.
+Priority 2 — moderate:
+2. **Vision Agent `main.py:~209-218`** — 8MP check is placed AFTER `cv2.imdecode`: a ~300KB PNG bomb (100MP) eats ~0.7s CPU and ~900MB RAM until failure (measured). Fix: limit on BYTES length before decoding (e.g., 5MB).
+3. **Vision Agent `main.py:~107`** — `cv2.imdecode` on an empty buffer THROWS `cv2.error` (doesn't return None) → 500 instead of 400. Fix: `arr.size == 0` → None or try/except.
+4. **display `useWebSocket.js:~50`** — `onclose` without an intentional close guard: in dev under React.StrictMode it results in 2 live sockets (events processed twice, send() lost). Fix: `closedByCleanup` flag in effect cleanup + `if (wsRef.current === ws)` before NULL.
+5. **display `App.jsx:~64-78`** — `resetIdle` and `scheduleReturn` share one `idleTimer` ref: a `speaking`/`speaking_end` event during a custom screen with `duration_seconds=0` («показувати доки не замінять» (show until replaced)) resets it to face after 10s, and durations >10s are clipped. Fix: separate refs / skip resetIdle when a duration-managed screen is active.
 
-Пріоритет 3 — дрібне:
-6. **Vision Agent `main.py:~288`** — `_release_camera` (shutdown) чіпає `_capture` без `_capture_lock` — вузька гонка при вимкненні.
-7. **display `App.jsx:~143`** — таймер на ланцюжку setTimeout(1000) дрейфує; краще якорити на кінцевий timestamp.
+Priority 3 — minor:
+6. **Vision Agent `main.py:~288`** — `_release_camera` (shutdown) touches `_capture` without `_capture_lock` — a narrow race condition on shutdown.
+7. **display `App.jsx:~143`** — timer on the setTimeout(1000) chain drifts; better to anchor to a target timestamp.
 
-Remote Control і Setup Wizard верифікацію пройшли повністю — там нічого не лишилось.
+Remote Control and Setup Wizard passed verification completely — nothing left there.
 
-## 5. НАСТУПНЕ ВЕЛИКЕ ЗАВДАННЯ (замовлення власника, ще не почато)
+## 5. NEXT BIG TASK (owner's request, not yet started)
 
-Власник хоче (його слова, переказ): «софт спочатку, бота куплю потім; зроби HTML-вікі по проєкту; все до шику через агентів, кожного робочого агента перевіряє окремий Fable-агент на максимальному зусиллі (ловить всі баги); потім веб-додаток для керування всім — як бот, але віртуальний».
+The owner wants (their words, paraphrased): «софт спочатку, бота куплю потім; зроби HTML-вікі по проєкту; все до шику через агентів, кожного робочого агента перевіряє окремий Fable-агент на максимальному зусиллі (ловить всі баги); потім веб-додаток для керування всім — як бот, але віртуальний».
 
-### 5.1 `wiki.html` (корінь проєкту)
-Самодостатній HTML (без CDN, працює офлайн), українською, у піксельно-ретро стилі проєкту:
-- огляд проєкту і навіщо він;
-- SVG-діаграма архітектури (Edge RPi3 / Fog i5 / Cloud + компоненти + порти 8000/8001/8100/18789);
-- карта «що де лежить»: всі .md файли (спека, dev-order, README кожного модуля, `claude-bot-display/API_CONTRACT.md`, AGENTS.md/CLAUDE.md візарда) з описом;
-- як запускати кожен модуль (команди звірити з README!);
-- інтерактивний чек-ліст дорожньої карти (кроки 1–6 / фази 0–4; зроблено: кроки 1,3, частково 6; НЕ почато: RAG-пам'ять (крок 2), шар емоцій (крок 4), face recognition, навігація) — стан чекбоксів у localStorage;
-- журнал змін цієї сесії (розділ 3) + відомі баги (розділ 4);
-- БЕЗ секретів (жодних токенів).
+### 5.1 `wiki.html` (project root)
+Self-contained HTML (no CDN, works offline), in Ukrainian, in the pixel-retro style of the project:
+- project overview and why it exists;
+- SVG architecture diagram (Edge RPi3 / Fog i5 / Cloud + components + ports 8000/8001/8100/18789);
+- map of «що де лежить» (what is where): all .md files (spec, dev-order, README of each module, `claude-bot-display/API_CONTRACT.md`, AGENTS.md/CLAUDE.md of the wizard) with a description;
+- how to run each module (verify commands with README!);
+- interactive roadmap checklist (steps 1–6 / phases 0–4; done: steps 1,3, partially 6; NOT started: RAG memory (step 2), emotion layer (step 4), face recognition, navigation) — checkbox state in localStorage;
+- changelog of this session (section 3) + known bugs (section 4);
+- NO secrets (no tokens).
 
-### 5.2 «Virtual Bot» — веб-додаток (нова папка `Virtual Bot/`)
-Віртуальне втілення бота до купівлі заліза + панель керування. Бекенд FastAPI на **127.0.0.1:8100**, фронтенд — статичний vanilla JS/HTML/CSS (без збірки) у `Virtual Bot/static/`, який бекенд і роздає.
+### 5.2 "Virtual Bot" — web app (new folder `Virtual Bot/`)
+Virtual embodiment of the bot before buying hardware + control dashboard. FastAPI backend on **127.0.0.1:8100**, frontend is static vanilla JS/HTML/CSS (no build) in `Virtual Bot/static/`, which the backend serves.
 
-**API-контракт (узгоджений, дотримуватись):**
+**API contract (agreed, must be followed):**
 - `GET /` → `static/index.html`
 - `GET /api/status` → `{"openclaw":bool,"anthropic":bool,"vision":bool,"display":bool,"mode":"openclaw"|"anthropic"|"demo"}`
 - `POST /api/chat` `{"message":str}` → `{"reply":str,"emotion":str}`; emotion ∈ `idle|listening|thinking|speaking|happy|sad|confused|surprised|love|sleepy`
-- `GET /api/vision/snapshot` → проксі JSON з `http://127.0.0.1:8000/vision/snapshot`; офлайн → 503 `{"error":...}`
-- `GET /api/memory/list` → `{"files":[{"path":"people/imya.md","title":...}]}`; `GET /api/memory/file?path=...`; `POST /api/memory/save {"path","content"}` — папка `Virtual Bot/brain/{people,topics,logs}/` зі стартовими нотатками; **захист від path traversal обов'язковий**
-- `POST /api/services/{vision|display}/start|stop`, `GET /api/services` — запуск/зупинка локальних сервісів (uvicorn у відповідній папці, використати її .venv якщо є)
-- MJPEG фронтенд бере НАПРЯМУ з `http://127.0.0.1:8000/vision/stream.mjpg` (не проксювати)
+- `GET /api/vision/snapshot` → proxy JSON from `http://127.0.0.1:8000/vision/snapshot`; offline → 503 `{"error":...}`
+- `GET /api/memory/list` → `{"files":[{"path":"people/name.md","title":...}]}`; `GET /api/memory/file?path=...`; `POST /api/memory/save {"path","content"}` — folder `Virtual Bot/brain/{people,topics,logs}/` with starter notes; **path traversal protection is mandatory**
+- `POST /api/services/{vision|display}/start|stop`, `GET /api/services` — start/stop local services (uvicorn in the respective folder, use its .venv if present)
+- MJPEG frontend fetches DIRECTLY from `http://127.0.0.1:8000/vision/stream.mjpg` (do not proxy)
 
-**Мозок чату (за пріоритетом):** OpenClaw gateway (патерн з `Voice Loop/openclaw_client.py`, токен з env) → прямий Anthropic API (`ANTHROPIC_API_KEY`, модель `claude-sonnet-5`, через httpx, без SDK) → демо-режим (заготовлені українські відповіді), щоб додаток працював завжди. Токен НІКОЛИ не віддавати фронтенду.
+**Chat brain (by priority):** OpenClaw gateway (pattern from `Voice Loop/openclaw_client.py`, token from env) → direct Anthropic API (`ANTHROPIC_API_KEY`, model `claude-sonnet-5`, via httpx, no SDK) → demo mode (prepared Ukrainian responses) so the app always works. The token must NEVER be given to the frontend.
 
-**Шар емоцій (крок 4 спеки):** системний промпт просить модель починати відповідь тегом `[емоція:happy]`; парсити і прибирати; фолбек — евристика за ключовими словами. Проста памʼять: топ-3 нотатки з `brain/` за ключовими словами → у системний промпт.
+**Emotion layer (step 4 of the spec):** the system prompt asks the model to start the response with the tag `[емоція:happy]`; parse and remove; fallback — keyword heuristic. Simple memory: top 3 notes from `brain/` by keywords → into the system prompt.
 
-**Фронтенд-панелі:** Обличчя (піксельні очі з емоціями/морганням — надихнутись `claude-bot-display/frontend/src/components/PixelEyes.jsx`), Чат (стан «думає…»), Зір (стрім/статус), Пам'ять (перегляд/редагування нотаток), Сервіси (кнопки старт/стоп), Статус. Все українською.
+**Frontend dashboards:** Face (pixel eyes with emotions/blinking — get inspired by `claude-bot-display/frontend/src/components/PixelEyes.jsx`), Chat («думає…» (thinking...) state), Vision (stream/status), Memory (viewing/editing notes), Services (start/stop buttons), Status. Everything in Ukrainian.
 
-**Екран пристрою (`/screen`):** окремий vanilla UI 320×240 із каруселлю тайлів, шторкою швидких дій та Android-подібною шухлядою застосунків (5 колонок, Камера, Сервіси, локальна Панель, Памʼять, Розмови й Налаштування без переходу на `/`). Памʼять читає реальні `.md`-нотатки через `/api/memory/list|file`, Розмови — збережені сесії через `/api/sessions`; при Clerk без входу показує зрозуміле повідомлення доступу. У Налаштуваннях реально працюють тема, яскравість, голос/гучність, вибір Piper-голосу та три стилі іконок: кольоровий 16×16 pixel-пак Pxlkit у шухляді, однотонні SVG з вибором кольору й окремо кольорові SVG. Додатково працюють таймер повернення додому, автосон, формат часу 12/24 години, показ дати й режим мінімальних анімацій; усі локальні параметри переживають перезавантаження та скидаються кнопкою скидання. Маленькі перемикачі та годинник лишаються у внутрішній pixel-мові бота; для Pxlkit додано локальні SVG-assets і visible attribution у Налаштуваннях. Стрічка подій прибрана; свайп угору відкриває шухляду.
+**Device screen (`/screen`):** separate vanilla UI 320×240 with a tile carousel, quick actions shade, and an Android-like app drawer (5 columns, Камера (Camera), Сервіси (Services), локальна Панель (Dashboard), Памʼять (Memory), Розмови (Conversations), and Налаштування (Settings) without navigating to `/`). Memory reads real `.md` notes via `/api/memory/list|file`, Conversations — saved sessions via `/api/sessions`; with Clerk without login, shows a clear access message. In Settings, the theme, brightness, voice/volume, Piper voice selection, and three icon styles actually work: a colorful 16×16 pixel-pack Pxlkit in the drawer, monochromatic SVGs with color selection, and separate colored SVGs. Additionally, the return-to-home timer, auto-sleep, 12/24 hour time format, date display, and reduced animation mode work; all local parameters survive reboots and are reset by the reset button. The small toggles and clock remain in the internal pixel-language of the bot; for Pxlkit, local SVG assets and visible attribution in Settings have been added. The event feed is removed; swipe up opens the drawer.
 
-**Залежності:** fastapi, uvicorn, httpx, pyyaml. `requirements.txt`, `config.yaml`, `README.md`, `start.sh`, venv у `Virtual Bot/.venv`.
+**Dependencies:** fastapi, uvicorn, httpx, pyyaml. `requirements.txt`, `config.yaml`, `README.md`, `start.sh`, venv in `Virtual Bot/.venv`.
 
-### 5.3 Процес (вимога власника)
-Кожен робочий агент → окремий **Fable-ревʼювер на максимальному зусиллі**, який адверсарно шукає баги і ФІКСИТЬ їх. Наприкінці — смоук-тест: підняти сервер, curl всі ендпоінти (включно зі спробою path traversal → очікувати 400), перевірити статику, погасити процеси.
+### 5.3 Process (owner's requirement)
+Every worker agent → separate **Fable reviewer at max effort**, who adversarially searches for bugs and FIXES them. At the end — a smoke test: spin up the server, curl all endpoints (including a path traversal attempt → expect 400), check static files, kill processes.
 
-## 6. Порядок дій для наступної сесії
+## 6. Action plan for the next session
 
-1. Виправити баги з розділу 4 (почати з критичного №1).
-2. Побудувати `wiki.html` (5.1).
-3. Побудувати `Virtual Bot` (5.2) за контрактом.
-4. Все — через агентів з Fable-ревʼю (5.3); після кожного блоку — запуск тестів/збірок.
-5. Оновити цей HANDOFF.md наприкінці (що зроблено, що лишилось).
+1. Fix bugs from section 4 (start with critical #1).
+2. Build `wiki.html` (5.1).
+3. Build `Virtual Bot` (5.2) per contract.
+4. Everything — through agents with Fable review (5.3); after each block — run tests/builds.
+5. Update this HANDOFF.md at the end (what is done, what is left).
 
-Примітки: проєкт НЕ git-репозиторій (диффів нема — обережно з перезаписами); шлях містить пробіл — завжди лапки; коментарі/UI українською; стиль коду — мінімальні хірургічні зміни в існуючих файлах.
+Notes: the project is NOT a git repository (no diffs — be careful with overwrites); the path contains a space — always quote; comments/UI in Ukrainian; code style — minimal surgical changes in existing files.
 
----
 
-## 7. Сесія 2026-08-28 (ZCode): магазин екрана + Now Playing
+## 7. Session 2026-08-28 (ZCode): screen store + Now Playing
 
-Все у гілці `feat/bot-tools-workspace-and-chat-ui`, коміти дрібні (feat/fix/docs).
-Тести: **167 passed** (`pytest tests/ --ignore=tests/test_asr_regolo_live.py`),
-смок-тест пройдено (ендпоінти + path traversal → 400/404 + статика).
+Everything is in the branch `feat/bot-tools-workspace-and-chat-ui`, commits are small (feat/fix/docs).
+Tests: **167 passed** (`pytest tests/ --ignore=tests/test_asr_regolo_live.py`),
+smoke test passed (endpoints + path traversal → 400/404 + statics).
 
-### Що додано
-- **Магазин на екрані** (`/screen → Застосунки → Магазин`): таби Додатки /
-  Скіни (локальні пакети `store/packages/<id>/package.json`, встановлення =
-  копія в `store/installed/`, стан = файлова система) + Скіли / Тулзи
-  (показ і встановлення через наявний OpenClaw `/api/store`). Встановлені
-  застосунки зʼявляються плитками в шухляді і відкриваються в iframe
-  `/store-apps/<id>/`. Пакети-зразки: Метроном, Піксель-майстерня, скіни
-  AMOLED / Захід / Термінал (скіни застосовуються миттєво, у iframe
-  передаються postMessage `botSkin`). Код: `screen_store.py` + UI в
+### What was added
+- **Store on the screen** (`/screen → Застосунки → Магазин (Apps → Store)`): tabs Apps /
+  Skins (local packages `store/packages/<id>/package.json`, installation =
+  copy to `store/installed/`, state = file system) + Скіли / Тулзи (Skills / Tools)
+  (display and installation via the existing OpenClaw `/api/store`). Installed
+  apps appear as tiles in the drawer and open in the iframe
+  `/store-apps/<id>/`. Sample packages: Metronome, Pixel Workshop, skins
+  AMOLED / Sunset / Terminal (skins apply instantly, `botSkin` is passed into the
+  iframe via postMessage). Code: `screen_store.py` + UI in
   `static/screen/screen.js`.
-- **Now Playing** (бар знизу екрана): іконка джерела (тап — змінити
-  YouTube/Радіо), назва біжить стрічкою якщо довга, прогрес, повний плеєр
-  з перемоткою/чергою/станціями; ducking під час мови бота. Аудіо —
-  `/api/music/stream` (проксі з Range → перемотка справжня): Invidious
-  `latest_version?local=true` (гейт googlevideo 403-ить прямі ссилки) з
-  автодискавері інстансів (api.invidious.io, кеш 24г), паралельними
-  пробами й ретраями; радіо — SomaFM/Radio Paradise (без Range, браузерний
-  UA — інакше icecast обриває). Транскрайб — youtube-transcript-api +
-  фолбек на Invidious-капшени (VTT).
-- **Застосунок YouTube у магазині**: пошук на екрані (клавіатура в браузері /
-  голосом через бота), тап по відео → `POST /api/music/play` → SSE → грає в
-  Now Playing (музика живе після закриття застосунку). Тули `play_music`/
-  `listen_to_video` шлють ту саму подію; автоплей-блок після тапу в iframe
-  знімається ретраєм на перший дотик по екрану.
-- **Тули мозку**: `play_music`, `stop_music`, `listen_to_video` (SSE-подія
-  `music` керує екраном); `open_screen` тепер знає `store`.
-- **Доки для розробників**: `Virtual Bot/docs/SCREEN-PLATFORM.md` (формати
-  пакетів, обмеження, API) і `docs/YOUTUBE-CLIENTS.md` (вибір стеку
-  yt-dlp + Invidious + youtube-transcript-api; youtubei.js — варіант для
-  React-панелі). README доповнено.
+- **Now Playing** (bar at the bottom of the screen): source icon (tap — change
+  YouTube/Radio), title scrolls if long, progress, full player
+  with seek/queue/stations; ducking during bot's speech. Audio —
+  `/api/music/stream` (proxy with Range → real seek): Invidious
+  `latest_version?local=true` (googlevideo gate returns 403 on direct links) with
+  auto-discovery of instances (api.invidious.io, 24h cache), parallel
+  probes and retries; radio — SomaFM/Radio Paradise (no Range, browser
+  UA — otherwise icecast cuts off). Transcribe — youtube-transcript-api +
+  fallback to Invidious captions (VTT).
+- **YouTube app in the store**: search on the screen (keyboard in browser /
+  voice via bot), tap on video → `POST /api/music/play` → SSE → plays in
+  Now Playing (music lives after closing the app). Tools `play_music`/
+  `listen_to_video` send the same event; autoplay block after tap in iframe
+  is removed by a retry on the first screen touch.
+- **Brain tools**: `play_music`, `stop_music`, `listen_to_video` (SSE event
+  `music` controls the screen); `open_screen` now knows the `store`.
+- **Docs for developers**: `Virtual Bot/docs/SCREEN-PLATFORM.md` (package
+  formats, limitations, API) and `docs/YOUTUBE-CLIENTS.md` (choice of stack
+  yt-dlp + Invidious + youtube-transcript-api; youtubei.js — option for
+  React dashboard). README updated.
 
-### Відомі межі / що далі
-- Публічні Invidious-інстанси флапають хвилинами (502↔206): у «погану»
-  хвилину стрім 502 → тапнути ще раз. Стабільне рішення для реального
-  бота — свій Invidious у docker, вписати ПЕРШИМ у
-  `config.yaml → music.invidious_instances` (`http://` дозволено).
-- Іконки пакетів магазину — лише з наявних наборів екрана (свої SVG у
-  шухляді поки не підвантажуються).
-- Пакет «скіл» в екранному магазині ставить через openclaw CLI — якщо
-  OpenClaw недоступний, таб показує чесну помилку.
-- Смоук-тест через Fable-ревʼювер (розділ 5.3) на НОВИЙ код не проганявся.
+### Known limits / what's next
+- Public Invidious instances flap for minutes (502↔206): in a "bad"
+  minute stream is 502 → tap again. Stable solution for a real
+  bot — own Invidious in docker, listed FIRST in
+  `config.yaml → music.invidious_instances` (`http://` is allowed).
+- Store package icons — only from the existing screen sets (custom SVGs in
+  the drawer don't load yet).
+- The "skill" package in the screen store installs via openclaw CLI — if
+  OpenClaw is unavailable, the tab shows an honest error.
+- Smoke test via Fable reviewer (section 5.3) was NOT run on the NEW code.
 
-## 8. Сесія 2026-09-02: Agent Talk і Watch
+## 8. Session 2026-09-02: Agent Talk and Watch
 
-- **Agent Talk:** нова розмова тепер ізолюється лічильником версії; запізніле
-  відновлення старої сесії або старий стрім не можуть повернути текст після
-  натискання «+». Перемикання Чат/Код також очищає видимий потік.
-- **Watch (`/console`):** початкові `/api/trace` і `/api/console` приймають
-  `session_id`, тому Watch показує тільки активний діалог. Порожня нова сесія
-  не підтягує стару глобальну історію; зміна сесії в Agent Talk синхронізує
-  відкрите вікно Watch через `storage`.
-- **Мобільний клієнт:** виправлено передачу `kind=chat|code` для списку,
-  відкриття й видалення сесій; async-відповіді старого діалогу ігноруються.
-- Перевірки: `PYTHONPATH=. .venv/bin/pytest -q` → **214 passed, 1 skipped**;
-  `npm run build` у `Virtual Bot/chat-panel`, `npm run typecheck`
-  у `claude-bot-app` та `node --check` для Watch — чисті.
+- **Agent Talk:** a new conversation is now isolated by a version counter; late
+  restoration of an old session or an old stream cannot return text after
+  pressing "+". Switching Chat/Code also clears the visible stream.
+- **Watch (`/console`):** the initial `/api/trace` and `/api/console` accept
+  `session_id`, so Watch shows only the active dialog. An empty new session
+  does not pull the old global history; changing the session in Agent Talk synchronizes
+  the open Watch window via `storage`.
+- **Mobile client:** fixed sending `kind=chat|code` for the list,
+  opening and deleting sessions; async responses of an old dialog are ignored.
+- Checks: `PYTHONPATH=. .venv/bin/pytest -q` → **214 passed, 1 skipped**;
+  `npm run build` in `Virtual Bot/chat-panel`, `npm run typecheck`
+  in `claude-bot-app` and `node --check` for Watch — clean.
 
-## 9. Сесія 2026-09-03: учасники розмови (в роботі)
+## 9. Session 2026-09-03: conversation participants (in progress)
 
-- У гілці `feat/bot-tools-workspace-and-chat-ui` з HEAD `070ef2b` є
-  незакомічена фіча явних учасників Agent Talk: `participants[]`, `events[]`,
-  `participant_name` у чаті, рядок присутності та системні події в панелі.
-- Базовий зріз цієї роботи перевірено: `.venv/bin/pytest -q` → **218 passed,
-  1 skipped**; `npm run build` у `Virtual Bot/chat-panel` — чистий, assets
-  синхронні з вихідниками.
-- Узгоджений leave-контракт: `POST /api/sessions/{id}/participants/leave`
-  з тілом `{"name":"…"}` повертає `{"left":true|false}` і HTTP 200;
-  успішний leave прибирає ім’я з активних `participants` та додає подію
-  `participant_left` до `events`. Повторний leave є ідемпотентним.
-- До коміту ще потрібні: санітизація рамкових/керівних символів імені та
-  відсікання імені бота, коректне очищення порожніх сесій без обходу `_prune`,
-  UI-виправлення гарячої клавіші й системних бульбашок, повні тести та
-  ручний smoke test.
-- Учасники наразі свідомо належать режиму «Чат»; code mode не приймає
-  `participant_name`. Документація має залишатися синхронною після фінального
-  коміту фічі.
+- In the branch `feat/bot-tools-workspace-and-chat-ui` with HEAD `070ef2b` there is
+  an uncommitted feature of explicit Agent Talk participants: `participants[]`, `events[]`,
+  `participant_name` in chat, presence string and system events in the dashboard.
+- The base snapshot of this work is verified: `.venv/bin/pytest -q` → **218 passed,
+  1 skipped**; `npm run build` in `Virtual Bot/chat-panel` — clean, assets
+  are in sync with the source.
+- Agreed leave-contract: `POST /api/sessions/{id}/participants/leave`
+  with body `{"name":"…"}` returns `{"left":true|false}` and HTTP 200;
+  a successful leave removes the name from active `participants` and adds the event
+  `participant_left` to `events`. Repeated leave is idempotent.
+- Before commit still needed: sanitization of frame/control characters in the name and
+  cutting off the bot's name, correct cleanup of empty sessions without bypassing `_prune`,
+  UI fixes for the hotkey and system bubbles, full tests and
+  manual smoke test.
+- Participants currently intentionally belong to the "Chat" mode; code mode does not accept
+  `participant_name`. The documentation must remain in sync after the final
+  feature commit.
 
-## 10. Сесія 2026-09-04: virtual device settings
+## 10. Session 2026-09-04: virtual device settings
 
-- Закомічено ізольований шар `56b3536` (`feat(screen): add virtual device
-  settings package`) без змін у зайнятих `main.py`, `screen.js`, `screen.css`,
-  `i18n.js`, ASR або YouTube-файлах.
-- `Virtual Bot/system_status.py` надає роутер із `/api/system/status`,
-  `/api/system/audio/devices` і `/api/system/network`. У `virtual` snapshot є
-  назва/заряд бота, Wi‑Fi, Bluetooth/навушники, мікрофон/динамік і маршрути
-  гучності для бота, YouTube, будильника та сповіщень.
-- `Virtual Bot/store/packages/device-settings/` — готовий 320×240 застосунок
-  магазину: вкладки «Звʼязок»/«Звук», картки Wi‑Fi/Bluetooth, вибір аудіо,
-  per-app повзунки та mute. Значення гучності зберігаються локально й
-  передаються майбутньому native-мікшеру через `postMessage`.
-- Перевірки ізольованої частини: `17 passed`, Python compile і JS syntax
-  чисті. Для повної інтеграції потрібно додати в `main.py` імпорт
-  `system_status` та один рядок `app.include_router(system_status.router)`;
-  це робиться власником shared-ділянки після завершення його правок.
-- 2026-09-04 зроблено візуальний pass після реального headless-рендеру
-  320×240: `device-settings` переведено з синьої dashboard-палітри в токени
-  Клод Бота (`#16181a`, `#1e2124`, мідний `#d17a58`, оливковий `#8ca879`),
-  ущільнено header/tabs, виправлено злипання title/subtitle і залишено
-  прокручувані touch-картки для малого екрану.
-- 2026-09-04 комітами `2c242b2` і `931ba43` виправлено жести та тему:
-  карусель і шари використовують Pointer Capture, застосунок у iframe має
-  власний swipe-bridge, а `light` передається разом із skin-змінними. Білу
-  палітру `device-settings` перевірено headless-рендером; bridge приймає
-  повідомлення лише від батьківського `/screen` з тим самим origin, а
-  вертикальний скрол списку не закриває застосунок випадково.
-- 2026-09-04 комітом `070b096` swipe-зона розширена на всю сцену й store app:
-  картки та кнопки можуть починати горизонтальний/вертикальний swipe, але
-  tap по кнопках не губиться; input/select/textarea, повзунки та прокрутка
-  залишаються інтерактивними. Для кнопок Pointer Capture не забирається, а
-  завершення жесту добирається через `window`.
-- Після fix: `pytest -q tests/test_screen_store.py tests/test_system_status.py`
-  → **17 passed**; `node --check` для обох JS-контурів чистий; живий smoke
-  на `8100`: `/screen`, статика застосунку, `/api/system/status` → 200,
-  спроба `static/../main.py` → 404.
+- Committed an isolated layer `56b3536` (`feat(screen): add virtual device
+  settings package`) with no changes in the occupied `main.py`, `screen.js`, `screen.css`,
+  `i18n.js`, ASR or YouTube files.
+- `Virtual Bot/system_status.py` provides a router with `/api/system/status`,
+  `/api/system/audio/devices` and `/api/system/network`. The `virtual` snapshot has
+  the bot's name/battery, Wi‑Fi, Bluetooth/headphones, mic/speaker and volume
+  routes for the bot, YouTube, alarm and notifications.
+- `Virtual Bot/store/packages/device-settings/` — a ready 320×240 store app:
+  tabs «Звʼязок» (Connection)/«Звук» (Sound), Wi‑Fi/Bluetooth cards, audio selection,
+  per-app sliders and mute. Volume values are saved locally and
+  passed to the future native mixer via `postMessage`.
+- Isolated part checks: `17 passed`, Python compile and JS syntax
+  are clean. Full integration requires adding the `system_status` import
+  and one line `app.include_router(system_status.router)` in `main.py`;
+  this is done by the owner of the shared area after their edits are finished.
+- 2026-09-04 a visual pass was done after real headless render
+  320×240: `device-settings` translated from the blue dashboard palette into
+  Claude Bot tokens (`#16181a`, `#1e2124`, copper `#d17a58`, olive `#8ca879`),
+  header/tabs tightened, title/subtitle overlap fixed and touch-cards left
+  scrollable for the small screen.
+- 2026-09-04 commits `2c242b2` and `931ba43` fixed gestures and theme:
+  carousel and layers use Pointer Capture, the iframe app has
+  its own swipe-bridge, and `light` is passed along with skin variables. The white
+  palette of `device-settings` was verified by headless render; the bridge only accepts
+  messages from the parent `/screen` with the same origin, and
+  vertical list scrolling does not close the app accidentally.
+- 2026-09-04 commit `070b096` swipe zone extended to the whole scene and store app:
+  cards and buttons can start a horizontal/vertical swipe, but
+  taps on buttons are not lost; input/select/textarea, sliders and scrolling
+  remain interactive. Pointer Capture is not removed for buttons, and
+  gesture completion is picked up via `window`.
+- After fix: `pytest -q tests/test_screen_store.py tests/test_system_status.py`
+  → **17 passed**; `node --check` for both JS paths is clean; live smoke
+  on `8100`: `/screen`, app statics, `/api/system/status` → 200,
+  attempt `static/../main.py` → 404.
 
 ## 11. Session 2026-09-20: chat workspace and quick launchers
 

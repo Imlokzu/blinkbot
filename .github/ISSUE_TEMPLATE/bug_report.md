@@ -1,33 +1,33 @@
 ---
 name: Bug report
-about: Повідомити про відтворювану проблему
+about: Report a reproducible issue
  title: "[bug] "
 labels: bug
 assignees: []
 ---
 
-## Опис
+## Description
 
-Чітко опишіть проблему.
+Clearly describe the issue.
 
-## Кроки відтворення
+## Steps to reproduce
 
 1.
 2.
 3.
 
-## Очікувана поведінка
+## Expected behavior
 
-## Фактична поведінка
+## Actual behavior
 
-## Середовище
+## Environment
 
-- Модуль/шлях:
-- ОС:
-- Версія або commit:
+- Module/path:
+- OS:
+- Version or commit:
 
 ## Evidence
 
-Логи, команди та мінімальний приклад (без секретів):
+Logs, commands, and minimal example (without secrets):
 
-## Додатковий контекст
+## Additional context

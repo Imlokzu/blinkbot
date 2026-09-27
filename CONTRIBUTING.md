@@ -1,23 +1,23 @@
-# Участь у проєкті
+# Contributing
 
-Дякуємо за внесок у «Клод Бот». UI і коментарі пишемо українською. Перед змінами прочитайте [`AGENTS.md`](AGENTS.md), не додавайте секрети й працюйте вузькими логічними змінами.
+Thank you for contributing to Claude Bot. UI text and code comments are written in Ukrainian. Before making changes, read [`AGENTS.md`](AGENTS.md), do not add secrets, and work in narrow logical changes.
 
-## Multi-agent процес
+## Multi-agent process
 
-1. **Planner** уточнює обсяг, контракти, ризики та план перевірок. Він не підміняє реалізацію.
-2. **Worker** робить мінімальну зміну в окремій логічній ділянці, запускає доречні тести та фіксує evidence.
-3. **Adversarial critic** окремо шукає регресії, граничні випадки, проблеми безпеки й невідповідність контракту. За потреби виправлення проходять повторну перевірку.
-4. **Pro/con analyst** зважує альтернативи, переваги, недоліки й залишкові ризики, не розширюючи погоджений scope.
-5. **Final integrator** перевіряє diff, узгодженість документації, результати тестів і готовність до інтеграції.
+1. **Planner** clarifies the scope, contracts, risks, and verification plan. It does not replace the implementation.
+2. **Worker** makes a minimal change in a specific logical area, runs relevant tests, and captures evidence.
+3. **Adversarial critic** independently searches for regressions, edge cases, security issues, and contract non-compliance. If necessary, fixes undergo a re-check.
+4. **Pro/con analyst** weighs alternatives, pros, cons, and residual risks without expanding the agreed scope.
+5. **Final integrator** checks the diff, documentation consistency, test results, and readiness for integration.
 
-Ролі можуть виконувати різні агенти або люди, але критика має бути незалежною від автора зміни.
+Roles can be performed by different agents or people, but the critique must be independent of the author of the change.
 
-## Evidence і smoke test
+## Evidence and smoke test
 
-Кожен етап має залишити відтворюваний evidence: змінені файли, команди, результати тестів і відомі ризики. Для сервісних змін фінальний smoke test охоплює запуск, health/API endpoints, негативні сценарії (зокрема path traversal, якщо є робота з файлами), статичні assets і коректне завершення процесів.
+Every step must leave reproducible evidence: changed files, commands, test results, and known risks. For service changes, the final smoke test covers startup, health/API endpoints, negative scenarios (especially path traversal if working with files), static assets, and correct process termination.
 
-Для документаційних змін перевірте всі Markdown-файли синтаксично або за допомогою доступного linter-а, перегляньте diff і переконайтеся, що не з’явилися URL, імена чи секрети без підстав.
+For documentation changes, check all Markdown files syntactically or using an available linter, review the diff, and make sure no URLs, names, or secrets appeared without reason.
 
 ## Pull request
 
-Описуйте мету, scope, evidence, smoke test, residual risks і ручні кроки. Використовуйте шаблон pull request та відповідний шаблон issue. Коміти мають відповідати Conventional Commits; не додавайте `LICENSE` без окремого вибору власника.
+Describe the goal, scope, evidence, smoke test, residual risks, and manual steps. Use the pull request template and the appropriate issue template. Commits must follow Conventional Commits; do not add a `LICENSE` without explicitly choosing the owner.

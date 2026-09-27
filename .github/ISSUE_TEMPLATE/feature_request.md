@@ -1,25 +1,25 @@
 ---
 name: Feature request
-about: Запропонувати покращення або нову можливість
+about: Propose an improvement or a new feature
  title: "[feature] "
 labels: enhancement
 assignees: []
 ---
 
-## Проблема або потреба
+## Problem or need
 
-Яку проблему вирішує пропозиція?
+What problem does the proposal solve?
 
-## Запропоноване рішення
+## Proposed solution
 
-Опишіть бажану поведінку та межі зміни.
+Describe the desired behavior and scope of the change.
 
-## Альтернативи
+## Alternatives
 
-Які варіанти розглядалися і чому їх недостатньо?
+What options were considered and why are they insufficient?
 
-## Evidence і критерії приймання
+## Evidence and acceptance criteria
 
-Як перевірити результат?
+How to verify the result?
 
-## Додатковий контекст
+## Additional context
