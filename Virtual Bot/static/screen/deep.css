@@ -6,18 +6,20 @@
    "Material You" style this file changes nothing and screen.css stands
    as it is.
 
-   Deep UI is deep colour, the way the app icons are drawn: not a palette
-   swap but light and depth.
-     - An aurora — three soft radial glows (violet, teal, rose) — lies
-       behind the carousel and every panel, so black is never flat.
-     - Cards are dark glass with a lit edge: a gradient hairline that is
-       brighter at the top-left, where the light comes from.
-     - One signature gradient, blue → violet, marks what is chosen or
-       on: buttons, switches, slider fills, your chat bubbles, the dot of
-       the current screen.
-     - Every quick action has a colour of its own, as every app icon
-       does: tinted glass when off, its full gradient when on.
-     - Titles are gradient type; buttons give under the finger.
+   Deep UI is deep colour, the way the app icons are drawn: every
+   gradient stays inside ONE hue, light at the top and deep at the bottom
+   (red into red, blue into blue). Never a blend of two hues: blue →
+   violet over a glow of three colours reads as a generic "AI" look, and
+   the owner does not want that.
+     - A single soft glow of the accent at the top of the ground, so
+       black is never flat.
+     - Cards are dark glass with a lit edge: a white hairline that is
+       brighter at the top, where the light comes from.
+     - The accent's own gradient marks what is chosen or on: buttons,
+       switches, slider fills, your chat bubbles, the current dot.
+     - Every quick action has a colour of its own, taken from the app
+       icons' palette: tinted glass when off, its full gradient when on.
+     - Buttons give under the finger.
    Modelled on One UI (grouped cards, round quick buttons, toggles) but
    dressed in the icons' colours.
 
@@ -27,50 +29,43 @@
    ============================================================ */
 
 :root[data-ui="deep"] {
-  --bg: #050508;
-  --panel: #111118;
-  --line: #262633;
-  --text: #f7f6ff;
-  --muted: #a3a1b8;
-  --accent: #6f7bff;
+  --bg: #040506;
+  --panel: #111316;
+  --line: #262a30;
+  --text: #f6f7f9;
+  --muted: #9ea3ab;
+  --accent: #3d9bff;
   --ok: #3ee0a1;
   --off: #6e6c80;
   --font: "SamsungOne", "Samsung Sans", Roboto, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --ou-radius: 20px;
 
-  --deep-a: #4f8bff;
-  --deep-b: #a35bff;
-  --deep-grad: linear-gradient(135deg, var(--deep-a), var(--deep-b));
-  --deep-aurora:
-    radial-gradient(85% 65% at 6% 0%, rgba(110, 70, 255, 0.34), transparent 62%),
-    radial-gradient(75% 60% at 100% 100%, rgba(0, 175, 195, 0.24), transparent 64%),
-    radial-gradient(55% 45% at 96% 6%, rgba(255, 70, 150, 0.14), transparent 62%);
-  --deep-card: #12121b;
-  --deep-glass: linear-gradient(160deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.015) 60%);
-  --deep-edge: linear-gradient(150deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.035) 42%, rgba(163, 91, 255, 0.3));
+  /* The accent's own gradient, as on the app icons: top light, bottom deep */
+  --deep-a: #3d9bff;
+  --deep-b: #0a5fd6;
+  --deep-grad: linear-gradient(180deg, var(--deep-a), var(--deep-b));
+  --deep-aurora: radial-gradient(95% 70% at 50% -12%, rgba(10, 132, 255, 0.2), transparent 66%);
+  --deep-card: #121418;
+  --deep-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015) 60%);
+  --deep-edge: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.04) 55%, rgba(255, 255, 255, 0.02));
   --deep-chip: rgba(255, 255, 255, 0.08);
-  --deep-title: linear-gradient(90deg, #ffffff 35%, #c9b8ff);
 }
 :root[data-ui="deep"][data-theme="light"] {
-  --bg: #f4f3fa;
+  --bg: #f3f4f6;
   --panel: #ffffff;
-  --line: #e2e0ee;
-  --text: #15141f;
-  --muted: #6c6a80;
-  --accent: #5a5cff;
+  --line: #e1e3e8;
+  --text: #121316;
+  --muted: #6b6f78;
+  --accent: #0a74f0;
   --ok: #1fae78;
   --off: #a9a7b8;
-  --deep-a: #3c7bff;
-  --deep-b: #9446ff;
-  --deep-aurora:
-    radial-gradient(85% 65% at 6% 0%, rgba(120, 90, 255, 0.2), transparent 62%),
-    radial-gradient(75% 60% at 100% 100%, rgba(0, 180, 200, 0.16), transparent 64%),
-    radial-gradient(55% 45% at 96% 6%, rgba(255, 90, 160, 0.12), transparent 62%);
+  --deep-a: #2f8cff;
+  --deep-b: #0a5fd6;
+  --deep-aurora: radial-gradient(95% 70% at 50% -12%, rgba(10, 132, 255, 0.14), transparent 66%);
   --deep-card: #ffffff;
-  --deep-glass: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(246, 244, 255, 0.9));
-  --deep-edge: linear-gradient(150deg, rgba(120, 100, 255, 0.28), rgba(0, 0, 0, 0.05) 45%, rgba(163, 91, 255, 0.32));
-  --deep-chip: rgba(40, 30, 90, 0.07);
-  --deep-title: linear-gradient(90deg, #15141f 35%, #5b3dff);
+  --deep-glass: linear-gradient(180deg, #ffffff, #f8f8fb);
+  --deep-edge: linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.1));
+  --deep-chip: rgba(20, 30, 60, 0.07);
 }
 
 /* ---------- Depth: the aurora behind everything ---------- */
@@ -92,7 +87,7 @@
     var(--deep-edge) border-box;
 }
 
-/* ---------- Type: gradient titles, sentence case ---------- */
+/* ---------- Type: big sentence-case titles ---------- */
 :root[data-ui="deep"] .tile-head,
 :root[data-ui="deep"] .layer-head {
   letter-spacing: 0;
@@ -102,17 +97,11 @@
 :root[data-ui="deep"] .tile-head { font: 700 13px/1.2 var(--font); color: var(--text); }
 :root[data-ui="deep"] .layer-head {
   align-items: center;
+  color: var(--text);
   font: 800 19px/1.15 var(--font);
   letter-spacing: -0.015em;
   padding-bottom: 2px;
   margin-bottom: 8px;
-}
-:root[data-ui="deep"] .layer-head > span:first-child,
-:root[data-ui="deep"] .settings-section-head strong {
-  background: var(--deep-title);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
 :root[data-ui="deep"] .layer-hint { font-weight: 400; }
 
@@ -192,19 +181,19 @@
   letter-spacing: 0;
   text-align: center;
   white-space: normal;
-  --qs-a: #4f8bff;
-  --qs-b: #a35bff;
+  --qs-a: #3d9bff;
+  --qs-b: #0a5fd6;
 }
-:root[data-ui="deep"] .qs-tile[data-id="sleep"] { --qs-a: #5b5bff; --qs-b: #8e3dff; }
-:root[data-ui="deep"] .qs-tile[data-id="theme"] { --qs-a: #ffb347; --qs-b: #ff6a3d; }
-:root[data-ui="deep"] .qs-tile[data-id="voice"] { --qs-a: #19c3b0; --qs-b: #1a7fd6; }
-:root[data-ui="deep"] .qs-tile[data-id="speed"] { --qs-a: #ff5fa2; --qs-b: #c03bff; }
-:root[data-ui="deep"] .qs-tile[data-id="apps"] { --qs-a: #3fa9ff; --qs-b: #5b5bff; }
-:root[data-ui="deep"] .qs-tile[data-id="icons"] { --qs-a: #8f9bb5; --qs-b: #535c78; }
-:root[data-ui="deep"] .qs-tile[data-id="chatNew"] { --qs-a: #34d17a; --qs-b: #0f9b8e; }
-:root[data-ui="deep"] .qs-tile[data-id="chatPick"] { --qs-a: #00c6ff; --qs-b: #0066ff; }
-:root[data-ui="deep"] .qs-tile[data-id="full"] { --qs-a: #f7797d; --qs-b: #c471ed; }
-:root[data-ui="deep"] .qs-tile[data-id="reload"] { --qs-a: #ff4b5c; --qs-b: #ff8a3d; }
+:root[data-ui="deep"] .qs-tile[data-id="sleep"] { --qs-a: #7d7aff; --qs-b: #4f4cd6; }
+:root[data-ui="deep"] .qs-tile[data-id="theme"] { --qs-a: #ffa31a; --qs-b: #e06c00; }
+:root[data-ui="deep"] .qs-tile[data-id="voice"] { --qs-a: #30b0c7; --qs-b: #157a8c; }
+:root[data-ui="deep"] .qs-tile[data-id="speed"] { --qs-a: #ff6482; --qs-b: #d8315b; }
+:root[data-ui="deep"] .qs-tile[data-id="apps"] { --qs-a: #3d9bff; --qs-b: #0a5fd6; }
+:root[data-ui="deep"] .qs-tile[data-id="icons"] { --qs-a: #aeaeb2; --qs-b: #6e6e73; }
+:root[data-ui="deep"] .qs-tile[data-id="chatNew"] { --qs-a: #34c759; --qs-b: #1c9a43; }
+:root[data-ui="deep"] .qs-tile[data-id="chatPick"] { --qs-a: #64d2ff; --qs-b: #1a8fd6; }
+:root[data-ui="deep"] .qs-tile[data-id="full"] { --qs-a: #bf5af2; --qs-b: #8638b8; }
+:root[data-ui="deep"] .qs-tile[data-id="reload"] { --qs-a: #ff5a4d; --qs-b: #c8102e; }
 /* Off: glass tinted with its own colour. On: its full gradient. */
 :root[data-ui="deep"] .qs-tile > .svgicon,
 :root[data-ui="deep"] .qs-tile > canvas,
@@ -215,14 +204,14 @@
   height: 38px;
   padding: 9px;
   border-radius: 50%;
-  background: linear-gradient(135deg,
+  background: linear-gradient(180deg,
     color-mix(in srgb, var(--qs-a) 30%, transparent),
-    color-mix(in srgb, var(--qs-b) 16%, transparent));
+    color-mix(in srgb, var(--qs-b) 18%, transparent));
   transition: transform 120ms ease;
 }
 :root[data-ui="deep"] .qs-tile.on > .svgicon,
 :root[data-ui="deep"] .qs-tile.on > canvas,
-:root[data-ui="deep"] .qs-tile.on > .pxicon { background: linear-gradient(135deg, var(--qs-a), var(--qs-b)); }
+:root[data-ui="deep"] .qs-tile.on > .pxicon { background: linear-gradient(180deg, var(--qs-a), var(--qs-b)); }
 :root[data-ui="deep"] .qs-tile > .svgicon { stroke: var(--text) !important; stroke-width: 1.8; }
 :root[data-ui="deep"] .qs-tile.on > .svgicon { stroke: #fff !important; }
 :root[data-ui="deep"] .qs-tile.on { color: var(--text); font-weight: 700; background: transparent; border: 0; }
@@ -236,7 +225,7 @@
   height: 24px;
   border-radius: 12px;
   background:
-    var(--deep-grad) 0 0 / var(--pct, 50%) 100% no-repeat,
+    linear-gradient(90deg, var(--deep-b), var(--deep-a)) 0 0 / var(--pct, 50%) 100% no-repeat,
     var(--deep-chip);
 }
 :root[data-ui="deep"] .qs-slider input[type="range"]::-webkit-slider-thumb,
@@ -307,8 +296,8 @@
   background: var(--deep-grad);
   color: #fff;
 }
-:root[data-ui="deep"] .notice.warn .notice-ico { background: linear-gradient(135deg, #ffc043, #ff7a2f); color: #fff; }
-:root[data-ui="deep"] .notice.error .notice-ico { background: linear-gradient(135deg, #ff4b6e, #d6249f); color: #fff; }
+:root[data-ui="deep"] .notice.warn .notice-ico { background: linear-gradient(180deg, #ffa31a, #e06c00); color: #fff; }
+:root[data-ui="deep"] .notice.error .notice-ico { background: linear-gradient(180deg, #ff5a4d, #c8102e); color: #fff; }
 :root[data-ui="deep"] .notice-ico svg { width: 15px; height: 15px; }
 :root[data-ui="deep"] .notice-meta { font-family: var(--font); }
 
@@ -352,5 +341,5 @@
 :root[data-ui="deep"] .svgicon { stroke: var(--text) !important; }
 :root[data-ui="deep"] .mic-btn .svgicon,
 :root[data-ui="deep"] .osk-enter .svgicon { stroke: #fff !important; }
-:root[data-ui="deep"] .face-mic .svgicon { stroke: #c9b8ff !important; }
+:root[data-ui="deep"] .face-mic .svgicon { stroke: var(--deep-a) !important; }
 :root[data-ui="deep"] .notices-section { text-transform: none; letter-spacing: 0; font: 700 11px/1.2 var(--font); color: var(--muted); }
