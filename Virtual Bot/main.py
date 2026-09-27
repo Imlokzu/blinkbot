@@ -3207,8 +3207,13 @@ async def api_events(request: Request) -> StreamingResponse:
     SSE-стрічка живих подій бота (нативний EventSource, без CDN):
     emotion / say / vision за спільним контрактом; keep-alive ~15 с.
     """
+    # The device screen has no Clerk token, as with /api/music: without one
+    # the stream carries only the events meant for everyone (music, timers,
+    # the face), which is what it carried before events got an audience.
+    # A token that is sent is still checked, and events aimed at one user
+    # reach only that user's stream.
     return _SSEResponse(
-        events.sse_stream(audience=await _require_user(request)),
+        events.sse_stream(audience=_clerk_user_or_none(request)),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache"},
     )
