@@ -1,0 +1,1402 @@
+{
+  "Device Setup Wizard/src/App.tsx": {
+    "comments": 20,
+    "strings": 64,
+    "total": 84
+  },
+  "Remote Control/remote_listener.py": {
+    "comments": 22,
+    "strings": 15,
+    "total": 37
+  },
+  "Remote Control/status_display.py": {
+    "comments": 21,
+    "strings": 18,
+    "total": 39
+  },
+  "Virtual Bot/app_config.py": {
+    "comments": 107,
+    "strings": 1,
+    "total": 108
+  },
+  "Virtual Bot/asr_regolo.py": {
+    "comments": 12,
+    "strings": 5,
+    "total": 17
+  },
+  "Virtual Bot/asr_terms.py": {
+    "comments": 26,
+    "strings": 0,
+    "total": 26
+  },
+  "Virtual Bot/asr_whisper.py": {
+    "comments": 60,
+    "strings": 5,
+    "total": 65
+  },
+  "Virtual Bot/auth_clerk.py": {
+    "comments": 15,
+    "strings": 8,
+    "total": 23
+  },
+  "Virtual Bot/brain_context.py": {
+    "comments": 15,
+    "strings": 1,
+    "total": 16
+  },
+  "Virtual Bot/brains.py": {
+    "comments": 240,
+    "strings": 248,
+    "total": 488
+  },
+  "Virtual Bot/chat-panel/index.html": {
+    "comments": 4,
+    "strings": 0,
+    "total": 4
+  },
+  "Virtual Bot/chat-panel/src/auth.css": {
+    "comments": 3,
+    "strings": 0,
+    "total": 3
+  },
+  "Virtual Bot/chat-panel/src/auth.js": {
+    "comments": 3,
+    "strings": 0,
+    "total": 3
+  },
+  "Virtual Bot/chat-panel/src/styles.css": {
+    "comments": 192,
+    "strings": 0,
+    "total": 192
+  },
+  "Virtual Bot/chat_bubbles.py": {
+    "comments": 2,
+    "strings": 1,
+    "total": 3
+  },
+  "Virtual Bot/chat_store.py": {
+    "comments": 73,
+    "strings": 20,
+    "total": 93
+  },
+  "Virtual Bot/coding.py": {
+    "comments": 77,
+    "strings": 12,
+    "total": 89
+  },
+  "Virtual Bot/coding_api.py": {
+    "comments": 16,
+    "strings": 3,
+    "total": 19
+  },
+  "Virtual Bot/console_log.py": {
+    "comments": 15,
+    "strings": 0,
+    "total": 15
+  },
+  "Virtual Bot/dashboard/index.html": {
+    "comments": 7,
+    "strings": 3,
+    "total": 10
+  },
+  "Virtual Bot/dashboard/src/app/App.tsx": {
+    "comments": 6,
+    "strings": 1,
+    "total": 7
+  },
+  "Virtual Bot/dashboard/src/app/sections.ts": {
+    "comments": 2,
+    "strings": 9,
+    "total": 11
+  },
+  "Virtual Bot/dashboard/src/app/useRoute.ts": {
+    "comments": 7,
+    "strings": 0,
+    "total": 7
+  },
+  "Virtual Bot/dashboard/src/components/editor/CodeEditor.tsx": {
+    "comments": 4,
+    "strings": 0,
+    "total": 4
+  },
+  "Virtual Bot/dashboard/src/components/editor/NoteEditor.tsx": {
+    "comments": 10,
+    "strings": 0,
+    "total": 10
+  },
+  "Virtual Bot/dashboard/src/components/shell/AuthCorner.tsx": {
+    "comments": 5,
+    "strings": 1,
+    "total": 6
+  },
+  "Virtual Bot/dashboard/src/components/shell/BotUiOverlay.tsx": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/dashboard/src/components/shell/CommandPalette.tsx": {
+    "comments": 5,
+    "strings": 9,
+    "total": 14
+  },
+  "Virtual Bot/dashboard/src/components/shell/DockNav.tsx": {
+    "comments": 37,
+    "strings": 0,
+    "total": 37
+  },
+  "Virtual Bot/dashboard/src/components/shell/PanelBoundary.tsx": {
+    "comments": 6,
+    "strings": 1,
+    "total": 7
+  },
+  "Virtual Bot/dashboard/src/components/shell/SectionHeader.tsx": {
+    "comments": 7,
+    "strings": 1,
+    "total": 8
+  },
+  "Virtual Bot/dashboard/src/components/shell/Topbar.tsx": {
+    "comments": 19,
+    "strings": 2,
+    "total": 21
+  },
+  "Virtual Bot/dashboard/src/components/ui/Button.tsx": {
+    "comments": 7,
+    "strings": 0,
+    "total": 7
+  },
+  "Virtual Bot/dashboard/src/components/ui/Dialog.tsx": {
+    "comments": 4,
+    "strings": 1,
+    "total": 5
+  },
+  "Virtual Bot/dashboard/src/components/ui/Feedback.tsx": {
+    "comments": 5,
+    "strings": 0,
+    "total": 5
+  },
+  "Virtual Bot/dashboard/src/components/ui/Field.tsx": {
+    "comments": 2,
+    "strings": 0,
+    "total": 2
+  },
+  "Virtual Bot/dashboard/src/components/ui/Morph.tsx": {
+    "comments": 4,
+    "strings": 0,
+    "total": 4
+  },
+  "Virtual Bot/dashboard/src/components/ui/Panel.tsx": {
+    "comments": 4,
+    "strings": 0,
+    "total": 4
+  },
+  "Virtual Bot/dashboard/src/components/ui/Segmented.tsx": {
+    "comments": 5,
+    "strings": 0,
+    "total": 5
+  },
+  "Virtual Bot/dashboard/src/components/ui/Status.tsx": {
+    "comments": 6,
+    "strings": 3,
+    "total": 9
+  },
+  "Virtual Bot/dashboard/src/components/ui/Switch.tsx": {
+    "comments": 4,
+    "strings": 0,
+    "total": 4
+  },
+  "Virtual Bot/dashboard/src/components/ui/Tip.tsx": {
+    "comments": 3,
+    "strings": 0,
+    "total": 3
+  },
+  "Virtual Bot/dashboard/src/components/ui/Toaster.tsx": {
+    "comments": 6,
+    "strings": 1,
+    "total": 7
+  },
+  "Virtual Bot/dashboard/src/hooks/useAccentRgb.ts": {
+    "comments": 10,
+    "strings": 0,
+    "total": 10
+  },
+  "Virtual Bot/dashboard/src/hooks/useBotEvents.ts": {
+    "comments": 3,
+    "strings": 0,
+    "total": 3
+  },
+  "Virtual Bot/dashboard/src/hooks/useDictation.ts": {
+    "comments": 42,
+    "strings": 5,
+    "total": 47
+  },
+  "Virtual Bot/dashboard/src/hooks/useDockSide.ts": {
+    "comments": 8,
+    "strings": 0,
+    "total": 8
+  },
+  "Virtual Bot/dashboard/src/hooks/useDrawer.ts": {
+    "comments": 12,
+    "strings": 0,
+    "total": 12
+  },
+  "Virtual Bot/dashboard/src/hooks/useEdgeDrawer.ts": {
+    "comments": 8,
+    "strings": 0,
+    "total": 8
+  },
+  "Virtual Bot/dashboard/src/hooks/useKeyboardOffset.ts": {
+    "comments": 6,
+    "strings": 0,
+    "total": 6
+  },
+  "Virtual Bot/dashboard/src/hooks/useLanguage.ts": {
+    "comments": 6,
+    "strings": 0,
+    "total": 6
+  },
+  "Virtual Bot/dashboard/src/hooks/useMediaQuery.ts": {
+    "comments": 1,
+    "strings": 0,
+    "total": 1
+  },
+  "Virtual Bot/dashboard/src/hooks/useTheme.ts": {
+    "comments": 9,
+    "strings": 7,
+    "total": 16
+  },
+  "Virtual Bot/dashboard/src/index.css": {
+    "comments": 3,
+    "strings": 0,
+    "total": 3
+  },
+  "Virtual Bot/dashboard/src/lib/api.ts": {
+    "comments": 7,
+    "strings": 0,
+    "total": 7
+  },
+  "Virtual Bot/dashboard/src/lib/auth.ts": {
+    "comments": 8,
+    "strings": 0,
+    "total": 8
+  },
+  "Virtual Bot/dashboard/src/lib/chatStream.ts": {
+    "comments": 3,
+    "strings": 2,
+    "total": 5
+  },
+  "Virtual Bot/dashboard/src/lib/cn.ts": {
+    "comments": 1,
+    "strings": 0,
+    "total": 1
+  },
+  "Virtual Bot/dashboard/src/lib/events.ts": {
+    "comments": 12,
+    "strings": 1,
+    "total": 13
+  },
+  "Virtual Bot/dashboard/src/lib/glue.ts": {
+    "comments": 28,
+    "strings": 11,
+    "total": 39
+  },
+  "Virtual Bot/dashboard/src/lib/queries.ts": {
+    "comments": 14,
+    "strings": 0,
+    "total": 14
+  },
+  "Virtual Bot/dashboard/src/lib/toolLabels.ts": {
+    "comments": 8,
+    "strings": 28,
+    "total": 36
+  },
+  "Virtual Bot/dashboard/src/main.tsx": {
+    "comments": 5,
+    "strings": 0,
+    "total": 5
+  },
+  "Virtual Bot/dashboard/src/panels/browser/BrowserPanel.tsx": {
+    "comments": 7,
+    "strings": 7,
+    "total": 14
+  },
+  "Virtual Bot/dashboard/src/panels/chat/ChatPanel.tsx": {
+    "comments": 15,
+    "strings": 0,
+    "total": 15
+  },
+  "Virtual Bot/dashboard/src/panels/chat/ContextMeter.tsx": {
+    "comments": 22,
+    "strings": 0,
+    "total": 22
+  },
+  "Virtual Bot/dashboard/src/panels/chat/Face.tsx": {
+    "comments": 15,
+    "strings": 0,
+    "total": 15
+  },
+  "Virtual Bot/dashboard/src/panels/chat/Gallery.tsx": {
+    "comments": 23,
+    "strings": 0,
+    "total": 23
+  },
+  "Virtual Bot/dashboard/src/panels/chat/ImageViewer.tsx": {
+    "comments": 37,
+    "strings": 0,
+    "total": 37
+  },
+  "Virtual Bot/dashboard/src/panels/chat/Markdown.tsx": {
+    "comments": 42,
+    "strings": 0,
+    "total": 42
+  },
+  "Virtual Bot/dashboard/src/panels/chat/PinnedPanels.tsx": {
+    "comments": 4,
+    "strings": 0,
+    "total": 4
+  },
+  "Virtual Bot/dashboard/src/panels/chat/SessionCard.tsx": {
+    "comments": 25,
+    "strings": 0,
+    "total": 25
+  },
+  "Virtual Bot/dashboard/src/panels/chat/SessionList.tsx": {
+    "comments": 15,
+    "strings": 0,
+    "total": 15
+  },
+  "Virtual Bot/dashboard/src/panels/chat/Thread.tsx": {
+    "comments": 9,
+    "strings": 0,
+    "total": 9
+  },
+  "Virtual Bot/dashboard/src/panels/chat/types.ts": {
+    "comments": 2,
+    "strings": 0,
+    "total": 2
+  },
+  "Virtual Bot/dashboard/src/panels/chat/useChatRuntime.ts": {
+    "comments": 21,
+    "strings": 0,
+    "total": 21
+  },
+  "Virtual Bot/dashboard/src/panels/files/FilesPanel.tsx": {
+    "comments": 13,
+    "strings": 16,
+    "total": 29
+  },
+  "Virtual Bot/dashboard/src/panels/logs/LogsPanel.tsx": {
+    "comments": 14,
+    "strings": 10,
+    "total": 24
+  },
+  "Virtual Bot/dashboard/src/panels/memory/MemoryPanel.tsx": {
+    "comments": 10,
+    "strings": 16,
+    "total": 26
+  },
+  "Virtual Bot/dashboard/src/panels/overview/BotState.tsx": {
+    "comments": 11,
+    "strings": 15,
+    "total": 26
+  },
+  "Virtual Bot/dashboard/src/panels/overview/OverviewPanel.tsx": {
+    "comments": 23,
+    "strings": 17,
+    "total": 40
+  },
+  "Virtual Bot/dashboard/src/panels/overview/PacksTile.tsx": {
+    "comments": 7,
+    "strings": 3,
+    "total": 10
+  },
+  "Virtual Bot/dashboard/src/panels/overview/ProjectsTile.tsx": {
+    "comments": 4,
+    "strings": 3,
+    "total": 7
+  },
+  "Virtual Bot/dashboard/src/panels/overview/Tile.tsx": {
+    "comments": 12,
+    "strings": 0,
+    "total": 12
+  },
+  "Virtual Bot/dashboard/src/panels/services/ServicesPanel.tsx": {
+    "comments": 10,
+    "strings": 16,
+    "total": 26
+  },
+  "Virtual Bot/dashboard/src/panels/settings/FirstRun.tsx": {
+    "comments": 10,
+    "strings": 19,
+    "total": 29
+  },
+  "Virtual Bot/dashboard/src/panels/settings/SettingsPanel.tsx": {
+    "comments": 6,
+    "strings": 29,
+    "total": 35
+  },
+  "Virtual Bot/dashboard/src/panels/settings/ToolsSection.tsx": {
+    "comments": 9,
+    "strings": 0,
+    "total": 9
+  },
+  "Virtual Bot/dashboard/src/panels/settings/VoiceSection.tsx": {
+    "comments": 15,
+    "strings": 17,
+    "total": 32
+  },
+  "Virtual Bot/dashboard/src/panels/vision/VisionPanel.tsx": {
+    "comments": 8,
+    "strings": 16,
+    "total": 24
+  },
+  "Virtual Bot/dashboard/src/styles/base.css": {
+    "comments": 50,
+    "strings": 1,
+    "total": 51
+  },
+  "Virtual Bot/dashboard/src/styles/vendor.css": {
+    "comments": 132,
+    "strings": 0,
+    "total": 132
+  },
+  "Virtual Bot/dashboard/tests/sources.test.mjs": {
+    "comments": 0,
+    "strings": 2,
+    "total": 2
+  },
+  "Virtual Bot/dashboard/tests/speech.test.mjs": {
+    "comments": 0,
+    "strings": 9,
+    "total": 9
+  },
+  "Virtual Bot/dashboard/tests/workspace.browser.mjs": {
+    "comments": 0,
+    "strings": 3,
+    "total": 3
+  },
+  "Virtual Bot/dashboard/vite.config.ts": {
+    "comments": 9,
+    "strings": 3,
+    "total": 12
+  },
+  "Virtual Bot/display_bridge.py": {
+    "comments": 44,
+    "strings": 5,
+    "total": 49
+  },
+  "Virtual Bot/dream_cycle.py": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/elevenlabs_voice.py": {
+    "comments": 34,
+    "strings": 7,
+    "total": 41
+  },
+  "Virtual Bot/emotions.py": {
+    "comments": 42,
+    "strings": 27,
+    "total": 69
+  },
+  "Virtual Bot/emotions_mcp.py": {
+    "comments": 15,
+    "strings": 12,
+    "total": 27
+  },
+  "Virtual Bot/events.py": {
+    "comments": 72,
+    "strings": 4,
+    "total": 76
+  },
+  "Virtual Bot/image_proxy.py": {
+    "comments": 20,
+    "strings": 9,
+    "total": 29
+  },
+  "Virtual Bot/lyrics.py": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/main.py": {
+    "comments": 532,
+    "strings": 185,
+    "total": 717
+  },
+  "Virtual Bot/memory-panel/src/auth.css": {
+    "comments": 3,
+    "strings": 0,
+    "total": 3
+  },
+  "Virtual Bot/memory-panel/src/auth.js": {
+    "comments": 3,
+    "strings": 0,
+    "total": 3
+  },
+  "Virtual Bot/memory-panel/src/styles.css": {
+    "comments": 15,
+    "strings": 0,
+    "total": 15
+  },
+  "Virtual Bot/memory.py": {
+    "comments": 32,
+    "strings": 24,
+    "total": 56
+  },
+  "Virtual Bot/mimo_voice.py": {
+    "comments": 14,
+    "strings": 5,
+    "total": 19
+  },
+  "Virtual Bot/mobile-rn/src/i18n.js": {
+    "comments": 0,
+    "strings": 18,
+    "total": 18
+  },
+  "Virtual Bot/mobile/capacitor.config.ts": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/mobile/www/index.html": {
+    "comments": 0,
+    "strings": 7,
+    "total": 7
+  },
+  "Virtual Bot/music.py": {
+    "comments": 127,
+    "strings": 25,
+    "total": 152
+  },
+  "Virtual Bot/omni_shim.py": {
+    "comments": 81,
+    "strings": 21,
+    "total": 102
+  },
+  "Virtual Bot/openclaw_models.py": {
+    "comments": 50,
+    "strings": 7,
+    "total": 57
+  },
+  "Virtual Bot/openclaw_store.py": {
+    "comments": 4,
+    "strings": 7,
+    "total": 11
+  },
+  "Virtual Bot/opencode_keys.py": {
+    "comments": 16,
+    "strings": 0,
+    "total": 16
+  },
+  "Virtual Bot/piper_voice.py": {
+    "comments": 45,
+    "strings": 8,
+    "total": 53
+  },
+  "Virtual Bot/processes.py": {
+    "comments": 32,
+    "strings": 8,
+    "total": 40
+  },
+  "Virtual Bot/profile_store.py": {
+    "comments": 17,
+    "strings": 23,
+    "total": 40
+  },
+  "Virtual Bot/projects.py": {
+    "comments": 22,
+    "strings": 11,
+    "total": 33
+  },
+  "Virtual Bot/screen_widgets.py": {
+    "comments": 1,
+    "strings": 0,
+    "total": 1
+  },
+  "Virtual Bot/services_manager.py": {
+    "comments": 31,
+    "strings": 11,
+    "total": 42
+  },
+  "Virtual Bot/setup_suggestions.py": {
+    "comments": 13,
+    "strings": 51,
+    "total": 64
+  },
+  "Virtual Bot/site_share.py": {
+    "comments": 29,
+    "strings": 7,
+    "total": 36
+  },
+  "Virtual Bot/sponsorblock.py": {
+    "comments": 37,
+    "strings": 10,
+    "total": 47
+  },
+  "Virtual Bot/start.sh": {
+    "comments": 9,
+    "strings": 0,
+    "total": 9
+  },
+  "Virtual Bot/start_brain.sh": {
+    "comments": 12,
+    "strings": 0,
+    "total": 12
+  },
+  "Virtual Bot/static/app.js": {
+    "comments": 246,
+    "strings": 126,
+    "total": 372
+  },
+  "Virtual Bot/static/audio-level.js": {
+    "comments": 20,
+    "strings": 0,
+    "total": 20
+  },
+  "Virtual Bot/static/chat-panel/chat-panel.js": {
+    "comments": 1,
+    "strings": 10,
+    "total": 11
+  },
+  "Virtual Bot/static/chat-panel/index.html": {
+    "comments": 4,
+    "strings": 0,
+    "total": 4
+  },
+  "Virtual Bot/static/chat-tools-mockup.html": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/static/console/console.css": {
+    "comments": 10,
+    "strings": 0,
+    "total": 10
+  },
+  "Virtual Bot/static/console/console.js": {
+    "comments": 47,
+    "strings": 29,
+    "total": 76
+  },
+  "Virtual Bot/static/console/index.html": {
+    "comments": 2,
+    "strings": 2,
+    "total": 4
+  },
+  "Virtual Bot/static/controller/index.html": {
+    "comments": 0,
+    "strings": 3,
+    "total": 3
+  },
+  "Virtual Bot/static/crab.js": {
+    "comments": 305,
+    "strings": 23,
+    "total": 328
+  },
+  "Virtual Bot/static/dash/assets/BrowserPanel-hGl5hyeP.js": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/static/dash/assets/ChatPanel-BJVkA3n9.js": {
+    "comments": 0,
+    "strings": 8,
+    "total": 8
+  },
+  "Virtual Bot/static/dash/assets/FilesPanel-roWUghqy.js": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/static/dash/assets/LogsPanel-D5SzB22n.js": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/static/dash/assets/MemoryPanel-CBQlMZdd.js": {
+    "comments": 0,
+    "strings": 2,
+    "total": 2
+  },
+  "Virtual Bot/static/dash/assets/OverviewPanel-C-mcadzE.js": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/static/dash/assets/SectionHeader-ttB_pb7q.js": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/static/dash/assets/ServicesPanel-CcZ3T3qJ.js": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/static/dash/assets/SettingsPanel-Dl3MO6wv.js": {
+    "comments": 0,
+    "strings": 2,
+    "total": 2
+  },
+  "Virtual Bot/static/dash/assets/VisionPanel-CPtJEzgg.js": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/static/dash/assets/crab-BS3Kj5uh.js": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/static/dash/assets/glue-DM0fj-rD.js": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/static/dash/assets/index-3vSfQCX9.js": {
+    "comments": 2,
+    "strings": 2,
+    "total": 4
+  },
+  "Virtual Bot/static/dash/assets/index-BT23yAlu.css": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/static/dash/assets/modelCatalog-BenQEBR4.js": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/static/dash/index.html": {
+    "comments": 7,
+    "strings": 3,
+    "total": 10
+  },
+  "Virtual Bot/static/icons.js": {
+    "comments": 23,
+    "strings": 0,
+    "total": 23
+  },
+  "Virtual Bot/static/index.html": {
+    "comments": 15,
+    "strings": 81,
+    "total": 96
+  },
+  "Virtual Bot/static/m3.css": {
+    "comments": 159,
+    "strings": 0,
+    "total": 159
+  },
+  "Virtual Bot/static/memory-panel/assets/gherkin-heZmZLOM.js": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/static/memory-panel/memory-panel.js": {
+    "comments": 2,
+    "strings": 3,
+    "total": 5
+  },
+  "Virtual Bot/static/pixel-eyes.js": {
+    "comments": 13,
+    "strings": 10,
+    "total": 23
+  },
+  "Virtual Bot/static/screen/drawer.js": {
+    "comments": 2,
+    "strings": 0,
+    "total": 2
+  },
+  "Virtual Bot/static/screen/gesture-nav.js": {
+    "comments": 1,
+    "strings": 0,
+    "total": 1
+  },
+  "Virtual Bot/static/screen/icons.js": {
+    "comments": 14,
+    "strings": 0,
+    "total": 14
+  },
+  "Virtual Bot/static/screen/index.html": {
+    "comments": 44,
+    "strings": 17,
+    "total": 61
+  },
+  "Virtual Bot/static/screen/keyboard.js": {
+    "comments": 2,
+    "strings": 6,
+    "total": 8
+  },
+  "Virtual Bot/static/screen/pixel-ui.js": {
+    "comments": 24,
+    "strings": 0,
+    "total": 24
+  },
+  "Virtual Bot/static/screen/screen.css": {
+    "comments": 183,
+    "strings": 0,
+    "total": 183
+  },
+  "Virtual Bot/static/screen/screen.js": {
+    "comments": 542,
+    "strings": 0,
+    "total": 542
+  },
+  "Virtual Bot/static/screen/wake.js": {
+    "comments": 13,
+    "strings": 6,
+    "total": 19
+  },
+  "Virtual Bot/static/style.css": {
+    "comments": 120,
+    "strings": 0,
+    "total": 120
+  },
+  "Virtual Bot/static/theme-overrides.css": {
+    "comments": 29,
+    "strings": 0,
+    "total": 29
+  },
+  "Virtual Bot/store/packages/breathe/index.html": {
+    "comments": 0,
+    "strings": 3,
+    "total": 3
+  },
+  "Virtual Bot/store/packages/calculator/index.html": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/store/packages/device-settings/index.html": {
+    "comments": 0,
+    "strings": 18,
+    "total": 18
+  },
+  "Virtual Bot/store/packages/dice/index.html": {
+    "comments": 0,
+    "strings": 5,
+    "total": 5
+  },
+  "Virtual Bot/store/packages/flappy-crab/index.html": {
+    "comments": 0,
+    "strings": 2,
+    "total": 2
+  },
+  "Virtual Bot/store/packages/game-2048/index.html": {
+    "comments": 0,
+    "strings": 3,
+    "total": 3
+  },
+  "Virtual Bot/store/packages/metronome/index.html": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/store/packages/pixel-paint/index.html": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/store/packages/pomodoro/index.html": {
+    "comments": 0,
+    "strings": 2,
+    "total": 2
+  },
+  "Virtual Bot/store/packages/reaction/index.html": {
+    "comments": 0,
+    "strings": 7,
+    "total": 7
+  },
+  "Virtual Bot/store/packages/snake/index.html": {
+    "comments": 0,
+    "strings": 5,
+    "total": 5
+  },
+  "Virtual Bot/store/packages/stopwatch/index.html": {
+    "comments": 0,
+    "strings": 4,
+    "total": 4
+  },
+  "Virtual Bot/store/packages/tic-tac-toe/index.html": {
+    "comments": 0,
+    "strings": 4,
+    "total": 4
+  },
+  "Virtual Bot/store/packages/world-clock/index.html": {
+    "comments": 0,
+    "strings": 10,
+    "total": 10
+  },
+  "Virtual Bot/store/packages/youtube/index.html": {
+    "comments": 0,
+    "strings": 53,
+    "total": 53
+  },
+  "Virtual Bot/store/packages/yt-music/index.html": {
+    "comments": 0,
+    "strings": 36,
+    "total": 36
+  },
+  "Virtual Bot/system_status.py": {
+    "comments": 13,
+    "strings": 12,
+    "total": 25
+  },
+  "Virtual Bot/tests/conftest.py": {
+    "comments": 7,
+    "strings": 0,
+    "total": 7
+  },
+  "Virtual Bot/tests/test_activity_stream.py": {
+    "comments": 0,
+    "strings": 3,
+    "total": 3
+  },
+  "Virtual Bot/tests/test_asr_languages.py": {
+    "comments": 8,
+    "strings": 1,
+    "total": 9
+  },
+  "Virtual Bot/tests/test_asr_regolo.py": {
+    "comments": 9,
+    "strings": 14,
+    "total": 23
+  },
+  "Virtual Bot/tests/test_asr_regolo_live.py": {
+    "comments": 11,
+    "strings": 8,
+    "total": 19
+  },
+  "Virtual Bot/tests/test_asr_terms.py": {
+    "comments": 8,
+    "strings": 17,
+    "total": 25
+  },
+  "Virtual Bot/tests/test_brain_offline.py": {
+    "comments": 19,
+    "strings": 4,
+    "total": 23
+  },
+  "Virtual Bot/tests/test_channel_prompt.py": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/tests/test_chat_bubbles.py": {
+    "comments": 0,
+    "strings": 18,
+    "total": 18
+  },
+  "Virtual Bot/tests/test_chat_context_compact.py": {
+    "comments": 18,
+    "strings": 26,
+    "total": 44
+  },
+  "Virtual Bot/tests/test_chat_images_time.py": {
+    "comments": 3,
+    "strings": 21,
+    "total": 24
+  },
+  "Virtual Bot/tests/test_chat_messenger.py": {
+    "comments": 0,
+    "strings": 28,
+    "total": 28
+  },
+  "Virtual Bot/tests/test_chat_participants.py": {
+    "comments": 4,
+    "strings": 38,
+    "total": 42
+  },
+  "Virtual Bot/tests/test_chat_pinning_activity.py": {
+    "comments": 0,
+    "strings": 3,
+    "total": 3
+  },
+  "Virtual Bot/tests/test_chat_stream.py": {
+    "comments": 4,
+    "strings": 8,
+    "total": 12
+  },
+  "Virtual Bot/tests/test_coding_sessions.py": {
+    "comments": 7,
+    "strings": 8,
+    "total": 15
+  },
+  "Virtual Bot/tests/test_console_trace.py": {
+    "comments": 14,
+    "strings": 12,
+    "total": 26
+  },
+  "Virtual Bot/tests/test_dream_cycle.py": {
+    "comments": 0,
+    "strings": 12,
+    "total": 12
+  },
+  "Virtual Bot/tests/test_fs_tools.py": {
+    "comments": 1,
+    "strings": 0,
+    "total": 1
+  },
+  "Virtual Bot/tests/test_image_proxy.py": {
+    "comments": 10,
+    "strings": 5,
+    "total": 15
+  },
+  "Virtual Bot/tests/test_integrations.py": {
+    "comments": 0,
+    "strings": 8,
+    "total": 8
+  },
+  "Virtual Bot/tests/test_lyrics.py": {
+    "comments": 0,
+    "strings": 9,
+    "total": 9
+  },
+  "Virtual Bot/tests/test_memory_reasoning.py": {
+    "comments": 0,
+    "strings": 30,
+    "total": 30
+  },
+  "Virtual Bot/tests/test_music.py": {
+    "comments": 20,
+    "strings": 11,
+    "total": 31
+  },
+  "Virtual Bot/tests/test_openclaw_models.py": {
+    "comments": 11,
+    "strings": 7,
+    "total": 18
+  },
+  "Virtual Bot/tests/test_projects.py": {
+    "comments": 13,
+    "strings": 17,
+    "total": 30
+  },
+  "Virtual Bot/tests/test_screen_js.py": {
+    "comments": 1,
+    "strings": 53,
+    "total": 54
+  },
+  "Virtual Bot/tests/test_screen_store.py": {
+    "comments": 6,
+    "strings": 1,
+    "total": 7
+  },
+  "Virtual Bot/tests/test_screen_widgets.py": {
+    "comments": 0,
+    "strings": 30,
+    "total": 30
+  },
+  "Virtual Bot/tests/test_stream_emotion.py": {
+    "comments": 4,
+    "strings": 9,
+    "total": 13
+  },
+  "Virtual Bot/tests/test_tool_events.py": {
+    "comments": 0,
+    "strings": 11,
+    "total": 11
+  },
+  "Virtual Bot/tests/test_user_brain_isolation.py": {
+    "comments": 0,
+    "strings": 26,
+    "total": 26
+  },
+  "Virtual Bot/tests/test_video_control.py": {
+    "comments": 63,
+    "strings": 52,
+    "total": 115
+  },
+  "Virtual Bot/tests/test_voice_latency.py": {
+    "comments": 8,
+    "strings": 16,
+    "total": 24
+  },
+  "Virtual Bot/tests/test_voice_latin.py": {
+    "comments": 20,
+    "strings": 18,
+    "total": 38
+  },
+  "Virtual Bot/tests/test_weather_tool.py": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/tests/test_workspace.py": {
+    "comments": 3,
+    "strings": 6,
+    "total": 9
+  },
+  "Virtual Bot/tests/test_youtube_mcp.py": {
+    "comments": 15,
+    "strings": 24,
+    "total": 39
+  },
+  "Virtual Bot/tool_access.py": {
+    "comments": 2,
+    "strings": 6,
+    "total": 8
+  },
+  "Virtual Bot/tools/__init__.py": {
+    "comments": 1,
+    "strings": 0,
+    "total": 1
+  },
+  "Virtual Bot/tools/currency.py": {
+    "comments": 5,
+    "strings": 8,
+    "total": 13
+  },
+  "Virtual Bot/tools/email_tools.py": {
+    "comments": 0,
+    "strings": 12,
+    "total": 12
+  },
+  "Virtual Bot/tools/facts.py": {
+    "comments": 6,
+    "strings": 2,
+    "total": 8
+  },
+  "Virtual Bot/tools/fs_tools.py": {
+    "comments": 18,
+    "strings": 21,
+    "total": 39
+  },
+  "Virtual Bot/tools/images.py": {
+    "comments": 9,
+    "strings": 5,
+    "total": 14
+  },
+  "Virtual Bot/tools/music_tools.py": {
+    "comments": 23,
+    "strings": 33,
+    "total": 56
+  },
+  "Virtual Bot/tools/registry.py": {
+    "comments": 11,
+    "strings": 29,
+    "total": 40
+  },
+  "Virtual Bot/tools/screen_tools.py": {
+    "comments": 11,
+    "strings": 37,
+    "total": 48
+  },
+  "Virtual Bot/tools/search.py": {
+    "comments": 6,
+    "strings": 3,
+    "total": 9
+  },
+  "Virtual Bot/tools/share_tools.py": {
+    "comments": 4,
+    "strings": 0,
+    "total": 4
+  },
+  "Virtual Bot/tools/timer_tools.py": {
+    "comments": 1,
+    "strings": 4,
+    "total": 5
+  },
+  "Virtual Bot/tools/ui_tools.py": {
+    "comments": 10,
+    "strings": 17,
+    "total": 27
+  },
+  "Virtual Bot/tools/video_tools.py": {
+    "comments": 29,
+    "strings": 56,
+    "total": 85
+  },
+  "Virtual Bot/tools/weather.py": {
+    "comments": 0,
+    "strings": 36,
+    "total": 36
+  },
+  "Virtual Bot/tools/workspace_tools.py": {
+    "comments": 4,
+    "strings": 17,
+    "total": 21
+  },
+  "Virtual Bot/tools_mcp.py": {
+    "comments": 16,
+    "strings": 81,
+    "total": 97
+  },
+  "Virtual Bot/trace_log.py": {
+    "comments": 38,
+    "strings": 3,
+    "total": 41
+  },
+  "Virtual Bot/tts_text.py": {
+    "comments": 18,
+    "strings": 0,
+    "total": 18
+  },
+  "Virtual Bot/tunnel_guard.py": {
+    "comments": 0,
+    "strings": 1,
+    "total": 1
+  },
+  "Virtual Bot/video_control.py": {
+    "comments": 70,
+    "strings": 42,
+    "total": 112
+  },
+  "Virtual Bot/vision_watcher.py": {
+    "comments": 68,
+    "strings": 18,
+    "total": 86
+  },
+  "Virtual Bot/voice_latin.py": {
+    "comments": 44,
+    "strings": 61,
+    "total": 105
+  },
+  "Virtual Bot/web_browser.py": {
+    "comments": 29,
+    "strings": 9,
+    "total": 38
+  },
+  "Virtual Bot/workspace.py": {
+    "comments": 54,
+    "strings": 27,
+    "total": 81
+  },
+  "Virtual Bot/workspace_mcp.py": {
+    "comments": 23,
+    "strings": 27,
+    "total": 50
+  },
+  "Virtual Bot/youtube_mcp.py": {
+    "comments": 34,
+    "strings": 57,
+    "total": 91
+  },
+  "Vision Agent/main.py": {
+    "comments": 99,
+    "strings": 11,
+    "total": 110
+  },
+  "Vision Agent/test_webcam.py": {
+    "comments": 7,
+    "strings": 7,
+    "total": 14
+  },
+  "Voice Loop/openclaw_client.py": {
+    "comments": 7,
+    "strings": 1,
+    "total": 8
+  },
+  "Voice Loop/voice_loop.py": {
+    "comments": 27,
+    "strings": 12,
+    "total": 39
+  },
+  "agent-mail-worker/src/index.js": {
+    "comments": 0,
+    "strings": 2,
+    "total": 2
+  },
+  "claude-bot-app/apps/app/App.tsx": {
+    "comments": 1,
+    "strings": 0,
+    "total": 1
+  },
+  "claude-bot-app/apps/app/metro.config.js": {
+    "comments": 6,
+    "strings": 0,
+    "total": 6
+  },
+  "claude-bot-app/apps/app/src/api.tsx": {
+    "comments": 9,
+    "strings": 1,
+    "total": 10
+  },
+  "claude-bot-app/apps/app/src/screens/ChatScreen.tsx": {
+    "comments": 52,
+    "strings": 17,
+    "total": 69
+  },
+  "claude-bot-app/apps/app/src/theme.tsx": {
+    "comments": 6,
+    "strings": 0,
+    "total": 6
+  },
+  "claude-bot-app/apps/app/src/ui/Bubble.tsx": {
+    "comments": 8,
+    "strings": 1,
+    "total": 9
+  },
+  "claude-bot-app/apps/app/src/ui/Composer.tsx": {
+    "comments": 5,
+    "strings": 2,
+    "total": 7
+  },
+  "claude-bot-app/apps/app/src/ui/Icon.tsx": {
+    "comments": 4,
+    "strings": 0,
+    "total": 4
+  },
+  "claude-bot-app/apps/app/src/ui/Segmented.tsx": {
+    "comments": 8,
+    "strings": 0,
+    "total": 8
+  },
+  "claude-bot-app/apps/app/src/ui/SessionList.tsx": {
+    "comments": 12,
+    "strings": 9,
+    "total": 21
+  },
+  "claude-bot-app/apps/desktop/scripts/launch.js": {
+    "comments": 7,
+    "strings": 1,
+    "total": 8
+  },
+  "claude-bot-app/apps/desktop/src/main.js": {
+    "comments": 18,
+    "strings": 2,
+    "total": 20
+  },
+  "claude-bot-app/packages/core/src/client.ts": {
+    "comments": 35,
+    "strings": 1,
+    "total": 36
+  },
+  "claude-bot-app/packages/core/src/design.ts": {
+    "comments": 24,
+    "strings": 0,
+    "total": 24
+  },
+  "claude-bot-app/packages/core/src/format.ts": {
+    "comments": 6,
+    "strings": 0,
+    "total": 6
+  },
+  "claude-bot-app/packages/core/src/index.ts": {
+    "comments": 1,
+    "strings": 0,
+    "total": 1
+  },
+  "claude-bot-app/packages/core/src/types.ts": {
+    "comments": 44,
+    "strings": 0,
+    "total": 44
+  },
+  "claude-bot-display/demo_events.py": {
+    "comments": 0,
+    "strings": 3,
+    "total": 3
+  },
+  "claude-bot-display/frontend/src/hooks/useWebSocket.js": {
+    "comments": 10,
+    "strings": 0,
+    "total": 10
+  },
+  "landing/src/crab/PixelCrab.js": {
+    "comments": 303,
+    "strings": 23,
+    "total": 326
+  }
+}

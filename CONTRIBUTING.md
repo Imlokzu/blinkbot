@@ -21,3 +21,5 @@
 ## Pull request
 
 Описуйте мету, scope, evidence, smoke test, residual risks і ручні кроки. Використовуйте шаблон pull request та відповідний шаблон issue. Коміти мають відповідати Conventional Commits; не додавайте `LICENSE` без окремого вибору власника.
+
+See [docs/I18N.md](docs/I18N.md) for how to handle translations and localization in this repository.
