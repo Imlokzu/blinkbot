@@ -84,16 +84,25 @@
       </div>
     </section>
 
-    <!-- Weather: whatever the bot last looked up, or the home city -->
+    <!-- Weather: whatever the bot last looked up, or the home city.
+         The sky colour, the picture and the strips are filled by
+         renderWeather() in screen.js. -->
     <section class="tile tile-weather" data-tile="weather">
-      <div class="tile-head"><span data-i18n="weather.head">Погода</span> · <span id="weatherCity">—</span></div>
-      <div class="weather-now">
-        <span class="weather-temp" id="weatherTemp">—</span>
-        <span class="weather-cond" id="weatherCond"></span>
+      <div class="wx-top" id="weatherTop">
+        <div class="wx-main">
+          <div class="wx-place"><span id="weatherCity">—</span><span class="wx-age" id="weatherAge"></span></div>
+          <div class="wx-temp" id="weatherTemp">—</div>
+          <div class="wx-cond" id="weatherCond"></div>
+          <div class="wx-hilo" id="weatherHiLo"></div>
+        </div>
+        <div class="wx-art" id="weatherArt"></div>
       </div>
-      <div class="weather-meta" id="weatherMeta"></div>
-      <div class="weather-days" id="weatherDays"></div>
-      <div class="tile-foot" id="weatherAge"></div>
+      <div class="wx-card wx-mid" id="weatherMid" role="button" tabindex="0">
+        <div class="wx-hours" id="weatherHours"></div>
+        <div class="wx-details hidden" id="weatherDetails"></div>
+        <div class="wx-pager" aria-hidden="true"><i class="on"></i><i></i></div>
+      </div>
+      <div class="wx-card wx-days" id="weatherDays"></div>
     </section>
 
     <!-- Тайл 2 — остання репліка бота -->

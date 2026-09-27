@@ -14,6 +14,7 @@ import { activities as islandActivities, selectKey as islandSelect, fmtClock } f
 import { ScreenKeyboard } from "./keyboard.js";
 import { WatchDrawer } from "./drawer.js";
 import { appIconEl } from "./app-icons.js";
+import { wxKind, wxSky, wxIconSvg, windArrowSvg } from "./weather-icons.js";
 /* Контурні іконки та їхні кольори — у icons.js */
 import { makeSvgIcon, ICON_COLORS } from "./icons.js";
 /* Дві мови інтерфейсу (uk/en) — словник і хелпери в i18n.js */
@@ -5322,42 +5323,130 @@ function weekdayName(day) {
   }
 }
 
+function fmtDeg(v) {
+  const n = Number(v);
+  return Number.isFinite(n) && v !== null ? Math.round(n) + "°" : "—";
+}
+
+/* The middle card shows the hours; a tap flips it to the details. */
+let weatherPage = 0;
+
 function renderWeather(w, city) {
+  const tile = document.querySelector(".tile-weather");
   // The geocoder's own name for the place comes in the right language
   // ("Київ" for "Kyiv"); the query string is the fallback.
   const place = w && typeof w.display === "string" ? w.display.split(",")[0].trim() : "";
   $("weatherCity").textContent = place || (w && w.city) || city || "—";
+  const hours = $("weatherHours");
+  const days = $("weatherDays");
+  const details = $("weatherDetails");
   if (!w || w.error) {
     $("weatherTemp").textContent = "—";
     $("weatherCond").textContent = w && w.error ? t("weather.failed") : "";
-    $("weatherMeta").textContent = "";
-    $("weatherDays").innerHTML = "";
+    $("weatherHiLo").textContent = "";
+    $("weatherArt").innerHTML = "";
+    hours.innerHTML = days.innerHTML = details.innerHTML = "";
     return;
   }
+
+  // The sky: the whole tile takes the colour of the weather outside
+  const kind = wxKind(w.code);
+  const night = w.is_day === false;
+  const [top, bottom] = wxSky(kind, night);
+  tile.style.setProperty("--wx-top", top);
+  tile.style.setProperty("--wx-bottom", bottom);
+  $("weatherArt").innerHTML = wxIconSvg(kind, { night });
+
   const temp = Number(w.temperature);
-  $("weatherTemp").textContent = Number.isFinite(temp) ? (temp > 0 ? "+" : "") + temp + "°" : "—";
-  $("weatherCond").textContent = w.condition || "";
-  const meta = [];
-  if (w.humidity != null) meta.push(t("weather.humidity", { n: Math.round(w.humidity) }));
-  if (w.wind_speed != null) meta.push(t("weather.wind", { n: Math.round(w.wind_speed) }));
-  $("weatherMeta").textContent = meta.join(" · ");
-  const days = $("weatherDays");
-  days.innerHTML = "";
-  for (const day of (w.forecast || []).slice(0, 5)) {
+  $("weatherTemp").textContent = Number.isFinite(temp) && w.temperature !== null ? Math.round(temp) + "°" : "—";
+  $("weatherCond").textContent = w.code != null ? t("wx.c." + kind) : (w.condition || "");
+  const today = (w.forecast || [])[0] || {};
+  const hilo = [];
+  if (today.max != null) hilo.push("↑" + fmtDeg(today.max));
+  if (today.min != null) hilo.push("↓" + fmtDeg(today.min));
+  if (w.feels_like != null) hilo.push(t("wx.feels", { n: fmtDeg(w.feels_like) }));
+  $("weatherHiLo").textContent = hilo.join("  ");
+
+  // Hours: every second hour of the next twelve — six columns fit 320 px
+  hours.innerHTML = "";
+  (w.hourly || []).filter((_, i) => i % 2 === 0).slice(0, 6).forEach((h, i) => {
     const cell = document.createElement("div");
-    cell.className = "weather-day";
-    const name = document.createElement("span");
-    name.className = "d";
-    name.textContent = weekdayName(day.day);
-    const range = document.createElement("span");
-    range.className = "r";
-    range.textContent = (day.max != null ? day.max + "°" : "") + (day.min != null ? " " + day.min + "°" : "");
-    cell.appendChild(name);
-    cell.appendChild(range);
-    days.appendChild(cell);
+    cell.className = "wx-hour";
+    const time = document.createElement("span");
+    time.className = "wx-t";
+    time.textContent = i === 0 ? t("wx.now") : h.time;
+    const pic = document.createElement("span");
+    pic.className = "wx-pic";
+    pic.innerHTML = wxIconSvg(wxKind(h.code), { night: h.is_day === false });
+    const deg = document.createElement("span");
+    deg.className = "wx-v";
+    deg.textContent = fmtDeg(h.temp);
+    cell.append(time, pic, deg);
+    // A real chance of rain is worth a word: "40%" under the picture
+    if (h.pop >= 30) {
+      const pop = document.createElement("span");
+      pop.className = "wx-pop";
+      pop.textContent = h.pop + "%";
+      cell.appendChild(pop);
+    }
+    hours.appendChild(cell);
+  });
+
+  // Details: what the hours page has no room for
+  details.innerHTML = "";
+  const facts = [
+    ["wx.d.feels", fmtDeg(w.feels_like)],
+    ["wx.d.humidity", w.humidity != null ? Math.round(w.humidity) + "%" : "—"],
+    ["wx.d.wind", w.wind_speed != null ? t("wx.kmh", { n: Math.round(w.wind_speed) }) : "—", w.wind_dir],
+    ["wx.d.rain", today.pop != null ? today.pop + "%" : "—"],
+    ["wx.d.uv", today.uv != null ? String(Math.round(today.uv)) : "—"],
+    ["wx.d.sun", today.sunrise && today.sunset ? today.sunrise + " · " + today.sunset : "—"],
+  ];
+  for (const [key, value, dir] of facts) {
+    const cell = document.createElement("div");
+    cell.className = "wx-fact";
+    const k = document.createElement("span");
+    k.className = "wx-k";
+    k.textContent = t(key);
+    const v = document.createElement("span");
+    v.className = "wx-v";
+    v.textContent = value;
+    if (dir != null) v.insertAdjacentHTML("afterbegin", windArrowSvg(dir));
+    cell.append(k, v);
+    details.appendChild(cell);
   }
+  showWeatherPage(weatherPage);
+
+  // Days: name, picture, high and low
+  days.innerHTML = "";
+  (w.forecast || []).slice(0, 5).forEach((day, i) => {
+    const cell = document.createElement("div");
+    cell.className = "wx-day";
+    const name = document.createElement("span");
+    name.className = "wx-t";
+    name.textContent = i === 0 ? t("wx.today") : weekdayName(day.day);
+    const pic = document.createElement("span");
+    pic.className = "wx-pic";
+    pic.innerHTML = wxIconSvg(wxKind(day.code));
+    const hi = document.createElement("span");
+    hi.className = "wx-v";
+    hi.textContent = fmtDeg(day.max);
+    const lo = document.createElement("span");
+    lo.className = "wx-lo";
+    lo.textContent = fmtDeg(day.min);
+    cell.append(name, pic, hi, lo);
+    days.appendChild(cell);
+  });
+
   weatherAt = w.fetched_at ? w.fetched_at * 1000 : Date.now();
-  $("weatherAge").textContent = t("ago.updated", { ago: ago(weatherAt) });
+  $("weatherAge").textContent = ago(weatherAt);
+}
+
+function showWeatherPage(page) {
+  weatherPage = page;
+  $("weatherHours").classList.toggle("hidden", page !== 0);
+  $("weatherDetails").classList.toggle("hidden", page !== 1);
+  document.querySelectorAll(".wx-pager i").forEach((dot, i) => dot.classList.toggle("on", i === page));
 }
 
 async function loadWeather(force) {
@@ -5390,7 +5479,10 @@ function onWeatherEvent(ev) {
   if (ev && ev.weather) renderWeather(ev.weather);
 }
 
-$("weatherDays").addEventListener("click", (e) => { e.stopPropagation(); wake(); loadWeather(true); });
+// A tap on the middle card flips hours ↔ details; a tap on the top
+// (the temperature and the picture) fetches a fresh forecast.
+$("weatherMid").addEventListener("click", (e) => { e.stopPropagation(); wake(); showWeatherPage(weatherPage ? 0 : 1); });
+$("weatherTop").addEventListener("click", (e) => { e.stopPropagation(); wake(); loadWeather(true); });
 
 /* ---------- Notification shade ----------
    Swipe down on the left half. What is in it:

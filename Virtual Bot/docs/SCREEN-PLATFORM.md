@@ -375,6 +375,27 @@ caption; any touch silences it). One clock, not two.
 Loads only while the tile is on screen. When the bot's `weather` tool runs,
 its answer is published as SSE `{"type": "weather"}` and the tile shows it.
 
+The tile follows the One UI look:
+- **The whole tile is the sky.** Its colour comes from the WMO `code` and
+  `is_day`, and every kind has a darker night version.
+- **Drawn pictures** come from `weather-icons.js`: sun, moon, clouds,
+  drops, flakes, bolt. The same kit is used at every size.
+- **The middle card** shows the next twelve hours in two-hour steps, with
+  the chance of rain when it is 30 % or more. A tap flips it to details:
+  feels like, humidity, wind with its direction, rain, UV, sunrise and
+  sunset.
+- **The bottom card** shows five days.
+- **A tap on the temperature** fetches a fresh forecast.
+
+The condition is worded by the screen (`wx.c.<kind>` keys). The server's
+Ukrainian `condition` string is only a fallback.
+
+`tools/weather.py` answers both readers at once. The brain gets
+`condition`, `feels_like`, `hourly` (12 h) and `forecast` (sunrise, UV,
+chance of rain). The tile also reads `code` and `is_day` there. The
+parsing is the pure `shape_forecast()`, tested in
+`tests/test_weather_tool.py`.
+
 ### Replies as messenger bubbles
 
 The chat stream carries `delta`, `break` (next bubble), `note` (narration

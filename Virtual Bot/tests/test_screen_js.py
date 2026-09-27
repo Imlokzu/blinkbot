@@ -355,3 +355,48 @@ console.log(JSON.stringify([
 ]));
 """)
         assert result == ["dice", "letter", True]
+
+
+@needs_node
+class TestWeatherPictures:
+    """weather-icons.js: every WMO code gets a picture and a sky."""
+
+    def test_every_wmo_code_maps_to_a_drawn_kind(self):
+        from tools.weather import _WMO_MAP
+        codes = sorted(_WMO_MAP)
+        result = _run("weather-icons.js", f"""
+const codes = {json.dumps(codes)};
+console.log(JSON.stringify({{kinds: codes.map(c => m.wxKind(c)), known: m.KINDS,
+  samples: [m.wxKind(0), m.wxKind(3), m.wxKind(63), m.wxKind(75), m.wxKind(95), m.wxKind(null)]}}));
+""")
+        assert set(result["kinds"]) <= set(result["known"])
+        assert set(result["kinds"]) == set(result["known"])            # no kind drawn for nothing
+        assert result["samples"] == ["clear", "cloudy", "rain", "snow", "storm", "cloudy"]
+
+    def test_pictures_are_well_formed_and_ids_never_clash(self):
+        import xml.etree.ElementTree as ET
+        svgs = _run("weather-icons.js", """
+const out = [];
+for (const night of [false, true]) for (const k of m.KINDS) out.push(m.wxIconSvg(k, {night}));
+out.push(m.windArrowSvg(90));
+console.log(JSON.stringify(out));
+""")
+        ids = []
+        for svg in svgs:
+            root = ET.fromstring(svg)
+            assert "NaN" not in svg and "undefined" not in svg
+            ids += [el.get("id") for el in root.iter() if el.get("id")]
+        assert len(ids) == len(set(ids))
+
+    def test_every_sky_has_a_darker_night(self):
+        result = _run("weather-icons.js", """
+const lum = (hex) => { const n = parseInt(hex.slice(1), 16); return (n >> 16) + ((n >> 8) & 255) + (n & 255); };
+console.log(JSON.stringify(m.KINDS.filter(k => !(lum(m.wxSky(k, true)[0]) < lum(m.wxSky(k, false)[0])))));
+""")
+        assert result == []
+
+    def test_every_kind_is_worded_in_both_languages(self):
+        text = (SCREEN / "i18n.js").read_text("utf-8")
+        kinds = _run("weather-icons.js", "console.log(JSON.stringify(m.KINDS));")
+        for kind in kinds:
+            assert text.count(f'"wx.c.{kind}"') == 2, kind
