@@ -1,0 +1,25 @@
+name: i18n Checker
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  i18n-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run unit tests
+        run: python -m unittest scripts/test_i18n_check.py -v
+
+      - name: Run i18n checks (catalogs, debt ratchet, docs)
+        run: python scripts/i18n_check.py all
