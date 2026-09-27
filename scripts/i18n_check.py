@@ -29,6 +29,11 @@ def is_catalog_or_ignored(path_str):
     if path_str == "Virtual Bot/integrations/locales.py":
         return True
 
+    # The checker and its tests hold Cyrillic on purpose: the character class
+    # it matches and the fixtures it is tested on.
+    if path_str in ("scripts/i18n_check.py", "scripts/test_i18n_check.py"):
+        return True
+
     if "tests/fixtures" in path_str or "test/fixtures" in path_str or "tests/data" in path_str:
         return True
     return False
@@ -482,6 +487,7 @@ def check_docs(args):
         return 1
 
     allowlist = {
+        "docs/I18N.md": "Shows a Ukrainian catalogue entry as the example",
         "CLAUDE.md": "Tooling instructions allowed",
         "Virtual Bot/docs/SCREEN-PLATFORM.md": "Translation pending",
     }
