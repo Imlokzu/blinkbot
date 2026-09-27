@@ -125,6 +125,22 @@ function renderDots() {
   }
 }
 
+/* A tap on the dots goes to that tile. The dots are 5 px — too small for a
+   finger — so the whole strip is the target and the nearest dot wins. */
+$("dots").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const dots = [...$("dots").children];
+  if (!dots.length || !carouselFree()) return;
+  let best = 0, bestDist = Infinity;
+  dots.forEach((d, i) => {
+    const r = d.getBoundingClientRect();
+    const dist = Math.abs(e.clientX - (r.left + r.width / 2));
+    if (dist < bestDist) { best = i; bestDist = dist; }
+  });
+  wake();
+  if (best !== tileIndex) goTile(best);
+});
+
 function goTile(i, wrapped) {
   tileIndex = Math.max(0, Math.min(tiles.length - 1, i));
   // Стрибок через усю стрічку (кінець → початок) робимо БЕЗ анімації:
@@ -340,24 +356,73 @@ function releaseStagePointer(pointerId) {
    включно з картками та кнопками, може бути початком свайпу: тап і далі
    обробляється самим контролом, а навігація спрацьовує лише після порогу. */
 function isInteractive(el) {
+  // .dots: a tap there is a jump, and the stage's pointer capture would
+  // otherwise steal the click from the strip.
   return !!(el && el.closest &&
-    el.closest("input, textarea, select, .chat-log, .feed, .qs-slider, .face-photo, .say-text, .notices-list.scrolls"));
+    el.closest("input, textarea, select, .qs-slider, .face-photo, .dots"));
+}
+
+/* Scrolling areas scroll vertically, but a clearly sideways drag that
+   starts on them still flips the tile. They used to swallow every gesture,
+   so on the "bot said" tile and in the chat there was no way to swipe on. */
+function isScroller(el) {
+  return !!(el && el.closest && el.closest(".chat-log, .feed, .say-text, .notices-list.scrolls"));
+}
+
+// How far a drag must go before it picks a direction, and which way wins.
+const DRAG_LOCK = 8;
+
+function carouselFree() {
+  return !layer && !appsOpen() && !layerApp.classList.contains("open");
 }
 
 stage.addEventListener("pointerdown", (e) => {
   if (ptrStart || isInteractive(e.target)) return;
   const onButton = !!e.target.closest?.("button");
-  ptrStart = { x: e.clientX, y: e.clientY, t: Date.now(), pointerId: e.pointerId };
-  if (!onButton) {
+  const scroller = isScroller(e.target);
+  ptrStart = { x: e.clientX, y: e.clientY, t: Date.now(), pointerId: e.pointerId, scroller, axis: "" };
+  if (!onButton && !scroller) {
     try { stage.setPointerCapture(e.pointerId); } catch (e) {}
   }
 });
+
+/* The rail follows the finger, like a phone's home screen: a swipe that
+   only jumped after the finger lifted felt like it did nothing. */
+stage.addEventListener("pointermove", (e) => {
+  const s = ptrStart;
+  if (!s || s.pointerId !== e.pointerId) return;
+  const k = stageScale();
+  const dx = (e.clientX - s.x) / k;
+  const dy = (e.clientY - s.y) / k;
+  if (!s.axis) {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < DRAG_LOCK) return;
+    // In a scrolling area sideways must clearly win, or it is a scroll
+    const bias = s.scroller ? 1.5 : 1;
+    s.axis = Math.abs(dx) > Math.abs(dy) * bias ? "x" : "y";
+    if (s.axis === "x" && s.scroller) {
+      try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+    }
+  }
+  if (s.axis !== "x" || !carouselFree()) return;
+  s.dragged = true;
+  // Past the first and last tile it still moves, but reluctantly: it wraps
+  // round when let go, and a hard stop there would look like a jam.
+  const edge = (tileIndex === 0 && dx > 0) || (tileIndex === tiles.length - 1 && dx < 0);
+  rail.style.transition = "none";
+  rail.style.transform = "translate3d(" + (-tileIndex * STAGE_W + (edge ? dx * 0.35 : dx)) + "px, 0, 0)";
+});
+
+function endRailDrag(s) {
+  if (!s || !s.dragged) return;
+  rail.style.transition = "";
+}
 
 function finishStagePointer(e) {
   const s = ptrStart;
   if (!s || s.pointerId !== e.pointerId) return;
   ptrStart = null;
   releaseStagePointer(s.pointerId);
+  endRailDrag(s);
   wake();
 
   const k = stageScale();
@@ -365,11 +430,19 @@ function finishStagePointer(e) {
   const dy = (e.clientY - s.y) / k;
   const adx = Math.abs(dx);
   const ady = Math.abs(dy);
+  // A quick flick counts even if short: that is how a thumb swipes
+  const flick = adx > 14 && adx / Math.max(1, Date.now() - s.t) > 0.45;
+
+  // Scrolling a list is not a gesture for the screen
+  if (s.scroller && s.axis !== "x") return;
 
   // Не жест, а тап — хай його доопрацьовують кнопки (у них свої обробники)
-  if (adx < SWIPE_MIN && ady < SWIPE_MIN) return;
+  if (adx < SWIPE_MIN && ady < SWIPE_MIN && !(flick && s.axis === "x")) {
+    if (s.dragged) goTile(tileIndex);        // put the rail back where it was
+    return;
+  }
 
-  if (adx > ady) {
+  if (s.axis === "x" || (!s.axis && adx > ady)) {
     if (layerApp.classList.contains("open")) { appGoBack(); return; }
     if (appsOpen()) { closeApps(); return; }
     if (layer) { openLayer(null); return; }      // горизонталь у шарі = назад
@@ -393,14 +466,24 @@ function finishStagePointer(e) {
 stage.addEventListener("pointerup", finishStagePointer);
 function cancelStagePointer(e) {
   if (ptrStart?.pointerId !== e.pointerId) return;
-  releaseStagePointer(ptrStart.pointerId);
+  const s = ptrStart;
+  releaseStagePointer(s.pointerId);
   ptrStart = null;
+  endRailDrag(s);
+  if (s.dragged) goTile(tileIndex);
 }
 stage.addEventListener("pointercancel", cancelStagePointer);
 window.addEventListener("pointerup", finishStagePointer);
 window.addEventListener("pointercancel", cancelStagePointer);
 stage.addEventListener("lostpointercapture", (e) => {
-  if (ptrStart?.pointerId === e.pointerId) ptrStart = null;
+  // Capture moves when a scrolling area's drag turns sideways; that is not
+  // the end of the gesture, only losing it for good is.
+  if (ptrStart?.pointerId === e.pointerId && !ptrStart.scroller) {
+    const s = ptrStart;
+    ptrStart = null;
+    endRailDrag(s);
+    if (s.dragged) goTile(tileIndex);
+  }
 });
 
 // Клавіші — лише для перевірки з десктопа, на Pi їх немає
@@ -5187,12 +5270,13 @@ function bridgeFrameKeyboard(frame) {
   if (!doc) return;
   const quietNative = (el) => {
     // No system keyboard on top of ours (a tablet would show both)
-    if (kbAuto() && !el.hasAttribute("inputmode")) el.setAttribute("inputmode", "none");
+    if (kbMode !== "off" && !el.hasAttribute("inputmode")) el.setAttribute("inputmode", "none");
   };
   doc.querySelectorAll("input, textarea").forEach((el) => { if (isTextField(el)) quietNative(el); });
-  doc.addEventListener("focusin", (e) => {
-    const el = e.target;
-    if (!isTextField(el) || !kbAuto()) return;
+  let target = null;          // the field the keyboard is typing into now
+  const openFor = (el) => {
+    if (osk.isOpen && target === el) return;
+    target = el;
     quietNative(el);
     const win = frame.contentWindow;
     const set = (value) => {
@@ -5215,8 +5299,20 @@ function bridgeFrameKeyboard(frame) {
         if (el.form && typeof el.form.requestSubmit === "function") el.form.requestSubmit();
         el.blur();
       },
-      onClose: (cancelled) => { if (cancelled) el.blur(); },
+      onClose: (cancelled) => { target = null; if (cancelled) el.blur(); },
     });
+  };
+  // Focus from anything but a tap (Tab, the app's own .focus()) opens it
+  // only where it is expected: a touch panel, or mode "always".
+  doc.addEventListener("focusin", (e) => {
+    if (isTextField(e.target) && kbAuto()) openFor(e.target);
+  });
+  // A tap on a field always raises it, unless the keyboard is switched off.
+  // A Pi's touch panel often reports itself as a mouse, so "auto" never
+  // fired there; and a field that already had focus never refocused.
+  doc.addEventListener("pointerup", (e) => {
+    const el = e.target;
+    if (isTextField(el) && kbMode !== "off") openFor(el);
   });
 }
 

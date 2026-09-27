@@ -546,13 +546,16 @@ html, body {
 
 .dots {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 7px;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  /* A strip a finger can hit: tap goes to the nearest dot (screen.js) */
+  padding: 7px 10px;
   display: flex;
+  align-items: center;
   justify-content: center;
   gap: 6px;
-  pointer-events: none;
+  cursor: pointer;
 }
 
 .dots i {
@@ -566,7 +569,7 @@ html, body {
 .dots i.on { opacity: 1; background: var(--accent); }
 
 /* Шари поверх каруселі ховають крапки */
-.stage.layered .dots { opacity: 0; }
+.stage.layered .dots { opacity: 0; pointer-events: none; }
 
 /* ---------- Шари: стрічка (згори) і швидкі дії (знизу) ---------- */
 
