@@ -127,6 +127,16 @@ class TurnBatcher:
             return
         await self._on_turn(chat_id, items)
 
+    def replace(self, chat_id: str, message_id: str, text: str) -> bool:
+        """An edit of a message that is still waiting here: the turn simply
+        takes the new wording. False when it already went to the bot."""
+        for msg in self._buffers.get(chat_id, []):
+            if msg.message_id == message_id:
+                msg.text = text
+                self._last_seen[chat_id] = self._clock()   # typing again: wait on
+                return True
+        return False
+
     def drop(self, chat_id: str) -> int:
         """Forget what is buffered for a chat (e.g. /new). Returns the count."""
         timer = self._timers.pop(chat_id, None)

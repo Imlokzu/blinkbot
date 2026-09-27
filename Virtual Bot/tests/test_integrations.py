@@ -289,6 +289,45 @@ def test_a_note_goes_out_before_the_answer_and_reactions_come_back(tg):
     assert reactions == [("tg42", "m9", 1, "🔥"), ("tg42", "m9", 2, "👍")]
 
 
+def _edit(uid, text, message_id=7):
+    upd = _msg(uid, text, message_id=message_id)
+    return {"update_id": 5, "edited_message": upd["message"]}
+
+
+def test_an_edit_before_the_turn_just_changes_the_words(tg):
+    bridge, fake, chats = tg
+
+    async def scenario():
+        await bridge.handle_update(_msg(42, "яка погода у Львлві?"))
+        await bridge.handle_update(_edit(42, "яка погода у Львові?"))
+        await asyncio.sleep(0.25)
+
+    run(scenario())
+    assert [c["message"] for c in chats] == ["яка погода у Львові?"]
+
+
+def test_an_edit_after_the_answer_reaches_the_bot_as_a_turn(tg):
+    bridge, fake, chats = tg
+
+    async def scenario():
+        await bridge.handle_update(_msg(42, "постав таймер на 5 хвилин"))
+        await asyncio.sleep(0.25)
+        await bridge.handle_update(_edit(42, "постав таймер на 15 хвилин"))
+        await asyncio.sleep(0.25)
+        # Same text again (a formatting-only edit) and a stranger's edit: nothing
+        await bridge.handle_update(_edit(42, "постав таймер на 15 хвилин"))
+        await bridge.handle_update(_edit(7, "hi", message_id=3))
+        await asyncio.sleep(0.25)
+
+    run(scenario())
+    assert len(chats) == 2
+    note = chats[1]["message"]
+    assert "edited" in note and "«постав таймер на 5 хвилин»" in note and "«постав таймер на 15 хвилин»" in note
+    # The reply quotes the edited message
+    last = [p for m, p in fake.calls if m == "sendMessage"][-2]
+    assert last["reply_parameters"]["message_id"] == 7
+
+
 def test_typing_pause_grows_with_the_text_but_stays_short():
     assert telegram.typing_pause("ок") < telegram.typing_pause("а" * 120) <= 2.2
     assert telegram.typing_pause("а" * 5000) == 2.2

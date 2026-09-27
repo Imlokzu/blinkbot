@@ -43,8 +43,12 @@ log = logging.getLogger("virtual_bot.integrations.telegram")
 NAME = "telegram"
 API = "https://api.telegram.org"
 TEXT_LIMIT = 4096
-# Bot messages a reaction can still be traced back to (see _sent).
+# Bot messages a reaction can still be traced back to (see _sent), and your
+# own messages an edit can still be compared with (see _own_texts).
 SENT_MEMORY = 500
+# What the bot is told when you edit a message it already answered. For the
+# model, not for a person, so it is not localised (like the reaction note).
+EDIT_NOTE = "[The user edited their earlier message.\nBefore: {before}\nNow: {after}]"
 # The Bot API refuses downloads above 20 MB anyway; 10 MB is the vision limit.
 MAX_DOWNLOAD = 10 * 1024 * 1024
 MAX_TEXT_FILE = 200_000
@@ -84,6 +88,7 @@ class TelegramBridge:
         # Telegram message -> (session, stored bot message, bubble index), so
         # a reaction on it lands on the right bubble. The newest few hundred.
         self._sent: "OrderedDict[tuple[str, int], tuple[str, str, int]]" = OrderedDict()
+        self._own_texts: "OrderedDict[tuple[str, int], str]" = OrderedDict()
         # Seconds of "typing…" between two bubbles, per character; 0 in tests.
         self.pace = 1.0
         self._stranger_replied: dict[int, float] = {}
@@ -242,7 +247,7 @@ class TelegramBridge:
                 try:
                     updates = await self.call(
                         "getUpdates", offset=offset, timeout=50,
-                        allowed_updates=["message", "callback_query", "message_reaction"],
+                        allowed_updates=["message", "edited_message", "callback_query", "message_reaction"],
                     )
                     backoff = 2.0
                     self.last_error = ""
@@ -282,7 +287,8 @@ class TelegramBridge:
         if "message_reaction" in update:
             await self._on_user_reaction(update["message_reaction"])
             return
-        msg = update.get("message")
+        edited = isinstance(update.get("edited_message"), dict)
+        msg = update.get("edited_message") if edited else update.get("message")
         if not isinstance(msg, dict):
             return
         chat = msg.get("chat") or {}
@@ -296,7 +302,12 @@ class TelegramBridge:
         text = str(msg.get("text") or msg.get("caption") or "")
 
         if user_id not in self.owners():
-            await self._stranger(chat_id, user_id, text, lang)
+            if not edited:
+                await self._stranger(chat_id, user_id, text, lang)
+            return
+
+        if edited:
+            await self._on_edit(chat_id, msg, text)
             return
 
         if text.startswith("/"):
@@ -308,7 +319,31 @@ class TelegramBridge:
             return
         if not incoming.forwarded:
             self._last_own[chat_id] = int(msg.get("message_id") or 0)
+            self._keep_own_text(chat_id, int(msg.get("message_id") or 0), incoming.text)
         self._batcher.feed(incoming)
+
+    def _keep_own_text(self, chat_id: str, message_id: int, text: str) -> None:
+        self._own_texts[(chat_id, message_id)] = text
+        self._own_texts.move_to_end((chat_id, message_id))
+        while len(self._own_texts) > SENT_MEMORY:
+            self._own_texts.popitem(last=False)
+
+    async def _on_edit(self, chat_id: str, msg: dict[str, Any], text: str) -> None:
+        """You changed a message. Still waiting to be sent: the bot just gets
+        the new wording. Already answered: the bot hears what changed, as a
+        turn of its own, and its reply quotes the edited message."""
+        message_id = int(msg.get("message_id") or 0)
+        key = (chat_id, message_id)
+        before = self._own_texts.get(key)
+        if not text.strip() or text == before:
+            return          # a formatting-only edit, or nothing we can compare
+        if self._batcher.replace(chat_id, str(message_id), text):
+            self._keep_own_text(chat_id, message_id, text)
+            return
+        self._keep_own_text(chat_id, message_id, text)
+        self._last_own[chat_id] = message_id
+        note = EDIT_NOTE.format(before=f"«{before}»" if before else "(not seen)", after=f"«{text}»")
+        self._batcher.feed(batching.Incoming(chat_id=chat_id, message_id=str(message_id), text=note))
 
     async def _stranger(self, chat_id: str, user_id: int, text: str, lang: str) -> None:
         match = re.match(r"^/(?:start|pair)\s+(\S+)", text.strip())
