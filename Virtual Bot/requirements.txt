@@ -12,7 +12,9 @@ faster-whisper>=1.1.0,<2
 # Музика на екрані (Now Playing): неофіційний YouTube через yt-dlp +
 # безкоштовний транскрайб субтитрів без ключа. Опціональні в коді: без них
 # музика/транскрайб чесно віддають 503, решта бота працює.
-yt-dlp>=2025.1.15
+# 2026.8+: older builds no longer get YouTube formats. [default] adds the
+# JS challenge solver (yt-dlp-ejs) that newer YouTube pages require.
+yt-dlp[default]>=2026.8.19
 # curl_cffi lets yt-dlp impersonate a browser's TLS fingerprint, which some
 # YouTube responses now demand; without it those requests are simply refused.
 curl-cffi>=0.7

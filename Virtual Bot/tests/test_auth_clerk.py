@@ -7,9 +7,23 @@ import pytest
 import auth_clerk
 
 
+def _usable_jwk() -> dict:
+    """A real RSA public key: PyJWT >= 2.15 validates keys as it caches the
+    set, so a bare {"kid": ...} is rejected before the test can look."""
+    import json
+
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from jwt.algorithms import RSAAlgorithm
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048).public_key()
+    jwk = json.loads(RSAAlgorithm.to_jwk(key))
+    jwk.update({"kid": "test", "use": "sig", "alg": "RS256"})
+    return jwk
+
+
 def test_direct_jwks_fetch_ignores_proxy_environment():
     response = MagicMock()
-    response.json.return_value = {"keys": [{"kid": "test"}]}
+    response.json.return_value = {"keys": [_usable_jwk()]}
     response.raise_for_status.return_value = None
     client = MagicMock()
     client.__enter__.return_value.get.return_value = response
@@ -21,7 +35,7 @@ def test_direct_jwks_fetch_ignores_proxy_environment():
 
 def test_direct_jwks_fetch_preserves_cache_on_success():
     response = MagicMock()
-    response.json.return_value = {"keys": [{"kid": "test"}]}
+    response.json.return_value = {"keys": [_usable_jwk()]}
     response.raise_for_status.return_value = None
     client = MagicMock()
     client.__enter__.return_value.get.return_value = response

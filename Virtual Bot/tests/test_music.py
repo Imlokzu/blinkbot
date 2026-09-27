@@ -157,6 +157,10 @@ def test_audio_url_invidious_first_then_cached(monkeypatch):
         return "https://ytdlp.example/audio"
 
     monkeypatch.setattr(music, "invidious_instances", lambda: ["https://inv.test"])
+    # No live instance discovery: with a working TLS stack it returns real
+    # instances, and the fake probe would pass one of them.
+    monkeypatch.setattr(music, "_discovered_sync", lambda: [])
+    monkeypatch.setattr(music, "_DISCOVER_CACHE", (0.0, []))
     monkeypatch.setattr(music, "_probe_stream", fake_probe)
     monkeypatch.setattr(music, "_extract_sync", fake_extract)
     music._URL_CACHE.clear()
