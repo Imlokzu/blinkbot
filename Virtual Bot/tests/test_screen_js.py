@@ -182,3 +182,87 @@ class TestReplyEventBubbles:
             events.publish_reply("x", "happy", ["a" * 15000, "b" * 5000, "c" * 10])
         bubbles = publish.call_args.args[0]["bubbles"]
         assert sum(map(len, bubbles)) <= 16000
+
+
+_TYPE = """
+const type = (state, keys) => keys.reduce((s, k) => m.applyKey(s, k), state);
+const letters = (word) => Array.from(word);
+"""
+
+
+@needs_node
+class TestKeyboard:
+    """keyboard.js: the on-screen keyboard's layouts and text logic."""
+
+    def test_every_ukrainian_letter_is_reachable(self):
+        # ґ lives on a long press of г; the rest must be plain keys, the
+        # apostrophe included — it is in half of everyday words.
+        result = _run("keyboard.js", """
+const keys = new Set(m.LAYOUTS.uk.flat());
+const alts = new Set(Object.values(m.ALTERNATES));
+const abc = "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя";
+console.log(JSON.stringify({
+  missing: Array.from(abc).filter(c => !keys.has(c) && !alts.has(c)),
+  apostrophe: keys.has("ʼ"),
+  widest: Math.max(...Object.values(m.LAYOUTS).flat().map(r => r.length)),
+}));
+""")
+        assert result["missing"] == []
+        assert result["apostrophe"] is True
+        # 12 keys across 320 px keep each key at the 24 px touch minimum
+        assert result["widest"] <= 12
+
+    def test_sentences_start_with_a_capital(self):
+        result = _run("keyboard.js", _TYPE + """
+let s = type(m.initialState(), letters("привіт"));
+const first = s.text;
+s = type(s, [m.K.SPACE, m.K.SPACE, ...letters("як")]);   // double space ends the sentence
+console.log(JSON.stringify([first, s.text]));
+""")
+        assert result == ["Привіт", "Привіт. Як"]
+
+    def test_search_fields_stay_lowercase(self):
+        result = _run("keyboard.js", _TYPE + """
+console.log(JSON.stringify(type(m.initialState({autocap: false, lang: "en"}), letters("lofi")).text));
+""")
+        assert result == "lofi"
+
+    def test_shift_is_one_shot_then_caps_lock_then_off(self):
+        result = _run("keyboard.js", _TYPE + """
+const base = m.initialState({autocap: false});
+const once = type(base, [m.K.SHIFT, "к", "о"]).text;
+const lock = type(base, [m.K.SHIFT, m.K.SHIFT, "к", "о"]).text;
+const off = type(base, [m.K.SHIFT, m.K.SHIFT, m.K.SHIFT, "к"]).text;
+console.log(JSON.stringify([once, lock, off]));
+""")
+        assert result == ["Ко", "КО", "к"]
+
+    def test_backspace_and_emoji_safe_deletion(self):
+        result = _run("keyboard.js", _TYPE + """
+let s = m.initialState({text: "ok 👍", autocap: false});
+s = m.applyKey(s, m.K.BACK);
+const one = s.text;
+s = type(s, [m.K.BACK, m.K.BACK, m.K.BACK]);
+console.log(JSON.stringify({one, empty: s.text, capitalAgain: m.initialState().shift}));
+""")
+        assert result == {"one": "ok ", "empty": "", "capitalAgain": True}
+
+    def test_layers_and_languages(self):
+        result = _run("keyboard.js", _TYPE + """
+let s = m.initialState({lang: "uk"});
+const path = [s.layer];
+s = m.applyKey(s, m.K.LANG); path.push(s.layer);
+s = m.applyKey(s, m.K.SYM); path.push(s.layer);
+s = m.applyKey(s, "7");
+s = m.applyKey(s, m.K.ABC); path.push(s.layer);
+s = m.applyKey(s, m.K.LANG); path.push(s.layer);
+console.log(JSON.stringify({path, text: s.text}));
+""")
+        assert result == {"path": ["uk", "en", "sym", "en", "uk"], "text": "7"}
+
+    def test_enter_finishes_without_typing_anything(self):
+        result = _run("keyboard.js", _TYPE + """
+const s = type(m.initialState({autocap: false}), ["т", "а", "к", m.K.ENTER]);
+console.log(JSON.stringify({done: s.done, text: s.text}));
+""")
+        assert result == {"done": True, "text": "так"}

@@ -141,6 +141,14 @@ const PATHS = {
     '<circle cx="17.5" cy="6.5" r="2.3"/>' +
     '<circle cx="17.5" cy="17.5" r="2.3"/>' +
     '<path d="M8.6 11 15.4 7.6M8.6 13l6.8 3.4"/>',
+  keyboard:
+    '<rect x="2.5" y="6" width="19" height="12" rx="2"/>' +
+    '<path d="M6 9.5h.01M9 9.5h.01M12 9.5h.01M15 9.5h.01M18 9.5h.01M6 12.5h.01M9 12.5h.01M12 12.5h.01M15 12.5h.01M18 12.5h.01M8 15.5h8"/>',
+  backspace:
+    '<path d="M8.5 5.5H20a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5H8.5L2.5 12z"/>' +
+    '<path d="M11.5 9.5l5 5M16.5 9.5l-5 5"/>',
+  shift:
+    '<path d="M12 4 4 12.5h4.5V19h7v-6.5H20z"/>',
   star:
     '<path d="M12 3.8l2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.4l-5.1 2.8L8 13.6 3.8 9.7l5.7-.7z"/>',
 };
@@ -192,6 +200,9 @@ export const ICON_COLORS = {
   headphones: "#d98263",
   share: "#7fa8d8",
   star: "#d7a65b",
+  keyboard: "#9aa3a8",
+  backspace: "#9aa3a8",
+  shift: "#9aa3a8",
 };
 
 /** Готовий <svg> як елемент; колір і товщина — з CSS. */

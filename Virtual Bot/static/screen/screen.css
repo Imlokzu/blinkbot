@@ -2012,3 +2012,95 @@ html, body {
 .tiles-move.up svg { transform: rotate(90deg); }
 .tiles-move.down svg { transform: rotate(90deg); }
 .tiles-row .settings-switch { min-width: 60px; }
+
+/* ---------- On-screen keyboard (keyboard.js) ----------
+   Bottom of the stage, over every layer, under the dimmer. Keys are
+   ~24×28 px at 320×240 — the resistive-panel minimum — with 2 px gaps so a
+   fat finger still lands on one key. Only transform/opacity animate. */
+#osk.osk {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  padding: 3px 4px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.35);
+  touch-action: none;                      /* taps only: no scroll, no swipe */
+  user-select: none;
+  -webkit-user-select: none;
+}
+.osk-bar { display: flex; align-items: center; gap: 4px; height: 24px; }
+.osk-text {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 12px/20px var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.osk-text.empty { color: var(--muted); }
+.osk-caret {
+  display: inline-block;
+  width: 1px;
+  height: 13px;
+  margin: 0 1px;
+  vertical-align: -2px;
+  background: var(--accent);
+  animation: osk-blink 1s steps(1) infinite;
+}
+@keyframes osk-blink { 50% { opacity: 0; } }
+.osk-close {
+  width: 26px;
+  height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font: 600 11px/1 var(--font);
+}
+.osk-row { display: flex; gap: 2px; height: 28px; }
+.osk-key {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: var(--line);
+  color: var(--text);
+  font: 500 13px/1 var(--font);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.osk-key.down { background: var(--accent); color: var(--bg); transform: translateY(1px); }
+/* The long-press letter, small in the corner, so ґ can be found */
+.osk-key[data-alt]::after {
+  content: attr(data-alt);
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: 7px;
+  color: var(--muted);
+}
+.osk-fn { background: color-mix(in srgb, var(--line) 60%, var(--bg)); font-size: 10px; font-weight: 600; }
+.osk-shift, .osk-back { flex-grow: 1.5; }
+.osk-sym, .osk-abc, .osk-lang { flex-grow: 1.3; }
+.osk-space { flex-grow: 5; color: var(--muted); font-weight: 400; }
+.osk-enter { flex-grow: 2.4; background: var(--accent); color: var(--bg); }
+.osk-shift.on { color: var(--accent); }
+.osk-shift.caps { background: var(--accent); color: var(--bg); }
+.osk-ico { width: 15px; height: 15px; stroke: currentColor; fill: none; }
+.mode-chip.icon-only { padding: 0 8px; display: inline-flex; align-items: center; }
+@media (prefers-reduced-motion: reduce) { .osk-caret { animation: none; } }
+:root[data-motion="reduced"] .osk-caret { animation: none; }

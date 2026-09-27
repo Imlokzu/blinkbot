@@ -395,6 +395,47 @@ while the bot talks — its own voice must not stop it). After only the name
 the bot waits 8 s for the command; after each answer it keeps listening 8 s
 without the name, so a back-and-forth does not need "Claude" every time.
 
+## 4b. On-screen keyboard (`keyboard.js`)
+
+Voice cannot do everything: a search query, a name, a word recognition
+keeps mishearing. So there is a keyboard — small, because the screen is:
+keys are ~24×28 px at 320×240, twelve across.
+
+- Layouts: `uk`, `en`, `sym`. The Ukrainian apostrophe (ʼ, U+02BC — the
+  letter the rest of the project uses) has its own key; ґ hides on a long
+  press of г. Double space ends a sentence (". ").
+- Shift is one-shot; tapping it twice is caps lock; it arms itself at the
+  start of a sentence while `autocap` is on (off for search fields).
+- Opening: mode in **Settings → Behaviour** — `auto` (touch panels only,
+  on a desktop with a real keyboard it would only get in the way),
+  `always`, `off`. The chat has a keyboard button in every mode.
+- **Chat**: typed messages are sent with `voice: false`, so the brain does
+  not expect ASR mistakes and does not apply the ASR caveat.
+- **Catalogue apps** (same origin): the parent watches `focusin` inside the
+  iframe and types straight into the field — `input` events on every key,
+  a real `keydown` Enter on done, plus `form.requestSubmit()` when there is
+  one. No package has to change. It also sets `inputmode="none"` in auto
+  mode, so a tablet does not show a second, system keyboard.
+- **Sandboxed apps** (imported `.cbp`, opaque origin) ask the parent:
+
+```js
+// app → parent
+parent.postMessage({type: "botKeyboard", action: "open",
+                    value: "…", placeholder: "…", enter: "search"}, "*");
+parent.postMessage({type: "botKeyboard", action: "close"}, "*");
+// parent → app
+window.addEventListener("message", (e) => {
+  const d = e.data || {};
+  if (d.type !== "botKeyboardInput") return;
+  if (d.cancelled) return;                  // the person closed it
+  input.value = d.value;                    // live on every key
+  if (d.done) search();                     // Enter pressed
+});
+```
+
+  The logic (`LAYOUTS`, `applyKey`, `initialState`) has no DOM and is
+  checked through node in `tests/test_screen_js.py`.
+
 ## 5. API довідник (нові ендпоінти)
 
 ### Магазин екрана

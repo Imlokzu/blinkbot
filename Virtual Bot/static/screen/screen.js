@@ -10,6 +10,7 @@ import { drawGlyphString, makeIcon, paintIcon, hasPixelIcon } from "./pixel-ui.j
    перевіряти напряму, не маючи мікрофона (див. wake.js) */
 import { parseWake, findWake } from "./wake.js";
 import { ReplyTurn } from "./reply.js";
+import { ScreenKeyboard } from "./keyboard.js";
 /* Контурні іконки та їхні кольори — у icons.js */
 import { makeSvgIcon, ICON_COLORS } from "./icons.js";
 /* Дві мови інтерфейсу (uk/en) — словник і хелпери в i18n.js */
@@ -54,6 +55,8 @@ function chatTile() {
 const layerQuick = $("layerQuick");
 const dimmer = $("dimmer");
 
+// The on-screen keyboard; created further down, read by wake() early on
+let osk = null;
 let tileIndex = 0;
 let layer = null;      // null | "apps" | "quick"
 let asleep = false;
@@ -275,12 +278,14 @@ function wake() {
   clearTimeout(sleepTimer);
   // Розмова — це теж «взаємодія»: не смикаємо екран на циферблат, поки
   // користувач пише або поки бот ще відповідає.
-  if (chatBusy || listening) return;
+  // Typing is interaction too: going home mid-word would lose the context
+  if (chatBusy || listening || (osk && osk.isOpen)) return;
   if (idleHomeMs > 0) idleTimer = setTimeout(goHome, idleHomeMs);
   if (idleSleepMs > 0) sleepTimer = setTimeout(sleep, idleSleepMs);
 }
 
 function sleep() {
+  if (osk) osk.close(true);
   asleep = true;
   goHome();
   crab.setEmotion("sleepy");
@@ -3030,6 +3035,8 @@ function closeAppLayer() {
       body: JSON.stringify({ closed: true }),
     }).catch(() => {});
   }
+  // The keyboard may be typing into this app's field; that field is gone
+  if (osk) osk.close(true);
   openApp = null;
   layerApp.classList.remove("open");
   appBody.innerHTML = "";                 // MJPEG-стрім інакше тягнеться далі
@@ -3440,7 +3447,7 @@ function openPanel() {
 }
 
 function resetScreenPrefs() {
-  [THEME_KEY, BRIGHT_KEY, VOL_KEY, VOICE_KEY, ORDER_KEY, ICON_KEY, ICON_TINT_KEY, TILES_KEY,
+  [THEME_KEY, BRIGHT_KEY, VOL_KEY, VOICE_KEY, ORDER_KEY, ICON_KEY, ICON_TINT_KEY, TILES_KEY, KB_MODE_KEY,
     IDLE_HOME_KEY, IDLE_SLEEP_KEY, CLOCK_FORMAT_KEY, CLOCK_DATE_KEY, MOTION_KEY,
     SKIN_KEY, SKIN_VARS_KEY, PROVIDER_KEY]
     .forEach(removePref);
@@ -3470,6 +3477,7 @@ function resetScreenPrefs() {
   rebuildIcons();
   renderQuickTiles();
   applyTileLayout();
+  kbMode = "auto";
 }
 
 function openSettings() {
@@ -3709,7 +3717,36 @@ function openSettings() {
       });
       cityGrid.appendChild(button);
     }
+    // Any other city: type it
+    const otherCity = document.createElement("button");
+    otherCity.type = "button";
+    otherCity.className = "settings-choice";
+    otherCity.textContent = t("set.weatherCity.other");
+    otherCity.addEventListener("click", () => {
+      osk.open({
+        placeholder: t("set.weatherCity"),
+        lang: kbLang(),
+        enter: "done",
+        onDone: (city) => {
+          if (!city.trim()) return;
+          cityGrid.querySelectorAll(".settings-choice").forEach((b) => b.classList.toggle("on", b === otherCity));
+          setWeatherCity(city.trim());
+        },
+      });
+    });
+    cityGrid.appendChild(otherCity);
     cityRow.appendChild(cityGrid);
+
+    const kbRow = row(screensBox, t("set.keyboard"), t("set.keyboard.hint"));
+    const kbSelect = document.createElement("select");
+    fillSelect(kbSelect, KB_MODE_OPTIONS);
+    kbSelect.value = kbMode;
+    kbSelect.addEventListener("change", () => {
+      kbMode = validOption(kbSelect.value, KB_MODE_OPTIONS, "auto");
+      writePref(KB_MODE_KEY, kbMode);
+      wake();
+    });
+    kbRow.appendChild(kbSelect);
 
     const behavior = section(t("set.behavior"), t("set.behavior.hint"));
     const homeRow = row(behavior, t("set.home"), t("set.home.hint"));
@@ -4380,6 +4417,7 @@ function openStoreApp(entry) {
     }
     frame.addEventListener("load", () => {
       postStoreAppSkin(frame);
+      bridgeFrameKeyboard(frame);
       if (videoPending && entry.pkg === VIDEO_PKG) {
         const command = videoPending;
         videoPending = null;
@@ -4397,6 +4435,7 @@ window.addEventListener("message", (event) => {
   if (event.origin !== expected) return;
   if (event.data?.type === "closeStoreApp") closeAppLayer();
   if (event.data?.type === "storeAppSwipe" && ["left", "right", "down"].includes(event.data.direction)) closeAppLayer();
+  if (event.data?.type === "botKeyboard") onAppKeyboardRequest(frame, event.data);
 });
 
 /* ---------- Бот керує відео-плеєром (SSE «video») ----------
@@ -4921,6 +4960,138 @@ crab.setEmotion(crab.emotion);
 // «Поки тиша» лишається під керуванням JS (щоб applyStatic не затирав
 // справжню репліку бота), тож першу підстановку робимо тут
 $("sayText").textContent = t("say.empty");
+/* ---------- On-screen keyboard ----------
+   keyboard.js draws it; here it gets bound to whoever types: the chat, a
+   settings field, an input inside a store app. Three modes (Settings →
+   Behaviour): auto opens it by itself on a touch panel only — on a desktop
+   with a real keyboard it would just get in the way; always; off. The
+   chat's keyboard button opens it in every mode: that is an explicit ask. */
+
+const KB_MODE_KEY = "botScreenKeyboard";
+const KB_MODE_OPTIONS = [
+  { value: "auto", key: "set.keyboard.auto" },
+  { value: "always", key: "set.keyboard.always" },
+  { value: "off", key: "set.keyboard.off" },
+];
+let kbMode = validOption(readPref(KB_MODE_KEY, "auto"), KB_MODE_OPTIONS, "auto");
+
+osk = new ScreenKeyboard($("osk"), {
+  t,
+  icon: (name) => {
+    const svg = makeSvgIcon(name);
+    svg.classList.add("osk-ico");
+    return svg;
+  },
+});
+// Every key press is activity: keep the screen awake while someone types
+$("osk").addEventListener("pointerdown", () => wake());
+
+function kbAuto() {
+  if (kbMode === "always") return true;
+  if (kbMode === "off") return false;
+  try { return window.matchMedia("(pointer: coarse)").matches; } catch (e) { return false; }
+}
+
+function kbLang() {
+  return getLang() === "en" ? "en" : "uk";
+}
+
+/* Chat: type a message, Enter sends it as if it were said — but marked as
+   typed (fromVoice=false), so the brain does not expect ASR mistakes. */
+function openChatKeyboard() {
+  if (chatBusy) return;
+  goTile(chatTile());
+  osk.open({
+    placeholder: t("kb.chatPlaceholder"),
+    lang: kbLang(),
+    enter: "send",
+    onInput: (text) => { chatLive.textContent = text; },
+    onDone: (text) => {
+      chatLive.textContent = "";
+      if (text.trim()) sendChat(text.trim(), false);
+    },
+    onClose: () => { chatLive.textContent = ""; },
+  });
+}
+$("chatKbdIco").appendChild(uiIcon("keyboard", { cell: 2 }));
+$("chatKbd").addEventListener("click", (e) => { e.stopPropagation(); wake(); openChatKeyboard(); });
+
+function isTextField(el) {
+  if (!el || !el.tagName) return false;
+  if (el.tagName === "TEXTAREA") return !el.readOnly && !el.disabled;
+  if (el.tagName !== "INPUT") return false;
+  const type = (el.getAttribute("type") || "text").toLowerCase();
+  return ["text", "search", "url", "email", "tel", "number", "password"].includes(type) && !el.readOnly && !el.disabled;
+}
+
+/* Store apps from our own catalogue share our origin, so the keyboard can
+   type straight into their fields: no change to any package needed. The
+   text goes in as `input` events and Enter as a real keydown, which is
+   what the YouTube and YT Music apps listen for. */
+function bridgeFrameKeyboard(frame) {
+  if (frame.dataset.sandboxed === "1") return;       // opaque origin: postMessage API instead
+  let doc = null;
+  try { doc = frame.contentDocument; } catch (e) { doc = null; }
+  if (!doc) return;
+  const quietNative = (el) => {
+    // No system keyboard on top of ours (a tablet would show both)
+    if (kbAuto() && !el.hasAttribute("inputmode")) el.setAttribute("inputmode", "none");
+  };
+  doc.querySelectorAll("input, textarea").forEach((el) => { if (isTextField(el)) quietNative(el); });
+  doc.addEventListener("focusin", (e) => {
+    const el = e.target;
+    if (!isTextField(el) || !kbAuto()) return;
+    quietNative(el);
+    const win = frame.contentWindow;
+    const set = (value) => {
+      el.value = value;
+      el.dispatchEvent(new win.Event("input", { bubbles: true }));
+    };
+    osk.open({
+      value: el.value,
+      placeholder: el.getAttribute("placeholder") || "",
+      lang: kbLang(),
+      autocap: false,                                  // search queries, names, links
+      enter: el.type === "search" ? "search" : "done",
+      onInput: set,
+      onDone: (value) => {
+        set(value);
+        el.dispatchEvent(new win.Event("change", { bubbles: true }));
+        for (const type of ["keydown", "keyup"]) {
+          el.dispatchEvent(new win.KeyboardEvent(type, { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
+        }
+        if (el.form && typeof el.form.requestSubmit === "function") el.form.requestSubmit();
+        el.blur();
+      },
+      onClose: (cancelled) => { if (cancelled) el.blur(); },
+    });
+  });
+}
+
+/* Sandboxed (shared .cbp) apps cannot be reached into, so they ask:
+     → {type: "botKeyboard", action: "open", value, placeholder, enter}
+     ← {type: "botKeyboardInput", value, done, cancelled}
+   and {type: "botKeyboard", action: "close"} hides it. Documented in
+   docs/SCREEN-PLATFORM.md. */
+function onAppKeyboardRequest(frame, data) {
+  const origin = frame.dataset.sandboxed === "1" ? "*" : window.location.origin;
+  const reply = (msg) => {
+    try { frame.contentWindow.postMessage({ type: "botKeyboardInput", ...msg }, origin); } catch (e) {}
+  };
+  if (data.action === "close") { osk.close(true); return; }
+  if (data.action !== "open") return;
+  osk.open({
+    value: String(data.value || "").slice(0, 500),
+    placeholder: String(data.placeholder || "").slice(0, 80),
+    lang: kbLang(),
+    autocap: !!data.autocap,
+    enter: ["send", "search", "done"].includes(data.enter) ? data.enter : "done",
+    onInput: (value) => reply({ value, done: false, cancelled: false }),
+    onDone: (value) => reply({ value, done: true, cancelled: false }),
+    onClose: (cancelled) => { if (cancelled) reply({ value: "", done: false, cancelled: true }); },
+  });
+}
+
 /* ---------- Timers ----------
    Set by voice through the bot (tools/timer_tools.py) or with the buttons
    on the timer tile; the state lives on the server (screen_widgets.py), so

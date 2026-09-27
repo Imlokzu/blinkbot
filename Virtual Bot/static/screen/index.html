@@ -140,6 +140,9 @@
           <span class="mic-label" id="micLabel" data-i18n="voice.speak">Говорити</span>
         </button>
         <button class="mode-chip" id="modeChip" type="button" data-i18n-title="mode.head" title="Режим розмови">Поговорити</button>
+        <!-- Typing, for what voice cannot do: a word recognition keeps
+             mishearing, a name, a link -->
+        <button class="mode-chip icon-only" id="chatKbd" type="button" data-i18n-aria="kb.open" aria-label="Клавіатура"><span class="ico-slot" id="chatKbdIco"></span></button>
       </div>
 
       <!-- Список розмов поверх тайла -->
@@ -324,6 +327,9 @@
   </div>
 
 
+
+  <!-- On-screen keyboard (keyboard.js): above every layer, below the dimmer -->
+  <div id="osk"></div>
 
   <!-- Затемнення: яскравість і «сон». Окремий шар з opacity —
        композитор тягне його безкоштовно, на відміну від filter. -->
