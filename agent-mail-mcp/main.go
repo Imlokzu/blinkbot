@@ -86,7 +86,7 @@ type CallToolResult struct {
 }
 
 func getTools() []ToolInfo {
-	return []ToolInfo{
+	return append([]ToolInfo{
 		{
 			Name: "send_email",
 			Description: "Send an email message from the agent's verified address (lokzu@ag.waveio.me) " +
@@ -115,20 +115,6 @@ func getTools() []ToolInfo {
 			},
 		},
 		{
-			Name: "check_inbox",
-			Description: "Check incoming emails received in the agent's mailbox (lokzu@ag.waveio.me). " +
-				"Returns message summaries, senders, subjects, and extracted verification codes.",
-			InputSchema: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"limit": map[string]interface{}{
-						"type":        "integer",
-						"description": "Maximum number of recent emails to retrieve (default: 10)",
-					},
-				},
-			},
-		},
-		{
 			Name: "get_verification_code",
 			Description: "Retrieve the latest OTP or confirmation code received in the agent's mailbox. " +
 				"Useful when signing up or logging into websites.",
@@ -139,6 +125,7 @@ func getTools() []ToolInfo {
 						"type":        "string",
 						"description": "Optional service name to filter by, e.g. 'github' or 'openai'",
 					},
+					"address": addressProp(),
 				},
 			},
 		},
@@ -150,7 +137,7 @@ func getTools() []ToolInfo {
 				"properties": map[string]interface{}{},
 			},
 		},
-	}
+	}, inboxTools()...)
 }
 
 func handleSendEmail(cfg Config, args map[string]interface{}) CallToolResult {
@@ -234,89 +221,6 @@ func handleSendEmail(cfg Config, args map[string]interface{}) CallToolResult {
 	}
 }
 
-func handleCheckInbox(cfg Config, args map[string]interface{}) CallToolResult {
-	// Query inbox from gateway
-	gateways := []string{cfg.GatewayURL, "https://mail.waveio.me"}
-	client := &http.Client{Timeout: 10 * time.Second}
-	var lastErr error
-
-	for _, gw := range gateways {
-		reqURL := fmt.Sprintf("%s/api/inbox?to=%s", gw, cfg.AgentEmail)
-		req, err := http.NewRequest("GET", reqURL, nil)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		req.Header.Set("Authorization", "Bearer "+cfg.AgentToken)
-
-		resp, err := client.Do(req)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		defer resp.Body.Close()
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-
-		if resp.StatusCode == http.StatusOK {
-			return CallToolResult{
-				Content: []TextContent{{Type: "text", Text: string(body)}},
-			}
-		}
-		lastErr = fmt.Errorf("status %d: %s", resp.StatusCode, string(body))
-	}
-
-	return CallToolResult{
-		Content: []TextContent{{Type: "text", Text: fmt.Sprintf("Failed to check inbox: %v", lastErr)}},
-		IsError: true,
-	}
-}
-
-func handleGetVerificationCode(cfg Config, args map[string]interface{}) CallToolResult {
-	gateways := []string{cfg.GatewayURL, "https://mail.waveio.me"}
-	client := &http.Client{Timeout: 10 * time.Second}
-	var lastErr error
-
-	for _, gw := range gateways {
-		reqURL := fmt.Sprintf("%s/api/latest-otp?to=%s", gw, cfg.AgentEmail)
-		req, err := http.NewRequest("GET", reqURL, nil)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		req.Header.Set("Authorization", "Bearer "+cfg.AgentToken)
-
-		resp, err := client.Do(req)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		defer resp.Body.Close()
-
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-
-		if resp.StatusCode == http.StatusOK {
-			return CallToolResult{
-				Content: []TextContent{{Type: "text", Text: string(body)}},
-			}
-		}
-		lastErr = fmt.Errorf("status %d: %s", resp.StatusCode, string(body))
-	}
-
-	return CallToolResult{
-		Content: []TextContent{{Type: "text", Text: fmt.Sprintf("Failed to get verification code: %v", lastErr)}},
-		IsError: true,
-	}
-}
-
 func handleMyEmail(cfg Config) CallToolResult {
 	info := map[string]string{
 		"email":       cfg.AgentEmail,
@@ -357,7 +261,7 @@ func main() {
 				},
 				"serverInfo": map[string]interface{}{
 					"name":    "agent-mail-mcp",
-					"version": "1.0.0",
+					"version": "1.1.0",
 				},
 			})
 
@@ -387,6 +291,12 @@ func main() {
 				result = handleCheckInbox(cfg, params.Arguments)
 			case "get_verification_code":
 				result = handleGetVerificationCode(cfg, params.Arguments)
+			case "read_email":
+				result = handleReadEmail(cfg, params.Arguments)
+			case "download_attachment":
+				result = handleDownloadAttachment(cfg, params.Arguments)
+			case "delete_email":
+				result = handleDeleteEmail(cfg, params.Arguments)
 			case "my_email":
 				result = handleMyEmail(cfg)
 			default:
