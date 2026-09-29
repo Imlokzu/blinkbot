@@ -161,6 +161,12 @@ def speak(text: str, config: dict) -> None:
 def main() -> None:
     config = load_config()
     validate_config(config)
+    # The token comes from the environment only, so it can never be committed
+    # with config.yaml (an old one was, in the initial commit).
+    token = os.environ.get("OPENCLAW_TOKEN", "").strip()
+    if not token:
+        print("[!] Set OPENCLAW_TOKEN (gateway.auth.token from ~/.openclaw/openclaw.json).")
+        sys.exit(1)
 
     print("Завантажую faster-whisper…")
     stt_cfg = config["stt"]
@@ -170,8 +176,6 @@ def main() -> None:
         compute_type=stt_cfg.get("compute_type", "int8"),
     )
 
-    # Токен: env var OPENCLAW_TOKEN має пріоритет, інакше — значення з config.yaml.
-    token = os.environ.get("OPENCLAW_TOKEN") or config["openclaw"].get("token")
     client = OpenClawClient(
         base_url=config["openclaw"]["base_url"],
         token=token,

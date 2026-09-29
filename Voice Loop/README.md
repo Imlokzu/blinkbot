@@ -48,7 +48,8 @@ microphone -> record_utterance() -> faster-whisper -> text
 Restart Gateway after the change.
 
 4. Take the gateway token (`gateway.auth.token` or `OPENCLAW_GATEWAY_TOKEN`) and
-   paste it into the `config.yaml` of this project (`openclaw.token`).
+   export it as `OPENCLAW_TOKEN`. It is read from the environment only; do not
+   put it in `config.yaml`.
 
 ## Installation
 
@@ -78,7 +79,7 @@ Exit — `Ctrl+C`.
   faster-whisper STT, OpenClaw call, pyttsx3 TTS
 - `openclaw_client.py` — separate HTTP client for
   `/v1/chat/completions` OpenClaw (easily testable without microphone)
-- `config.yaml` — URL/token for OpenClaw, recording parameters, Whisper model selection,
+- `config.yaml` — URL of OpenClaw (the token is `OPENCLAW_TOKEN`), recording parameters, Whisper model selection,
   TTS
 - `requirements.txt` — dependencies
 
