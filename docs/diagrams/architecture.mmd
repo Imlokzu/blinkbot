@@ -1,0 +1,25 @@
+flowchart LR
+  Dash["Dashboard<br>/static/dash"]
+  Screen["Device screen<br>/screen on the Pi"]
+  TG["Telegram"]
+  VB["Virtual Bot<br>FastAPI :8100"]
+  WS[("Workspace<br>user_data/owner")]
+  OC["OpenClaw gateway<br>:18789 main brain"]
+  MCP["MCP bridges<br>workspace, tools, emotions"]
+  Shim["Omni shim<br>:20128"]
+  OCS["opencode serve<br>:20131"]
+  Vision["Vision Agent<br>:8000 HTTP + MJPEG"]
+  Disp["claude-bot-display<br>:8001 WebSocket"]
+
+  Dash -->|REST + SSE| VB
+  Screen -->|events| VB
+  TG --> VB
+  VB -->|chat| OC
+  OC -->|models| Shim
+  Shim --> OCS
+  OC -->|tool calls| MCP
+  MCP -->|/api/tools/call| VB
+  VB --> WS
+  VB -.->|snapshot| Vision
+  Dash -.->|MJPEG direct| Vision
+  VB --> Disp
