@@ -1,0 +1,8 @@
+# Findings in history that are dead, by gitleaks fingerprint (no values here).
+# Checked 2026-09-29.
+# Agent-mail admin key and agent token, rotated in cb9c388.
+4bf95388c24c6b77d85ce030c6e439376454acc0:agent-mail-worker/wrangler.toml:generic-api-key:18
+a816420be428b9f215a67e9a91063b5f0094a56c:agent-mail-mcp/README.md:generic-api-key:22
+a816420be428b9f215a67e9a91063b5f0094a56c:agent-mail-mcp/main.go:generic-api-key:17
+# Old OpenClaw gateway token from the initial commit; the gateway answers 401 to it.
+f2d2f42621f5fb943e8e2c8173432d28bbf0807f:Voice Loop/config.yaml:generic-api-key:7

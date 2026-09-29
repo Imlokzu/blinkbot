@@ -31,6 +31,15 @@ PROVIDERS = {
     "opencode-go": {"base": "https://opencode.ai/zen/go/v1", "key": "@opencode-go", "parallel": 3,
                     "session_header": "x-opencode-session"},
     "openrouter": {"base": "https://openrouter.ai/api/v1", "key": "OPENROUTER_API_KEY", "parallel": 4},
+    # A pay-as-you-go key on a $0 balance: only the models ZenMux prices at $0
+    # answer. Several other $0 models (Ling 3.0 Tiny, Agnes 2.5 Flash, Atria
+    # Dawn) still refuse with 402 reject_no_credit until the balance is above
+    # zero, as an anti-abuse rule. The owner's Free subscription plan has no
+    # API access at all, so this is the only way in.
+    # The free GLMs answer 429 "usage limit for the current free model" at
+    # two calls in flight, so one at a time with long back-offs.
+    "zenmux": {"base": "https://zenmux.ai/api/v1", "key": "ZENMUX_API_KEY", "parallel": 1,
+               "retries": 6, "backoff_s": 15},
     # The bot's own path. Luna is only reachable here (a ChatGPT subscription,
     # not an API key), and the gateway adds its agent prompt and overhead, so
     # these rows measure "the model as the bot gets it", not the bare model.
@@ -62,6 +71,14 @@ MODELS = [
     ("Gemma 3 4B", "openrouter", "google/gemma-3-4b-it", "shortlist", (0.04, 0.08)),
     ("Gemma 3 12B", "openrouter", "google/gemma-3-12b-it", "shortlist", (0.05, 0.10)),
     ("Phi-4 mini", "openrouter", "microsoft/phi-4-mini-instruct", "shortlist", (0.075, 0.30)),
+    # free on ZenMux (2026-09-29). All three think before answering: a
+    # one-word reply took 100-330 completion tokens and 4-44 s. dots3 note
+    # scored IQ 92, basic 100 %, p50 3.5 s. The two GLMs carry a small usage
+    # quota: about a dozen calls in, every call is 429 "usage limit for the
+    # current free model" for hours, so they cannot finish a run.
+    ("GLM 4.7 Flash · ZenMux", "zenmux", "z-ai/glm-4.7-flash-free", "zenmux-free", (0.0, 0.0)),
+    ("GLM 4.6V Flash · ZenMux", "zenmux", "z-ai/glm-4.6v-flash-free", "zenmux-free", (0.0, 0.0)),
+    ("dots3 note · ZenMux", "zenmux", "dots-studio/dots3-note-prev", "zenmux-free", (0.0, 0.0)),
     # the comparison line. opencode-go (Luna, Qwen 3.8 Flash, DeepSeek, GLM)
     # answered 403 "an active OpenCode Go subscription is required" on
     # 2026-09-29, OpenCode Zen had no funds, and Cloudflare's free plan

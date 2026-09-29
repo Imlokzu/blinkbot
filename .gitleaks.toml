@@ -1,0 +1,17 @@
+# Secret scanning for this repo: `gitleaks git` locally, the same in CI.
+# Findings that are dead or public go in .gitleaksignore by fingerprint
+# (commit:file:rule:line), which holds no secret value.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "public values and generated bundles"
+# Clerk publishable keys are public by design: they ship in every browser bundle.
+regexes = ['''pk_(test|live)_[A-Za-z0-9]+''']
+paths = [
+  # built dashboard bundle; its sources are scanned instead
+  '''Virtual Bot/static/dash/assets/''',
+  # fake tokens that the log-redaction tests must redact
+  '''Virtual Bot/tests/test_log_redact\.py''',
+]

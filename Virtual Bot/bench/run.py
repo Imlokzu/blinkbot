@@ -113,6 +113,10 @@ class Host:
         self.session_header = spec.get("session_header", "")
         self.model_header = spec.get("model_header", "")
         self.agent = spec.get("agent", "")
+        # Free tiers answer 429 for a while rather than for a moment, so a
+        # host can ask for more and longer retries than the default.
+        self.retries = spec.get("retries", 3)
+        self.backoff_s = spec.get("backoff_s", 2)
         self.client = httpx.AsyncClient(timeout=CALL_TIMEOUT_S)
         # Session ids this run created on the host (only a gateway keeps them).
         self.opened: set[str] = set()
@@ -128,15 +132,15 @@ class Host:
             self.opened.add(session)
         if self.model_header:
             headers[self.model_header] = model
-        for attempt in range(3):
+        for attempt in range(self.retries):
             async with self.gate:
                 started = time.perf_counter()
                 response = await self.client.post(
                     f"{self.base}/chat/completions", json=body, headers=headers,
                 )
                 spent = time.perf_counter() - started
-            if response.status_code in (429, 500, 502, 503) and attempt < 2:
-                await asyncio.sleep(2 + attempt * 3)
+            if response.status_code in (429, 500, 502, 503) and attempt < self.retries - 1:
+                await asyncio.sleep(self.backoff_s + attempt * 3)
                 continue
             if response.status_code != 200:
                 raise RuntimeError(f"HTTP {response.status_code}: {response.text[:160]}")
@@ -354,8 +358,8 @@ async def main() -> None:
             for row in rows:
                 file.write(json.dumps(row, ensure_ascii=False) + "\n")
 
-    order = {"light": 0, "shortlist": 1, "reference": 2}
-    summaries = [s for _g, s, _r in sorted(results, key=lambda r: (order[r[0]], -r[1]["_iq"]))]
+    order = {"light": 0, "shortlist": 1, "zenmux-free": 2, "reference": 3}
+    summaries = [s for _g, s, _r in sorted(results, key=lambda r: (order.get(r[0], 9), -r[1]["_iq"]))]
     report = [f"# Quick-answer benchmark {stamp} · suite {options.suite}", "",
               f"{len(cases)} cases ({sum(c['tier'] == 'basic' for c in cases)} basic, "
               f"{sum(c['tier'] == 'smart' for c in cases)} smart), repeat {options.repeat}.", "",
