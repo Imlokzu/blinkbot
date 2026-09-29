@@ -87,3 +87,6 @@ Virtual Bot/runtime/integrations/
 # ---- Внутрішній стан AI-інструментів (не джерело проєкту) ----
 .crab/
 .zcode/
+
+# Model benchmark output (bench/run.py) — raw replies, regenerated per run
+Virtual Bot/bench/results/
