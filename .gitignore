@@ -2,6 +2,8 @@
 .env
 .env.*
 *.env
+# Templates with variable names and no values are the one exception.
+!.env.example
 config.local.*
 **/secrets.*
 *token*
