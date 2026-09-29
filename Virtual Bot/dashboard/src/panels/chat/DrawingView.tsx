@@ -49,6 +49,16 @@ function readDrawing(source: string): Scene {
 async function readMermaid(source: string): Promise<Scene> {
   const { parseMermaidToExcalidraw } = await import('@excalidraw/mermaid-to-excalidraw');
   const { elements, files } = await parseMermaidToExcalidraw(source, { themeVariables: { fontSize: '16px' } });
+  /*
+   * Models break labels with `<br>`, which Mermaid itself renders — and sizes
+   * the boxes for — as a new line. The converter passes the tag through as
+   * text, so it is turned back into the line break the box was measured for.
+   */
+  const lineBreaks = (text: unknown) => (typeof text === 'string' ? text.replace(/<br\s*\/?>/gi, '\n') : text);
+  for (const element of elements as { label?: { text?: unknown }; text?: unknown }[]) {
+    if (element.label) element.label.text = lineBreaks(element.label.text);
+    if ('text' in element) element.text = lineBreaks(element.text);
+  }
   return { elements: convertToExcalidrawElements(elements), files: files as Record<string, unknown> | undefined };
 }
 
@@ -62,6 +72,11 @@ export default function DrawingView({
   onSaveAs,
 }: {
   kind: 'drawing' | 'mermaid';
+  /**
+   * The file as it was when the view opened. Excalidraw reads a scene once,
+   * on mount, so a later value is ignored here too: to show a rewritten file,
+   * remount the view (the workbench keys it by path and revision).
+   */
   source: string;
   dark: boolean;
   /** Writes the scene back to the same file (drawings only). */
@@ -77,26 +92,33 @@ export default function DrawingView({
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const api = useRef<ExcalidrawImperativeAPI | null>(null);
   const fitted = useRef(false);
+  // The parent passes a fresh arrow on every render; the effects below must
+  // not treat that as a reason to run.
+  const saveRef = useRef(onSave);
+  saveRef.current = onSave;
+  const [opened] = useState(source);
 
   useEffect(() => {
     let alive = true;
-    setScene(null);
-    setFailed(false);
-    baseline.current = null;
-    fitted.current = false;
-    (kind === 'mermaid' ? readMermaid(source) : Promise.resolve().then(() => readDrawing(source)))
+    (kind === 'mermaid' ? readMermaid(opened) : Promise.resolve().then(() => readDrawing(opened)))
       .then((next) => { if (alive) setScene(next); })
       .catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; };
-  }, [kind, source]);
+  }, [kind, opened]);
 
-  // A pending autosave is flushed, not dropped, when the tab closes.
+  /*
+   * A pending autosave is flushed, not dropped, when the view goes away.
+   * Unmount only: keyed on the callback this would fire on every parent
+   * render, and since the timer handle stayed set, write the file again on
+   * each of them.
+   */
   useEffect(() => () => {
-    if (timer.current && latest.current && onSave) {
+    if (timer.current && latest.current && saveRef.current) {
       clearTimeout(timer.current);
-      void onSave(latest.current);
+      timer.current = undefined;
+      void saveRef.current(latest.current);
     }
-  }, [onSave]);
+  }, []);
 
   const initialData = useMemo(() => scene && ({
     elements: scene.elements as never,
@@ -163,8 +185,10 @@ export default function DrawingView({
           clearTimeout(timer.current);
           timer.current = setTimeout(() => {
             timer.current = undefined;
+            const save = saveRef.current;
+            if (!save) return;
             setSaveState('saving');
-            onSave(latest.current).then(() => setSaveState('saved'), () => setSaveState('error'));
+            save(latest.current).then(() => setSaveState('saved'), () => setSaveState('error'));
           }, 1200);
         }}
       />

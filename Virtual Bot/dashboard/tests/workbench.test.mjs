@@ -42,6 +42,10 @@ test('the real session folder folds back into the short session/ form', () => {
   )], 'sessions/abc123');
   assert.deepEqual(files.map((f) => f.path), ['session/plan.md']);
   assert.equal(shortPath('sessions/other/x.md', 'sessions/abc123'), 'sessions/other/x.md');
+  // The workbench folds whatever it holds on every render (a show event names
+  // the long form, a tab click the short one), so folding twice must be a no-op.
+  assert.equal(shortPath(shortPath('sessions/abc123/plan.md', 'sessions/abc123'), 'sessions/abc123'), 'session/plan.md');
+  assert.equal(shortPath('session/plan.md', ''), 'session/plan.md');
 });
 
 test('the input path is used when the saved result is empty', () => {

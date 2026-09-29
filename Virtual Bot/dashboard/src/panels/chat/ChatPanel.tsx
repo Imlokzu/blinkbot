@@ -63,10 +63,18 @@ function store(key: string, value: string) {
 /*
  * The workbench column's width, dragged by its left edge. The chat keeps at
  * least a readable measure: below ~420 px a reply wraps every few words.
+ * The same bound is repeated as a CSS max on the column (BENCH_MAX_WIDTH), so
+ * a width remembered from a wide screen, or a window narrowed after the
+ * drag, cannot push the chat off-screen.
  */
+const BENCH_MIN_WIDTH = 360;
+const BENCH_MAX_WIDTH = 'calc(100vw - 640px)';
+const clampBenchWidth = (value: number) =>
+  Math.round(Math.min(Math.max(value, BENCH_MIN_WIDTH), window.innerWidth - 220 - 420));
+
 function useBenchWidth() {
-  const [width, setWidth] = useState(() => Number(readStored(BENCH_WIDTH_KEY)) || 560);
-  const clamp = (value: number) => Math.round(Math.min(Math.max(value, 360), window.innerWidth - 220 - 420));
+  const [width, setWidth] = useState(() => clampBenchWidth(Number(readStored(BENCH_WIDTH_KEY)) || 560));
+  const clamp = clampBenchWidth;
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     const handle = event.currentTarget;
@@ -113,6 +121,13 @@ export default function ChatPanel() {
   // Narrow layouts: a sheet opened on request, never restored on load.
   const [benchSheet, setBenchSheet] = useState(false);
   const [benchFocus, setBenchFocus] = useState<WorkbenchFocus | null>(null);
+  // A "show me" from one chat must not open that file in the next one. A new
+  // chat gets its id mid-reply (`onSession`), which is not a switch.
+  const lastSession = useRef(chat.sessionId);
+  useEffect(() => {
+    if (lastSession.current) setBenchFocus(null);
+    lastSession.current = chat.sessionId;
+  }, [chat.sessionId]);
   const benchWidth = useBenchWidth();
   const closedThisTurn = useRef(false);
   const draft = chat.messages[chat.messages.length - 1];
@@ -353,7 +368,7 @@ export default function ChatPanel() {
         </div>
 
         {isDesk && bench ? (
-          <div className="relative flex min-h-0 shrink-0 border-l border-line" style={{ width: benchWidth.width }}>
+          <div className="relative flex min-h-0 shrink-0 border-l border-line" style={{ width: benchWidth.width, maxWidth: BENCH_MAX_WIDTH }}>
             <div
               role="separator"
               aria-orientation="vertical"

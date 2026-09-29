@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowUpRight, Code2, FileText, Globe, Image as ImageIcon, PenTool, RefreshCw, Save, Workflow, X,
@@ -45,34 +45,69 @@ function fileQuery(sessionId: string, path: string) {
 
 const fallback = <div className="p-4"><SkeletonList rows={8} /></div>;
 
-function FileView({ file, sessionId, mode, nonce }: { file: WorkFile; sessionId: string; mode: Mode; nonce: number }) {
+function FileView({
+  file,
+  sessionId,
+  mode,
+  nonce,
+  draft,
+  onDraft,
+  live,
+}: {
+  file: WorkFile;
+  sessionId: string;
+  mode: Mode;
+  nonce: number;
+  /** Unsaved editor text, held by the workbench so a tab switch keeps it. */
+  draft: string | null;
+  onDraft: (next: string | null) => void;
+  /** Revision on show for each path — see `live` in Workbench. */
+  live: RefObject<Map<string, number>>;
+}) {
   const { resolved } = useTheme();
   const client = useQueryClient();
   const toast = useToast();
   const revision = file.revision + nonce;
   const media = file.kind === 'html' || file.kind === 'image';
   const needsText = !(media && mode === 'preview');
+  const queryKey = ['wb-file', sessionId, file.path, revision];
   const data = useQuery({
-    queryKey: ['wb-file', sessionId, file.path, revision],
+    queryKey,
     queryFn: () => get<FileData>(fileQuery(sessionId, file.path)),
     enabled: needsText,
     staleTime: Infinity,
   });
-  const [draft, setDraft] = useState<string | null>(null);
-  useEffect(() => setDraft(null), [data.data]);
 
   const write = async (path: string, content: string) => {
     await post('/api/workspace/file', { path, content, session_id: sessionId });
+  };
+  // What was just written is what is on disk: the other view of this file
+  // (Code after Preview, or the reverse) must show it, not the fetched copy.
+  const remember = (content: string) => {
+    client.setQueryData<FileData>(queryKey, (old) => (old ? { ...old, content } : old));
   };
   const save = async () => {
     if (draft === null) return;
     try {
       await write(file.path, draft);
+      remember(draft);
+      onDraft(null);
       toast.ok(t('wb.saved'), file.path);
-      void client.invalidateQueries({ queryKey: ['wb-file', sessionId, file.path] });
     } catch (error) {
       toast.error(t('wb.saveError'), (error as Error).message);
     }
+  };
+  /*
+   * The drawing autosaves on a delay. If the bot rewrote the file meanwhile
+   * (this view is being replaced by the newer revision), a write now would
+   * put an edit of the old drawing over the bot's new one, unseen. A path
+   * that is no longer listed at all (another chat opened) still saves.
+   */
+  const autosave = async (json: string) => {
+    const showing = live.current.get(file.path);
+    if (showing !== undefined && showing !== revision) return;
+    await write(file.path, json);
+    remember(json);
   };
 
   if (media && mode === 'preview') {
@@ -101,7 +136,7 @@ function FileView({ file, sessionId, mode, nonce }: { file: WorkFile; sessionId:
           kind={file.kind}
           source={content}
           dark={resolved === 'dark'}
-          onSave={file.kind === 'drawing' ? (json) => write(file.path, json) : undefined}
+          onSave={file.kind === 'drawing' ? autosave : undefined}
           onSaveAs={file.kind === 'mermaid' ? async (json) => {
             const target = file.path.replace(/\.(mmd|mermaid)$/i, '') + '.excalidraw';
             try {
@@ -128,7 +163,7 @@ function FileView({ file, sessionId, mode, nonce }: { file: WorkFile; sessionId:
       ) : null}
       <div className="min-h-0 flex-1">
         <Suspense fallback={fallback}>
-          <CodeEditor path={file.path} value={draft ?? content} onChange={setDraft} className="h-full" />
+          <CodeEditor path={file.path} value={draft ?? content} onChange={onDraft} className="h-full" />
         </Suspense>
       </div>
     </div>
@@ -173,24 +208,41 @@ export function Workbench({
   const folder = info.data?.session_path ?? '';
   const stepFiles = useMemo(() => collectFiles(messages, folder), [messages, folder]);
 
-  // Files the bot only asked to show, without writing them in this chat.
+  /*
+   * Files the bot only asked to show, without writing them in this chat.
+   * Kept as the event named them (the real `sessions/<slug>/…`): the folder
+   * that folds that into `session/…` arrives later, and shortening before it
+   * did would leave the long form behind as a second tab for the same file.
+   */
   const [shown, setShown] = useState<string[]>([]);
-  useEffect(() => setShown([]), [sessionId]);
-  const focusPath = focus ? shortPath(focus.path, folder) : '';
+  // Cleared on a switch to another chat; a new chat getting its id mid-reply
+  // is not one, and the file it just showed stays.
+  const lastSession = useRef(sessionId);
   useEffect(() => {
-    if (focusPath) setShown((list) => [focusPath, ...list.filter((path) => path !== focusPath)]);
-  }, [focusPath, focus?.nonce]);
+    if (lastSession.current) setShown([]);
+    lastSession.current = sessionId;
+  }, [sessionId]);
+  const [selected, setSelected] = useState('');
+  useEffect(() => {
+    if (!focus) return;
+    setShown((list) => [focus.path, ...list.filter((path) => path !== focus.path)]);
+    setSelected(focus.path);
+  }, [focus]);
 
   const files = useMemo(() => {
     const known = new Set(stepFiles.map((file) => file.path));
-    const extra = shown.filter((path) => !known.has(path))
+    const extra = shown
+      .map((path) => shortPath(path, folder))
+      .filter((path, index, all) => !known.has(path) && all.indexOf(path) === index)
       .map((path): WorkFile => ({ path, kind: fileKind(path), revision: 0, active: false }));
     return [...extra, ...stepFiles];
-  }, [stepFiles, shown]);
+  }, [stepFiles, shown, folder]);
 
-  const [selected, setSelected] = useState('');
   const [modes, setModes] = useState<Record<string, Mode>>({});
   const [nonce, setNonce] = useState(0);
+  // Unsaved editor text per view (path and revision): a tab switch keeps it,
+  // a rewrite by the bot or a reload starts clean, as the file did.
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
 
   /*
    * Follow the bot: whenever a newer write lands (a new file, or a new
@@ -203,10 +255,22 @@ export function Workbench({
     if (newest && newest !== seen.current) setSelected(stepFiles[0].path);
     seen.current = newest;
   }, [newest, stepFiles]);
-  useEffect(() => { if (focusPath) setSelected(focusPath); }, [focusPath, focus?.nonce]);
 
-  const file = files.find((item) => item.path === selected) ?? files[0];
+  // `selected` may hold the long form from a show event; folding is a no-op
+  // on an already short path.
+  const file = files.find((item) => item.path === shortPath(selected, folder)) ?? files[0];
   const mode: Mode = file && hasPreview(file.kind) ? modes[file.path] ?? 'preview' : 'source';
+  const viewKey = file ? `${file.path}#${file.revision + nonce}` : '';
+
+  /*
+   * The revision each path is showing right now. A view that is on its way
+   * out (the bot rewrote its file) reads this from its unmount cleanup, which
+   * React runs after this commit's layout effects, so it sees the new value.
+   */
+  const live = useRef(new Map<string, number>());
+  useLayoutEffect(() => {
+    live.current = new Map(files.map((item) => [item.path, item.revision + nonce]));
+  }, [files, nonce]);
 
   return (
     <section
@@ -277,7 +341,22 @@ export function Workbench({
       <div className="relative min-h-0 flex-1 overflow-hidden">
         {file ? (
           <>
-            <FileView key={`${file.path}#${file.revision}`} file={file} sessionId={sessionId} mode={mode} nonce={nonce} />
+            <FileView
+              key={viewKey}
+              file={file}
+              sessionId={sessionId}
+              mode={mode}
+              nonce={nonce}
+              draft={drafts[viewKey] ?? null}
+              onDraft={(next) => setDrafts((all) => {
+                if (next === null) {
+                  const { [viewKey]: _gone, ...rest } = all;
+                  return rest;
+                }
+                return { ...all, [viewKey]: next };
+              })}
+              live={live}
+            />
           </>
         ) : (
           <Empty icon={PenTool} title={t('wb.emptyTitle')} hint={t('wb.emptyHint')} className="h-full" />

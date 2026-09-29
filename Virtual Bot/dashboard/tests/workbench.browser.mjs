@@ -22,7 +22,7 @@ const write = (id, file, extra = {}) => ({
 });
 const files = {
   'notes/plan.md': '# Plan\n\n- first step\n- **second step**\n',
-  'diagrams/flow.mmd': 'flowchart LR\n  U[User] --> C[Chat]\n  C --> B{Brain}\n  B --> W[Workbench]\n  B --> S[Screen]\n',
+  'diagrams/flow.mmd': 'flowchart LR\n  U["User<br>on a phone"] --> C[Chat]\n  C --> B{Brain}\n  B --> W[Workbench]\n  B --> S[Screen]\n',
   // The short skeleton form a model can write; the view expands it.
   'diagrams/sketch.excalidraw': JSON.stringify({ type: 'excalidraw', elements: [
     { type: 'rectangle', id: 'chat', x: 0, y: 0, width: 180, height: 80, label: { text: 'Chat' } },
@@ -63,6 +63,14 @@ try {
   // Mermaid comes out as an Excalidraw sketch, with the converter's elements.
   browser('wait', '.workbench .excalidraw canvas');
   browser('wait', '--fn', 'document.querySelector(".wb-drawing-action") !== null');
+  // Save as a drawing writes the converted scene: `<br>` must be a real line break by then.
+  route('**/api/workspace/file', { ok: true, path: 'diagrams/flow.excalidraw' });
+  browser('wait', '1000');
+  browser('click', '.wb-drawing-action');
+  browser('wait', '1000');
+  const saved = browser('network', 'requests', '--method', 'POST', '--filter', 'workspace/file');
+  assert.match(saved, /workspace\/file/);
+  browser('network', 'requests', '--clear');
   if (shot) browser('screenshot', `${shot}/workbench-mermaid.png`);
 
   browser('click', '.workbench nav button[title="diagrams/sketch.excalidraw"]');
