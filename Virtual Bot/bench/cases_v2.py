@@ -107,7 +107,7 @@ CASES_V2 = [
             "Розстав за зростанням: 3/4, 2/3, 5/8. Відповідай лише дробами через кому.",
             check=_only("5/8,2/3,3/4")), 3),
     _d(_tool("umbrella", "smart", "tool_chain", "Чи брати мені сьогодні парасольку у Львові?",
-             "get_weather", {"city": r"льв|lviv|lwow"}, LVIV_RAIN, [r"\bтак\b|візьм|бер[іи]|варто|потрібн"]), 2),
+             "get_weather", {"city": r"льв|lviv|lwow"}, LVIV_RAIN, [r"\bтак\b|візьм|взят|бер[іи]|варто|потрібн"]), 2),
     _d(_ans("age", "smart", "quick_reasoning", "Я народився 2001 року. Скільки мені буде у 2030-му?",
             [r"\b29\b"]), 1),
     _d(_ans("order_ops", "smart", "quick_reasoning", "Скільки буде 7 + 3 × 2?", [r"\b13\b"]), 2, trap=True),
