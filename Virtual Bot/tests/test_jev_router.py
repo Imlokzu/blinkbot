@@ -188,6 +188,23 @@ class ChatCallTests(unittest.TestCase):
         self.assertEqual(sent["headers"]["x-openclaw-model"], cfg.JEV_BUILD_MODEL)
         self.assertEqual(sent["payload"]["messages"][-1]["content"], "Зроби мені сайт")
 
+    def test_turn_reports_the_model_it_was_routed_to(self) -> None:
+        """A background call routed elsewhere must not relabel this reply."""
+        async def fake_call(*args, **kwargs):
+            brains._note_jev_route("smart", cfg.JEV_SMART_MODEL)  # the chat-title call
+            return "[емоція:idle] 07:45", []
+
+        with (
+            patch.object(brains.cfg, "get_openclaw_token", return_value="token"),
+            patch.object(brains, "_call_openai_compatible_with_tools", side_effect=fake_call),
+            # brains.chat records the answering brain in module state; keep it local.
+            patch.object(brains, "_last_successful_brain", None),
+            patch.object(brains, "_last_model", ""),
+            patch.object(brains, "_last_jev_model", ""),
+        ):
+            _reply, _emotion, _mode, _tools = asyncio.run(brains.chat("Котра година?", []))
+            self.assertEqual(brains.get_last_model(), f"{cfg.JEV_FAST_MODEL} · OpenClaw")
+
     def test_image_turn_still_goes_to_the_image_model(self) -> None:
         image = {"mime": "image/png", "data": "iVBORw0KGgo="}
         sent = self._send("Котра година на цьому фото?", images=[image])

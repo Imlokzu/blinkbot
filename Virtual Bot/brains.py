@@ -793,12 +793,17 @@ async def chat_openclaw(
     request_history = [] if session_key else history
     # Vision goes to OpenClaw's image model; text follows the panel's pick,
     # which with Jev is decided per message (jev_router.py).
+    # A non-streamed reply does not name its model, and the global "last
+    # Jev pick" can already belong to a background call (the chat title)
+    # by the time this turn is recorded — so the turn keeps its own.
+    routed_model = ""
     if images:
         model_headers, sent_message = _image_headers(), message
     else:
         model_headers, sent_message, tier = openclaw_models.chat_route(message)
         if tier:
-            _note_jev_route(tier, model_headers.get("x-openclaw-model", ""))
+            routed_model = model_headers.get("x-openclaw-model", "")
+            _note_jev_route(tier, routed_model)
     messages = _build_messages(system_prompt, request_history, sent_message, images)
     payload = {
         "model": cfg.OPENCLAW_AGENT,
@@ -842,7 +847,7 @@ async def chat_openclaw(
                     payload, cfg.CHAT_OPENCLAW_TIMEOUT_S, trust_env,
                     emit=tracked_emit, read_timeout=cfg.CHAT_OPENCLAW_WALL_S,
                 )
-            return text, [], observed_model["value"]
+            return text, [], observed_model["value"] or routed_model
         except _NeedsTools:
             log.info("OpenClaw потребує тулзів — переходжу на нестрімовий виклик")
         except Exception as exc:  # noqa: BLE001
@@ -860,7 +865,7 @@ async def chat_openclaw(
         trust_env,
         emit=emit,
     )
-    return text, tool_results, observed_model["value"]
+    return text, tool_results, observed_model["value"] or routed_model
 
 
 # ------------------------------------------------------------------ мозок 2: Anthropic
