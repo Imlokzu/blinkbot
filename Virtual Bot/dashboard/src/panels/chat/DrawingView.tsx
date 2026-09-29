@@ -31,16 +31,22 @@ type Scene = { elements: readonly unknown[]; appState?: Record<string, unknown>;
  * The bot rarely writes a complete scene — every element carries a dozen
  * bookkeeping fields (seed, version, nonce…) that a model gets wrong. It may
  * write the short "skeleton" form instead (`{type: "rectangle", x, y, label:
- * {text}}`, arrows with `start`/`end`), which Excalidraw expands itself. A
- * scene with any element lacking `version` is treated as a skeleton.
+ * {text}}`, arrows with `start`/`end`), which Excalidraw expands itself. An
+ * element lacking `version` is a skeleton one.
  */
 function readDrawing(source: string): Scene {
   const data = JSON.parse(source) as Partial<Scene> | unknown[];
   const raw = Array.isArray(data) ? data : data.elements;
   if (!Array.isArray(raw)) throw new Error('no elements');
-  const skeleton = raw.some((item) => !item || typeof item !== 'object' || !('version' in item));
-  const elements = skeleton
-    ? convertToExcalidrawElements(raw as ExcalidrawElementSkeleton[], { regenerateIds: false })
+  /*
+   * Only the skeleton part is expanded. A scene the user saved and the bot
+   * then added to holds both kinds, and feeding the full elements through the
+   * converter too drops every arrow's binding to its shapes.
+   */
+  const full = raw.filter((item) => item && typeof item === 'object' && 'version' in item);
+  const skeleton = raw.filter((item) => !full.includes(item));
+  const elements = skeleton.length
+    ? [...full, ...convertToExcalidrawElements(skeleton as ExcalidrawElementSkeleton[], { regenerateIds: false })]
     : raw;
   return Array.isArray(data) ? { elements } : { ...data, elements };
 }
