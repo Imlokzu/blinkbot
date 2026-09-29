@@ -1,6 +1,25 @@
 /**
- * Cloudflare Email Routing Worker for Agent Mailbox & OTP extraction
+ * Cloudflare Email Routing Worker: agent mailboxes on *@ag.waveio.me and the
+ * outbound gateway at send.waveio.me.
+ *
+ * Every message is kept whole, the way a mail client keeps it: the original
+ * .eml, plus a parsed record with decoded text, HTML, addresses, links and an
+ * attachment list. Attachments are not stored twice; they are cut out of the
+ * original on request. Verification codes and links are derived on top.
+ *
+ * KV layout (per mailbox address):
+ *   inbox:<to>          newest-first list of message summaries
+ *   msg:<to>:<id>       the full parsed record
+ *   raw:<to>:<id>       the original message bytes
+ *   otp:<to>            the latest code and/or verification link
  */
+import { parseMessage, buildRecord, summarize } from "./mail.js";
+
+const RETENTION_SECONDS = 60 * 60 * 24 * 30;
+const OTP_RETENTION_SECONDS = 60 * 60 * 24;
+const INBOX_LIMIT = 200;
+// Email Routing accepts up to 25 MiB, which is also the KV value limit.
+const MAX_RAW_BYTES = 25 * 1024 * 1024 - 1024;
 
 function bearer(request) {
   return (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
@@ -18,136 +37,113 @@ async function secretEquals(provided, expected) {
   return crypto.subtle.timingSafeEqual(a, b);
 }
 
-// Helper to extract OTP code and verification URL from email text/subject
-function extractOtpAndLinks(subject, bodyText) {
-  const fullContent = `${subject}\n${bodyText}`;
-
-  // Patterns for OTP / verification codes (4 to 8 digits)
-  // 1. Look for explicit keywords nearby
-  const keywordPattern = /(?:code|verification|passcode|security code|pin|otp|код|пароль|підтвердження)[^\n\r0-9]{1,30}(\b[0-9]{4,8}\b)/i;
-  const matchKeyword = fullContent.match(keywordPattern);
-
-  let otpCode = null;
-  if (matchKeyword && matchKeyword[1]) {
-    otpCode = matchKeyword[1];
-  } else {
-    // 2. Look for standalone 4-8 digit codes on their own line or enclosed in quotes/brackets
-    const standalonePattern = /(?:^|\s|["':*`])([0-9]{4,8})(?:["':*`\s]|$)/m;
-    const matchStandalone = fullContent.match(standalonePattern);
-    if (matchStandalone && matchStandalone[1]) {
-      otpCode = matchStandalone[1];
-    }
-  }
-
-  // Look for verification / confirmation URLs
-  const linkPattern = /(https?:\/\/[^\s"'<>()]+(?:verify|verification|confirm|confirmation|activate|auth|token|otp)[^\s"'<>()]*)/i;
-  const matchLink = fullContent.match(linkPattern);
-  const verificationLink = matchLink ? matchLink[1] : null;
-
-  return { otpCode, verificationLink };
+function newMessageId() {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 }
 
-// Simple MIME / Body parser for incoming raw email
-function parseRawEmail(rawText) {
-  const parts = rawText.split(/\r?\n\r?\n/);
-  const headerBlock = parts[0] || "";
-  const bodyBlock = parts.slice(1).join("\n\n");
-
-  // Basic cleanup of multipart boundaries or HTML tags for clean text preview
-  let cleanBody = bodyBlock
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/=\r?\n/g, "") // quoted-printable soft breaks
-    .replace(/\s+/g, " ")
-    .trim();
-
-  // If clean body is too short or empty, fall back to raw body text
-  if (cleanBody.length < 5) {
-    cleanBody = bodyBlock.substring(0, 4000);
-  } else if (cleanBody.length > 8000) {
-    cleanBody = cleanBody.substring(0, 8000);
+async function readInbox(env, to) {
+  try {
+    return (await env.AG_MAILBOX.get(`inbox:${to}`, "json")) || [];
+  } catch {
+    return [];
   }
+}
 
-  return cleanBody;
+async function writeInbox(env, to, list) {
+  await env.AG_MAILBOX.put(`inbox:${to}`, JSON.stringify(list.slice(0, INBOX_LIMIT)), {
+    expirationTtl: RETENTION_SECONDS,
+  });
+}
+
+/**
+ * Parses and stores one message. A message that fails to parse is still
+ * stored, raw bytes and all, with the error in its record: losing mail is
+ * worse than showing it badly.
+ */
+export async function ingest(env, { raw, envelopeFrom, envelopeTo }) {
+  const to = envelopeTo.toLowerCase().trim();
+  const id = newMessageId();
+  const receivedAt = new Date().toISOString();
+  const bytes = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
+  const meta = { id, envelopeFrom, envelopeTo: to, receivedAt, rawSize: bytes.byteLength };
+
+  let record;
+  try {
+    record = buildRecord(await parseMessage(bytes), meta);
+  } catch (err) {
+    const fallback = new TextDecoder().decode(bytes.subarray(0, 8000));
+    record = buildRecord({ subject: "(unparsed message)", text: fallback }, meta);
+    record.parse_error = String(err && err.message ? err.message : err);
+  }
+  record.raw_stored = bytes.byteLength <= MAX_RAW_BYTES;
+
+  if (record.raw_stored) {
+    await env.AG_MAILBOX.put(`raw:${to}:${id}`, bytes, { expirationTtl: RETENTION_SECONDS });
+  }
+  await env.AG_MAILBOX.put(`msg:${to}:${id}`, JSON.stringify(record), { expirationTtl: RETENTION_SECONDS });
+
+  const inbox = await readInbox(env, to);
+  inbox.unshift(summarize(record));
+  await writeInbox(env, to, inbox);
+
+  // A link alone is enough to finish many signups, so it is indexed even
+  // when the message carries no code.
+  if (record.otp_code || record.verification_link) {
+    await env.AG_MAILBOX.put(
+      `otp:${to}`,
+      JSON.stringify({
+        code: record.otp_code,
+        from: record.from,
+        subject: record.subject,
+        link: record.verification_link,
+        received_at: receivedAt,
+        msg_id: id,
+      }),
+      { expirationTtl: OTP_RETENTION_SECONDS }
+    );
+  }
+  return record;
+}
+
+/** Builds a minimal RFC 822 message, for the legacy simulate-receive payload. */
+function composeRaw({ from, to, subject, body, html }) {
+  const headers = [
+    `From: ${from}`,
+    `To: ${to}`,
+    `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
+    `Date: ${new Date().toUTCString()}`,
+    "MIME-Version: 1.0",
+    `Content-Type: ${html ? "text/html" : "text/plain"}; charset=utf-8`,
+    "Content-Transfer-Encoding: 8bit",
+  ];
+  return new TextEncoder().encode(`${headers.join("\r\n")}\r\n\r\n${html || body}`);
+}
+
+function base64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function contentDisposition(filename) {
+  const ascii = filename.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
 }
 
 export default {
   // 1. Email Handler — triggered when Cloudflare Email Routing catches a message
   async email(message, env, ctx) {
-    const from = message.from;
-    const to = message.to;
-    const subject = message.headers.get("subject") || "(Без теми)";
-    const receivedAt = new Date().toISOString();
+    const normalizedTo = message.to.toLowerCase().trim();
 
-    let rawEmail = "";
-    try {
-      rawEmail = await new Response(message.raw).text();
-    } catch (err) {
-      rawEmail = `Error reading raw stream: ${err.message}`;
-    }
-
-    const cleanBody = parseRawEmail(rawEmail);
-    const { otpCode, verificationLink } = extractOtpAndLinks(subject, cleanBody);
-
-    const normalizedTo = to.toLowerCase().trim();
-    const id = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-    const storageKey = `msg:${normalizedTo}:${id}`;
-
-    const emailRecord = {
-      id,
-      from,
-      to: normalizedTo,
-      subject,
-      snippet: cleanBody.substring(0, 300),
-      body: cleanBody,
-      otp_code: otpCode,
-      verification_link: verificationLink,
-      received_at: receivedAt,
-    };
-
-    // Store in KV
     if (env.AG_MAILBOX) {
-      // 1. Store full individual message
-      await env.AG_MAILBOX.put(storageKey, JSON.stringify(emailRecord), {
-        expirationTtl: 60 * 60 * 24 * 7, // 7 days retention
-      });
-
-      // 2. Update recipient inbox list for instant retrieval
-      const inboxKey = `inbox:${normalizedTo}`;
-      let currentInbox = [];
+      let raw;
       try {
-        currentInbox = (await env.AG_MAILBOX.get(inboxKey, "json")) || [];
-      } catch (e) {
-        currentInbox = [];
+        raw = new Uint8Array(await new Response(message.raw).arrayBuffer());
+      } catch (err) {
+        raw = new TextEncoder().encode(`Subject: (unreadable message)\r\n\r\nError reading raw stream: ${err.message}`);
       }
-      currentInbox.unshift(emailRecord);
-      if (currentInbox.length > 50) {
-        currentInbox = currentInbox.slice(0, 50);
-      }
-      await env.AG_MAILBOX.put(inboxKey, JSON.stringify(currentInbox), {
-        expirationTtl: 60 * 60 * 24 * 7,
-      });
-
-      // 3. Update latest OTP index
-      if (otpCode) {
-        await env.AG_MAILBOX.put(
-          `otp:${normalizedTo}`,
-          JSON.stringify({
-            code: otpCode,
-            from,
-            subject,
-            link: verificationLink,
-            received_at: receivedAt,
-            msg_id: id,
-          }),
-          { expirationTtl: 60 * 60 * 24 } // 24 hours
-        );
-      }
+      await ingest(env, { raw, envelopeFrom: message.from, envelopeTo: normalizedTo });
     }
 
     // Agent emails (*@ag.waveio.me) are strictly isolated and NEVER forwarded to personal email.
@@ -215,100 +211,117 @@ export default {
       }
     }
 
+    const to = (url.searchParams.get("to") || "").toLowerCase().trim();
+    const messageId = url.searchParams.get("id") || "";
+    const needsTo = ["/api/inbox", "/api/latest-otp", "/api/message", "/api/message/raw", "/api/attachment"];
+    if (needsTo.includes(url.pathname) && !to) {
+      return Response.json({ error: "Missing ?to= parameter" }, { status: 400, headers: corsHeaders });
+    }
+    const isMessageRoute = ["/api/message", "/api/message/raw", "/api/attachment"].includes(url.pathname);
+    if (isMessageRoute && !messageId) {
+      return Response.json({ error: "Missing ?id= parameter" }, { status: 400, headers: corsHeaders });
+    }
 
-    // GET /api/inbox?to=lokzu@ag.waveio.me
+    // GET /api/inbox?to=lokzu@ag.waveio.me[&unread=1][&limit=20]
+    // Summaries only: sender, subject, snippet, attachment list, code and
+    // link. The full message is one GET /api/message away.
     if (url.pathname === "/api/inbox" && request.method === "GET") {
-      const to = (url.searchParams.get("to") || "").toLowerCase().trim();
-      if (!to) {
-        return Response.json({ error: "Missing ?to= parameter" }, { status: 400, headers: corsHeaders });
+      let messages = await readInbox(env, to);
+      const total = messages.length;
+      const unread = messages.filter((m) => !m.seen).length;
+      if (url.searchParams.get("unread") === "1") messages = messages.filter((m) => !m.seen);
+      const limit = parseInt(url.searchParams.get("limit") || "", 10);
+      if (limit > 0) messages = messages.slice(0, limit);
+      return Response.json({ to, count: messages.length, total, unread, messages }, { headers: corsHeaders });
+    }
+
+    // GET /api/message?to=...&id=...[&peek=1] — the whole message; marks it read unless peek=1
+    if (url.pathname === "/api/message" && request.method === "GET") {
+      const record = await env.AG_MAILBOX.get(`msg:${to}:${messageId}`, "json");
+      if (!record) {
+        return Response.json({ error: "Message not found or expired" }, { status: 404, headers: corsHeaders });
       }
+      if (url.searchParams.get("peek") !== "1" && !record.seen) {
+        const inbox = await readInbox(env, to);
+        const entry = inbox.find((m) => m.id === messageId);
+        if (entry) {
+          entry.seen = true;
+          await writeInbox(env, to, inbox);
+        }
+        record.seen = true;
+      }
+      return Response.json(record, { headers: corsHeaders });
+    }
 
-      const inboxKey = `inbox:${to}`;
-      const messages = (await env.AG_MAILBOX.get(inboxKey, "json")) || [];
+    // GET /api/message/raw?to=...&id=... — the original .eml
+    if (url.pathname === "/api/message/raw" && request.method === "GET") {
+      const raw = await env.AG_MAILBOX.get(`raw:${to}:${messageId}`, "arrayBuffer");
+      if (!raw) {
+        return Response.json({ error: "Original not stored or expired" }, { status: 404, headers: corsHeaders });
+      }
+      return new Response(raw, {
+        headers: { ...corsHeaders, "Content-Type": "message/rfc822", "Content-Disposition": contentDisposition(`${messageId}.eml`) },
+      });
+    }
 
-      return Response.json(
-        { to, count: messages.length, messages },
-        { headers: corsHeaders }
-      );
+    // GET /api/attachment?to=...&id=...&index=0 — one attachment, cut out of the original
+    if (url.pathname === "/api/attachment" && request.method === "GET") {
+      const index = parseInt(url.searchParams.get("index") || "0", 10);
+      const raw = await env.AG_MAILBOX.get(`raw:${to}:${messageId}`, "arrayBuffer");
+      if (!raw) {
+        return Response.json({ error: "Original not stored or expired" }, { status: 404, headers: corsHeaders });
+      }
+      const parsed = await parseMessage(new Uint8Array(raw));
+      const att = (parsed.attachments || [])[index];
+      if (!att) {
+        return Response.json({ error: `No attachment at index ${index}` }, { status: 404, headers: corsHeaders });
+      }
+      return new Response(att.content, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": att.mimeType || "application/octet-stream",
+          "Content-Disposition": contentDisposition(att.filename || `attachment-${index + 1}`),
+        },
+      });
+    }
+
+    // DELETE /api/message?to=...&id=...
+    if (url.pathname === "/api/message" && request.method === "DELETE") {
+      const inbox = await readInbox(env, to);
+      await writeInbox(env, to, inbox.filter((m) => m.id !== messageId));
+      await env.AG_MAILBOX.delete(`msg:${to}:${messageId}`);
+      await env.AG_MAILBOX.delete(`raw:${to}:${messageId}`);
+      return Response.json({ success: true, deleted: messageId }, { headers: corsHeaders });
     }
 
     // GET /api/latest-otp?to=lokzu@ag.waveio.me
     if (url.pathname === "/api/latest-otp" && request.method === "GET") {
-      const to = (url.searchParams.get("to") || "").toLowerCase().trim();
-      if (!to) {
-        return Response.json({ error: "Missing ?to= parameter" }, { status: 400, headers: corsHeaders });
-      }
-
       const otpData = await env.AG_MAILBOX.get(`otp:${to}`, "json");
-      return Response.json(
-        { to, otp: otpData || null },
-        { headers: corsHeaders }
-      );
+      return Response.json({ to, otp: otpData || null }, { headers: corsHeaders });
     }
 
-    // POST /api/simulate-receive — test injection
+    // POST /api/simulate-receive — test injection through the same pipeline
+    // as real mail. Body: {to, raw} with raw the whole message (or raw_base64),
+    // or the legacy {from, to, subject, body, html}.
     if (url.pathname === "/api/simulate-receive" && request.method === "POST") {
       try {
         const payload = await request.json();
+        const target = (payload.to || "lokzu@ag.waveio.me").toLowerCase().trim();
         const from = payload.from || "service@example.com";
-        const to = (payload.to || "lokzu@ag.waveio.me").toLowerCase().trim();
-        const subject = payload.subject || "Verification code";
-        const body = payload.body || "Your security code is 749201. Use it to complete registration.";
-        const receivedAt = new Date().toISOString();
-
-        const { otpCode, verificationLink } = extractOtpAndLinks(subject, body);
-        const id = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-        const storageKey = `msg:${to}:${id}`;
-
-        const emailRecord = {
-          id,
-          from,
-          to,
-          subject,
-          snippet: body.substring(0, 300),
-          body,
-          otp_code: otpCode,
-          verification_link: verificationLink,
-          received_at: receivedAt,
-        };
-
-        await env.AG_MAILBOX.put(storageKey, JSON.stringify(emailRecord), {
-          expirationTtl: 60 * 60 * 24 * 7,
-        });
-
-        // Update inbox list
-        const inboxKey = `inbox:${to}`;
-        let currentInbox = [];
-        try {
-          currentInbox = (await env.AG_MAILBOX.get(inboxKey, "json")) || [];
-        } catch (e) {
-          currentInbox = [];
-        }
-        currentInbox.unshift(emailRecord);
-        if (currentInbox.length > 50) {
-          currentInbox = currentInbox.slice(0, 50);
-        }
-        await env.AG_MAILBOX.put(inboxKey, JSON.stringify(currentInbox), {
-          expirationTtl: 60 * 60 * 24 * 7,
-        });
-
-        if (otpCode) {
-          await env.AG_MAILBOX.put(
-            `otp:${to}`,
-            JSON.stringify({
-              code: otpCode,
-              from,
-              subject,
-              link: verificationLink,
-              received_at: receivedAt,
-              msg_id: id,
-            }),
-            { expirationTtl: 60 * 60 * 24 }
-          );
-        }
-
+        let raw;
+        if (payload.raw_base64) raw = base64ToBytes(payload.raw_base64);
+        else if (payload.raw) raw = new TextEncoder().encode(payload.raw);
+        else
+          raw = composeRaw({
+            from,
+            to: target,
+            subject: payload.subject || "Verification code",
+            body: payload.body || "Your security code is 749201. Use it to complete registration.",
+            html: payload.html,
+          });
+        const record = await ingest(env, { raw, envelopeFrom: from, envelopeTo: target });
         return Response.json(
-          { success: true, message: "Simulated email received and saved", record: emailRecord },
+          { success: true, message: "Simulated email received and saved", record: summarize(record) },
           { headers: corsHeaders }
         );
       } catch (err) {
@@ -318,11 +331,16 @@ export default {
 
     // DELETE /api/inbox?to=lokzu@ag.waveio.me
     if (url.pathname === "/api/inbox" && request.method === "DELETE") {
-      const to = (url.searchParams.get("to") || "").toLowerCase().trim();
+      const inbox = await readInbox(env, to);
+      for (const m of inbox) {
+        await env.AG_MAILBOX.delete(`msg:${to}:${m.id}`);
+        await env.AG_MAILBOX.delete(`raw:${to}:${m.id}`);
+      }
       await env.AG_MAILBOX.delete(`inbox:${to}`);
       await env.AG_MAILBOX.delete(`otp:${to}`);
       return Response.json({ success: true, message: "Inbox cleared" }, { headers: corsHeaders });
     }
+
 
     // POST /api/send or /v1/send — Secure outbound email gateway for AI agents
     if ((url.pathname === "/api/send" || url.pathname === "/v1/send") && request.method === "POST") {

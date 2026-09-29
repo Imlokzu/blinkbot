@@ -1,10 +1,14 @@
 {
   "name": "agent-mail-worker",
   "version": "1.0.0",
-  "description": "Cloudflare Email Routing Worker for Agent Inboxes and OTP Extraction",
+  "description": "Cloudflare Email Routing Worker: agent mailboxes and the outbound mail gateway",
   "main": "src/index.js",
   "scripts": {
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test": "node --test test/"
   },
-  "dependencies": {}
+  "dependencies": {
+    "postal-mime": "4.0.0"
+  },
+  "type": "module"
 }
