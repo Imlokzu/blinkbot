@@ -12,12 +12,15 @@ import os
 import re
 from typing import Any
 
+from datetime import datetime, timedelta, timezone
+
 import httpx
 
 log = logging.getLogger("virtual_bot.tools.email")
 
 DEFAULT_API_URL = "https://mail.waveio.me"
 DEFAULT_DOMAIN = "ag.waveio.me"
+OTP_FRESHNESS_SECONDS = 180
 
 
 def _get_config() -> tuple[str, str, str]:
@@ -37,6 +40,15 @@ def _normalize_address(agent_name_or_email: str, domain: str) -> str:
     return f"{cleaned}@{domain}"
 
 
+def _is_fresh(otp_data: dict[str, Any], not_before: datetime) -> bool:
+    raw = otp_data.get("received_at") or ""
+    try:
+        received = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return True  # no usable timestamp: do not hide the code
+    return received >= not_before
+
+
 async def get_agent_email(agent_name: str = "lokzu") -> dict[str, Any]:
     """
     Get the designated email address for the agent to use during signups or correspondence.
@@ -52,21 +64,26 @@ async def get_agent_email(agent_name: str = "lokzu") -> dict[str, Any]:
     }
 
 
-async def check_agent_inbox(agent_name: str = "lokzu") -> dict[str, Any]:
+async def check_agent_inbox(
+    agent_name: str = "lokzu",
+    unread_only: bool = False,
+    limit: int = 10,
+) -> dict[str, Any]:
     """
-    Check recent incoming emails for the agent mailbox.
+    List recent emails in the agent mailbox, newest first. Each entry is a
+    summary (sender, subject, preview, attachments, code/link); the whole
+    message is read with read_agent_email.
     """
     api_url, api_key, domain = _get_config()
     target_email = _normalize_address(agent_name, domain)
 
     headers = {"X-API-Key": api_key}
+    params: dict[str, Any] = {"to": target_email, "limit": max(1, min(int(limit or 10), 50))}
+    if unread_only:
+        params["unread"] = "1"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(
-                f"{api_url}/api/inbox",
-                params={"to": target_email},
-                headers=headers,
-            )
+            resp = await client.get(f"{api_url}/api/inbox", params=params, headers=headers)
             if resp.status_code != 200:
                 return {
                     "status": "error",
@@ -74,11 +91,27 @@ async def check_agent_inbox(agent_name: str = "lokzu") -> dict[str, Any]:
                     "error": f"Mail worker returned {resp.status_code}: {resp.text}",
                 }
             data = resp.json()
+            messages = [
+                {
+                    "id": m.get("id"),
+                    "unread": not m.get("seen", False),
+                    "from": m.get("from"),
+                    "subject": m.get("subject"),
+                    "date": m.get("date") or m.get("received_at"),
+                    "preview": m.get("snippet"),
+                    "otp_code": m.get("otp_code"),
+                    "verification_link": m.get("verification_link"),
+                    "attachments": [a.get("filename") for a in m.get("attachments") or []],
+                }
+                for m in data.get("messages", [])
+            ]
             return {
                 "status": "ok",
                 "email": target_email,
-                "count": data.get("count", 0),
-                "messages": data.get("messages", []),
+                "total": data.get("total", len(messages)),
+                "unread": data.get("unread"),
+                "count": len(messages),
+                "messages": messages,
             }
     except Exception as exc:
         log.warning("Failed to check agent inbox: %s", exc)
@@ -87,6 +120,65 @@ async def check_agent_inbox(agent_name: str = "lokzu") -> dict[str, Any]:
             "email": target_email,
             "error": str(exc),
         }
+
+
+async def read_agent_email(
+    message_id: str,
+    agent_name: str = "lokzu",
+    max_chars: int = 8000,
+) -> dict[str, Any]:
+    """
+    Open one email in full: headers, the complete text, links and the
+    attachment list. Marks it as read.
+    """
+    api_url, api_key, domain = _get_config()
+    target_email = _normalize_address(agent_name, domain)
+    if not message_id:
+        return {"status": "error", "error": "message_id is required (take it from check_agent_inbox)"}
+
+    headers = {"X-API-Key": api_key}
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                f"{api_url}/api/message",
+                params={"to": target_email, "id": message_id},
+                headers=headers,
+            )
+            if resp.status_code != 200:
+                return {
+                    "status": "error",
+                    "code": resp.status_code,
+                    "error": f"Mail worker returned {resp.status_code}: {resp.text}",
+                }
+            m = resp.json()
+    except Exception as exc:
+        log.warning("Failed to read agent email: %s", exc)
+        return {"status": "error", "email": target_email, "error": str(exc)}
+
+    # Records stored before the worker kept whole messages only have `body`.
+    text = (m.get("text") or m.get("body") or "").strip()
+    limit = max(500, int(max_chars or 8000))
+    truncated = len(text) > limit
+    recipients = m.get("recipients") or {}
+    return {
+        "status": "ok",
+        "id": m.get("id"),
+        "from": m.get("from"),
+        "to": [a.get("address") for a in recipients.get("to") or []],
+        "cc": [a.get("address") for a in recipients.get("cc") or []],
+        "reply_to": [a.get("address") for a in recipients.get("reply_to") or []],
+        "date": m.get("date") or m.get("received_at"),
+        "subject": m.get("subject"),
+        "text": text[:limit],
+        "truncated": truncated,
+        "links": m.get("links") or [],
+        "attachments": [
+            {"filename": a.get("filename"), "mime_type": a.get("mime_type"), "size": a.get("size")}
+            for a in m.get("attachments") or []
+        ],
+        "otp_code": m.get("otp_code"),
+        "verification_link": m.get("verification_link"),
+    }
 
 
 async def wait_for_otp_code(
@@ -103,6 +195,10 @@ async def wait_for_otp_code(
     headers = {"X-API-Key": api_key}
     poll_interval = 3
     deadline = asyncio.get_event_loop().time() + max(5, min(max_wait_seconds, 120))
+    # The mail often lands between submitting a form and calling this tool,
+    # so a little before "now" still counts. Older entries belong to some
+    # earlier signup and would hand back a code that no longer works.
+    not_before = datetime.now(timezone.utc) - timedelta(seconds=OTP_FRESHNESS_SECONDS)
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -115,7 +211,7 @@ async def wait_for_otp_code(
                 if resp.status_code == 200:
                     payload = resp.json()
                     otp_data = payload.get("otp")
-                    if otp_data and otp_data.get("code"):
+                    if otp_data and (otp_data.get("code") or otp_data.get("link")) and _is_fresh(otp_data, not_before):
                         # If specific service filter requested, check subject/from
                         if service:
                             needle = service.lower()
@@ -142,7 +238,7 @@ async def wait_for_otp_code(
                 "status": "timeout",
                 "found": False,
                 "email": target_email,
-                "message": f"No verification code arrived within {max_wait_seconds} seconds.",
+                "message": f"No verification code or link arrived within {max_wait_seconds} seconds.",
             }
     except Exception as exc:
         log.warning("Failed while waiting for OTP: %s", exc)
@@ -222,15 +318,35 @@ SCHEMAS: list[dict] = [
         "type": "function",
         "function": {
             "name": "check_agent_inbox",
-            "description": "Перевірити вхідні листи в поштовій скриньці агента, прочитати листи, теми, та розпізнані коди.",
+            "description": "List emails in the agent mailbox, newest first: id, unread, sender, subject, preview, attachments, code/link. Open one with read_agent_email.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "agent_name": {
                         "type": "string",
-                        "description": "Ім'я або адреса скриньки (типово 'lokzu').",
+                        "description": "Mailbox name or address (default 'lokzu').",
+                    },
+                    "unread_only": {"type": "boolean", "description": "Only unread emails."},
+                    "limit": {"type": "integer", "description": "How many (default 10)."},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_agent_email",
+            "description": "Read one email in full: sender, recipients, date, whole text, links, attachment names. Marks it read.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "message_id": {"type": "string", "description": "id from check_agent_inbox."},
+                    "agent_name": {
+                        "type": "string",
+                        "description": "Mailbox name or address (default 'lokzu').",
                     },
                 },
+                "required": ["message_id"],
             },
         },
     },
@@ -288,6 +404,7 @@ SCHEMAS: list[dict] = [
 HANDLERS = {
     "get_agent_email": get_agent_email,
     "check_agent_inbox": check_agent_inbox,
+    "read_agent_email": read_agent_email,
     "wait_for_otp_code": wait_for_otp_code,
     "send_agent_email": send_agent_email,
 }
