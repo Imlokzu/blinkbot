@@ -17,6 +17,10 @@ from __future__ import annotations
 EUR = 1.17
 
 PROVIDERS = {
+    # The bot's own key, and a trial with a DAILY token cap: on 2026-09-29 three
+    # benchmark runs used it up, and the bot lost speech recognition, its image
+    # model and OpenClaw's utility model until the next day. Run Regolo rows
+    # sparingly (--only), never in a loop.
     "regolo": {"base": "https://api.regolo.ai/v1", "key": "REGOLO_ASR_API_KEY", "parallel": 4},
     "cloudflare": {
         "base": "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1",

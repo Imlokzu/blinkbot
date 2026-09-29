@@ -14,6 +14,9 @@ its own agent prompt and tools, which would measure OpenClaw, not the model.
 
 Output: a table on stdout, and bench/results/<time>.{jsonl,md}.
 
+Regolo is the bot's production key on a trial with a daily token cap —
+see the note in models.py before running its rows more than once a day.
+
 OpenClaw rows are opt-in. Every case there is a new gateway session, and
 each session keeps a live MCP runtime; the gateway admits at most 256, and on
 2026-09-29 a run that left ~300 behind made it refuse every new chat. So a
@@ -40,6 +43,9 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from cases import CASES, SYSTEM, TOOLS, clean, grade_answer, grade_call, ukrainian_ok  # noqa: E402
+from cases_v2 import CASES_V2  # noqa: E402
+
+SUITES = {"v1": CASES, "v2": CASES_V2}
 from models import MODELS, PROVIDERS, UNREACHABLE  # noqa: E402
 
 CALL_TIMEOUT_S = 60.0
@@ -152,7 +158,10 @@ async def run_case(host: Host, model: str, case: dict) -> dict:
     tokens = {"in": 0, "out": 0}
     seconds = 0.0
     session = f"bench-{uuid.uuid4().hex[:12]}"
-    row = {"case": case["id"], "tier": case["tier"], "cat": case["cat"]}
+    row = {"case": case["id"], "tier": case["tier"], "cat": case["cat"],
+           # Suite 1 has no weights: its basic cases count 1, the smart ones 2.
+           "difficulty": case.get("difficulty", 1 if case["tier"] == "basic" else 2),
+           "trap": bool(case.get("trap"))}
     try:
         message, usage, spent = await host.chat(model, messages, session)
         seconds += spent
@@ -207,6 +216,26 @@ def _pct(rows, pred=lambda r: True) -> str:
     return f"{100 * sum(r['ok'] for r in chosen) / len(chosen):.0f}" if chosen else "—"
 
 
+SCORING_NOTE = """How the scores are made:
+- IQ: accuracy weighted by difficulty (1 easy, 2 a few steps, 3 a tempting wrong answer), 0–100.
+  ± is a 95% interval from the number of cases; two models closer than that are a tie.
+- Trap: share of trap questions answered right — the "does it think or pattern-match" number.
+- Fast fit: IQ × min(1, 1.5 s / p50) × Ukrainian share. One number for "can the fast tier
+  take this model": full marks need the answer under 1.5 s and in Ukrainian.
+- Value: IQ points per cent per 1000 questions (higher is better); empty when the price is unknown."""
+
+
+def intelligence(rows: list[dict]) -> tuple[float, float]:
+    """(difficulty-weighted accuracy 0–100, ± half-width of a 95% interval)."""
+    weight = sum(r["difficulty"] for r in rows)
+    if not weight:
+        return 0.0, 0.0
+    score = sum(r["difficulty"] for r in rows if r["ok"]) / weight
+    # Normal approximation with the effective sample size of weighted cases.
+    n_eff = weight ** 2 / sum(r["difficulty"] ** 2 for r in rows)
+    return 100 * score, 100 * 1.96 * (score * (1 - score) / n_eff) ** 0.5
+
+
 def summarize(label: str, price, rows: list[dict]) -> dict:
     seconds = sorted(r["seconds"] for r in rows if not r.get("error"))
     spoken = [r for r in rows if r.get("uk") is not None]
@@ -219,8 +248,22 @@ def summarize(label: str, price, rows: list[dict]) -> dict:
         cost = "—"
     else:
         cost = f"{(tin * price[0] + tout * price[1]) / 1e6 / len(rows) * 1000:.3f}"
+    iq, margin = intelligence(rows)
+    uk_share = sum(r["uk"] for r in spoken) / len(spoken) if spoken else 0.0
+    p50 = statistics.median(seconds) if seconds else None
+    fit = iq * min(1.0, 1.5 / p50) * uk_share if p50 else 0.0
+    value = "—"
+    if cost not in ("sub", "—") and float(cost) > 0:
+        value = f"{iq / (float(cost) * 100):.0f}"
+    traps = [r for r in rows if r["trap"]]
     return {
         "model": label,
+        "iq": f"{iq:.0f} ± {margin:.0f}",
+        "_iq": iq,
+        "trap": f"{100 * sum(r['ok'] for r in traps) / len(traps):.0f}" if traps else "—",
+        "reason": _pct(rows, lambda r: r["cat"] in ("quick_reasoning", "reasoning")),
+        "fit": f"{fit:.0f}",
+        "value": value,
         "basic": _pct(rows, lambda r: r["tier"] == "basic"),
         "smart": _pct(rows, lambda r: r["tier"] == "smart"),
         "tools": _pct(rows, lambda r: r["cat"] in ("tool_use", "tool_chain")),
@@ -235,10 +278,11 @@ def summarize(label: str, price, rows: list[dict]) -> dict:
     }
 
 
-COLUMNS = [("model", "Model"), ("basic", "Basic %"), ("smart", "Smart %"), ("tools", "Tools %"),
-           ("facts", "Facts %"), ("check", "Fact-check %"), ("daily", "Everyday %"),
-           ("uk", "Ukrainian %"), ("p50", "p50 s"), ("p90", "p90 s"),
-           ("cost", "$ / 1k questions"), ("errors", "Errors")]
+COLUMNS = [("model", "Model"), ("iq", "IQ"), ("trap", "Trap %"), ("reason", "Reasoning %"),
+           ("basic", "Basic %"), ("tools", "Tools %"), ("facts", "Facts %"),
+           ("check", "Fact-check %"), ("daily", "Everyday %"), ("uk", "Ukrainian %"),
+           ("p50", "p50 s"), ("p90", "p90 s"), ("cost", "$ / 1k"), ("fit", "Fast fit"),
+           ("value", "Value"), ("errors", "Errors")]
 
 
 def table(summaries: list[dict]) -> str:
@@ -252,9 +296,11 @@ async def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--only", default="", help="comma-separated label fragments")
     parser.add_argument("--repeat", type=int, default=1)
+    parser.add_argument("--suite", choices=sorted(SUITES), default="v1")
     parser.add_argument("--openclaw", action="store_true",
                         help="include models served through the OpenClaw gateway")
     options = parser.parse_args()
+    cases = SUITES[options.suite]
 
     env = _load_env()
     hosts = {name: Host(name, env) for name in PROVIDERS}
@@ -278,14 +324,14 @@ async def main() -> None:
             continue
         roster.append((label, host, model, group, price))
 
-    print(f"{len(roster)} models × {len(CASES)} cases × {options.repeat}")
+    print(f"{len(roster)} models × {len(cases)} cases × {options.repeat}")
     for line in skipped:
         print("  skipped —", line)
 
     async def one_model(label, host, model, group, price):
         rows = []
         for _ in range(options.repeat):
-            rows += await asyncio.gather(*(run_case(host, model, c) for c in CASES))
+            rows += await asyncio.gather(*(run_case(host, model, c) for c in cases))
         for row in rows:
             row.update(model=label, group=group)
         summary = summarize(label, price, rows)
@@ -303,17 +349,16 @@ async def main() -> None:
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
     out = HERE / "results"
     out.mkdir(exist_ok=True)
-    with (out / f"{stamp}.jsonl").open("w", encoding="utf-8") as file:
+    with (out / f"{stamp}-{options.suite}.jsonl").open("w", encoding="utf-8") as file:
         for _group, _summary, rows in results:
             for row in rows:
                 file.write(json.dumps(row, ensure_ascii=False) + "\n")
 
     order = {"light": 0, "shortlist": 1, "reference": 2}
-    summaries = [s for _g, s, _r in sorted(
-        results, key=lambda r: (order[r[0]], -float(r[1]["basic"] if r[1]["basic"] != "—" else 0)))]
-    report = [f"# Quick-answer benchmark {stamp}", "",
-              f"{len(CASES)} cases ({sum(c['tier'] == 'basic' for c in CASES)} basic, "
-              f"{sum(c['tier'] == 'smart' for c in CASES)} smart), repeat {options.repeat}.", "",
+    summaries = [s for _g, s, _r in sorted(results, key=lambda r: (order[r[0]], -r[1]["_iq"]))]
+    report = [f"# Quick-answer benchmark {stamp} · suite {options.suite}", "",
+              f"{len(cases)} cases ({sum(c['tier'] == 'basic' for c in cases)} basic, "
+              f"{sum(c['tier'] == 'smart' for c in cases)} smart), repeat {options.repeat}.", "",
               table(summaries), ""]
     if skipped or UNREACHABLE:
         report += ["Skipped:", *(f"- {s}" for s in [*skipped, *UNREACHABLE]), ""]
@@ -323,10 +368,11 @@ async def main() -> None:
         if misses:
             report.append(f"\n**{summary['model']}**")
             report += [f"- `{r['case']}` — {r['why']} — «{r['reply'][:90]}»" for r in misses]
-    (out / f"{stamp}.md").write_text("\n".join(report) + "\n", encoding="utf-8")
+    report += ["", SCORING_NOTE]
+    (out / f"{stamp}-{options.suite}.md").write_text("\n".join(report) + "\n", encoding="utf-8")
     print()
     print(table(summaries))
-    print(f"\nreport: bench/results/{stamp}.md")
+    print(f"\nreport: bench/results/{stamp}-{options.suite}.md")
 
 
 if __name__ == "__main__":
