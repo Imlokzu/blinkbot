@@ -78,8 +78,10 @@ TOOLS = [
     {
         "name": "workspace_write",
         "description": (
-            "Створити або перезаписати файл у робочій теці (теки створюються самі). "
-            "Префікс 'session/' — тека поточної розмови, 'games/' — ігри, 'notes/' — нотатки."
+            "Create or overwrite a file in the workspace (folders are created as needed). "
+            "Prefixes: 'session/' is this conversation's folder, 'games/' games, 'notes/' notes. "
+            "Diagrams: write Mermaid to a .mmd file — the chat's workbench draws it as a "
+            "hand-drawn Excalidraw sketch. Every file written here opens there, beside the chat."
         ),
         "inputSchema": {
             "type": "object",

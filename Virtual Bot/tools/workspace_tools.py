@@ -133,8 +133,10 @@ SCHEMAS: list[dict] = [
         "function": {
             "name": "workspace_write",
             "description": (
-                "Створити або перезаписати файл у робочій теці. Теки створюються самі. "
-                "Префікс 'session/' — тека поточної розмови."
+                "Create or overwrite a file in the workspace; folders are created as needed. "
+                "The 'session/' prefix is this conversation's folder. "
+                "Diagrams: write Mermaid to a .mmd file — the chat's workbench draws it as a "
+                "hand-drawn Excalidraw sketch. Every file written here opens there, beside the chat."
             ),
             "parameters": {
                 "type": "object",
