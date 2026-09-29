@@ -1,7 +1,7 @@
 # «Клод Бот» — Virtual Bot: конфіг бекенду.
-# УВАГА: тут НЕМАЄ секретів і не повинно бути.
-# Токен OpenClaw: env OPENCLAW_TOKEN (пріоритет) або файл voice_loop_config нижче.
-# Ключ Anthropic: тільки env ANTHROPIC_API_KEY.
+# NOTE: this file holds NO secrets and must never hold any. Every key comes
+# from the environment (.env, see .env.example); the OpenClaw token of a
+# local gateway is read from OpenClaw's own config.
 
 server:
   host: 127.0.0.1
@@ -246,8 +246,7 @@ openclaw:
   agent: openclaw/default
   # The image model and the gateway token are not set here: both belong to
   # OpenClaw (agents.defaults.imageModel, gateway.auth.token) and are read
-  # from its config. The fallback below only matters for a remote gateway.
-  voice_loop_config: "../Voice Loop/config.yaml"
+  # from its config. A remote gateway takes the token from env OPENCLAW_TOKEN.
   timeout_s: 45
 
 # Jev: the "auto" entry in the brain picker. Each chat turn goes to one of

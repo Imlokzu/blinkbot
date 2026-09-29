@@ -1,12 +1,12 @@
 """
 «Клод Бот» — Virtual Bot: завантаження конфігурації.
 
-Читає config.yaml (без секретів) і окремо дістає секрети:
+Reads config.yaml (which holds no secrets) and fetches secrets separately:
 - OpenClaw gateway token: from OpenClaw's own config when the gateway is
-  local, otherwise env OPENCLAW_TOKEN or "Voice Loop/config.yaml";
-- ключ Anthropic: тільки env ANTHROPIC_API_KEY.
+  local, otherwise env OPENCLAW_TOKEN;
+- every API key: from the environment, which .env files fill in below.
 
-Секрети НІКОЛИ не потрапляють у відповіді API і в статику.
+Secrets NEVER reach API responses or static files.
 """
 
 from __future__ import annotations
@@ -417,7 +417,8 @@ def get_openclaw_token() -> str | None:
     When the gateway runs on this machine, its own config is the only source:
     a copy in .env went stale the first time OpenClaw rotated the token, and
     the bot then failed with 401 while the panel said the key was set. The
-    env var and the Voice Loop config remain for a gateway on another host.
+    env var remains for a gateway on another host. There is no file
+    fallback: the old one read "Voice Loop/config.yaml", which is tracked.
     """
     host = (urlparse(OPENCLAW_BASE_URL).hostname or "").lower()
     if host in {"127.0.0.1", "localhost", "::1"}:
@@ -426,14 +427,7 @@ def get_openclaw_token() -> str | None:
             return token
 
     env_token = os.environ.get("OPENCLAW_TOKEN", "").strip()
-    if env_token:
-        return env_token
-
-    voice_cfg_path = resolve_path("openclaw", "voice_loop_config", default="../Voice Loop/config.yaml")
-    voice_cfg = _load_yaml(voice_cfg_path)
-    token = voice_cfg.get("openclaw", {}) if isinstance(voice_cfg.get("openclaw"), dict) else {}
-    value = str(token.get("token", "")).strip()
-    return value or None
+    return env_token or None
 
 
 def get_omni_key() -> str | None:
