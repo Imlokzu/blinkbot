@@ -754,10 +754,12 @@ def _openclaw_note_success() -> None:
 _last_jev_model: str = ""
 
 
-def _note_jev_route(tier: str, model: str) -> None:
+def _note_jev_route(tier: str, model: str, source: str = "", ms: float | None = None) -> None:
     global _last_jev_model
     _last_jev_model = model
-    log.info("Jev: %s tier -> %s", tier, model)
+    log.info("Jev: %s tier -> %s (%s)", tier, model, source or "keywords")
+    # The console shows who routed the turn and what it cost in time.
+    trace_log.step("brain", "jev", "ok", f"{tier} → {model} ({source or 'keywords'})", ms)
 
 
 def _image_headers() -> dict[str, str]:
@@ -800,10 +802,11 @@ async def chat_openclaw(
     if images:
         model_headers, sent_message = _image_headers(), message
     else:
-        model_headers, sent_message, tier = openclaw_models.chat_route(message)
+        started = time.perf_counter()
+        model_headers, sent_message, tier, source = await openclaw_models.chat_route(message)
         if tier:
             routed_model = model_headers.get("x-openclaw-model", "")
-            _note_jev_route(tier, routed_model)
+            _note_jev_route(tier, routed_model, source, _elapsed_ms(started))
     messages = _build_messages(system_prompt, request_history, sent_message, images)
     payload = {
         "model": cfg.OPENCLAW_AGENT,

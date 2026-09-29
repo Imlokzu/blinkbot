@@ -267,6 +267,12 @@ JEV_FAST_MODEL: str = cfg_str("jev", "fast", default="regolo/gpt-oss-20b")
 JEV_SMART_MODEL: str = cfg_str("jev", "smart", default="openai/gpt-6-luna")
 JEV_BUILD_MODEL: str = cfg_str("jev", "build", default="openai/gpt-6-sol")
 JEV_FAST_THINKING: str = cfg_str("jev", "fast_thinking", default="low")
+# The real Jev (TypeSafe AI's System One model) picks the tier; the keyword
+# rules only answer when it has no key, fails, or is unsure.
+JEV_API_URL: str = cfg_str("jev", "api_url", default="https://api.typesafe.ai/v1/systemone")
+JEV_API_MODEL: str = cfg_str("jev", "api_model", default="jev-1.13.0")
+JEV_API_TIMEOUT_S: float = cfg_float("jev", "api_timeout_s", default=1.5)
+JEV_MIN_CONFIDENCE: float = cfg_float("jev", "min_confidence", default=0.5)
 # Whether the owner picked Jev survives a restart here (git-ignored).
 JEV_STATE_FILE = Path(os.environ.get("VBOT_JEV_STATE_FILE") or BASE_DIR / "user_data" / "jev.json")
 # Чат: два різні таймаути OpenClaw плюс бекоф-запобіжник після невдачі.
@@ -454,6 +460,12 @@ def get_chat2api_key() -> str | None:
     Chat2API авторизації не вимагає). Значення — секрет, не логувати!
     """
     key = os.environ.get("CHAT2API_API_KEY", "").strip()
+    return key or None
+
+
+def get_typesafe_key() -> str | None:
+    """TypeSafe key for the real Jev router, only from env TYPESAFE_API_KEY (.env). A secret."""
+    key = os.environ.get("TYPESAFE_API_KEY", "").strip()
     return key or None
 
 

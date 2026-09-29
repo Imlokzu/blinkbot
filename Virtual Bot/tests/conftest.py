@@ -27,6 +27,11 @@ os.environ.setdefault(
     str(Path(tempfile.mkdtemp(prefix="virtual-bot-jev-")) / "jev.json"),
 )
 
+# The real Jev router is a paid remote call. An empty variable beats the
+# owner's .env (it is loaded with setdefault), so no test ever reaches it;
+# the tests that exercise the API patch a key and a mock transport in.
+os.environ["TYPESAFE_API_KEY"] = ""
+
 # Integrations keep their tokens under runtime/integrations/. Point them at an
 # empty folder so a test run never starts a Telegram/Discord poller with the
 # owner's real token (it would steal their bot's updates).

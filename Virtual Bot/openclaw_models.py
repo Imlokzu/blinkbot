@@ -325,18 +325,18 @@ def chat_headers() -> dict[str, str]:
     return {"x-openclaw-model": _selected}
 
 
-def chat_route(message: str) -> tuple[dict[str, str], str, str]:
+async def chat_route(message: str) -> tuple[dict[str, str], str, str, str]:
     """
-    (headers, message to send, tier) for one text turn.
+    (headers, message to send, tier, who decided) for one text turn.
 
     With a fixed pick this is chat_headers() and the message as typed, with
     no tier. With Jev the model is chosen for this message alone, and the
     fast tier may carry a one-message thinking directive.
     """
     if not is_auto():
-        return chat_headers(), message, ""
-    tier, model, text = jev_router.route(message)
-    return {"x-openclaw-model": model}, text, tier
+        return chat_headers(), message, "", ""
+    tier, model, text, source = await jev_router.route(message)
+    return {"x-openclaw-model": model}, text, tier, source
 
 
 def _thinking_from_config() -> str:

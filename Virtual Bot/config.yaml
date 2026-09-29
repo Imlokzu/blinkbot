@@ -260,6 +260,14 @@ jev:
   build: openai/gpt-6-sol
   # One-message thinking level for the fast tier; empty keeps the global one.
   fast_thinking: low
+  # The real Jev (TypeSafe AI) decides the tier when TYPESAFE_API_KEY is in
+  # .env. No key, an error, a timeout or a guess below min_confidence falls
+  # back to the keyword rules, so the chat never waits on it for long.
+  api_url: https://api.typesafe.ai/v1/systemone
+  # Pinned, as TypeSafe advises: "jev-latest" can change routing overnight.
+  api_model: jev-1.13.0
+  api_timeout_s: 1.5
+  min_confidence: 0.5
 
 # Чат: захист від «повільно вмираючих» мозків Omni/OpenClaw (див. brains.py).
 chat:

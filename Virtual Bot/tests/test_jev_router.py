@@ -7,6 +7,7 @@ import json
 import unittest
 from unittest.mock import AsyncMock, patch
 
+import httpx
 from fastapi.testclient import TestClient
 
 import app_config as cfg
@@ -73,18 +74,23 @@ class ClassifyTests(unittest.TestCase):
         self.assertEqual(jev_router.classify(text), "smart")
 
     def test_building_beats_a_quick_word(self) -> None:
-        """«Зроби віджет погоди» — це робота, а не питання про погоду."""
+        """"Make a weather widget" is work, not a question about the weather."""
         self.assertEqual(jev_router.classify("зроби віджет погоди"), "build")
+
+
+def _route(message: str):
+    return asyncio.run(jev_router.route(message))
 
 
 class RouteTests(unittest.TestCase):
     def test_fast_tier_thinks_low_for_this_message_only(self) -> None:
-        tier, model, text = jev_router.route("Котра година?")
+        tier, model, text, source = _route("Котра година?")
+        self.assertEqual(source, "keywords")
         self.assertEqual((tier, model), ("fast", cfg.JEV_FAST_MODEL))
         self.assertEqual(text, f"/think:{cfg.JEV_FAST_THINKING} Котра година?")
 
     def test_own_directive_is_kept(self) -> None:
-        _tier, _model, text = jev_router.route("/think:high котра година")
+        _tier, _model, text, _source = _route("/think:high котра година")
         self.assertEqual(text, "/think:high котра година")
 
     def test_other_tiers_send_the_message_as_typed(self) -> None:
@@ -93,8 +99,105 @@ class RouteTests(unittest.TestCase):
             ("Зроби сайт-портфоліо", cfg.JEV_BUILD_MODEL),
         ):
             with self.subTest(message=message):
-                _tier, routed, text = jev_router.route(message)
+                _tier, routed, text, _source = _route(message)
                 self.assertEqual((routed, text), (model, message))
+
+
+def _jev_reply(tier: str, confidence: float) -> dict:
+    return {
+        "model": "jev-1.13.0",
+        "answers": {"tier": {"type": "choice", "choice": tier, "confidence": confidence,
+                             "probabilities": {tier: confidence}}},
+        "usage": {"input_tokens": 180, "output_tokens": 4},
+    }
+
+
+class RealJevTests(unittest.TestCase):
+    """The TypeSafe call, over a mock transport: shape, fallback, secrecy."""
+
+    def _decide(self, message: str, handler, key: str = "ts-test-key"):
+        seen = []
+
+        def record(request: httpx.Request) -> httpx.Response:
+            seen.append(request)
+            return handler(request)
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(record))
+        with (
+            patch.object(cfg, "get_typesafe_key", return_value=key or None),
+            patch.object(jev_router, "_http", return_value=client),
+        ):
+            result = asyncio.run(jev_router.decide(message))
+        return result, seen
+
+    def test_jev_decides_when_it_is_sure(self) -> None:
+        """The keyword rules miss "should I take an umbrella"; Jev does not."""
+        result, seen = self._decide(
+            "Глянь, чи мені сьогодні брати парасольку",
+            lambda request: httpx.Response(200, json=_jev_reply("fast", 0.93)),
+        )
+        self.assertEqual(result, ("fast", "jev 0.93"))
+        body = json.loads(seen[0].content)
+        self.assertEqual(str(seen[0].url), cfg.JEV_API_URL)
+        self.assertEqual(seen[0].headers["authorization"], "Bearer ts-test-key")
+        self.assertEqual(body["model"], cfg.JEV_API_MODEL)
+        self.assertEqual(body["state"], "Глянь, чи мені сьогодні брати парасольку")
+        self.assertEqual(body["questions"]["tier"]["type"], "choice")
+        self.assertEqual(set(body["questions"]["tier"]["criteria"]), set(jev_router.TIERS))
+
+    def test_unsure_answer_falls_back_to_keywords(self) -> None:
+        result, _seen = self._decide(
+            "Зроби мені сайт",
+            lambda request: httpx.Response(200, json=_jev_reply("smart", 0.2)),
+        )
+        self.assertEqual(result, ("build", "keywords"))
+
+    def test_errors_fall_back_to_keywords(self) -> None:
+        def boom(request):
+            raise httpx.ConnectError("down")
+
+        cases = {
+            "server error": lambda request: httpx.Response(500, json={"error": "x"}),
+            "rate limited": lambda request: httpx.Response(429),
+            "not json": lambda request: httpx.Response(200, text="<html>"),
+            "odd shape": lambda request: httpx.Response(200, json={"answers": {}}),
+            "unknown tier": lambda request: httpx.Response(200, json=_jev_reply("other", 0.99)),
+            "network": boom,
+        }
+        for name, handler in cases.items():
+            with self.subTest(name):
+                result, _seen = self._decide("Котра година?", handler)
+                self.assertEqual(result, ("fast", "keywords"))
+
+    def test_slow_jev_does_not_hold_the_chat(self) -> None:
+        async def slow(request):
+            await asyncio.sleep(5)
+            return httpx.Response(200, json=_jev_reply("smart", 0.99))
+
+        client = httpx.AsyncClient(transport=httpx.MockTransport(slow))
+        with (
+            patch.object(cfg, "get_typesafe_key", return_value="ts-test-key"),
+            patch.object(cfg, "JEV_API_TIMEOUT_S", 0.2),
+            patch.object(jev_router, "_http", return_value=client),
+        ):
+            result = asyncio.run(jev_router.decide("Котра година?"))
+        self.assertEqual(result, ("fast", "keywords"))
+
+    def test_no_key_means_no_call(self) -> None:
+        result, seen = self._decide("Котра година?", lambda request: httpx.Response(500), key="")
+        self.assertEqual(result, ("fast", "keywords"))
+        self.assertEqual(seen, [])
+
+    def test_the_key_never_reaches_the_log(self) -> None:
+        with self.assertLogs("virtual_bot.jev", level="WARNING") as logs:
+            self._decide("Котра година?", lambda request: httpx.Response(401, text="bad ts-test-key"))
+        self.assertNotIn("ts-test-key", "\n".join(logs.output))
+
+    def test_a_pasted_article_is_trimmed(self) -> None:
+        _result, seen = self._decide(
+            "а" * 10_000, lambda request: httpx.Response(200, json=_jev_reply("smart", 0.9)),
+        )
+        self.assertEqual(len(json.loads(seen[0].content)["state"]), 2000)
 
 
 class SelectionTests(unittest.TestCase):
@@ -108,15 +211,15 @@ class SelectionTests(unittest.TestCase):
         openclaw_models.set_selected(jev_router.JEV_ID)
         self.assertEqual(openclaw_models.get_selected(), jev_router.JEV_ID)
         self.assertEqual(openclaw_models.chat_headers(), {})
-        headers, _text, tier = openclaw_models.chat_route("Зроби гру")
+        headers, _text, tier, _source = asyncio.run(openclaw_models.chat_route("Зроби гру"))
         self.assertEqual(tier, "build")
         self.assertEqual(headers, {"x-openclaw-model": cfg.JEV_BUILD_MODEL})
 
     def test_fixed_pick_is_untouched(self) -> None:
         openclaw_models.set_selected("openai/gpt-6-sol")
         self.assertEqual(
-            openclaw_models.chat_route("Котра година?"),
-            ({"x-openclaw-model": "openai/gpt-6-sol"}, "Котра година?", ""),
+            asyncio.run(openclaw_models.chat_route("Котра година?")),
+            ({"x-openclaw-model": "openai/gpt-6-sol"}, "Котра година?", "", ""),
         )
 
     def test_real_model_turns_jev_off(self) -> None:
