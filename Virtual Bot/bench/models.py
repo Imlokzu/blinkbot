@@ -72,6 +72,9 @@ MODELS = [
     ("GPT-OSS 20B · OpenClaw", "openclaw", "regolo/gpt-oss-20b", "reference", (0.10 * EUR, 0.42 * EUR)),
     ("Qwen3.8 27B", "regolo", "qwen3.8-27b", "reference", (0.50 * EUR, 2.10 * EUR)),
     ("GLM 5.2", "regolo", "glm5.2", "reference", None),
+    # The same Qwen3.8 on Cloudflare, so it can be set against Qwen3 30B-A3B
+    # on one host (and run while Regolo's daily cap is spent).
+    ("Qwen3.8 27B · CF", "cloudflare", "@cf/qwen/qwen3.8-27b", "reference", (0.45, 3.20)),
 ]
 
 # Asked for and not reachable with the keys on this machine (2026-09-29).
