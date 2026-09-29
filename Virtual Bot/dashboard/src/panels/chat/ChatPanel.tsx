@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AssistantRuntimeProvider } from '@assistant-ui/react';
 import { createPortal } from 'react-dom';
-import { List, Plus, X } from 'lucide-react';
+import { List, PanelRight, Plus, X } from 'lucide-react';
 import { Thread } from './Thread';
 import { Composer } from './Composer';
 import { SessionList } from './SessionList';
 import { PinnedPanels } from './PinnedPanels';
+import { Workbench, type WorkbenchFocus } from './Workbench';
+import { collectFiles, workbenchHost } from './workFiles';
 import { ModelMenu } from './ModelMenu';
 import { SelectionActions } from './SelectionActions';
 import { useChatRuntime } from './useChatRuntime';
@@ -13,11 +15,13 @@ import { useLiquidGlass } from './useLiquidGlass';
 import { useIsDesk, useIsPhone } from '@/hooks/useMediaQuery';
 import { useDrawer } from '@/hooks/useDrawer';
 import { useRouteParam } from '@/app/useRoute';
+import { useBotEvents } from '@/hooks/useBotEvents';
 import { useQuery } from '@tanstack/react-query';
 import { get } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent } from '@/components/ui/Dialog';
 import { t as workspaceT } from '@/locales/workspace';
+import { t as benchT } from '@/locales/workbench';
 import { t } from '@/lib/i18n';
 
 /*
@@ -46,6 +50,50 @@ function ProjectChip({ name }: { name: string }) {
   );
 }
 
+const BENCH_KEY = 'claudeBotWorkbench';
+const BENCH_WIDTH_KEY = 'claudeBotWorkbenchWidth';
+
+function readStored(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function store(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch { /* The choice just will not survive a reload. */ }
+}
+
+/*
+ * The workbench column's width, dragged by its left edge. The chat keeps at
+ * least a readable measure: below ~420 px a reply wraps every few words.
+ */
+function useBenchWidth() {
+  const [width, setWidth] = useState(() => Number(readStored(BENCH_WIDTH_KEY)) || 560);
+  const clamp = (value: number) => Math.round(Math.min(Math.max(value, 360), window.innerWidth - 220 - 420));
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const handle = event.currentTarget;
+    handle.setPointerCapture(event.pointerId);
+    const startX = event.clientX;
+    const startWidth = width;
+    let next = startWidth;
+    const move = (e: PointerEvent) => { next = clamp(startWidth + startX - e.clientX); setWidth(next); };
+    const up = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', up);
+      handle.removeEventListener('pointercancel', up);
+      store(BENCH_WIDTH_KEY, String(next));
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+    handle.addEventListener('pointercancel', up);
+  };
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = event.key === 'ArrowLeft' ? 32 : event.key === 'ArrowRight' ? -32 : 0;
+    if (!step) return;
+    event.preventDefault();
+    setWidth((value) => { const next = clamp(value + step); store(BENCH_WIDTH_KEY, String(next)); return next; });
+  };
+  return { width, onPointerDown, onKeyDown };
+}
+
 export default function ChatPanel() {
   const isPhone = useIsPhone();
   const isDesk = useIsDesk();
@@ -54,6 +102,38 @@ export default function ChatPanel() {
   useLiquidGlass(glassRoot);
   const listDrawer = useDrawer();
   const [panelsOpen, setPanelsOpen] = useState(false);
+
+  /*
+   * The workbench. On the desk it takes the right column's place; narrower,
+   * it is a full sheet. It opens by itself the first time a reply writes a
+   * file — unless it was closed during that same reply: closing is an answer.
+   */
+  const [bench, setBenchState] = useState(() => readStored(BENCH_KEY) === 'open');
+  const setBench = (open: boolean) => { setBenchState(open); store(BENCH_KEY, open ? 'open' : 'closed'); };
+  // Narrow layouts: a sheet opened on request, never restored on load.
+  const [benchSheet, setBenchSheet] = useState(false);
+  const [benchFocus, setBenchFocus] = useState<WorkbenchFocus | null>(null);
+  const benchWidth = useBenchWidth();
+  const closedThisTurn = useRef(false);
+  const draft = chat.messages[chat.messages.length - 1];
+  const liveFiles = draft?.id === 'draft' ? collectFiles([draft]).length : 0;
+  useEffect(() => { if (chat.running) closedThisTurn.current = false; }, [chat.running]);
+  useEffect(() => {
+    if (liveFiles > 0 && isDesk && !closedThisTurn.current) setBench(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveFiles, isDesk]);
+  const closeBench = () => { closedThisTurn.current = true; setBench(false); };
+
+  // While the chat is on screen, "show me the file" lands in the workbench
+  // instead of the floating preview dock.
+  useEffect(() => workbenchHost.claim(), []);
+  useBotEvents((event) => {
+    if (event.type !== 'preview' || !event.path) return;
+    setBenchFocus((old) => ({ path: String(event.path), nonce: (old?.nonce ?? 0) + 1 }));
+    if (isDesk) setBench(true);
+    else setBenchSheet(true);
+  });
+  const benchFiles = useMemo(() => collectFiles(chat.messages).length, [chat.messages]);
 
   useEffect(() => {
     window.__vbotSendMessage = (text: string) => {
@@ -149,7 +229,7 @@ export default function ChatPanel() {
            * was a 64 px ornament competing with the model name.
            */}
           {!isDesk ? (
-            <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 border-b border-line px-2 py-1.5">
+            <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1 border-b border-line px-2 py-1.5">
               <Button
                 variant="ghost"
                 size="icon"
@@ -162,6 +242,17 @@ export default function ChatPanel() {
               <div className="flex min-w-0 justify-center">
                 <ModelMenu />
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={benchT('wb.open')}
+                aria-expanded={benchSheet}
+                className="relative"
+                onClick={() => setBenchSheet(true)}
+              >
+                <PanelRight />
+                {benchFiles ? <span className="wb-badge" aria-hidden="true">{benchFiles}</span> : null}
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -212,7 +303,30 @@ export default function ChatPanel() {
                   <PinnedPanels embedded messages={chat.messages} sessionId={chat.sessionId} />
                 </DialogContent>
               </Dialog>
+              <Dialog open={benchSheet} onOpenChange={setBenchSheet}>
+                <DialogContent
+                  title={benchT('wb.title')}
+                  side={isPhone ? 'bottom' : 'center'}
+                  className="h-[min(92dvh,900px)] p-0 sm:max-w-[min(960px,calc(100vw-32px))]"
+                  bodyClassName="p-0 sm:p-0"
+                >
+                  <Workbench embedded messages={chat.messages} sessionId={chat.sessionId} focus={benchFocus} onClose={() => setBenchSheet(false)} />
+                </DialogContent>
+              </Dialog>
             </div>
+          ) : null}
+
+          {isDesk && !bench ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={benchT('wb.open')}
+              className="wb-toggle absolute right-3 top-3 z-10"
+              onClick={() => setBench(true)}
+            >
+              <PanelRight />
+              {benchFiles ? <span className="wb-badge" aria-hidden="true">{benchFiles}</span> : null}
+            </Button>
           ) : null}
 
           <Thread
@@ -238,7 +352,20 @@ export default function ChatPanel() {
           />
         </div>
 
-        {isDesk ? (
+        {isDesk && bench ? (
+          <div className="relative flex min-h-0 shrink-0 border-l border-line" style={{ width: benchWidth.width }}>
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label={benchT('wb.resize')}
+              tabIndex={0}
+              className="wb-resize"
+              onPointerDown={benchWidth.onPointerDown}
+              onKeyDown={benchWidth.onKeyDown}
+            />
+            <Workbench messages={chat.messages} sessionId={chat.sessionId} focus={benchFocus} onClose={closeBench} />
+          </div>
+        ) : isDesk ? (
           <PinnedPanels messages={chat.messages} sessionId={chat.sessionId} />
         ) : null}
 

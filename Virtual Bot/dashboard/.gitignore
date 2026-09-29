@@ -1,0 +1,2 @@
+# Copied from node_modules by scripts/copy-excalidraw-fonts.mjs on every build.
+public/excalidraw/

@@ -528,3 +528,38 @@ a { color: var(--c-accent); text-decoration-thickness: 1px; text-underline-offse
   .chat-typing-out .chat-dot:nth-child(1),
   .chat-typing-out .chat-dot:nth-child(3) { animation: none; }
 }
+
+/* ---------------------------------------------------------------- workbench */
+/* The chat's right column that shows what the bot is making (Workbench.tsx). */
+.wb-resize {
+  position: absolute; inset-block: 0; left: -4px; z-index: 5;
+  width: 8px; cursor: col-resize; touch-action: none; outline: none;
+}
+.wb-resize::after {
+  content: ''; position: absolute; inset-block: 0; left: 3px; width: 2px;
+  background: var(--c-accent); opacity: 0; transition: opacity 160ms var(--e-out);
+}
+.wb-resize:hover::after, .wb-resize:focus-visible::after, .wb-resize:active::after { opacity: 0.6; }
+.wb-badge {
+  position: absolute; top: 2px; right: 2px; min-width: 15px; height: 15px; padding: 0 4px;
+  border-radius: 999px; background: var(--c-accent); color: var(--c-accent-ink);
+  font: 500 9.5px/15px var(--font-mono); text-align: center; pointer-events: none;
+}
+.wb-toggle { background: var(--c-surface); border: 1px solid var(--c-border); }
+.wb-tabs { scrollbar-width: none; }
+.wb-tabs::-webkit-scrollbar { display: none; }
+.wb-live-dot { animation: wb-breathe 1.4s var(--e-out) infinite alternate; }
+@keyframes wb-breathe { from { opacity: 1; } to { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .wb-live-dot { animation: none; } }
+/* Excalidraw needs a sized box; it fills whatever it is given. */
+.wb-drawing .excalidraw { --ui-font: var(--font-sans); }
+.wb-drawing-action {
+  height: 28px; padding: 0 10px; border-radius: 6px; font: 500 12px/26px var(--font-sans);
+  border: 1px solid var(--c-border); background: var(--c-surface); color: var(--c-text-2);
+}
+/* Above Excalidraw's own bottom bar, out of the way of the undo buttons. */
+.wb-drawing-state {
+  position: absolute; right: 12px; bottom: 64px; z-index: 3; pointer-events: none;
+  font: 400 11px/1 var(--font-mono); color: var(--c-text-3);
+}
+.wb-drawing-action:hover { color: var(--c-text); background: var(--c-surface-2); }

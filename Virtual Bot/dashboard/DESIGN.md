@@ -234,3 +234,32 @@ scrolling past all of it.
   the raw transcript and OpenAI's published price list.
 - Quota bars use the state scale (`ok` / `warn` / `err` at 70% and 90%), not
   the accent: a limit running out is a state, not emphasis (rule 3).
+
+## Workbench (2026-09-29)
+
+Chat on the left, what the bot is making on the right — the owner's ask.
+
+- **Where the files come from:** the tool steps already saved with every
+  reply (`workspace_write` / `workspace_show` / `workspace_delete`, from the
+  local brain or as `workspace__…` through OpenClaw's MCP). No store of its
+  own, so it survives reloads and works on old chats. Failed writes never
+  become a tab. The logic is `src/panels/chat/workFiles.ts` with its test.
+- **Desk:** the column replaces the pins column, is dragged wider by its left
+  edge (`localStorage.claudeBotWorkbenchWidth`), and opens by itself the first
+  time a reply writes a file — unless it was closed during that reply.
+  Open/closed persists in `claudeBotWorkbench`. Narrower: a sheet from the
+  header button, never restored on load.
+- **Follows the bot:** the newest write comes forward; a new revision of a
+  file reloads its preview. `workspace_show` lands here instead of the
+  floating preview dock while the chat is on screen.
+- **Views:** HTML in a sandboxed iframe (scripts, no same-origin), images,
+  Markdown through the memory panel's Tiptap view, code in CodeMirror with
+  Save, and drawings in **Excalidraw** — `.excalidraw` files (the full format
+  or the short skeleton a model can write) autosave on real edits only, and
+  `.mmd` Mermaid is drawn as an Excalidraw sketch with "save as a drawing".
+- **Weight:** Excalidraw and Mermaid are ~7 MB of lazy chunks in
+  `assets/drawing/`, kept out of the PWA precache and cached on first use.
+  Fonts are ours (`scripts/copy-excalidraw-fonts.mjs`, no CDN), minus the
+  12 MB CJK font.
+- Strings: `src/locales/workbench.ts`. Browser check:
+  `tests/workbench.browser.mjs` (route fixtures only).

@@ -6,8 +6,8 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "test:browser": "node tests/workspace.browser.mjs",
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node scripts/copy-excalidraw-fonts.mjs && vite",
+    "build": "node scripts/copy-excalidraw-fonts.mjs && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
@@ -23,6 +23,8 @@
     "@codemirror/lang-python": "^6.2.1",
     "@codemirror/state": "^6.7.5",
     "@codemirror/view": "^6.43.12",
+    "@excalidraw/excalidraw": "0.18.1",
+    "@excalidraw/mermaid-to-excalidraw": "2.2.2",
     "@fontsource-variable/ibm-plex-sans": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@radix-ui/react-dialog": "^1.1.23",

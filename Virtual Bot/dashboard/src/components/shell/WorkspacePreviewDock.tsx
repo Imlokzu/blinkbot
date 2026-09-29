@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/Toaster';
 import { useBotEvents } from '@/hooks/useBotEvents';
 import { get, post } from '@/lib/api';
 import { t } from '@/lib/i18n';
+import { workbenchHost } from '@/panels/chat/workFiles';
 
 interface FileData {
   path: string;
@@ -36,7 +37,8 @@ export function WorkspacePreviewDock() {
   const toast = useToast();
 
   useBotEvents((event) => {
-    if (event.type !== 'preview') return;
+    // The chat's workbench shows it instead, in a real column.
+    if (event.type !== 'preview' || workbenchHost.active) return;
     const next = String(event.path || '').trim();
     if (!next) return;
     setPath(next);
