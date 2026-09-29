@@ -34,6 +34,7 @@ import time
 from pathlib import Path
 
 import app_config as cfg
+import jev_router
 import openclaw_config
 
 log = logging.getLogger("virtual_bot.openclaw_models")
@@ -65,6 +66,9 @@ _catalog: list[dict] | None = None
 _catalog_at: float = 0.0
 _refreshing = False
 _selected: str = ""
+# None until the first read: the saved Jev choice is loaded lazily, so a
+# test that patches the state file never sees the owner's real one.
+_auto: bool | None = None
 _lock = asyncio.Lock()
 
 
@@ -265,9 +269,33 @@ def default_model(models: list[dict]) -> str:
     return ""
 
 
+def _read_auto() -> bool:
+    try:
+        data = json.loads(cfg.JEV_STATE_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return isinstance(data, dict) and data.get("selected") is True
+
+
+def _write_auto(value: bool) -> None:
+    try:
+        cfg.JEV_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        cfg.JEV_STATE_FILE.write_text(json.dumps({"selected": value}), encoding="utf-8")
+    except OSError:
+        log.warning("could not store the Jev choice")
+
+
+def is_auto() -> bool:
+    """Whether Jev picks the model per message instead of one fixed model."""
+    global _auto
+    if _auto is None:
+        _auto = _read_auto()
+    return _auto
+
+
 def get_selected() -> str:
     """Наш перекрив моделі; порожньо — лишаємо типову модель OpenClaw."""
-    return _selected
+    return jev_router.JEV_ID if is_auto() else _selected
 
 
 def set_selected(model: str) -> bool:
@@ -275,15 +303,40 @@ def set_selected(model: str) -> bool:
     Ставить перекрив моделі. Перевірку за каталогом робить викликач: тут
     немає async-контексту, а мовчазно ковтати невідомий рядок не можна —
     він поїхав би заголовком і кожна репліка падала б з 400.
+
+    Jev is a choice of this process, never OpenClaw's config: the gateway
+    has no model by that name. Picking a real model turns Jev off.
     """
-    global _selected
-    _selected = (model or "").strip()
+    global _selected, _auto
+    model = (model or "").strip()
+    auto = model == jev_router.JEV_ID
+    if auto != is_auto():
+        _auto = auto
+        _write_auto(auto)
+    if not auto:
+        _selected = model
     return True
 
 
 def chat_headers() -> dict[str, str]:
-    """Заголовки перекриву для /v1/chat/completions."""
-    return {"x-openclaw-model": _selected} if _selected else {}
+    """Заголовки перекриву для /v1/chat/completions (a fixed pick only)."""
+    if is_auto() or not _selected:
+        return {}
+    return {"x-openclaw-model": _selected}
+
+
+def chat_route(message: str) -> tuple[dict[str, str], str, str]:
+    """
+    (headers, message to send, tier) for one text turn.
+
+    With a fixed pick this is chat_headers() and the message as typed, with
+    no tier. With Jev the model is chosen for this message alone, and the
+    fast tier may carry a one-message thinking directive.
+    """
+    if not is_auto():
+        return chat_headers(), message, ""
+    tier, model, text = jev_router.route(message)
+    return {"x-openclaw-model": model}, text, tier
 
 
 def _thinking_from_config() -> str:

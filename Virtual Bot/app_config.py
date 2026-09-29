@@ -260,6 +260,15 @@ OPENCLAW_AGENT: str = cfg_str("openclaw", "agent", default="openclaw/default")
 # The image model is not configured here: it is OpenClaw's
 # agents.defaults.imageModel, read per request (openclaw_config.image_model).
 OPENCLAW_TIMEOUT_S: float = cfg_float("openclaw", "timeout_s", default=45)
+
+# Jev, the automatic pick (jev_router.py): which OpenClaw model answers each
+# kind of message, and the one-message thinking level of the fast tier.
+JEV_FAST_MODEL: str = cfg_str("jev", "fast", default="regolo/gpt-oss-20b")
+JEV_SMART_MODEL: str = cfg_str("jev", "smart", default="openai/gpt-6-luna")
+JEV_BUILD_MODEL: str = cfg_str("jev", "build", default="openai/gpt-6-sol")
+JEV_FAST_THINKING: str = cfg_str("jev", "fast_thinking", default="low")
+# Whether the owner picked Jev survives a restart here (git-ignored).
+JEV_STATE_FILE = Path(os.environ.get("VBOT_JEV_STATE_FILE") or BASE_DIR / "user_data" / "jev.json")
 # Чат: два різні таймаути OpenClaw плюс бекоф-запобіжник після невдачі.
 #
 #   openclaw_timeout_s — МЕРЕЖЕВИЙ таймаут httpx: по-фазний, тобто діє на

@@ -250,6 +250,17 @@ openclaw:
   voice_loop_config: "../Voice Loop/config.yaml"
   timeout_s: 45
 
+# Jev: the "auto" entry in the brain picker. Each chat turn goes to one of
+# these OpenClaw models by what it asks (jev_router.py): quick questions —
+# weather, time, rates, greetings — to `fast`, "make me an app / a site /
+# a script" to `build`, everything else to `smart`.
+jev:
+  fast: regolo/gpt-oss-20b
+  smart: openai/gpt-6-luna
+  build: openai/gpt-6-sol
+  # One-message thinking level for the fast tier; empty keeps the global one.
+  fast_thinking: low
+
 # Чат: захист від «повільно вмираючих» мозків Omni/OpenClaw (див. brains.py).
 chat:
   # Стеля ОДНІЄЇ спроби Omni в чаті (обидві моделі: основна + запасна разом),

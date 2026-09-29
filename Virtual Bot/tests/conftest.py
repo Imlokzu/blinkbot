@@ -20,6 +20,13 @@ os.environ.setdefault(
     str(Path(tempfile.gettempdir()) / "virtual-bot-tests" / "no-openclaw.json"),
 )
 
+# Picking Jev is saved to disk. Keep the suite off the owner's saved choice,
+# or a test that clears the pick would turn Jev off in their running bot.
+os.environ.setdefault(
+    "VBOT_JEV_STATE_FILE",
+    str(Path(tempfile.mkdtemp(prefix="virtual-bot-jev-")) / "jev.json"),
+)
+
 # Integrations keep their tokens under runtime/integrations/. Point them at an
 # empty folder so a test run never starts a Telegram/Discord poller with the
 # owner's real token (it would steal their bot's updates).

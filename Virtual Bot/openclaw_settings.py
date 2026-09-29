@@ -14,6 +14,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+import jev_router
 import openclaw_config
 import openclaw_models
 
@@ -196,6 +197,10 @@ async def apply(path: str, value: object) -> bool:
     spec = spec_for(path)
     if spec is None:
         raise ValueError(path)
+    if path == "agents.defaults.model.primary" and value == jev_router.JEV_ID:
+        # Jev is not a model OpenClaw knows; it stays a choice of this process.
+        openclaw_models.set_selected(jev_router.JEV_ID)
+        return True
     stored = coerce(spec, value)
     if spec.kind == "model" and stored is not None:
         known = {str(model["id"]) for model in await openclaw_models.catalog()}

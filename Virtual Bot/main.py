@@ -57,6 +57,7 @@ import chat_bubbles
 import screen_widgets
 import chat_store
 import openclaw_config
+import jev_router
 import openclaw_models
 import openclaw_settings
 from tool_activity import ActivityLog, detail_for, result_failed
@@ -756,7 +757,8 @@ async def api_brain_models(request: Request, refresh: bool = Query(default=False
     models = await openclaw_models.catalog(force=refresh)
     return JSONResponse(
         content={
-        "models": models,
+        # Jev leads the list: it is a way of choosing, not one more model.
+        "models": [jev_router.catalog_entry(), *models] if models else [],
         "selected": openclaw_models.get_selected(),
         "default": openclaw_models.default_model(models),
         "thinking": await openclaw_models.get_thinking(),
@@ -777,6 +779,10 @@ async def api_brain_model_select(req: BrainModelRequest, request: Request) -> di
     before the CLI runs: a bad header would fail every reply inside the gateway.
     """
     await _require_user(request)
+    if req.model == jev_router.JEV_ID:
+        # Jev lives in this process; OpenClaw's own default model stays as is.
+        openclaw_models.set_selected(req.model)
+        return {"ok": True, "selected": openclaw_models.get_selected()}
     models = await openclaw_models.catalog()
     if req.model and req.model not in {str(m["id"]) for m in models}:
         raise HTTPException(status_code=400, detail="OpenClaw не знає такої моделі")

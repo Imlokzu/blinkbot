@@ -455,6 +455,8 @@ def _openclaw_agent_model() -> str:
     # Вибір у панелі перекриває модель агента заголовком x-openclaw-model,
     # і саме він відповідав останній раз. Читати в цьому разі конфіг означало
     # б показати ту модель, яку щойно НЕ використали.
+    if openclaw_models.is_auto():
+        return (_last_jev_model or openclaw_models.jev_router.JEV_ID).split("/")[-1]
     override = openclaw_models.get_selected()
     if override:
         return override.split("/")[-1]
@@ -471,6 +473,8 @@ def get_last_model() -> str:
         # bare legacy names are only fallback display state and may be stale.
         if "/" in _last_model:
             real = _last_model
+        elif openclaw_models.is_auto():
+            real = _openclaw_agent_model()
         else:
             override = openclaw_models.get_selected()
             real = override.split("/")[-1] if override else _openclaw_agent_model()
@@ -745,6 +749,17 @@ def _openclaw_note_success() -> None:
     _openclaw_failed_at_mono = None
 
 
+# The model Jev picked for the last text turn. The panel header names it
+# until the gateway reports the model that actually answered.
+_last_jev_model: str = ""
+
+
+def _note_jev_route(tier: str, model: str) -> None:
+    global _last_jev_model
+    _last_jev_model = model
+    log.info("Jev: %s tier -> %s", tier, model)
+
+
 def _image_headers() -> dict[str, str]:
     """
     Route an image turn to OpenClaw's own image model.
@@ -776,7 +791,15 @@ async def chat_openclaw(
     # application history again makes the Gateway wrap it as pending context
     # (`Chat messages since your last reply`) and duplicates every turn.
     request_history = [] if session_key else history
-    messages = _build_messages(system_prompt, request_history, message, images)
+    # Vision goes to OpenClaw's image model; text follows the panel's pick,
+    # which with Jev is decided per message (jev_router.py).
+    if images:
+        model_headers, sent_message = _image_headers(), message
+    else:
+        model_headers, sent_message, tier = openclaw_models.chat_route(message)
+        if tier:
+            _note_jev_route(tier, model_headers.get("x-openclaw-model", ""))
+    messages = _build_messages(system_prompt, request_history, sent_message, images)
     payload = {
         "model": cfg.OPENCLAW_AGENT,
         "messages": messages,
@@ -788,8 +811,7 @@ async def chat_openclaw(
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
         # Вибір моделі в панелі. Поле `model` вище — це АГЕНТ, а не модель.
-        # Vision явно йде на image-модель OpenClaw; текст лишає вибір панелі.
-        **(_image_headers() if images else openclaw_models.chat_headers()),
+        **model_headers,
     }
     if session_key:
         headers["x-openclaw-session-key"] = session_key
