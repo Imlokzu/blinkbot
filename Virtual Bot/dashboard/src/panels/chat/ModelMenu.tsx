@@ -143,6 +143,7 @@ function EffortStops({ levels, value, onPick, onPreview }: {
 function GroupHead({ brand, count }: { brand: string | null; count: number }) {
   if (!brand) return null;
   const title = brand === 'recent' ? t('models.recent')
+    : brand === 'auto' ? t('models.auto')
     : brand === 'other' ? t('models.other')
       : brand === 'all' ? t('models.all')
       : BRAND_NAMES[brand as keyof typeof BRAND_NAMES];
@@ -165,7 +166,8 @@ function ModelRow({ model, id, current, active, showContext, onPick, onHover }: 
   onPick: () => void;
   onHover: () => void;
 }) {
-  const host = hostOf(model.id);
+  // Jev has no host worth naming; say what it does instead.
+  const host = model.auto ? t('models.autoHint') : hostOf(model.id);
   return (
     <li
       id={id}

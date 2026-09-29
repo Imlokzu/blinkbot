@@ -80,6 +80,8 @@ const uk = {
   'models.recent': 'нещодавні',
   'models.other': 'інші',
   'models.all': 'усі',
+  'models.auto': 'авто',
+  'models.autoHint': 'Сам обирає: швидка, Luna чи Sol',
   'models.none': 'Нічого не знайшлось за «{query}»',
 
   // Рівні думання
@@ -292,6 +294,8 @@ const en: Record<keyof typeof uk, string> = {
   'models.recent': 'recent',
   'models.other': 'other',
   'models.all': 'all',
+  'models.auto': 'auto',
+  'models.autoHint': 'Picks for you: fast, Luna or Sol',
   'models.none': 'Nothing matches “{query}”',
 
   'effort.off': 'No thinking',

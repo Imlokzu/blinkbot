@@ -23,6 +23,8 @@ export interface CatalogModel {
   id: string;
   label: string;
   context?: number;
+  /** An automatic pick (Jev), listed above every real model. */
+  auto?: boolean;
 }
 
 export type SortMode = 'maker' | 'name' | 'context';
@@ -180,6 +182,7 @@ function lineupParts(model: CatalogModel): {
 
 /** Flagship OpenAI names first, lighter models after them. */
 export function byLineup(a: CatalogModel, b: CatalogModel): number {
+  if (Boolean(a.auto) !== Boolean(b.auto)) return a.auto ? -1 : 1;
   const left = lineupParts(a);
   const right = lineupParts(b);
   if (left.provider !== right.provider) return left.provider - right.provider;
@@ -195,7 +198,7 @@ export function byLineup(a: CatalogModel, b: CatalogModel): number {
 export interface ModelGroup<M extends CatalogModel> {
   key: string;
   /** Null for a flat list, which needs no heading. */
-  brand: Brand | 'other' | 'recent' | null;
+  brand: Brand | 'other' | 'recent' | 'auto' | null;
   models: M[];
 }
 
@@ -210,8 +213,14 @@ export function arrange<M extends CatalogModel>(
   models: M[],
   { query = '', sort = 'maker', recent = [] }: { query?: string; sort?: SortMode; recent?: string[] } = {},
 ): ModelGroup<M>[] {
-  const found = models.filter((model) => matches(model, query));
+  const matched = models.filter((model) => matches(model, query));
   const groups: ModelGroup<M>[] = [];
+
+  // The automatic pick is a way of choosing, not a model of some maker:
+  // it leads the list in every sort, under its own heading.
+  const auto = matched.filter((model) => model.auto);
+  const found = matched.filter((model) => !model.auto);
+  if (auto.length) groups.push({ key: 'auto', brand: 'auto', models: auto });
 
   if (!query.trim() && recent.length) {
     const byId = new Map(found.map((model) => [model.id, model]));

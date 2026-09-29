@@ -126,3 +126,22 @@ test('a query matches the start of a word, not the middle of one', () => {
   assert.deepEqual(find('oss 120'), ['regolo/gpt-oss-120b']);
   assert.deepEqual(find('hy3'), ['opencode-go/hy3']);
 });
+
+test('Jev, the automatic pick, leads the list in every sort and stays out of recent', () => {
+  const jev = { id: 'jev/auto', label: 'Jev', auto: true };
+  const models = [...CATALOG, jev];
+  for (const sort of ['maker', 'name', 'context']) {
+    const groups = arrange(models, { sort, recent: ['jev/auto', 'openai/gpt-6-luna'] });
+    assert.equal(groups[0].brand, 'auto', sort);
+    assert.deepEqual(groups[0].models.map((model) => model.id), ['jev/auto'], sort);
+    const rest = groups.slice(1).flatMap((group) => group.models.map((model) => model.id));
+    assert.ok(!rest.includes('jev/auto'), sort);
+  }
+  assert.equal([...models].sort(byLineup)[0].id, 'jev/auto');
+});
+
+test('searching for Jev finds it, and a query that does not name it hides it', () => {
+  const jev = { id: 'jev/auto', label: 'Jev', auto: true };
+  assert.equal(arrange([...CATALOG, jev], { query: 'jev' })[0].brand, 'auto');
+  assert.ok(!arrange([...CATALOG, jev], { query: 'luna' }).some((group) => group.brand === 'auto'));
+});

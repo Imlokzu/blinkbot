@@ -104,6 +104,9 @@ export interface BrainModel {
   seconds?: number;
   is_default?: boolean;
   fallback?: string;
+  /** Jev: not a model but a per-message pick among the tiers below. */
+  auto?: boolean;
+  tiers?: Record<string, string>;
 }
 
 export interface BrainModelsResponse {
@@ -119,7 +122,7 @@ const BRAIN_MODELS_CACHE_KEY = 'claude-bot:brain-models:v6';
 
 function keptModel(model: BrainModel): boolean {
   const provider = model.id.split('/')[0] ?? '';
-  return provider === 'openai' || provider === 'regolo';
+  return provider === 'openai' || provider === 'regolo' || Boolean(model.auto);
 }
 
 function keptModels(data: BrainModelsResponse): BrainModelsResponse {
