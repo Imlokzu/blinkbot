@@ -39,8 +39,9 @@
 - Add Guide as an always-available native drawer app, before system tools.
 - Guide overview: eight activity groups, each with a short useful description.
 - Activity details: purpose, two or three relevant actions, connection badges.
-- An explicit tap installs a missing local package and opens it. Back returns
-  to the guide. Failed requests stay on the guide with a retryable message.
+- An explicit tap installs a missing local package and opens it. Back from a
+  store or system app returns to the selected activity. Carousel tiles keep
+  their normal navigation. Failed requests stay on the guide with a retryable message.
 - Checklists and Converter remain installable local store apps.
 
 ## Design principles
@@ -51,8 +52,9 @@
 
 ## Visual language
 - Color: existing resolved screen tokens, including custom skins.
-- Typography: the screen's existing font, 11-14 px body and labels; numbers
-  use tabular figures. No external fonts.
+- Typography: the screen's existing font, 11-14 px main text and labels;
+  secondary captions and connection metadata use 10 px. Numbers use
+  tabular figures. No external fonts.
 - Spacing/layout: 6 px minimum between adjacent controls, 24 px minimum
   targets, two-column overview, single-column details and task rows.
 - Shape/elevation: reuse existing native surfaces and rounded controls.

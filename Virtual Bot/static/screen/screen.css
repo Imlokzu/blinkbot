@@ -1912,7 +1912,39 @@ html, body {
   padding: 2px 0;
 }
 
-/* ---------- Магазин ---------- */
+/* Activity guide: readable discovery and actions inside the native layer. */
+.guide-body { padding: 0 4px 16px; }
+.guide { display: flex; flex-direction: column; gap: 6px; }
+.guide p, .guide h2 { margin: 0; }
+.guide-intro { font: 400 11px/1.4 var(--font); color: var(--text); }
+.guide-hint { font: 400 10px/1.4 var(--font); color: var(--muted); }
+.guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.guide-card, .guide-action, .guide-back {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  font: 400 11px/1.3 var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+.guide-card { min-height: 62px; padding: 8px; display: grid; grid-template-columns: 20px 1fr; gap: 4px 6px; }
+.guide-card strong { align-self: center; }
+.guide-card > span { grid-column: 1 / -1; font-size: 10px; color: var(--muted); }
+.guide svg { width: 20px; height: 20px; flex: none; color: var(--accent); }
+.guide-title { font: 700 14px/1.3 var(--font); }
+.guide-heading { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.guide-back { min-height: 28px; align-self: flex-start; padding: 4px 10px; color: var(--accent); }
+.guide-action { min-height: 65px; padding: 8px; display: flex; align-items: center; gap: 6px; }
+.guide-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.guide-description { font-size: 11px; color: var(--muted); }
+.guide-connection { font-size: 10px; color: var(--ok); }
+.guide-launch { max-width: 65px; font-weight: 600; color: var(--accent); }
+.guide button:disabled { cursor: default; opacity: .6; }
+.guide button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.guide button:active { opacity: .75; }
+
+/* ---------- Store ---------- */
 
 .store-tabs {
   display: flex;

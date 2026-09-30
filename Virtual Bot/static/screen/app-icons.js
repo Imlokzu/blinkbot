@@ -103,6 +103,13 @@ export const DESIGNS = {
     bg: ["#62b7c5", "#3a8997"],
     glyph: () => line("M12 17h23l-5-5M35 17l-5 5M36 31H13l5-5M13 31l5 5", W, 3.4),
   },
+  compass: {
+    bg: ["#cf6b8a", "#a74666"],
+    glyph: (D) =>
+      `<circle cx="24" cy="24" r="14" fill="${W}"/>` +
+      `<path d="M30 14l-3 13-13 7 7-13z" fill="${D}"/>` +
+      `<circle cx="24" cy="24" r="2" fill="${W}"/>`,
+  },
   face: {
     bg: ["#5eead4", "#0f9f94"],
     glyph: (D) =>
@@ -434,6 +441,7 @@ const BY_ID = {
   face: "face", clock: "clock", chat: "mic", timer: "hourglass", weather: "weather",
   say: "bubble", state: "gauge", quick: "sliders", camera: "camera", services: "server",
   panel: "monitor", settings: "gear", memory: "notebook", chats: "history", store: "bag",
+  guide: "compass",
   "daily-checklist": "checklist",
   "unit-converter": "convert",
   notices: "bubble",

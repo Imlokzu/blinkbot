@@ -13,6 +13,7 @@ import { ReplyTurn } from "./reply.js";
 import { activities as islandActivities, selectKey as islandSelect, fmtClock } from "./island.js";
 import { ScreenKeyboard } from "./keyboard.js";
 import { WatchDrawer } from "./drawer.js";
+import { mountGuide } from "./guide.js";
 import { appIconEl, themedColors } from "./app-icons.js";
 import { wxKind, wxSky, wxIconSvg, windArrowSvg } from "./weather-icons.js";
 import { GestureNav, EDGE as GESTURE_EDGE, BOTTOM as GESTURE_BOTTOM } from "./gesture-nav.js";
@@ -2930,6 +2931,7 @@ const SCREENS = [
   { id: "say", labelKey: "screen.say", icon: "bubble" },
   { id: "state", labelKey: "screen.state", icon: "gauge" },
   { id: "quick", labelKey: "screen.quick", icon: "sliders" },
+  { id: "guide", labelKey: "screen.guide", icon: "memory", app: true },
   // Далі — не екрани, а справжні дії пристрою
   { id: "camera", labelKey: "screen.camera", icon: "camera", app: true },
   { id: "services", labelKey: "screen.services", icon: "server", app: true },
@@ -3017,6 +3019,7 @@ function showScreen(id) {
   if (id === "memory") { closeApps(); openMemory(); return; }
   if (id === "chats") { closeApps(); openChats(); return; }
   if (id === "store") { closeApps(); openStore(); return; }
+  if (id === "guide") { closeApps(); openGuide(); return; }
   if (id === "quick") { openLayer("quick"); return; }
   if (id === "notices") { closeApps(); openLayer("notices"); return; }
   // Застосунок, встановлений з магазину: id виглядає як "app:metronome"
@@ -3089,10 +3092,12 @@ let appHistory = [];
 let launchingFromDrawer = false;
 let gestureNav = null;       // built below, once the layer functions exist
 
-function openAppLayer(titleKey, build) {
+function openAppLayer(titleKey, build, opts = {}) {
   clearTimeout(camTimer);
-  if (openApp) appHistory.push(openApp);
-  else appHistory = launchingFromDrawer ? ["drawer"] : [];
+  if (!opts.rebuild) {
+    if (openApp) appHistory.push(openApp);
+    else appHistory = launchingFromDrawer ? ["drawer"] : [];
+  }
   applyFrost(layerApp);
   openApp = { key: titleKey, build };
   $("appTitle").textContent = t(titleKey);
@@ -3104,6 +3109,11 @@ function openAppLayer(titleKey, build) {
   appBody.removeAttribute("style");
   layerApp.classList.remove("full");     // full screen belongs to one app only
   build(appBody);
+  // A previously scrolled guide or a focused control can leave ancestor
+  // scroll offsets behind. The device scene itself must never scroll.
+  appBody.scrollTop = 0;
+  stage.scrollTop = 0;
+  stage.scrollLeft = 0;
   layerApp.classList.add("open");
   stage.classList.add("layered");
   gestureNav?.setOn(true, true);
@@ -4854,6 +4864,36 @@ async function storePost(path, payload) {
   return resp.json();
 }
 
+function openGuide() {
+  // The back stack stores the build closure. Keep the selected activity in
+  // that closure so rebuilding the guide does not lose the person's place.
+  const guideState = { scenario: null };
+  openAppLayer("screen.guide", (box) => {
+    box.classList.add("guide-body");
+    mountGuide(box, {
+      t,
+      state: guideState,
+      icon: makeSvgIcon,
+      onScreen: (id) => {
+        // Layer apps share Back with the guide; carousel tiles use their
+        // normal navigation and remain one swipe away from the drawer.
+        const app = { settings: openSettings, memory: openMemory, services: openServices }[id];
+        if (app) app();
+        else showScreen(id);
+      },
+      onPackage: async (id, install, active) => {
+        if (install) await storePost("/api/screen-store/install", { id });
+        await refreshInstalledApps();
+        if (!active()) return;
+        const entry = installedApps.find((app) => app.pkg === id);
+        if (!entry) throw new Error("app_missing");
+        // Preserve the guide in the app back stack.
+        openStoreApp(entry);
+      },
+    });
+  });
+}
+
 function openStore() {
   openAppLayer("screen.store", (box) => {
     box.classList.add("storeapp-body");
@@ -5272,7 +5312,7 @@ function relocalize() {
   if (musicSheetOpen) renderNpList();
   setLink(linkAlive);
   refreshStatus();
-  if (openApp) openAppLayer(openApp.key, openApp.build);
+  if (openApp) openAppLayer(openApp.key, openApp.build, { rebuild: true });
   postStoreAppSkin();
 }
 
