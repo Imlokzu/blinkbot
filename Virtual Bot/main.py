@@ -90,6 +90,7 @@ import openclaw_extensions
 import openclaw_store
 import openclaw_usage
 import openclaw_analytics
+import openclaw_control
 import usage_reporting
 import usage_comparison
 import profile_store
@@ -405,6 +406,35 @@ async def _require_user(request: Request) -> str:
 def _is_loopback(request: Request) -> bool:
     host = request.client.host if request.client else ""
     return host in {"127.0.0.1", "::1", "localhost"}
+
+
+async def _require_openclaw_operator(request: Request) -> None:
+    """Gateway-wide controls belong to the operator, not every chat account."""
+    from urllib.parse import urlsplit
+
+    user_id = await _require_user(request)
+    operators = {uid.strip() for uid in os.environ.get("VBOT_OPERATOR_USER_IDS", "").split(",") if uid.strip()}
+    if user_id and user_id in operators:
+        return
+    # A local proxy can connect from loopback on behalf of a remote browser.
+    # The development bypass belongs only to direct local dashboard requests.
+    loopback_hosts = {"127.0.0.1", "::1", "localhost"}
+    forwarded = any(name == "forwarded" or name.startswith("x-forwarded-") for name in request.headers)
+    try:
+        local_host = request.url.hostname in loopback_hosts
+        origin = request.headers.get("origin")
+        local_origin = not origin or urlsplit(origin).hostname in loopback_hosts
+    except ValueError:
+        local_host = local_origin = False
+    if (
+        not user_id and auth_clerk.is_auth_disabled() and _is_loopback(request)
+        and local_host and local_origin and not forwarded
+    ):
+        return
+    raise HTTPException(status_code=403, detail="operator_required")
+
+
+app.include_router(openclaw_control.router(_require_openclaw_operator))
 
 
 async def _tool_caller(request: Request) -> str:
