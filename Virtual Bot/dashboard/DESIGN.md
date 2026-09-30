@@ -287,3 +287,25 @@ Chat on the left, what the bot is making on the right — the owner's ask.
 - Strings: `src/locales/inference.ts` in English and Ukrainian. Regression
   checks: `tests/inference.test.mjs`, `tests/inference.browser.mjs`, and the
   backend `tests/test_openclaw_analytics.py`.
+
+### Usage reference and router comparison (2026-09-30)
+
+- The owner's reference replaces the combined metric strip with four separate
+  flat cards: monochrome metric icons, large Plex data, a compact provider list
+  with local logos and reported quota bars. Provider details expand on selection.
+- The same section offers Usage and Router comparison views. The model picker
+  links to comparison without changing the active model. Shared range, provider
+  and All/Text/Voice controls scope both views.
+- Voice means a turn with voice input or a spoken reply. Only LLM inference is
+  counted here; transcription and speech synthesis need their own billing data.
+  A private metadata ledger records new turns; historical activity with no
+  modality evidence stays in All. Nothing guesses a modality from model names.
+- Comparison uses identical measured input/output/cache token quantities for
+  observed models, one fixed model and everyday Opus. It does not replay prompts
+  or imply equivalent response quality. Opus 5.5 and 4.8 rates come from the
+  official Anthropic price table checked on 2026-09-30; cache writes assume 5m.
+- Verified Jev turns are a separate comparison population. Their classifier
+  overhead uses actual TypeSafe input usage, including paid decisions that
+  fall back to keyword rules. Unknown usage stays unknown. Unrecorded historical
+  routing is disclosed and never claimed as measured Jev savings.
+- New strings stay in `locales/inference.ts` and `locales/comparison.ts`.

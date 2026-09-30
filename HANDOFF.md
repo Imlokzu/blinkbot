@@ -473,3 +473,35 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
 - Implementation and generated production assets were committed and pushed
   to origin on main using the required owner identity. Existing unrelated
   working-tree changes were left for their owners.
+
+## Usage modality and router comparison follow-up (2026-09-30)
+
+- Restyled inference usage to the owner's reference: separate metric cards,
+  local provider logos, a compact quota list, shared Text/Voice/All selection,
+  and a Router comparison view reachable from the chat model picker.
+- Added a metadata-only SQLite usage ledger under ignored runtime storage.
+  Request-local ContextVars record exact owner, modality and actual Jev
+  decisions; no prompt, reply, raw session id or credential is persisted.
+  Voice includes voice input or spoken output; the report covers LLM usage,
+  excluding ASR/TTS charges. Historical unclassified traffic remains in All.
+- Comparison reprices identical measured token categories at a selectable fixed
+  model and everyday Opus 5.5/4.8. Official price sources and the check date
+  are visible. This is a pricing scenario, not a replay or quality comparison.
+  Verified Jev traffic is separate from historical model-mix estimates and
+  includes measured classifier overhead; missing usage does not become zero.
+- `/api/openclaw/analytics` and its journal accept `modality`; new authenticated
+  `/api/openclaw/analytics/comparison` accepts modality/provider/baseline/Opus
+  and observed/verified-routing population. History matching is bounded and
+  incomplete coverage is visible. Synthetic fixtures use isolated ledgers.
+- Independent UI review fixed modality placeholders, scope changes and the
+  API-equivalent disclaimer. Backend review supplied fixes and regression
+  tests for missing token partitions, partial router costs, configured-agent
+  matching, history bounds and request coalescing; the review service stopped
+  before its final summary. Parent validation covered the resulting changes.
+- Final checks: 910 Python tests passed, 6 skipped, 131 subtests; 69 dashboard
+  tests, typecheck and isolated production build passed. Browser regressions
+  passed at five widths; new comparison axe audits had zero violations in
+  light and dark themes. Real read-only usage/comparison endpoints passed,
+  along with static assets, no-store headers and traversal guards returning
+  HTTP 400. Test servers and browsers were stopped. The local dashboard
+  backend was restarted to load the new analytics routes.
