@@ -394,3 +394,37 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
 - Command Palette now captures the element focused before opening, traps Tab
   inside the dialog, and restores that element after Escape (verified with the
   chat composer focused first).
+
+
+## OpenClaw inference dashboard (2026-09-30)
+
+- Added the dashboard `#/inference` section in the existing warm Plex UI, with
+  UTC ranges for today, 7, 30 and 90 days, provider filters, daily usage,
+  model traffic and effective per-million API prices.
+- Added authenticated `/api/openclaw/analytics` and
+  `/api/openclaw/analytics/inferences` endpoints. Gateway RPCs provide usage,
+  quota windows and resolved API estimates. Missing token counts and prices
+  remain unknown; subscription estimates are labelled as API equivalents.
+- Sessions use opaque transcript-instance ids; actual model usage governs
+  provider matching, including fallback. The journal exposes only metadata,
+  never conversation text, tool arguments, account addresses or credentials.
+  History is the current transcript, bounded to 10,000 messages; resolved
+  pricing logs cover at most 1,000 messages. Both limits appear in the UI.
+- Localized all new labels in `dashboard/src/locales/inference.ts` (uk/en).
+  Added unit and isolated browser regression checks, preserving concurrent
+  integration/settings and device-screen changes.
+- Separate adversarial backend and UI reviewers fixed attribution, metadata
+  sanitization, reset guards, missing/zero distinctions, incomplete indexing,
+  provider scope, modal focus restoration and keyboard access. Fable and the
+  pinned reviewer model were unavailable; available native reviewers ran at
+  maximum effort.
+- Validation: full Virtual Bot suite 886 passed, 6 skipped, 131 subtests;
+  dashboard 69 unit tests, typecheck and production build passed. Browser
+  checks cover 320/390/768/1180/1440px, fallback filtering, journal focus,
+  partial indexing and unavailable reports. Production panel axe audit had
+  zero violations. Live RPC/HTTP smoke passed, including real journal data,
+  referenced static assets and two traversal guards returning HTTP 400.
+  Isolated smoke servers and browsers were shut down after verification.
+- Implementation and generated production assets were committed and pushed
+  to origin on main using the required owner identity. Existing unrelated
+  working-tree changes were left for their owners.
