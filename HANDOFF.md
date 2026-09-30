@@ -395,6 +395,51 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   inside the dialog, and restores that element after Escape (verified with the
   chat composer focused first).
 
+## 12. Session 2026-09-30: useful activities and native screen utilities
+
+- Added **Guide** to the device drawer, with eight practical activities:
+  morning, focus, kitchen, break, creativity, media, learning and device care.
+  Each explains the purpose and offers real destinations with connection
+  requirements. Missing local apps can be installed and opened explicitly.
+- Added **Daily checklist 1.1.0**: localized task CRUD, completion progress,
+  additive morning/work/evening starters, reset completion without deleting
+  tasks, and guarded local storage. Starter tasks retain their locale keys
+  after an unchanged edit, including a language change while editing.
+- Added **Unit converter 1.1.0**: length, mass, temperature, volume and speed;
+  decimal comma/point, negative values, unit swaps and saved settings when
+  browser storage is available. Swap reuses the computed numeric result
+  without display rounding and preserves invalid live input. US liquid units
+  are labelled explicitly.
+- Both apps use the native app kit, match Material You/Deep UI, dark/light
+  themes and skins, and reserve the screen's gesture insets. Guide has its own
+  drawer icon; Checklist and Converter have distinct drawer and store icons.
+- Guide preserves its selected activity across Back/language rebuilding,
+  with focus restored to the activity's Back control on remount.
+  System apps keep the guide in their back stack; tiles retain normal carousel
+  navigation. Language rebuilding no longer adds duplicate history entries.
+  Shared pending operations suppress duplicate installs across remounts and
+  never reopen an app after Home. Layer opening resets ancestor scroll offsets.
+- Independent maximum-effort native reviewers approved Guide and both apps;
+  Fable was not available in this runtime. Their fixes have regression tests
+  for malformed storage, precision, keyboard bridge submission, picker focus,
+  navigation and an actual Chromium install/remount race.
+- Completed validation reported by the leader: full Virtual Bot suite
+  **883 passed, 6 skipped, 131 subtests**;
+  final isolated curl smoke **21 checks passed**, including memory/store
+  traversal attempts returning **400**. Installed 1.1.0 HTML/model assets
+  matched repository sources byte for byte. Browser checks cover both styles,
+  themes, languages, safe insets and Back behavior. The leader's final repeat
+  passed all 21 curl checks and all eight unique app/style/theme combinations;
+  safe insets and return to Guide were verified, and processes were closed.
+- Design contract: root `DESIGN.md`. Working scenarios, product use cases,
+  connection limits and explicitly future ideas:
+  `Virtual Bot/docs/SCREEN-USE-CASES.md`. Utility state is per browser;
+  it is not synced to bot memory or other devices.
+- Feature code and the root design contract were committed and pushed
+  separately on the current `main` branch
+  under the owner's required identity. Concurrent dashboard/analytics work
+  and pre-existing workspace changes were preserved.
+
 
 ## OpenClaw inference dashboard (2026-09-30)
 
