@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="title"></title>
+<link rel="stylesheet" href="/static/screen/app-kit.css">
+<script src="/static/screen/app-kit.js"></script>
+<script src="model.js"></script>
+<style>
+  .converter { gap: 6px; padding-top: 6px; }
+  .converter .kit-title { font-size: 16px; }
+  .category { max-width: 126px; padding: 0 10px; white-space: nowrap; }
+  .units { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .unit { min-width: 0; min-height: 36px; padding: 3px 10px; flex-direction: column; gap: 2px; }
+  .unit-name { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+  .readout { flex: none; height: 44px; padding: 4px 10px; overflow: hidden; }
+  .numbers { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .number { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 500 19px/1.1 var(--font); font-variant-numeric: tabular-nums; }
+  .result { color: var(--accent); text-align: right; }
+  .equation { color: var(--muted); font-size: 10px; line-height: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .keypad { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(3, minmax(24px, 1fr)); gap: 6px; min-height: 84px; }
+  .keypad button { min-height: 24px; min-width: 24px; padding: 0; }
+  .keypad .word { font-size: 11px; }
+  .keypad svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .picker { position: absolute; inset: 0; z-index: 2; }
+  .picker .kit-list { gap: 6px; }
+  .picker .kit-item { min-height: 32px; }
+  .picker .selected { background: var(--kit-tonal); color: var(--kit-on-tonal); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  @media (prefers-reduced-motion: reduce) { .converter button { transition: none; } }
+</style>
+</head>
+<body class="kit">
+<main id="converter" class="kit-app converter">
+  <header class="kit-bar">
+    <span class="kit-title" data-i18n="title"></span>
+    <button id="category" class="kit-chip category" data-i18n-aria="chooseCategory"></button>
+  </header>
+  <section class="units" data-i18n-aria="units">
+    <button id="from" class="kit-btn unit">
+      <span class="kit-label" data-i18n="from"></span><span class="unit-name" id="from-name"></span>
+    </button>
+    <button id="to" class="kit-btn unit">
+      <span class="kit-label" data-i18n="to"></span><span class="unit-name" id="to-name"></span>
+    </button>
+  </section>
+  <section class="kit-card readout" data-i18n-aria="conversion">
+    <div class="numbers">
+      <span id="value" class="number" data-i18n-aria="value"></span>
+      <output id="result" class="number result" data-i18n-aria="result"></output>
+    </div>
+    <div id="equation" class="equation" role="status" aria-live="polite" aria-atomic="true"></div>
+  </section>
+  <section id="keypad" class="kit-fill keypad" data-i18n-aria="keypad">
+    <button class="kit-key" data-key="7" data-i18n="digit7"></button>
+    <button class="kit-key" data-key="8" data-i18n="digit8"></button>
+    <button class="kit-key" data-key="9" data-i18n="digit9"></button>
+    <button class="kit-key tonal" data-key="backspace" data-i18n-aria="backspace" data-i18n-title="backspace"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5H20a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5H8.5L2.5 12z"/><path d="M11.5 9.5l5 5M16.5 9.5l-5 5"/></svg></button>
+    <button class="kit-key tonal word" data-key="clear" data-i18n="clear" data-i18n-title="clear"></button>
+    <button class="kit-key" data-key="4" data-i18n="digit4"></button>
+    <button class="kit-key" data-key="5" data-i18n="digit5"></button>
+    <button class="kit-key" data-key="6" data-i18n="digit6"></button>
+    <button class="kit-key tonal" data-key="sign" data-i18n="signSymbol" data-i18n-aria="sign" data-i18n-title="sign"></button>
+    <button class="kit-key accent word" data-key="swap" data-i18n="swap" data-i18n-title="swap"></button>
+    <button class="kit-key" data-key="1" data-i18n="digit1"></button>
+    <button class="kit-key" data-key="2" data-i18n="digit2"></button>
+    <button class="kit-key" data-key="3" data-i18n="digit3"></button>
+    <button class="kit-key" data-key="0" data-i18n="digit0"></button>
+    <button class="kit-key" data-key="decimal" data-i18n="decimal" data-i18n-aria="decimalName" data-i18n-title="decimalName"></button>
+  </section>
+</main>
+<section id="picker" class="kit-app kit-page picker" role="dialog" aria-modal="true" aria-labelledby="picker-title" hidden>
+  <header class="kit-bar">
+    <span id="picker-title" class="kit-title"></span>
+    <button id="done" class="kit-chip" data-i18n="done"></button>
+  </header>
+  <div id="choices" class="kit-fill kit-scroll kit-list"></div>
+</section>
+<script>
+  "use strict";
+  const STR = {
+    uk: {
+      title: "Конвертер", chooseCategory: "Вибрати категорію", units: "Одиниці", conversion: "Перетворення",
+      from: "З", to: "У", value: "Вхідне число", result: "Результат", keypad: "Числова клавіатура",
+      swap: "Обмін", clear: "Очистити", backspace: "Стерти цифру", sign: "Змінити знак", signSymbol: "±",
+      decimal: ",", decimalName: "Десяткова кома", done: "Готово", empty: "Введіть число", number: "Некоректне число",
+      range: "Число завелике або замале", unitError: "Виберіть одиниці", dash: "—",
+      equation: "{value} {from} = {result} {to}", selectUnit: "{direction}: {unit}",
+      digit0: "0", digit1: "1", digit2: "2", digit3: "3", digit4: "4", digit5: "5", digit6: "6", digit7: "7", digit8: "8", digit9: "9",
+      length: "Довжина", mass: "Маса", temperature: "Температура", volume: "Об’єм", speed: "Швидкість",
+      "unit.mm": "Міліметри", "unit.cm": "Сантиметри", "unit.m": "Метри", "unit.km": "Кілометри",
+      "unit.inch": "Дюйми", "unit.foot": "Фути", "unit.yard": "Ярди", "unit.mile": "Милі",
+      "unit.mg": "Міліграми", "unit.g": "Грами", "unit.kg": "Кілограми", "unit.tonne": "Тонни", "unit.oz": "Унції", "unit.lb": "Фунти",
+      "unit.c": "Цельсій", "unit.f": "Фаренгейт", "unit.k": "Кельвін",
+      "unit.ml": "Мілілітри", "unit.l": "Літри", "unit.m3": "Кубічні метри", "unit.us_fl_oz": "Рідкі унції США", "unit.us_gal": "Галони США",
+      "unit.ms": "Метри за секунду", "unit.kmh": "Кілометри за годину", "unit.mph": "Милі за годину", "unit.knot": "Вузли",
+      "symbol.mm": "мм", "symbol.cm": "см", "symbol.m": "м", "symbol.km": "км", "symbol.inch": "дюйм", "symbol.foot": "фут", "symbol.yard": "ярд", "symbol.mile": "миля",
+      "symbol.mg": "мг", "symbol.g": "г", "symbol.kg": "кг", "symbol.tonne": "т", "symbol.oz": "унц", "symbol.lb": "фунт",
+      "symbol.c": "°C", "symbol.f": "°F", "symbol.k": "K", "symbol.ml": "мл", "symbol.l": "л", "symbol.m3": "м³", "symbol.us_fl_oz": "fl oz США", "symbol.us_gal": "gal США",
+      "symbol.ms": "м/с", "symbol.kmh": "км/год", "symbol.mph": "миль/год", "symbol.knot": "вуз"
+    },
+    en: {
+      title: "Converter", chooseCategory: "Choose category", units: "Units", conversion: "Conversion",
+      from: "From", to: "To", value: "Input value", result: "Result", keypad: "Numeric keypad",
+      swap: "Swap", clear: "Clear", backspace: "Delete digit", sign: "Change sign", signSymbol: "±",
+      decimal: ".", decimalName: "Decimal point", done: "Done", empty: "Enter a number", number: "Invalid number",
+      range: "Number too large or too small", unitError: "Choose valid units", dash: "—",
+      equation: "{value} {from} = {result} {to}", selectUnit: "{direction}: {unit}",
+      digit0: "0", digit1: "1", digit2: "2", digit3: "3", digit4: "4", digit5: "5", digit6: "6", digit7: "7", digit8: "8", digit9: "9",
+      length: "Length", mass: "Mass", temperature: "Temperature", volume: "Volume", speed: "Speed",
+      "unit.mm": "Millimetres", "unit.cm": "Centimetres", "unit.m": "Metres", "unit.km": "Kilometres",
+      "unit.inch": "Inches", "unit.foot": "Feet", "unit.yard": "Yards", "unit.mile": "Miles",
+      "unit.mg": "Milligrams", "unit.g": "Grams", "unit.kg": "Kilograms", "unit.tonne": "Tonnes", "unit.oz": "Ounces", "unit.lb": "Pounds",
+      "unit.c": "Celsius", "unit.f": "Fahrenheit", "unit.k": "Kelvin",
+      "unit.ml": "Millilitres", "unit.l": "Litres", "unit.m3": "Cubic metres", "unit.us_fl_oz": "US fluid ounces", "unit.us_gal": "US gallons",
+      "unit.ms": "Metres per second", "unit.kmh": "Kilometres per hour", "unit.mph": "Miles per hour", "unit.knot": "Knots",
+      "symbol.mm": "mm", "symbol.cm": "cm", "symbol.m": "m", "symbol.km": "km", "symbol.inch": "in", "symbol.foot": "ft", "symbol.yard": "yd", "symbol.mile": "mi",
+      "symbol.mg": "mg", "symbol.g": "g", "symbol.kg": "kg", "symbol.tonne": "t", "symbol.oz": "oz", "symbol.lb": "lb",
+      "symbol.c": "°C", "symbol.f": "°F", "symbol.k": "K", "symbol.ml": "ml", "symbol.l": "l", "symbol.m3": "m³", "symbol.us_fl_oz": "US fl oz", "symbol.us_gal": "US gal",
+      "symbol.ms": "m/s", "symbol.kmh": "km/h", "symbol.mph": "mph", "symbol.knot": "kn"
+    }
+  };
+  const M = window.UnitConverter;
+  const $ = id => document.getElementById(id);
+  const app = document.querySelector("main");
+  const storageKey = "unit-converter.state";
+  let lang = window.BotApp && BotApp.lang === "en" ? "en" : "uk";
+  let state;
+  try { state = M.normalizeState(JSON.parse(localStorage.getItem(storageKey))); }
+  catch (_) { state = M.defaultState(); }
+  let picking = null;
+  function t(key, params = {}) {
+    return (STR[lang][key] || STR.en[key] || key).replace(/\{(\w+)\}/g, (_, name) => params[name] ?? "");
+  }
+  function localized(value) { return lang === "uk" ? value.replace(".", ",") : value.replace(",", "."); }
+  function save() { try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (_) { /* Storage is optional in sandboxed frames. */ } }
+  function draw() {
+    $("category").textContent = t(state.category);
+    for (const direction of ["from", "to"]) {
+      const name = t("unit." + state[direction]);
+      $(direction + "-name").textContent = name;
+      $(direction).title = name;
+      $(direction).setAttribute("aria-label", t("selectUnit", { direction: t(direction), unit: name }));
+    }
+    $("value").textContent = localized(state.value) || t("dash");
+    const result = M.convert(state.category, state.from, state.to, state.value);
+    $("result").textContent = result.ok ? localized(M.formatNumber(result.value)) : t("dash");
+    $("equation").textContent = result.ok ? t("equation", {
+      value: localized(M.formatNumber(M.parseDecimal(state.value).value)), from: t("symbol." + state.from),
+      result: localized(M.formatNumber(result.value)), to: t("symbol." + state.to)
+    }) : t(result.error === "units" ? "unitError" : result.error);
+    $("equation").title = $("equation").textContent;
+  }
+  function applyI18n() {
+    document.documentElement.lang = lang;
+    for (const [attribute, target] of [["data-i18n", null], ["data-i18n-aria", "aria-label"], ["data-i18n-title", "title"]]) {
+      document.querySelectorAll("[" + attribute + "]").forEach(el => {
+        const text = t(el.getAttribute(attribute));
+        if (target) el.setAttribute(target, text); else el.textContent = text;
+      });
+    }
+    document.title = t("title");
+    draw();
+    if (picking) populatePicker();
+  }
+  function closePicker() {
+    $("picker").hidden = true;
+    app.inert = false;
+    $("converter").inert = false;
+    const previous = picking;
+    picking = null;
+    if (previous) $(previous).focus();
+  }
+  function populatePicker() {
+    $("picker-title").textContent = t(picking === "category" ? "chooseCategory" : picking);
+    $("choices").replaceChildren();
+    const ids = picking === "category" ? Object.keys(M.categories) : Object.keys(M.categories[state.category].units);
+    ids.forEach(id => {
+      const button = document.createElement("button");
+      const selected = id === state[picking];
+      button.className = "kit-item compact" + (selected ? " selected" : "");
+      button.textContent = t(picking === "category" ? id : "unit." + id);
+      button.setAttribute("aria-pressed", String(selected));
+      button.addEventListener("click", () => {
+        if (picking === "category") {
+          if (state.category !== id) state = { ...M.defaultState(id), value: state.value };
+        } else state[picking] = id;
+        save(); draw(); closePicker();
+      });
+      $("choices").appendChild(button);
+    });
+  }
+  function openPicker(kind) {
+    picking = kind;
+    populatePicker();
+    $("picker").hidden = false;
+    app.inert = true;
+    $("converter").inert = true;
+    $("choices").scrollTop = 0;
+    $("done").focus();
+  }
+  function press(key) {
+    if (key === "swap") state = M.swapState(state);
+    else state.value = M.editValue(state.value, key === "decimal" ? t("decimal") : key);
+    save(); draw();
+  }
+  ["category", "from", "to"].forEach(kind => $(kind).addEventListener("click", () => openPicker(kind)));
+  $("done").addEventListener("click", closePicker);
+  $("keypad").addEventListener("click", event => {
+    const button = event.target.closest("button[data-key]");
+    if (button) press(button.dataset.key);
+  });
+  // Handle physical keys locally so deleting a digit cannot navigate the parent.
+  document.addEventListener("keydown", event => {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (picking) {
+      if (event.key === "Escape" || event.key === "Backspace") { event.preventDefault(); event.stopPropagation(); closePicker(); }
+      return;
+    }
+    const key = /^\d$/.test(event.key) ? event.key : [".", ","].includes(event.key) ? event.key :
+      event.key === "Backspace" ? "backspace" : event.key === "Delete" ? "clear" : event.key === "-" ? "sign" : null;
+    if (key) { event.preventDefault(); event.stopPropagation(); press(key); }
+  });
+  applyI18n();
+  if (window.BotApp) BotApp.onChange(settings => {
+    if (settings.lang !== lang) { lang = settings.lang === "en" ? "en" : "uk"; applyI18n(); }
+  });
+</script>
+</body>
+</html>

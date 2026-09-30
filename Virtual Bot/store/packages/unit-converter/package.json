@@ -1,0 +1,22 @@
+{
+  "id": "unit-converter",
+  "type": "app",
+  "label": "Unit converter",
+  "icon": "sliders",
+  "tint": "#6eab91",
+  "version": "1.1.0",
+  "author": "Claude Bot",
+  "description": "Convert length, mass, temperature, volume and speed offline.",
+  "category": "tools",
+  "entry": "index.html",
+  "locales": {
+    "uk": {
+      "label": "Конвертер одиниць",
+      "description": "Довжина, маса, температура, об’єм і швидкість без інтернету."
+    },
+    "en": {
+      "label": "Unit converter",
+      "description": "Convert length, mass, temperature, volume and speed offline."
+    }
+  }
+}

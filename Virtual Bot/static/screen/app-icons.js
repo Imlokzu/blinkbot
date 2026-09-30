@@ -99,6 +99,10 @@ export const DESIGNS = {
       `<rect x="19" y="9" width="10" height="6" rx="2" fill="${D}"/>` +
       line("M17 21l2 2 3-4M17 30l2 2 3-4M26 21h5M26 30h5", D, 2.4),
   },
+  convert: {
+    bg: ["#62b7c5", "#3a8997"],
+    glyph: () => line("M12 17h23l-5-5M35 17l-5 5M36 31H13l5-5M13 31l5 5", W, 3.4),
+  },
   face: {
     bg: ["#5eead4", "#0f9f94"],
     glyph: (D) =>
@@ -431,6 +435,7 @@ const BY_ID = {
   say: "bubble", state: "gauge", quick: "sliders", camera: "camera", services: "server",
   panel: "monitor", settings: "gear", memory: "notebook", chats: "history", store: "bag",
   "daily-checklist": "checklist",
+  "unit-converter": "convert",
   notices: "bubble",
   // built-in store packages (store/packages/*)
   breathe: "petals", calculator: "calc", "device-settings": "chip", dice: "dice",
