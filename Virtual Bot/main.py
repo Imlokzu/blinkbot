@@ -89,6 +89,7 @@ import memory
 import openclaw_extensions
 import openclaw_store
 import openclaw_usage
+import openclaw_analytics
 import profile_store
 import services_manager
 import setup_suggestions
@@ -859,6 +860,33 @@ async def api_openclaw_accounts(request: Request) -> dict:
     """Every provider account OpenClaw uses: quota windows and last-30-days traffic."""
     await _require_user(request)
     return await openclaw_usage.accounts_snapshot()
+
+
+@app.get("/api/openclaw/analytics")
+async def api_openclaw_analytics(
+    request: Request, response: Response, days: int = Query(default=30, ge=1, le=90),
+    limit: int = Query(default=500, ge=1, le=2000), refresh: bool = False,
+) -> dict:
+    """Gateway-wide usage, with bounded session rows and complete range totals."""
+    await _require_user(request)
+    response.headers["Cache-Control"] = "no-store"
+    return await openclaw_analytics.snapshot(days, limit, refresh)
+
+
+@app.get("/api/openclaw/analytics/inferences")
+async def api_openclaw_inferences(
+    request: Request, response: Response, session_id: str = Query(max_length=64),
+    days: int = Query(default=30, ge=1, le=90), limit: int = Query(default=1000, ge=1, le=10000),
+) -> dict:
+    """Inference metadata only; opaque session ids never become file paths."""
+    await _require_user(request)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return await openclaw_analytics.inferences(session_id, days, limit)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid_session") from None
+    except LookupError:
+        raise HTTPException(status_code=404, detail="unknown_session") from None
 
 
 @app.post("/api/model")

@@ -48,10 +48,12 @@ _COST_FIELDS = (
 
 
 async def _call(method: str, params: dict | None = None, timeout: float = 30) -> dict | None:
-    args = ["gateway", "call", method, "--json"]
+    args = ["gateway", "call", method, "--json", "--timeout", str(int(timeout * 1000))]
     if params:
         args += ["--params", json.dumps(params)]
-    code, out, err = await openclaw_models._run_cli(*args, timeout=timeout)
+    # The RPC clock starts after CLI startup and the gateway handshake. Give
+    # the process a small grace period so it can return that RPC's result/error.
+    code, out, err = await openclaw_models._run_cli(*args, timeout=timeout + 5)
     if code != 0:
         log.warning("openclaw gateway call %s: code %d (%s)", method, code, err.strip()[:160])
         return None
