@@ -8,8 +8,10 @@ import {
   Settings,
   Sliders,
   Eye,
+  ChartNoAxesCombined,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { t as inferenceText } from '@/locales/inference';
 
 /** Розділи панелі. Порядок тут = порядок у рейці й у нижній навігації. */
 export interface SectionDef {
@@ -28,6 +30,7 @@ export const SECTIONS: SectionDef[] = [
   { id: 'browser', label: 'Браузер', icon: Globe },
   { id: 'vision', label: 'Зір', icon: Eye },
   { id: 'services', label: 'Сервіси', icon: Sliders },
+  { id: 'inference', get label() { return inferenceText('nav'); }, icon: ChartNoAxesCombined },
   { id: 'logs', label: 'Логи', icon: ScrollText },
   { id: 'settings', label: 'Налаштування', icon: Settings, primary: true },
 ];

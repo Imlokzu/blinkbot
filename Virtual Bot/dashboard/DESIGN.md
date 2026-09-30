@@ -263,3 +263,27 @@ Chat on the left, what the bot is making on the right — the owner's ask.
   12 MB CJK font.
 - Strings: `src/locales/workbench.ts`. Browser check:
   `tests/workbench.browser.mjs` (route fixtures only).
+
+## OpenClaw inference dashboard (2026-09-30)
+
+- The `#/inference` section shares the warm surfaces, Plex fonts, thin borders
+  and the existing theme/accent. Numbers, model ids and timestamps are mono.
+- Reporting spans this OpenClaw gateway, with UTC calendar ranges (today, 7,
+  30 or 90 days). Provider selection filters metrics, the daily chart and model
+  rows; session matching also checks models used after a fallback. Session
+  totals retain the full session scope and are labelled accordingly.
+- Counts and API estimates come from `sessions.usage`; quota windows come from
+  `usage.status`. Missing prices remain unpriced and missing token metadata
+  is shown as absent. Subscription costs are explicitly API equivalents, not
+  the subscription invoice. Effective per-million rates are averages of the
+  recorded priced traffic, not a hardcoded provider catalog.
+- Selecting a session opens a keyboard-accessible journal over metadata from
+  the current transcript, with actual per-response provider/model attribution.
+  Opaque ids replace session keys; prompts, replies, tool arguments, account
+  addresses and credentials never appear in the reporting response.
+- Session and transcript windows are bounded, with visible limits and actions
+  to inspect more history. A partial index stays labelled; an unavailable
+  gateway never becomes a zero-cost report.
+- Strings: `src/locales/inference.ts` in English and Ukrainian. Regression
+  checks: `tests/inference.test.mjs`, `tests/inference.browser.mjs`, and the
+  backend `tests/test_openclaw_analytics.py`.

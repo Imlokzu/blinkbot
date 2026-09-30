@@ -29,6 +29,7 @@ const PANELS: Record<string, React.LazyExoticComponent<() => React.ReactElement>
   browser: lazy(() => import('@/panels/browser/BrowserPanel')),
   vision: lazy(() => import('@/panels/vision/VisionPanel')),
   services: lazy(() => import('@/panels/services/ServicesPanel')),
+  inference: lazy(() => import('@/panels/inference/InferencePanel')),
   logs: lazy(() => import('@/panels/logs/LogsPanel')),
   settings: lazy(() => import('@/panels/settings/SettingsPanel')),
 };
