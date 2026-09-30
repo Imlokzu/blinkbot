@@ -27,6 +27,7 @@ import app_config as cfg
 import brain_context
 import profile_store
 import trace_log
+import usage_tracking
 from emotions import ALLOWED_EMOTIONS, extract_emotion, guess_emotion
 from memory import append_user_profile, find_relevant_notes, load_user_profile
 import openclaw_config
@@ -757,6 +758,7 @@ _last_jev_model: str = ""
 def _note_jev_route(tier: str, model: str, source: str = "", ms: float | None = None) -> None:
     global _last_jev_model
     _last_jev_model = model
+    usage_tracking.note_route(tier, model, source)
     log.info("Jev: %s tier -> %s (%s)", tier, model, source or "keywords")
     # The console shows who routed the turn and what it cost in time.
     trace_log.step("brain", "jev", "ok", f"{tier} → {model} ({source or 'keywords'})", ms)
@@ -1876,6 +1878,7 @@ def _screen_notice(key: str = "", resolve: str = "", **kwargs) -> None:
         log.debug("screen notice failed", exc_info=True)
 
 
+@usage_tracking.record_chat
 async def chat(
     message: str,
     history: ChatHistory | None = None,

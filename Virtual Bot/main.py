@@ -31,7 +31,7 @@ from contextlib import asynccontextmanager, contextmanager
 from html import escape as html_escape
 from pathlib import Path
 from threading import Lock
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union
 from urllib.parse import quote
 
 import html
@@ -90,6 +90,8 @@ import openclaw_extensions
 import openclaw_store
 import openclaw_usage
 import openclaw_analytics
+import usage_reporting
+import usage_comparison
 import profile_store
 import services_manager
 import setup_suggestions
@@ -866,27 +868,45 @@ async def api_openclaw_accounts(request: Request) -> dict:
 async def api_openclaw_analytics(
     request: Request, response: Response, days: int = Query(default=30, ge=1, le=90),
     limit: int = Query(default=500, ge=1, le=2000), refresh: bool = False,
+    modality: Literal["all", "text", "voice"] = "all",
 ) -> dict:
     """Gateway-wide usage, with bounded session rows and complete range totals."""
-    await _require_user(request)
+    user_id = await _require_user(request)
     response.headers["Cache-Control"] = "no-store"
-    return await openclaw_analytics.snapshot(days, limit, refresh)
+    return await usage_reporting.snapshot(days, limit, refresh, modality, user_id)
 
 
 @app.get("/api/openclaw/analytics/inferences")
 async def api_openclaw_inferences(
     request: Request, response: Response, session_id: str = Query(max_length=64),
     days: int = Query(default=30, ge=1, le=90), limit: int = Query(default=1000, ge=1, le=10000),
+    modality: Literal["all", "text", "voice"] = "all",
 ) -> dict:
     """Inference metadata only; opaque session ids never become file paths."""
-    await _require_user(request)
+    user_id = await _require_user(request)
     response.headers["Cache-Control"] = "no-store"
     try:
-        return await openclaw_analytics.inferences(session_id, days, limit)
+        return await usage_reporting.journal(session_id, days, limit, modality, user_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="invalid_session") from None
     except LookupError:
         raise HTTPException(status_code=404, detail="unknown_session") from None
+
+
+@app.get("/api/openclaw/analytics/comparison")
+async def api_usage_comparison(
+    request: Request, response: Response, days: int = Query(default=7, ge=1, le=90),
+    modality: Literal["all", "text", "voice"] = "all", provider: str = Query(default="", max_length=160),
+    baseline_model: str = Query(default="", max_length=200),
+    opus_model: Literal["claude-opus-5-5", "claude-opus-4-8"] = "claude-opus-5-5",
+    population: Literal["observed", "routed"] = "observed",
+) -> dict:
+    user_id = await _require_user(request)
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return await usage_comparison.snapshot(days, modality, provider, baseline_model, opus_model, population, user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invalid_baseline") from None
 
 
 @app.post("/api/model")

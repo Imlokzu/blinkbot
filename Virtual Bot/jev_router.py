@@ -37,6 +37,7 @@ import re
 import httpx
 
 import app_config as cfg
+import usage_tracking
 
 log = logging.getLogger("virtual_bot.jev")
 
@@ -179,6 +180,7 @@ async def ask_jev(message: str) -> tuple[str, float] | None:
         "state": (message or "")[:_API_MAX_CHARS],
         "questions": {"tier": _QUESTION},
     }
+    call_id = usage_tracking.note_classifier()
     try:
         response = await asyncio.wait_for(
             _http().post(
@@ -193,7 +195,13 @@ async def ask_jev(message: str) -> tuple[str, float] | None:
             # The body may echo the request; the status is enough to debug.
             log.warning("Jev API: HTTP %d, using keyword rules", response.status_code)
             return None
-        answer = response.json()["answers"]["tier"]
+        data = response.json()
+        usage = data.get("usage") if isinstance(data, dict) else None
+        usage_tracking.note_classifier(
+            usage.get("input_tokens") if isinstance(usage, dict) else None,
+            call_id=call_id,
+        )
+        answer = data["answers"]["tier"]
         tier = str(answer["choice"])
         confidence = float(answer.get("confidence", 0.0))
     except (asyncio.TimeoutError, httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
