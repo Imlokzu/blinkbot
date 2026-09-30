@@ -1,0 +1,22 @@
+{
+  "id": "daily-checklist",
+  "type": "app",
+  "label": "Daily checklist",
+  "icon": "list",
+  "tint": "#8ca879",
+  "version": "1.1.0",
+  "author": "Claude Bot",
+  "description": "An offline daily task list with progress, editable tasks and morning, work and evening starters.",
+  "category": "tools",
+  "entry": "index.html",
+  "locales": {
+    "en": {
+      "label": "Daily checklist",
+      "description": "An offline daily task list with progress, editable tasks and morning, work and evening starters."
+    },
+    "uk": {
+      "label": "Щоденний список",
+      "description": "Щоденні справи офлайн: прогрес, редагування та стартові списки для ранку, роботи й вечора."
+    }
+  }
+}

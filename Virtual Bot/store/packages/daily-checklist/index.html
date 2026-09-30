@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title data-i18n="title"></title>
+<link rel="stylesheet" href="/static/screen/app-kit.css">
+<script src="/static/screen/app-kit.js"></script>
+<script src="model.js"></script>
+<style>
+  .checklist-app { gap: 6px; }
+  .view { display: flex; flex-direction: column; gap: 6px; min-height: 0; flex: 1; }
+  .checklist-app .kit-bar { gap: 6px; }
+  .checklist-app .kit-title { font-size: 17px; }
+  .checklist-app .kit-btn { min-height: 30px; padding: 0 12px; }
+  .checklist-app .kit-btn.icon { padding: 0; }
+  .progress-caption { font-size: 11px; font-variant-numeric: tabular-nums; }
+  .kit-progress { flex: none; }
+  .task-list { gap: 6px; }
+  .task-row { display: flex; gap: 6px; align-items: center; }
+  .task-toggle { padding: 6px 9px; min-height: 34px; gap: 8px; }
+  .task-toggle svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; }
+  .task-toggle[aria-pressed="true"] { color: var(--ok); }
+  .task-toggle[aria-pressed="true"] .task-name { text-decoration: line-through; }
+  .task-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .template-row { display: flex; gap: 6px; flex: none; }
+  .template-row .kit-chip { flex: 1; min-width: 24px; min-height: 28px; padding: 0 6px; }
+  .footer-actions { gap: 6px; flex: none; }
+  .footer-actions > button { flex: 1; min-width: 0; }
+  .notice { margin: 0; font-size: 10px; line-height: 1.2; flex: none; overflow-wrap: anywhere; }
+  .empty { margin: 0; padding: 12px 8px; text-align: center; }
+  .editor-content { display: flex; flex-direction: column; gap: 8px; }
+  .editor-field { gap: 6px; }
+  .editor-field .kit-input { flex: 1; min-width: 0; }
+  .editor-hint { margin: 0; }
+  .editor-actions { margin-top: auto; }
+  @media (prefers-reduced-motion: reduce) { .checklist-app .kit-btn { transition: none; } }
+</style>
+</head>
+<body class="kit">
+<main class="kit-app checklist-app">
+  <section class="view" id="listView">
+    <header class="kit-bar">
+      <span class="kit-title" data-i18n="title"></span>
+      <span class="kit-sub progress-caption" id="progressText" aria-live="polite"></span>
+    </header>
+    <div class="kit-progress" id="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" data-i18n-aria="progress"></div>
+    <div class="kit-fill kit-scroll" id="taskScroll">
+      <div class="kit-list task-list" id="tasks"></div>
+      <p class="kit-sub empty" id="empty" data-i18n="empty"></p>
+    </div>
+    <div class="template-row" role="group" data-i18n-aria="templates">
+      <button class="kit-chip" data-template="morning" data-i18n="morning"></button>
+      <button class="kit-chip" data-template="work" data-i18n="work"></button>
+      <button class="kit-chip" data-template="evening" data-i18n="evening"></button>
+    </div>
+    <footer class="kit-row footer-actions">
+      <button class="kit-btn primary" id="add" data-i18n="add"></button>
+      <button class="kit-btn tonal" id="reset" data-i18n="reset"></button>
+    </footer>
+  </section>
+  <section class="view" id="editorView" hidden>
+    <header class="kit-bar">
+      <span class="kit-title" id="editorTitle"></span>
+      <button class="kit-btn ghost" id="cancel" data-i18n="cancel"></button>
+    </header>
+    <form class="view" id="editorForm">
+      <div class="kit-fill kit-scroll editor-content">
+        <label class="kit-label" for="taskTitle" data-i18n="taskTitle"></label>
+        <div class="kit-row editor-field">
+          <label class="kit-input">
+            <input id="taskTitle" type="text" autocomplete="off" data-i18n-aria="taskTitle" data-i18n-placeholder="placeholder">
+          </label>
+          <button class="kit-btn icon sm tonal" id="keyboard" type="button" data-i18n-aria="keyboard">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M9 14h6M18 14h.01"/></svg>
+          </button>
+        </div>
+        <p class="kit-sub editor-hint" id="editorHint"></p>
+      </div>
+      <footer class="kit-row footer-actions editor-actions">
+        <button class="kit-btn primary" id="save" type="submit" data-i18n="save"></button>
+        <button class="kit-btn danger" id="delete" type="button" data-i18n="delete"></button>
+      </footer>
+    </form>
+  </section>
+  <p class="kit-sub notice" id="notice" role="status" aria-live="polite" hidden></p>
+  <p class="kit-sub notice" id="storageNotice" role="status" hidden></p>
+</main>
+<script>
+  "use strict";
+  const STR = {
+    en: {
+      title: "Daily checklist", progress: "Task progress", count: "{done}/{total} done",
+      empty: "Add a task or choose a starter below.", templates: "Add starter tasks; your tasks stay",
+      morning: "Morning", work: "Work", evening: "Evening", add: "Add task", reset: "Reset done",
+      cancel: "Cancel", taskTitle: "Task title", placeholder: "What needs doing?", keyboard: "Open bot keyboard",
+      editorAdd: "New task", editorEdit: "Edit task", save: "Save", delete: "Delete",
+      hint: "Up to {tasks} tasks, {chars} characters each.", toggle: "Toggle completion: {title}", edit: "Edit: {title}",
+      added: "Task added.", saved: "Task saved.", deleted: "Task deleted.", resetDone: "Completion cleared; tasks kept.",
+      templateAdded: "Starter tasks added; your tasks kept.", templatePresent: "These starter tasks are already here.",
+      full: "List full ({tasks}). Delete a task to make room.", emptyTitle: "Enter a task title.",
+      longTitle: "Use at most {chars} characters.", missing: "This task no longer exists.", unknownTemplate: "Starter unavailable.",
+      corrupt: "Saved list unreadable. New changes replace it.", recovered: "Saved list repaired; invalid entries skipped.",
+      unavailable: "Storage blocked or full. Changes last this visit only.",
+      "task.morning.water": "Drink water", "task.morning.stretch": "Stretch for a minute", "task.morning.plan": "Plan today's priorities",
+      "task.work.priority": "Finish the top priority", "task.work.break": "Take a screen break", "task.work.review": "Review today's work",
+      "task.evening.tidy": "Tidy the desk", "task.evening.tomorrow": "Prepare for tomorrow", "task.evening.unwind": "Make time to unwind"
+    },
+    uk: {
+      title: "Щоденний список", progress: "Прогрес справ", count: "{done}/{total} готово",
+      empty: "Додайте справу або виберіть список нижче.", templates: "Додати стартові справи; ваші залишаться",
+      morning: "Ранок", work: "Робота", evening: "Вечір", add: "Додати", reset: "Скинути готове",
+      cancel: "Скасувати", taskTitle: "Назва справи", placeholder: "Що треба зробити?", keyboard: "Клавіатура бота",
+      editorAdd: "Нова справа", editorEdit: "Редагування", save: "Зберегти", delete: "Видалити",
+      hint: "До {tasks} справ, по {chars} символів.", toggle: "Змінити готовність: {title}", edit: "Редагувати: {title}",
+      added: "Справу додано.", saved: "Справу збережено.", deleted: "Справу видалено.", resetDone: "Готовність скинуто; справи збережено.",
+      templateAdded: "Стартові справи додано; ваші збережено.", templatePresent: "Ці стартові справи вже є.",
+      full: "Список повний ({tasks}). Видаліть одну справу.", emptyTitle: "Введіть назву справи.",
+      longTitle: "Не більше {chars} символів.", missing: "Цієї справи вже немає.", unknownTemplate: "Список недоступний.",
+      corrupt: "Список не читається. Нові зміни замінять його.", recovered: "Список відновлено; хибні записи пропущено.",
+      unavailable: "Сховище недоступне. Зміни лише до закриття.",
+      "task.morning.water": "Випити води", "task.morning.stretch": "Хвилина розминки", "task.morning.plan": "Спланувати головні справи",
+      "task.work.priority": "Завершити головну справу", "task.work.break": "Відпочити від екрана", "task.work.review": "Переглянути результати дня",
+      "task.evening.tidy": "Прибрати стіл", "task.evening.tomorrow": "Підготуватися до завтра", "task.evening.unwind": "Знайти час для відпочинку"
+    }
+  };
+  const M = window.ChecklistModel;
+  const $ = (id) => document.getElementById(id);
+  let lang = window.BotApp && BotApp.lang === "uk" ? "uk" : "en";
+  let storage = null;
+  try { storage = window.localStorage; } catch (_) { /* The list still works in memory. */ }
+  const restored = M.load(storage);
+  let state = restored.state;
+  let storageStatus = restored.status === "ok" ? "" : restored.status;
+  let noticeKey = "", noticeTimer = null, editing = null, editorOriginal = "", keyboardPending = false;
+  $("taskTitle").maxLength = M.MAX_TITLE;
+
+  function t(key, params = {}) {
+    const values = Object.assign({ tasks: M.MAX_TASKS, chars: M.MAX_TITLE }, params);
+    return (STR[lang][key] || STR.en[key] || key).replace(/\{(\w+)\}/g, (_, name) => String(values[name] ?? ""));
+  }
+  function taskText(task) { return task.key ? t(task.key) : task.title; }
+  function paintNotices() {
+    $("notice").hidden = !noticeKey;
+    $("notice").textContent = noticeKey ? t(noticeKey) : "";
+    $("storageNotice").hidden = !storageStatus;
+    $("storageNotice").textContent = storageStatus ? t(storageStatus) : "";
+  }
+  function notify(key) {
+    clearTimeout(noticeTimer);
+    noticeKey = key;
+    paintNotices();
+    noticeTimer = setTimeout(() => { noticeKey = ""; paintNotices(); }, 3500);
+  }
+  function applyI18n() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll("[data-i18n-aria]").forEach((el) => { el.setAttribute("aria-label", t(el.dataset.i18nAria)); });
+    document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+    $("editorTitle").textContent = t(editing ? "editorEdit" : "editorAdd");
+    $("editorHint").textContent = t("hint");
+    paintNotices();
+    draw();
+  }
+  function svg(paths) {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    el.setAttribute("viewBox", "0 0 24 24");
+    el.setAttribute("aria-hidden", "true");
+    // Only fixed, authored icon paths enter SVG; user text never becomes markup.
+    paths.forEach((d) => {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", d);
+      el.appendChild(path);
+    });
+    return el;
+  }
+  function draw() {
+    const p = M.progress(state), list = $("tasks"), scroll = $("taskScroll").scrollTop;
+    const focused = document.activeElement;
+    const focusedTask = focused && focused.dataset.task, focusedAction = focused && focused.dataset.action;
+    $("progressText").textContent = t("count", p);
+    $("progress").style.setProperty("--p", String(p.ratio));
+    $("progress").setAttribute("aria-valuenow", String(Math.round(p.ratio * 100)));
+    $("progress").setAttribute("aria-valuetext", t("count", p));
+    $("empty").hidden = p.total !== 0;
+    $("add").disabled = p.total >= M.MAX_TASKS;
+    $("reset").disabled = p.done === 0;
+    list.textContent = "";
+    state.tasks.forEach((task) => {
+      const row = document.createElement("div");
+      row.className = "task-row";
+      const toggle = document.createElement("button");
+      toggle.className = "kit-item kit-grow task-toggle";
+      toggle.dataset.task = task.id;
+      toggle.dataset.action = "toggle";
+      toggle.setAttribute("aria-pressed", String(task.done));
+      toggle.setAttribute("aria-label", t("toggle", { title: taskText(task) }));
+      toggle.appendChild(svg(task.done ? ["M5 12l4 4L19 6"] : ["M5 5h14v14H5z"]));
+      const label = document.createElement("span");
+      label.className = "kit-grow task-name";
+      label.textContent = taskText(task);
+      toggle.appendChild(label);
+      toggle.addEventListener("click", () => { commit(M.toggle(state, task.id)); });
+      const edit = document.createElement("button");
+      edit.className = "kit-btn icon sm ghost";
+      edit.dataset.task = task.id;
+      edit.dataset.action = "edit";
+      edit.setAttribute("aria-label", t("edit", { title: taskText(task) }));
+      edit.appendChild(svg(["M4 20h4l10-10a2.1 2.1 0 0 0-3-3L5 17z"]));
+      edit.addEventListener("click", () => openEditor(task));
+      row.append(toggle, edit);
+      list.appendChild(row);
+    });
+    if (focusedTask) {
+      const replacement = Array.from(list.querySelectorAll("button")).find((el) => el.dataset.task === focusedTask && el.dataset.action === focusedAction);
+      if (replacement) replacement.focus({ preventScroll: true });
+    }
+    $("taskScroll").scrollTop = scroll;
+  }
+  function commit(change, message) {
+    if (change.error) { notify(change.error); return false; }
+    state = change.state;
+    storageStatus = M.save(storage, state) ? "" : "unavailable";
+    paintNotices();
+    draw();
+    if (message) notify(message);
+    return true;
+  }
+  function keyboardMessage(action) {
+    if (window.parent === window) return;
+    window.parent.postMessage({ type: "botKeyboard", action, value: $("taskTitle").value,
+      placeholder: t("placeholder"), enter: "done" }, window.location.origin === "null" ? "*" : window.location.origin);
+  }
+  function openEditor(task) {
+    editing = task ? task.id : null;
+    editorOriginal = task ? taskText(task) : "";
+    $("taskTitle").value = editorOriginal;
+    $("listView").hidden = true;
+    $("editorView").hidden = false;
+    $("delete").hidden = !task;
+    $("editorTitle").textContent = t(task ? "editorEdit" : "editorAdd");
+    noticeKey = "";
+    paintNotices();
+    $("taskTitle").focus({ preventScroll: true });
+  }
+  function closeEditor() {
+    keyboardPending = false;
+    keyboardMessage("close");
+    $("taskTitle").blur();
+    $("editorView").hidden = true;
+    $("listView").hidden = false;
+    editing = null;
+    editorOriginal = "";
+    $("add").focus({ preventScroll: true });
+  }
+  function saveEditor() {
+    if ($("editorView").hidden) return;
+    const value = $("taskTitle").value;
+    const task = editing ? state.tasks.find(task => task.id === editing) : null;
+    // Visiting Edit without changing the text must retain a starter's locale key,
+    // even if the screen language changed while the editor was open.
+    const change = task && M.cleanTitle(value) === editorOriginal ? { state, error: null } :
+      editing ? M.edit(state, editing, value) : M.add(state, value);
+    if (commit(change, editing ? "saved" : "added")) closeEditor();
+  }
+  $("editorForm").addEventListener("submit", (event) => { event.preventDefault(); saveEditor(); });
+  $("add").addEventListener("click", () => openEditor(null));
+  $("cancel").addEventListener("click", closeEditor);
+  $("delete").addEventListener("click", () => { if (editing && commit(M.remove(state, editing), "deleted")) closeEditor(); });
+  $("reset").addEventListener("click", () => { commit(M.reset(state), "resetDone"); });
+  document.querySelectorAll("[data-template]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const change = M.applyTemplate(state, button.dataset.template);
+      commit(change, change.added ? "templateAdded" : "templatePresent");
+    });
+  });
+  $("keyboard").addEventListener("click", () => {
+    $("taskTitle").blur();
+    keyboardPending = window.parent !== window;
+    if (keyboardPending) keyboardMessage("open");
+    else $("taskTitle").focus({ preventScroll: true });
+  });
+  window.addEventListener("message", (event) => {
+    const data = event.data;
+    if (event.source !== window.parent || (event.origin !== window.location.origin && event.origin !== "null") ||
+        !data || data.type !== "botKeyboardInput" || !keyboardPending || $("editorView").hidden) return;
+    if (data.cancelled) { keyboardPending = false; return; }
+    if (typeof data.value === "string") $("taskTitle").value = data.value;
+    if (data.done) { keyboardPending = false; saveEditor(); }
+  });
+  applyI18n();
+  if (window.BotApp) BotApp.onChange((s) => {
+    if (s.lang !== lang) { lang = s.lang === "uk" ? "uk" : "en"; applyI18n(); }
+  });
+</script>
+</body>
+</html>

@@ -92,6 +92,13 @@ function pixels(rows, x0, y0, cell, color, accent = {}) {
    colour (defaults to the bottom of the gradient); glyph(D) — the SVG. */
 
 export const DESIGNS = {
+  checklist: {
+    bg: ["#8793d8", "#616bb0"],
+    glyph: (D) =>
+      `<rect x="13" y="12" width="22" height="26" rx="4" fill="${W}"/>` +
+      `<rect x="19" y="9" width="10" height="6" rx="2" fill="${D}"/>` +
+      line("M17 21l2 2 3-4M17 30l2 2 3-4M26 21h5M26 30h5", D, 2.4),
+  },
   face: {
     bg: ["#5eead4", "#0f9f94"],
     glyph: (D) =>
@@ -423,6 +430,7 @@ const BY_ID = {
   face: "face", clock: "clock", chat: "mic", timer: "hourglass", weather: "weather",
   say: "bubble", state: "gauge", quick: "sliders", camera: "camera", services: "server",
   panel: "monitor", settings: "gear", memory: "notebook", chats: "history", store: "bag",
+  "daily-checklist": "checklist",
   notices: "bubble",
   // built-in store packages (store/packages/*)
   breathe: "petals", calculator: "calc", "device-settings": "chip", dice: "dice",
