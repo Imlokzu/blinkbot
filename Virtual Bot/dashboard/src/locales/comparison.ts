@@ -1,0 +1,46 @@
+const en = {
+  title: 'Router comparison', population: 'Compare traffic', observed: 'All recorded traffic', routed: 'Verified Jev turns',
+  baseline: 'Without router', opus: 'Opus every day', recorded: 'Observed model mix', withRouter: 'With Jev',
+  savings: 'Price difference vs Opus', netSavings: 'Jev savings vs Opus', more: 'Extra cost vs Opus', percent: '{value}% less',
+  counterfactual: 'Same recorded tokens', hint: 'Reprice your recorded input, output and cache tokens at each model’s API rates. No conversations are replayed.',
+  assumptions: 'Model responses, quality and token counts could differ in a real replay. Cache writes assume 5-minute caching. ASR and speech synthesis costs are excluded.',
+  billingNote: 'Observed costs are API equivalents. With a subscription, you pay for the plan; these estimates are not its invoice or actual per-token charges.',
+  history: 'Historical Jev decisions were not recorded. The model mix is measured; its routing benefit is unverified. New turns record text/voice and Jev decisions.',
+  coverage: '{turns} tracked turns · {matched} matched model responses · {routed} verified Jev turns',
+  incomplete: 'Some tokens or costs are missing. A complete savings estimate is unavailable.',
+  limited: 'The matched history window is incomplete. Only matched responses contribute to this comparison.',
+  overhead: 'Jev classifier cost', unknownOverhead: 'Some classifier calls have no reported token count; net savings are unavailable.',
+  empty: 'No verified Jev usage yet', emptyHint: 'Choose Jev in the model picker and use the bot. Its decisions and measured usage will appear here.',
+  noUsage: 'No matched usage for these filters', noUsageHint: 'Text and voice reports include newly tracked turns. Historical unclassified activity stays under All activity.',
+  loading: 'Loading comparison…', unavailable: 'Comparison unavailable', retry: 'Try again',
+  source: 'Price sources', checked: 'Checked {date}', anthropic: 'Anthropic pricing', typesafe: 'TypeSafe pricing',
+  counts: '{count} model responses', stale: 'Refresh failed. The last successful comparison remains visible.',
+  baselineHelp: 'The fixed model is only a pricing scenario; this selection does not change the bot’s active model.',
+  plot: 'Cost for the same recorded traffic', costs: 'Model API estimate', savingsBaseline: 'Difference vs fixed model',
+  unknown: '—', chooseOpus: 'Opus version',
+} as const;
+const uk: Record<keyof typeof en, string> = {
+  title: 'Порівняння роутера', population: 'Дані для порівняння', observed: 'Усе записане використання', routed: 'Підтверджені ходи Jev',
+  baseline: 'Без роутера', opus: 'Opus щодня', recorded: 'Фактичний набір моделей', withRouter: 'З Jev',
+  savings: 'Різниця ціни проти Opus', netSavings: 'Економія Jev проти Opus', more: 'Додаткові витрати проти Opus', percent: 'На {value}% менше',
+  counterfactual: 'Ті самі записані токени', hint: 'Перерахунок реальних вхідних, вихідних і кешованих токенів за тарифами кожної моделі. Розмови не запускаються повторно.',
+  assumptions: 'У повторному запуску відповіді, якість і кількість токенів можуть відрізнятися. Запис кешу розраховано на 5 хвилин. ASR і синтез мовлення не включено.',
+  billingNote: 'Фактичне використання оцінено за тарифами API. За підпискою ви оплачуєте план; ці оцінки — не його рахунок і не реальні платежі за кожен токен.',
+  history: 'Історичні рішення Jev не записувались. Набір моделей виміряний, але вигода саме від роутера не підтверджена. Нові ходи записують текст/голос і рішення Jev.',
+  coverage: '{turns} записаних ходів · {matched} зіставлених відповідей моделей · {routed} підтверджених ходів Jev',
+  incomplete: 'Частина токенів або витрат невідома. Повна оцінка економії недоступна.',
+  limited: 'Вікно зіставленої історії неповне. Порівняння враховує тільки зіставлені відповіді.',
+  overhead: 'Вартість класифікатора Jev', unknownOverhead: 'Частина викликів класифікатора не має даних про токени; чиста економія невідома.',
+  empty: 'Підтвердженого використання Jev ще немає', emptyHint: 'Виберіть Jev у списку моделей і користуйтеся ботом. Тут з’являться його рішення та виміряне використання.',
+  noUsage: 'За цими фільтрами зіставленого використання немає', noUsageHint: 'Звіти тексту й голосу містять нові записані ходи. Старе некласифіковане використання — в «Усе разом».',
+  loading: 'Завантажую порівняння…', unavailable: 'Порівняння недоступне', retry: 'Спробувати ще',
+  source: 'Джерела тарифів', checked: 'Перевірено {date}', anthropic: 'Тарифи Anthropic', typesafe: 'Тарифи TypeSafe',
+  counts: '{count} відповідей моделей', stale: 'Оновлення не вдалося. Залишено останнє успішне порівняння.',
+  baselineHelp: 'Фіксована модель — тільки ціновий сценарій; цей вибір не змінює активну модель бота.',
+  plot: 'Вартість того самого використання', costs: 'Оцінка вартості API моделей', savingsBaseline: 'Різниця проти фіксованої моделі',
+  unknown: '—', chooseOpus: 'Версія Opus',
+};
+export function t(key: keyof typeof en, values: Record<string, string | number> = {}): string {
+  const locale = typeof document !== 'undefined' && document.documentElement.lang.startsWith('en') ? en : uk;
+  return locale[key].replace(/\{(\w+)\}/g, (match, name: string) => String(values[name] ?? match));
+}

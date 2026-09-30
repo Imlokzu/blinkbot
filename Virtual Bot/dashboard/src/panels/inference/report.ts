@@ -1,7 +1,7 @@
 export interface Costs {
-  input: number; output: number; cacheRead: number; cacheWrite: number; totalTokens: number;
-  totalCost: number; inputCost: number; outputCost: number; cacheReadCost: number; cacheWriteCost: number;
-  missingCostEntries: number; noCacheCost?: number;
+  input: number | null; output: number | null; cacheRead: number | null; cacheWrite: number | null; totalTokens: number | null;
+  totalCost: number | null; inputCost: number | null; outputCost: number | null; cacheReadCost: number | null; cacheWriteCost: number | null;
+  missingCostEntries: number; noCacheCost?: number; rates_available?: boolean;
 }
 export interface ModelUsage extends Costs { provider: string; model: string; replies: number }
 export interface ProviderUsage extends Costs {
@@ -18,6 +18,7 @@ export interface Report {
   indexing?: boolean; totals: Costs | null; replies?: number; errors?: number; tool_calls?: number;
   providers: ProviderUsage[]; models: ModelUsage[]; daily: DayUsage[]; daily_models?: DayUsage[];
   sessions: SessionUsage[]; sessions_limited?: boolean;
+  modality?: 'all' | 'text' | 'voice'; coverage?: { tracked_turns: number; unclassified?: boolean; history_limited?: boolean };
 }
 export interface Inference {
   id: string; timestamp: number; provider: string; model: string; status: 'ok' | 'error' | 'tool';
@@ -48,13 +49,16 @@ export function isColdIndex(report: Report): boolean {
 
 /** Rates are effective averages from recorded API costs, not a guessed catalog price. */
 export function rate(costs: Costs, kind: 'input' | 'output' | 'cacheRead'): number | null {
+  if (costs.rates_available === false) return null;
   const tokens = costs[kind];
   const cost = costs[`${kind}Cost`];
   return costs.missingCostEntries || !known(tokens) || !tokens || !known(cost) ? null : cost / tokens * 1_000_000;
 }
 export function cacheShare(costs: Costs): number | null {
-  const prompt = costs.input + costs.cacheRead + costs.cacheWrite;
-  return prompt ? costs.cacheRead / prompt * 100 : null;
+  const { input, cacheRead, cacheWrite } = costs;
+  if (!known(input) || !known(cacheRead) || !known(cacheWrite)) return null;
+  const prompt = input + cacheRead + cacheWrite;
+  return prompt ? cacheRead / prompt * 100 : null;
 }
 export function sessionMatches(session: SessionUsage, provider: string, query: string): boolean {
   // Once actual usage is known, configured/selected metadata cannot make a

@@ -47,6 +47,12 @@ try {
   route('**/api/auth/config', { disabled: true });
   route('**/api/brain/models', { models: [], selected: '', default: '', available: false });
   route('**/api/status', { mode: 'openclaw', openclaw: true, anthropic: false, vision: false, display: false });
+  route('**/api/openclaw/analytics/comparison?**', { available: true, replies: 4, population: 'observed',
+    baseline_model: 'openai/gpt-6-luna', observed_cost: .0075, router_cost: 0, actual_cost: .0075,
+    without_router_cost: .01, opus_cost: .85, savings_vs_opus: .8425, savings_vs_baseline: .0025, savings_percent: 99.1,
+    baselines: [{ id: 'openai/gpt-6-luna', label: 'GPT-6 Luna' }, { id: 'claude-opus-5-5', label: 'Claude Opus 5.5' }],
+    coverage: { tracked_turns: 0, matched_inferences: 0, router_turns: 0, unknown_router_costs: 0, unclassified_inferences: 4, history_limited: false },
+    pricing: { checked_at: '2026-09-30', opus_source: 'https://platform.claude.com/docs/en/about-claude/pricing', router_source: 'https://docs.typesafe.ai/models' } });
   route('**/api/openclaw/analytics?**', data);
   route('**/api/openclaw/analytics/inferences?**', inferences);
   browser('set', 'viewport', '1440', '1000');
@@ -84,6 +90,18 @@ try {
   assert.match(evaluate('document.querySelector("[data-inference-panel]").innerText'), /No matching sessions|Відповідних сесій немає/);
   browser('fill', 'input[aria-label="Search sessions"], input[aria-label="Пошук сесій"]', '');
 
+  browser('select', 'select[aria-label="Activity type"], select[aria-label="Тип використання"]', 'voice');
+  browser('wait', '[data-inference-panel] table');
+  assert.match(browser('network', 'requests', '--filter', 'analytics?'), /modality=voice/);
+  browser('select', 'select[aria-label="Activity type"], select[aria-label="Тип використання"]', 'all');
+  browser('click', '#usage-tab-comparison');
+  browser('wait', '[data-comparison-panel] a');
+  assert.match(evaluate('document.querySelector("[data-comparison-panel]").innerText'), /Opus/);
+  assert.match(evaluate('document.querySelector("[data-comparison-panel]").innerText'), /unverified|не підтверджена/);
+  assert.ok(evaluate('document.documentElement.scrollWidth <= innerWidth + 1'));
+  browser('press', 'ArrowLeft');
+  browser('click', '#usage-tab-usage');
+
   // A cold/partial index must be disclosed, and a failed report cannot look like zero spending.
   route('**/api/openclaw/analytics?**', { ...data, indexing: true });
   browser('reload');
@@ -94,7 +112,7 @@ try {
   browser('wait', '--text', 'OpenClaw');
   browser('wait', '--fn', '!!document.querySelector("[data-inference-panel]") && /unavailable|недоступна/.test(document.querySelector("[data-inference-panel]").innerText)');
   assert.equal(evaluate('document.querySelectorAll("[data-inference-panel] table").length'), 0);
-  console.log('Inference UI: fallback filters, private journal, focus, 5 widths, partial index and unavailable state passed.');
+  console.log('Inference UI: fallback filters, private journal, focus, 5 widths, text/voice query scope, router comparison, partial index and unavailable state passed.');
 } finally {
   browser('close');
 }

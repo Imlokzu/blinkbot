@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { Brain, Check, ChevronDown, Eye, LifeBuoy, Search, X, Zap } from 'lucide-react';
 import { Segmented } from '@/components/ui/Segmented';
+import { t as inferenceText } from '@/locales/inference';
 import { cn } from '@/lib/cn';
 import { t } from '@/locales/chat';
 import type { BrainModel } from '@/lib/queries';
@@ -408,6 +409,7 @@ export function ModelMenu({ variant = 'header' }: {
             ) : null}
           </ul>
 
+          <a href="#/inference?tab=comparison" className="border-t border-line px-3 py-3 text-sm text-ink-2 hover:bg-surface-2" onClick={() => setOpen(false)}>{inferenceText('comparisonTab')}</a>
           {brain.levels.length ? (
             <section className="border-t border-line px-3 pb-3 pt-2.5">
               <div className="mb-0.5 flex items-baseline gap-2">
