@@ -164,6 +164,24 @@ class ControlTests(unittest.TestCase):
         self.assertEqual(params["payload"], {"kind": "agentTurn", "message": "Review my tasks"})
         self.assertNotIn("message", response.text)
 
+    def test_job_agent_filter_reaches_gateway_before_pagination(self):
+        # Filtering an already paginated inventory can falsely show no jobs
+        # for an agent whose first job is on a later unfiltered page.
+        with patch.object(control.usage, "_call", AsyncMock(return_value={"jobs": []})) as call:
+            response = self.client.get("/api/openclaw/control/jobs?agent=main&offset=50")
+        self.assertEqual(response.status_code, 200)
+        listing = next(c.args[1] for c in call.await_args_list if c.args[0] == "cron.list")
+        self.assertEqual(listing["agentId"], "main")
+        self.assertEqual(listing["offset"], 50)
+
+    def test_explicit_history_refresh_bypasses_the_metadata_cache(self):
+        with patch.object(control.usage, "_call", AsyncMock(return_value={"entries": []})) as call:
+            self.assertEqual(self.client.get("/api/openclaw/control/jobs/job/runs").status_code, 200)
+            self.assertEqual(self.client.get("/api/openclaw/control/jobs/job/runs").status_code, 200)
+            self.assertEqual(call.await_count, 1)
+            self.assertEqual(self.client.get("/api/openclaw/control/jobs/job/runs?refresh=true").status_code, 200)
+            self.assertEqual(call.await_count, 2)
+
     def test_creation_validation_cannot_inject_config_or_shell_schedules(self):
         base = {"name": "Review", "message": "Tasks", "agent": "main", "kind": "every"}
         with patch.object(control.usage, "_call", AsyncMock(return_value={"agents": [{"id": "main"}]})) as call:

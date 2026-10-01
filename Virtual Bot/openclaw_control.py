@@ -169,10 +169,12 @@ def _schedule(value: object) -> dict:
     return {"kind": "other"}
 
 
-async def jobs(offset: int = 0) -> dict:
+async def jobs(offset: int = 0, agent: str = "") -> dict:
+    params = {"includeDisabled": True, "limit": 50, "offset": offset, "includeDeliveryPreviews": False}
+    if agent:
+        params["agentId"] = agent
     listing, status = await asyncio.gather(
-        _rpc("cron.list", {"includeDisabled": True, "limit": 50, "offset": offset,
-                           "includeDeliveryPreviews": False}),
+        _rpc("cron.list", params),
         _scheduler_status(),
     )
     if not isinstance(listing.get("jobs"), list):
@@ -257,13 +259,13 @@ def router(require_operator) -> APIRouter:
                    agent: str = Query(default="", max_length=80, pattern=r"^[A-Za-z0-9_-]*$")):
         response.headers["Cache-Control"] = "no-store"
         loaders = {"agents": agents, "sessions": lambda: sessions(50, offset, agent),
-                   "jobs": lambda: jobs(offset), "channels": channels}
+                   "jobs": lambda: jobs(offset, agent), "channels": channels}
         return await _read(f"{view}:{offset}:{agent}", loaders[view], refresh)
 
     @routes.get("/jobs/{job_id}/runs")
-    async def history(response: Response, job_id: str = _job_id()):
+    async def history(response: Response, job_id: str = _job_id(), refresh: bool = False):
         response.headers["Cache-Control"] = "no-store"
-        return await _read(f"runs:{job_id}", lambda: runs(job_id))
+        return await _read(f"runs:{job_id}", lambda: runs(job_id), refresh)
 
     @routes.post("/jobs")
     async def create(req: JobCreate, response: Response):
