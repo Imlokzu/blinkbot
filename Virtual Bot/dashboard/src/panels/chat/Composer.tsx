@@ -105,7 +105,6 @@ export function Composer({
 
   return (
     <div ref={root} className="chat-composer u-safe-b shrink-0 px-4 pb-3 pt-2 sm:px-6">
-      {sendBubble.overlay}
       <div className="mx-auto flex w-full max-w-[760px] flex-col items-stretch gap-1.5">
         {lean ? (
           <AttachSheet
@@ -210,7 +209,7 @@ export function Composer({
               { key: 'status', name: t('composer.cmdStatus'), description: t('composer.cmdStatusDesc') },
             ]}
             onSend={(text, meta) => {
-              if (text.trim()) sendBubble.launch();
+              if (text.trim()) sendBubble.launch(text);
               setSheetOpen(false);
               onSend(text, meta.attachments);
             }}

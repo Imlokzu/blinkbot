@@ -1,13 +1,13 @@
 const uk = {
   'effects.title': 'Додаткові ефекти',
   'effects.sendBubble': 'Бульбашка відправлення',
-  'effects.sendBubbleHint': 'Підлітає з кнопки й розчиняється з розмитим шлейфом. Зберігається в цьому браузері; вимикається зі зменшенням руху в системі.',
+  'effects.sendBubbleHint': 'Повідомлення вилітає з кнопки й долітає до свого місця в чаті з розмиттям руху. Зберігається в цьому браузері; вимикається зі зменшенням руху в системі.',
 } as const;
 
 const en: Record<keyof typeof uk, string> = {
   'effects.title': 'Extra effects',
   'effects.sendBubble': 'Send bubble',
-  'effects.sendBubbleHint': 'Lifts off the button and dissolves with a blurred trail. Saved in this browser; disabled when the system reduces motion.',
+  'effects.sendBubbleHint': 'The message flies from the button into its place in the chat with motion blur. Saved in this browser; disabled when the system reduces motion.',
 };
 
 export const effectsLocales = { uk, en };

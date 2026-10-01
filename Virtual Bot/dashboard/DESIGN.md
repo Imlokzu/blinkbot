@@ -374,7 +374,9 @@ Chat on the left, what the bot is making on the right — the owner's ask.
 
 Appearance groups optional visual feedback under Extra effects. The requested
 send bubble is a 720ms one-shot exception to the usual micro-motion duration:
-a circular copy of the armed arrow rises above the stationary button and
-dissolves with motion blur. It uses the existing button palette, adds no
-background animation, and is disabled by reduced motion or its saved switch.
-The body portal is decorative and never intercepts input.
+the full rendered message flies from the stationary button to its actual place
+in the chat. Its copy tracks the destination through auto-scroll, then dissolves
+with blur while the readable message remains. Line breaks, dimensions and the
+existing message palette stay intact. It adds no background animation and is
+disabled by reduced motion or its saved switch. The body overlay is decorative,
+inert and never intercepts input.

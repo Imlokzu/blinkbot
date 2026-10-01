@@ -619,18 +619,20 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
 
 ## Chat send bubble (2026-10-01)
 
-- The send button stays in place while a separate circular arrow lifts upward
-  and dissolves with a short blurred trail. Mouse and Enter share the effect;
+- The complete sent-message bubble flies from the stationary send button to
+  its real position in the chat, then hands off to the readable message as
+  the travelling copy dissolves with blur. Mouse and Enter share the effect;
   empty drafts and rejected attachment-only sends do not launch it.
 - Appearance now separates Extra effects from the screen settings. Send bubble
   is enabled by default; its local preference survives reloads and synchronizes
   across tabs. Reduced motion suppresses the effect; the overlay never captures
   input or appears in the accessibility tree. Timers are released on unmount.
 - New labels use English/Ukrainian locale keys in locales/effects.ts. The effect
-  follows the armed button palette in both themes.
+  preserves the rendered message content, line breaks and theme in flight.
 - Validation: dashboard unit tests, typecheck and isolated production build;
-  tests/sendBubble.browser.mjs covers mouse/Enter, upward travel and blur,
-  cleanup, persistent/cross-tab toggles, reduced motion and desktop/phone layouts.
+  tests/sendBubble.browser.mjs covers full-message content, multiline delivery,
+  real destination/size, mouse/Enter, blur and cleanup, persistent/cross-tab
+  toggles, reduced motion and desktop/phone layouts.
   Virtual Bot suite: 934 passed, 6 skipped, 150 subtests. HTTP smoke returned 200
   for panel/screen/static assets and 400 for memory path traversal.
 - Independent native adversarial review fixed preference refresh after periods

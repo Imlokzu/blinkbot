@@ -10,6 +10,7 @@ import {
 } from './Bubbles';
 import { SourceStrip } from './SourceStrip';
 import { MessageActions } from './MessageActions';
+import { useSentMessageFlight } from './useSendBubbleEffect';
 import { stepsFor } from './replyParts';
 import { Button } from '@/components/ui/Button';
 import { BotIcon } from '@/components/ui/BotIcon';
@@ -97,7 +98,11 @@ type MessageMeta = {
 
 function UserMessage() {
   const meta = useAuiState((state) => state.message.metadata.custom) as MessageMeta;
+  const id = useAuiState((state) => state.message.id);
+  const content = useAuiState((state) => state.message.content);
+  const text = content.filter((part) => part.type === 'text').map((part) => part.text).join('');
   const bubble = useRef<HTMLDivElement>(null);
+  useSentMessageFlight(bubble, id, text);
   const launch = useEmojiFlight();
   const [flying, setFlying] = useState<string | null>(null);
   // Equal to the reaction already on screen. A difference means this render
@@ -121,7 +126,7 @@ function UserMessage() {
   }, [meta.reaction, launch]);
   return (
     <MessagePrimitive.Root className={cn('mb-7 flex justify-end', meta.reaction && 'mb-10')}>
-      <div ref={bubble} className="chat-bubble-in u-measure relative rounded-lg bg-ink px-3.5 py-2 text-[15px] leading-[1.55] text-bg">
+      <div ref={bubble} data-user-message={id} className="chat-bubble-in u-measure relative rounded-lg bg-ink px-3.5 py-2 text-[15px] leading-[1.55] text-bg">
         <MessagePrimitive.Parts />
         {meta.reaction ? (
           <ReactionChip key={meta.reaction} emoji={meta.reaction} align="end" landing={pending || flying === meta.reaction}

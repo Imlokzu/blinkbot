@@ -16,17 +16,19 @@ function watchFlights() {
   evaluate(`window.__flightObserver?.disconnect(); window.__flights = []; window.__sends = [];
     const observer = new MutationObserver(records => {
       for (const record of records) for (const node of record.addedNodes) {
-        if (!(node instanceof Element)) continue;
+        if (!(node instanceof Element) || !node.isConnected) continue;
         const flight = node.matches('${bubble}') ? node : node.querySelector('${bubble}');
         if (flight) {
           const animation = flight.getAnimations()[0];
-          const samples = [0, 420, 710].map(time => {
+          const destination = document.querySelector('[data-user-message="' + flight.dataset.sendBubble + '"]');
+          const samples = [0, 490, 710].map(time => {
             animation.pause(); animation.currentTime = time;
             const style = getComputedStyle(flight);
-            return { top: flight.getBoundingClientRect().top, opacity: Number(style.opacity), filter: style.filter };
+            return { rect: flight.getBoundingClientRect().toJSON(), opacity: Number(style.opacity), filter: style.filter };
           });
           animation.currentTime = 0; animation.play();
-          window.__flights.push({ samples, pointerEvents: getComputedStyle(flight).pointerEvents,
+          window.__flights.push({ samples, text: flight.textContent, destination: destination.getBoundingClientRect().toJSON(),
+            targetHidden: getComputedStyle(destination).opacity === '0', pointerEvents: getComputedStyle(flight).pointerEvents,
             hidden: flight.closest('[aria-hidden=true]') !== null,
             buttonPresent: document.querySelectorAll('.prompt-bar__send').length === 1 });
         }
@@ -53,6 +55,7 @@ function send(text, keyboard = false) {
   browser('wait', '--fn', 'document.querySelector(".prompt-bar__send").getAttribute("aria-label") === "Send"');
   browser('fill', '.prompt-bar__input', text);
   browser('wait', '--fn', '!document.querySelector(".prompt-bar__send").disabled');
+  evaluate('window.__source = document.querySelector(".prompt-bar__send").getBoundingClientRect().toJSON()');
   if (keyboard) browser('press', 'Enter');
   else browser('click', '.prompt-bar__send');
   browser('wait', '--fn', 'document.querySelector(".prompt-bar__send").disabled && document.querySelector(".prompt-bar__send").getAttribute("aria-label") === "Send"');
@@ -81,16 +84,33 @@ try {
   assert.equal(evaluate('window.__flights[0].pointerEvents'), 'none');
   assert.equal(evaluate('window.__flights[0].hidden'), true);
   const samples = evaluate('window.__flights[0].samples');
-  assert.ok(samples[1].top < samples[0].top - 80, 'the copy flies upward');
+  const destination = evaluate('window.__flights[0].destination');
+  const source = evaluate('window.__source');
+  assert.equal(evaluate('window.__flights[0].text'), 'Mouse send', 'the whole message travels');
+  assert.equal(evaluate('window.__flights[0].targetHidden'), true, 'the destination waits for the travelling message');
+  assert.ok(Math.abs(samples[0].rect.left + samples[0].rect.width / 2 - source.left - source.width / 2) < 1, 'the message starts at the button');
+  assert.ok(Math.abs(samples[0].rect.top + samples[0].rect.height / 2 - source.top - source.height / 2) < 1);
+  assert.ok(samples[1].rect.top < samples[0].rect.top - 80, 'the copy flies upward');
+  assert.ok(Math.abs(samples[1].rect.left - destination.left) < 1, 'the flight reaches the real message');
+  assert.ok(Math.abs(samples[1].rect.top - destination.top) < 1);
+  assert.ok(Math.abs(samples[1].rect.width - destination.width) < 1, 'the complete bubble lands at full size');
   assert.ok(samples[2].opacity < 0.15, 'the bubble dissolves at its destination');
   assert.ok(Number(samples[2].filter.match(/[\d.]+/)[0]) > 4, 'the exit has visible motion blur');
   browser('wait', '--fn', `document.querySelector('${bubble}') === null`);
+  assert.equal(evaluate('getComputedStyle(document.querySelector("[data-user-message]")).opacity'), '1', 'the message remains after the flight');
   send('Keyboard send', true);
   assert.equal(evaluate('window.__flights.length'), 2);
   assert.equal(evaluate('window.__sends.length'), 2, 'the effect must not duplicate requests');
+  browser('wait', '--fn', `document.querySelector('${bubble}') === null`);
+  const multiline = 'The complete message travels to the chat.\nLine two stays in the bubble.\nLine three stays too.\nAnd the final line arrives with it.';
+  send(multiline);
+  assert.equal(evaluate('window.__flights.length'), 3);
+  assert.equal(evaluate('window.__flights.at(-1).text'), multiline, 'multiline content is never replaced by an icon or truncated');
+  assert.ok(evaluate('window.__flights.at(-1).samples[1].rect.height > 60'));
 
   browser('open', `${origin}${page}#/settings?tab=look`);
   browser('wait', switchSelector);
+  assert.equal(evaluate(`document.querySelector('${bubble}') === null`), true, 'leaving the chat removes its travelling copy');
   browser('scrollintoview', switchSelector);
   assert.equal(evaluate(`document.querySelector('${switchSelector}').getAttribute('aria-checked')`), 'true');
   browser('click', switchSelector);
