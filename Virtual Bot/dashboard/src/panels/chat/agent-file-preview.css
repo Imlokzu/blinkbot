@@ -3,7 +3,15 @@
 .agent-file-avatar { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-surface-2); }
 .agent-file-avatar.is-writing svg { animation: agent-file-working 1.4s ease-in-out infinite; }
 .agent-file-paper { flex: 1; min-height: 0; overflow: auto; padding: 28px clamp(18px, 4vw, 36px); }
-.agent-file-paper pre { margin: 0; font-family: var(--f-mono); font-size: 13px; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--c-text-2); }
+.agent-file-paper.is-document { padding: 0; overflow: hidden; }
+.agent-file-paper > pre { margin: 0; font-family: var(--f-mono); font-size: 13px; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--c-text-2); }
+.agent-note-editor .prose-note { padding-top: 36px; padding-bottom: 96px; overflow-wrap: anywhere; }
+.agent-note-editor .note-toolbar { opacity: 0.65; }
+.agent-note-editor .prose-note > :first-child { margin-top: 0; }
+.agent-edit-selection { background: var(--c-accent-soft); color: var(--c-accent); }
+.agent-edit-insert { background: color-mix(in srgb, var(--c-accent-soft) 50%, transparent); }
+.agent-editor-caret { display: inline; position: relative; border-left: 2px solid var(--c-accent); margin-left: -1px; pointer-events: none; }
+.agent-editor-cursor-label { position: absolute; left: -2px; bottom: calc(100% + 3px); display: flex; align-items: center; width: max-content; padding: 2px 6px; border-radius: 4px 4px 4px 0; background: var(--c-accent); color: var(--c-accent-ink); font-family: var(--f-sans); font-size: 10px; font-weight: 500; line-height: 1.4; user-select: none; }
 .agent-file-caret { display: inline-block; vertical-align: -0.1em; width: 2px; height: 1.15em; margin-left: 2px; background: var(--c-accent); animation: agent-file-blink 800ms steps(2, end) infinite; }
 .agent-file-placeholder { display: grid; gap: 18px; padding-top: 12px; }
 .agent-file-placeholder span { height: 8px; max-width: 85%; background: var(--c-surface-2); border-radius: 3px; animation: agent-file-blink 1.4s ease-in-out infinite; }

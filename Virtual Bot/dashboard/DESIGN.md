@@ -301,10 +301,20 @@ Chat on the left, what the bot is making on the right — the owner's ask.
 - The writing view uses the existing pixel agent icon and actual file text.
   Active writes never fetch incomplete files; successful text output reveals
   confirmed content before the editor appears. Reduced motion skips the reveal.
+- Markdown playback uses the same Tiptap schema and formatting toolbar as human
+  editing. A named agent cursor selects changed prose and inserts it into the
+  formatted document; untouched paragraphs remain visible. Playback is read-only,
+  never saves, never takes composer focus, and keeps its editor mounted while
+  waiting for the confirmed file. Missing input retains the last confirmed text.
+- Agent revisions and manual reloads are separate cache-key fields. Playback
+  starts from the most recently confirmed prior version, including a reload
+  cached before Workbench was closed. Long documents skip the bounded animation.
 - Active write ownership blocks old canvas flushes. Inline serialized saves
   capture the file revision before queuing and verify it before dispatch.
 - Checks: `tests/chatNavigation.test.mjs`, `tests/chat-navigation.browser.mjs`,
   `tests/workbench-writing.browser.mjs`, and existing document/workbench checks.
+  `tests/agentPlayback.test.mjs` verifies valid rich-document frames;
+  `tests/agent-playback-reduced.browser.mjs` exercises native reduced motion.
 
 ## OpenClaw inference dashboard (2026-09-30)
 

@@ -83,9 +83,20 @@ function FileView({
   const toast = useToast();
   const [revealing, setRevealing] = useState(() => Boolean(file.writeId && recentWriteIds.has(file.writeId) && !revealedWrites.current.has(file.writeId)));
   const revision = file.revision + nonce;
+  // Capture confirmed prior text once, without reading a file owned by a writer.
+  const [previous] = useState(() => {
+    const cached = client.getQueryCache().findAll({ queryKey: ['wb-file', sessionId, file.path] })
+      .filter((query) => Number(query.queryKey[3]) < file.revision + (file.writing ? 1 : 0))
+      .sort((a, b) => b.state.dataUpdatedAt - a.state.dataUpdatedAt || Number(b.queryKey[4] ?? 0) - Number(a.queryKey[4] ?? 0));
+    const confirmed = cached.map((query) => query.state.data as FileData | undefined)
+      .find((value) => value && !value.binary && !value.too_large);
+    return confirmed?.content ?? '';
+  });
   const media = file.kind === 'html' || file.kind === 'image';
   const needsText = !(media && mode === 'preview');
-  const queryKey = ['wb-file', sessionId, file.path, revision];
+  // Reload is separate from the agent revision: adding them could reuse a
+  // refreshed old document's cache entry for a new write.
+  const queryKey = ['wb-file', sessionId, file.path, file.revision, nonce];
   const data = useQuery({
     queryKey,
     queryFn: () => get<FileData>(fileQuery(sessionId, file.path)),
@@ -123,9 +134,16 @@ function FileView({
     remember(json);
   };
 
-  if (file.writing) {
+  const agentPreview = (content: string | undefined, busy: boolean) => <AgentFilePreview path={file.path} content={content}
+    previous={previous} rich={file.kind === 'markdown' && mode === 'preview'}
+    workspace={{ sessionId, path: file.path, location, isWriting: (path) => writingPaths.has(path) }}
+    busy={busy} updated={previous !== ''} onRevealed={busy ? undefined : () => {
+      if (file.writeId) revealedWrites.current.add(file.writeId);
+      setRevealing(false);
+    }} />;
+  if (file.writing || (revealing && data.isPending && needsText)) {
     const text = ['markdown', 'code', 'text', 'html', 'mermaid'].includes(file.kind) ? file.writeContent : '';
-    return <AgentFilePreview path={file.path} content={text} busy updated={file.revision > 0} />;
+    return agentPreview(text, true);
   }
   if (media && mode === 'preview') {
     const src = previewUrl(file.path, sessionId, revision);
@@ -146,11 +164,7 @@ function FileView({
   if (data.data.too_large) return <Empty title={t('wb.tooLarge')} />;
   const content = data.data.content ?? '';
   if (revealing && ['markdown', 'code', 'text', 'html'].includes(file.kind)) {
-    return <AgentFilePreview path={file.path} content={content} busy={false} updated={file.revision > 1}
-      onRevealed={() => {
-        if (file.writeId) revealedWrites.current.add(file.writeId);
-        setRevealing(false);
-      }} />;
+    return agentPreview(content, false);
   }
 
   if (mode === 'preview' && (file.kind === 'drawing' || file.kind === 'mermaid')) {
@@ -315,7 +329,7 @@ export function Workbench({
   const saveDraft = async () => {
     const submitted = drafts[viewKey];
     if (!file || file.writing || submitted === undefined || pending.current.has(saveKey)) return;
-    const queryKey = ['wb-file', sessionId, file.path, file.revision + nonce];
+    const queryKey = ['wb-file', sessionId, file.path, file.revision, nonce];
     pending.current.add(saveKey);
     setSavingViews((all) => ({ ...all, [saveKey]: true }));
     try {
@@ -425,7 +439,9 @@ export function Workbench({
         {file ? (
           <>
             <FileView
-              key={`${viewKey}:${file.writeId ?? ''}`}
+              // Keep a write's editor mounted through active -> confirmed. A
+              // following write gets a fresh baseline, even if its id is reused.
+              key={`${sessionId}:${file.path}:${nonce}:${file.revision - (!file.writing && file.writeId ? 1 : 0)}:${file.writeId ?? ''}`}
               file={file}
               sessionId={sessionId}
               mode={mode}

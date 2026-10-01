@@ -1,13 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ContextType } from 'react';
 import { PenLine } from 'lucide-react';
 import { BotIcon } from '@/components/ui/BotIcon';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { t } from '@/locales/workbench';
+import type { DocumentWorkspace } from '@/components/editor/DocumentImage';
 import './agent-file-preview.css';
 
+const AgentNoteEditor = lazy(() => import('@/components/editor/AgentNoteEditor').then((m) => ({ default: m.AgentNoteEditor })));
+
 /** Reveal actual tool/file text; this never fabricates model output or progress. */
-export function AgentFilePreview({ path, content = '', busy, updated = false, onRevealed }: {
+export function AgentFilePreview({ path, content, previous = '', rich = false, workspace, busy, updated = false, onRevealed }: {
   path: string; content?: string; busy: boolean; updated?: boolean; onRevealed?: () => void;
+  previous?: string; rich?: boolean; workspace?: ContextType<typeof DocumentWorkspace>;
 }) {
   const reduced = useMediaQuery('(prefers-reduced-motion: reduce)');
   const [length, setLength] = useState(0);
@@ -15,8 +19,9 @@ export function AgentFilePreview({ path, content = '', busy, updated = false, on
   const done = useRef(onRevealed);
   done.current = onRevealed;
   // A bounded excerpt keeps long source files responsive during the reveal.
-  const text = content.slice(0, 12_000);
+  const text = (content ?? '').slice(0, 12_000);
   useEffect(() => {
+    if (rich) return;
     if (reduced) { setLength(text.length); if (!busy) done.current?.(); return; }
     setLength(0);
     let frame = 0;
@@ -31,7 +36,7 @@ export function AgentFilePreview({ path, content = '', busy, updated = false, on
     };
     frame = requestAnimationFrame(reveal);
     return () => cancelAnimationFrame(frame);
-  }, [text, busy, reduced]);
+  }, [text, busy, reduced, rich]);
   useEffect(() => { if (paper.current) paper.current.scrollTop = paper.current.scrollHeight; }, [length]);
   return <section data-agent-file-writing="" className="agent-file-preview">
     <header className="agent-file-status" role="status">
@@ -42,8 +47,10 @@ export function AgentFilePreview({ path, content = '', busy, updated = false, on
       </div>
       {busy ? <PenLine className="size-4 text-accent" aria-hidden="true" /> : null}
     </header>
-    <div ref={paper} className="agent-file-paper" aria-hidden="true">
-      {text ? <pre>{text.slice(0, length)}<span className="agent-file-caret" /></pre> : (
+    <div ref={paper} className={rich ? 'agent-file-paper is-document' : 'agent-file-paper'}>
+      {rich ? <Suspense fallback={<div className="agent-file-placeholder" aria-hidden="true"><span /><span /><span /></div>}>
+        <AgentNoteEditor content={content ?? previous} previous={previous} busy={busy} onRevealed={onRevealed} workspace={workspace} />
+      </Suspense> : text ? <pre aria-hidden="true">{text.slice(0, length)}<span className="agent-file-caret" /></pre> : (
         <div className="agent-file-placeholder"><span /><span /><span /></div>
       )}
     </div>

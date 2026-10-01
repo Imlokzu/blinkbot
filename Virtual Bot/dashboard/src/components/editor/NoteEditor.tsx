@@ -1,12 +1,8 @@
 import { useEffect } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import { Markdown } from '@tiptap/markdown';
-import { TableKit } from '@tiptap/extension-table';
-import TaskList from '@tiptap/extension-task-list';
-import TaskItem from '@tiptap/extension-task-item';
 import { NoteEditorToolbar } from './NoteEditorToolbar';
-import { DocumentImage, DocumentWorkspace } from './DocumentImage';
+import { DocumentWorkspace } from './DocumentImage';
+import { noteExtensions } from './noteExtensions';
 import type { WorkspaceLocation } from '@/panels/chat/workspaceLinks';
 import './note-editor.css';
 
@@ -28,8 +24,7 @@ export function NoteEditor({
   createDrawing?: () => Promise<string>;
 }) {
   const editor = useEditor({
-    extensions: [StarterKit.configure({ link: { openOnClick: false } }), Markdown,
-      TableKit.configure({ table: { resizable: true } }), TaskList, TaskItem.configure({ nested: true }), DocumentImage],
+    extensions: noteExtensions(),
     content: value,
     contentType: 'markdown',
     editable,

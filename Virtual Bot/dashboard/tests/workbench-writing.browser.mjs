@@ -42,6 +42,7 @@ try {
       }), { headers: { 'Content-Type': 'text/event-stream' } });
       if (String(url).includes('/api/workspace/file?')) {
         window.__reads++;
+        if (window.__holdRead) await new Promise(resolve => { window.__releaseRead = resolve; });
         return new Response(JSON.stringify({ content: String(url).includes('sketch.excalidraw') ? JSON.stringify({ elements: [] }) : window.__fileText }), { headers: { 'Content-Type': 'application/json' } });
       }
       if (String(url) === '/api/workspace/file' && options?.method === 'POST') {
@@ -64,7 +65,10 @@ try {
   const creating = tool('write-1', 'workspace__workspace_write', 'session/live.md', '# Actual note\n\nThis is the real file content being written.');
   emit('tool_start', creating);
   browser('wait', '[data-agent-file-writing] [data-bot-icon]');
-  browser('wait', '--fn', 'document.querySelector(".agent-file-paper pre")?.textContent.includes("Actual note")');
+  browser('wait', '--fn', 'document.querySelector(".agent-file-paper .prose-note h1")?.textContent === "Actual note"');
+  browser('wait', '.agent-editor-caret');
+  assert.equal(evaluate('document.querySelector(".agent-file-paper > pre") === null'), true, 'Markdown is edited as a formatted document');
+  assert.equal(evaluate('document.querySelector(".agent-file-paper .ProseMirror").contentEditable'), 'false');
   assert.equal(evaluate('window.__reads'), 0, 'an active write must not fetch a missing or half-written file');
   browser('mouse', 'move', '1200', '350');
   browser('press', 'Escape');
@@ -84,13 +88,74 @@ try {
       window.__frame('tool_start', data) + window.__frame('tool_done', { ...data, result: { ok: true, path: 'sessions/writing-fixture/live.md' } })
       + window.__frame('delta', { chunk: 'Updated it.' }) + window.__frame('done', ${JSON.stringify(done('Updated it.'))})
     ));`);
-  browser('wait', '.workbench .prose-note h1');
+  browser('wait', '--fn', 'document.querySelector(".workbench .prose-note h1")?.textContent === "Updated actual note" && !document.querySelector("[data-agent-file-writing]")');
   assert.equal(evaluate('document.querySelector(".workbench .prose-note h1").textContent'), 'Updated actual note');
   assert.equal(evaluate('document.querySelector(".workbench [data-agent-file-writing]") === null'), true);
   browser('click', '[data-chat-toolbar] button[aria-label="Hide the workbench"]');
   browser('click', '[data-chat-toolbar] button[aria-label="Show the workbench"]');
   browser('wait', '.workbench .prose-note h1');
   assert.equal(evaluate('document.querySelector(".workbench [data-agent-file-writing]") === null'), true, 'manual reopen must not replay old creation');
+
+  // Observe real editor mutations: a replacement selects old prose while the
+  // unchanged heading stays in place, then releases the exact confirmed text.
+  send('Edit inside the document');
+  evaluate(`window.__samples = []; window.__focusBefore = document.activeElement;
+    window.__observer = new MutationObserver(() => {
+      const paper = document.querySelector('.agent-file-paper .prose-note');
+      if (paper) window.__samples.push({ heading: paper.querySelector('h1')?.textContent,
+        selected: Boolean(paper.querySelector('.agent-edit-selection')), caret: Boolean(paper.querySelector('.agent-editor-caret')) });
+    }); window.__observer.observe(document.querySelector('.workbench'), { childList: true, subtree: true, characterData: true });`);
+  const edited = '# Updated actual note\n\nA **polished** document with real formatting.\n\n| Task | Status |\n| --- | --- |\n| Editor | Ready |\n| Drawings | Inline |\n\n- [x] Keep the actual file\n- [ ] Review the next draft';
+  evaluate(`window.__fileText = ${JSON.stringify(edited)}`);
+  const editing = tool('human-edit', 'workspace_write', 'session/live.md', edited);
+  emit('tool_start', editing);
+  browser('wait', '.agent-file-paper table');
+  browser('wait', '--fn', 'document.querySelector(".agent-file-paper strong")?.textContent === "polished"');
+  assert.equal(evaluate('window.__samples.some(sample => sample.selected)'), true, 'old changed text is visibly selected');
+  assert.equal(evaluate('window.__samples.every(sample => sample.heading === "Updated actual note")'), true, 'unchanged heading must never be erased or retyped');
+  assert.equal(evaluate('document.activeElement === window.__focusBefore'), true, 'agent cursor must not steal composer focus');
+  browser('wait', '--fn', 'document.querySelector(".agent-file-paper .prose-note")?.textContent.includes("Review the next draft")');
+  if (process.env.CHAT_NAV_SHOTS) browser('screenshot', `${process.env.CHAT_NAV_SHOTS}/agent-editor.png`);
+  emit('tool_done', { ...editing, result: { ok: true, path: 'sessions/writing-fixture/live.md' } });
+  emit('delta', { chunk: 'Edited in the document.' }); emit('done', done('Edited in the document.'));
+  browser('wait', '--fn', '!document.querySelector("[data-agent-file-writing]") && document.querySelector(".workbench .prose-note strong")?.textContent === "polished"');
+  assert.deepEqual(evaluate('document.querySelector(".workbench .prose-note").editor.getJSON()'),
+    evaluate(`const editor = document.querySelector('.workbench .prose-note').editor;
+      const expected = editor.schema.nodeFromJSON(editor.storage.markdown.manager.parse(${JSON.stringify(edited)})).toJSON();
+      // StarterKit adds a final empty paragraph after a table or list.
+      expected.content.push({ type: 'paragraph' }); expected;`),
+    'playback releases the exact parsed confirmed document');
+  assert.equal(evaluate('window.__scenePosts'), 0, 'visual playback must never save or create an unsaved draft');
+  evaluate('window.__observer.disconnect()');
+
+  evaluate(`window.__fileText = ${JSON.stringify(edited.replace('real formatting', 'refreshed formatting'))}`);
+  browser('click', '.workbench button[aria-label="Reload"]');
+  browser('wait', '--fn', 'document.querySelector(".workbench .prose-note")?.textContent.includes("refreshed formatting")');
+  browser('click', '[data-chat-toolbar] button[aria-label="Hide the workbench"]');
+
+  // Some adapters omit the write input. Keep the confirmed document visible
+  // until the new read resolves, including through the active/done transition.
+  send('Update without an input snapshot');
+  const withoutInput = tool('missing-input', 'workspace_write', 'session/live.md');
+  const beforeRead = evaluate('window.__reads');
+  emit('tool_start', withoutInput);
+  browser('wait', '.agent-file-paper strong');
+  assert.equal(evaluate('document.querySelector(".agent-file-paper strong").textContent'), 'polished');
+  assert.equal(evaluate('document.querySelector(".agent-file-paper .prose-note").textContent.includes("refreshed formatting")'), true, 'reopened playback must use the latest confirmed reload regardless of nonce');
+  assert.equal(evaluate('window.__reads'), beforeRead);
+  evaluate('window.__holdRead = true; window.__heldEditor = document.querySelector(".agent-file-paper .ProseMirror"); true;');
+  emit('tool_done', { ...withoutInput, result: { ok: true, path: 'sessions/writing-fixture/live.md' } });
+  browser('wait', '--fn', 'Boolean(window.__releaseRead)');
+  assert.equal(evaluate('document.querySelector(".agent-file-paper .ProseMirror") === window.__heldEditor'), true, 'confirmation must not remount/replay the editor');
+  browser('set', 'viewport', '390', '844');
+  browser('click', 'button[aria-label="Show the workbench"]');
+  browser('wait', '[role="dialog"] .agent-file-paper .prose-note');
+  assert.equal(evaluate('document.documentElement.scrollWidth <= 392'), true, 'phone playback must fit the viewport');
+  if (process.env.CHAT_NAV_SHOTS) browser('screenshot', `${process.env.CHAT_NAV_SHOTS}/agent-editor-phone.png`);
+  browser('set', 'viewport', '1440', '960');
+  evaluate('window.__holdRead = false; window.__releaseRead();');
+  emit('delta', { chunk: 'Confirmed the file.' }); emit('done', done('Confirmed the file.'));
+  browser('wait', '--fn', '!document.querySelector("[data-agent-file-writing]") && Boolean(document.querySelector(".workbench .prose-note strong"))');
 
   // A pending canvas autosave must not overwrite an agent's replacement.
   browser('click', '.workbench nav button[title="session/sketch.excalidraw"]');
@@ -114,7 +179,7 @@ try {
   emit('tool_done', { ...showing, result: { shown: 'sessions/writing-fixture/sketch.excalidraw' } });
   browser('wait', '[data-agent-file-writing]');
   assert.equal(evaluate('window.__reads'), reads, 'show cannot enable reads while replacement is active');
-  console.log('PASS: only create/update auto-opens, live agent icon/text, no partial reads, same-turn close, batched events, no replay on manual reopen');
+  console.log('PASS: editor typing/selection, formatted table/tasks, unchanged prose/focus, missing input, held confirmation/phone, no playback writes, prior navigation and canvas guards');
 } catch (error) {
   console.error(browser('errors'));
   if (process.env.CHAT_NAV_SHOTS) browser('screenshot', `${process.env.CHAT_NAV_SHOTS}/writing-failure.png`);

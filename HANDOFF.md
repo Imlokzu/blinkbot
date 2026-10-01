@@ -667,3 +667,31 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   canvas flush suppression and no reads while a replacement is active.
   Python suite: 934 passed, 6 skipped, 150 subtests passed; smoke verifies
   session reads, static assets and traversal rejection with 400.
+
+
+## 2026-10-01 — Agent editing in formatted documents
+
+- Markdown live writing now uses the same Tiptap document schema as human
+  editing. Headings, emphasis, tasks and tables appear in the editor with a
+  named agent cursor, changed-text selection and incremental insertion.
+  Separate paragraph updates preserve untouched prose; all content comes from
+  actual write inputs or confirmed file reads.
+- Playback is read-only, suppresses update/history events and never saves,
+  takes composer focus or fetches an actively written file. Missing input
+  preserves confirmed prior prose. The editor stays mounted through delayed
+  completion; native reduced motion shows the complete document immediately.
+- Manual reloads and agent revisions use separate cache fields. Reopening
+  Workbench retains the newest confirmed baseline even after a reload nonce
+  resets. Partial frames insert required schema content when an embed is hidden.
+- Independent adversarial review fixed invalid partial document structure and
+  identified the reload baseline issue; the corrected integration was approved.
+  Fable was unavailable, so a separate supported native agent reviewed at max
+  effort. Typecheck/build passed; clean-source dashboard has 93 passing unit
+  tests (92 with the owner's existing local test deletion). Virtual Bot:
+  934 passed, 6 skipped, 150 subtests. Browser checks cover document round-trip,
+  live SSE editing, selection/focus, delayed completion, reload/reopen, phone,
+  reduced motion, navigation and the existing drawing autosave guards.
+- Isolated HTTP smoke verified workspace reads, traversal rejection (400),
+  dashboard entry/SW and all 274 release static assets (200). Release assets
+  were built from current HEAD plus only these changes; the local live build
+  retains the owner's unrelated pending UI/settings edits.
