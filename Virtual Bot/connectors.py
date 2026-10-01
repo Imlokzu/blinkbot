@@ -366,7 +366,7 @@ async def attach(notebook: str, source: str, user_id: str) -> dict:
         raise ConnectorError('unreadable_document')
     if '\0' in content or not content[:chat_attachments.MAX_TEXT].strip():
         raise ConnectorError('unreadable_document')
-    title = str(data.get('title') or 'NotebookLM source')[:150] + '.txt'
+    title = str(data.get('title') or valid_id(source))[:150] + '.txt'
     filename, display = chat_attachments.upload_name(title, user_id)
     root = cfg.UPLOADS_DIR
     try:
