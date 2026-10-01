@@ -13,11 +13,12 @@ import { useBotEvents, useEventsConnected } from '@/hooks/useBotEvents';
 import { useDockSide } from '@/hooks/useDockSide';
 import { useIsPhone } from '@/hooks/useMediaQuery';
 import { useDrawer } from '@/hooks/useDrawer';
-import { SECTIONS } from '@/app/sections';
+import { findSection, SECTIONS } from '@/app/sections';
 import { useRoute } from '@/app/useRoute';
 import { cn } from '@/lib/cn';
 import { t } from '@/lib/i18n';
 import { useBrainModels, useModels, useStatus } from '@/lib/queries';
+import { mobileSectionLabel } from './mobileNavLabels';
 
 /*
  * Шапка тримає СТАН бота й нічого більше: налаштування вигляду живуть у
@@ -61,40 +62,22 @@ export function Topbar() {
   return (
     <header className="u-safe-t flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-3 sm:px-4"
             style={{ zIndex: 'var(--z-topbar)' }}>
-      <Brand compact className="shrink-0" />
-
       {isPhone ? (
         <>
-          <nav aria-label={t('nav.sections')} className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-            {SECTIONS.filter((item) => item.primary).map((item) => {
-              const Icon = item.icon;
-              const active = item.id === section;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-current={active ? 'page' : undefined}
-                  onClick={() => navigate(item.id)}
-                  className={cn(
-                    'flex min-h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] transition-colors',
-                    active ? 'bg-accent-soft font-medium text-ink' : 'text-ink-3',
-                  )}
-                >
-                  <Icon size={16} strokeWidth={active ? 2.1 : 1.75} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              aria-label={t('nav.all')}
-              aria-expanded={drawer.open}
-              onClick={() => drawer.setOpen(true)}
-              className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full text-ink-3"
-            >
-              <Menu size={18} />
-            </button>
-          </nav>
+          <button
+            type="button"
+            aria-label={t('nav.all')}
+            aria-expanded={drawer.open}
+            onClick={() => drawer.setOpen(true)}
+            className="mobile-topbar__menu"
+          >
+            <Menu size={19} />
+          </button>
+          <Brand compact className="shrink-0" />
+          <div className="mobile-topbar__title" aria-live="polite">
+            {mobileSectionLabel(section) ?? findSection(section).label}
+          </div>
+          <span className="mobile-topbar__action" aria-hidden="true" />
 
           {drawer.open
             ? createPortal(
@@ -151,7 +134,7 @@ export function Topbar() {
               )
             : null}
         </>
-      ) : null}
+      ) : <Brand compact className="shrink-0" />}
 
       {/*
         Порожня середина шапки — це місце для дока, коли він стоїть зверху.

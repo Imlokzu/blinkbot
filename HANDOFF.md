@@ -555,3 +555,18 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
 - Backend, review fixes, UI, production assets and documentation were committed
   and pushed on `main` under the required owner identity. Test browsers and
   isolated servers were shut down; the existing OpenClaw gateway was preserved.
+
+## Mobile dashboard navigation refresh (2026-10-01)
+
+- Replaced the phone header's horizontally scrolling section tabs with a compact
+  menu, wordmark and localized current-section title.
+- Added a fixed, safe-area-aware bottom navigation rail for Overview, Chat,
+  Memory and Settings. The full section drawer remains available from the
+  header, so secondary panels stay reachable without crowding the phone shell.
+- Chat content and the composer reserve the rail's height; desktop docking and
+  the existing chat controls remain unchanged. Phone labels and section titles
+  follow the selected Ukrainian/English locale.
+- Validation: dashboard tests **78 passed**, typecheck and production build
+  passed. Browser checks covered 320/390px phone layouts, English labels,
+  desktop dock preservation, section switching, static assets and memory
+  traversal returning HTTP 400. Test browsers and local servers were stopped.
