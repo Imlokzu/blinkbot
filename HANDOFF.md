@@ -588,3 +588,30 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
 - Validation: Gitleaks full-history scan passed; TruffleHog full-history scan
   passed; both pre-commit hooks passed on the staged security configuration;
   a staged synthetic RSA key was blocked by the Gitleaks hook.
+
+
+## 2026-10-01 — Editable Workbench documents
+
+- Workbench Markdown now uses editable Tiptap with a localized compact toolbar,
+  GFM tables, checklists, images, explicit Save and Cmd/Ctrl+S. Rich/source views
+  share drafts. Pending saves compare against current parent state, retaining
+  newer edits even when the initiating tab unmounts and reopens.
+- Inline Excalidraw blocks use ordinary Markdown image references to separate
+  scene files. Scene writes are serialized and update the exact query cache;
+  reopening waits for a confirmed current file before mounting the canvas.
+- Chat file links open inside Workbench. Older absolute/file URLs are normalized
+  only within the authenticated workspace, including files at its root. Shared
+  guidance teaches both local and MCP agents workspace-relative links and
+  workspace_show for successful document delivery.
+- GET /api/workspace/info adds reveal_available; POST /api/workspace/reveal
+  selects an existing session file in Finder on the server's Mac. Authentication,
+  user isolation, traversal and external symlink guards remain enforced.
+- Two required source files (design tokens.css and token-count tokens.ts) were
+  accidentally ignored by *token*. Exact source exceptions now make a clean
+  checkout buildable; no credential files are included.
+- Validation: Python suite 934 passed, 6 skipped, 150 subtests passed; dashboard
+  typecheck and 80 unit tests passed; production build and both Workbench browser
+  scenarios passed. The new browser check covers tables/tasks/drawing references,
+  tab/source draft retention, delayed-save races, internal links and phone layout.
+  Live smoke verified session reads, static assets, real Finder selection and
+  traversal rejection (400).
