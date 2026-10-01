@@ -7,6 +7,9 @@
 config.local.*
 **/secrets.*
 *token*
+# These contain design values and token-count estimates, never credentials.
+!Virtual Bot/dashboard/src/styles/tokens.css
+!Virtual Bot/dashboard/src/panels/chat/tokens.ts
 *.pem
 *.key
 

@@ -6,6 +6,8 @@
  * Налаштуваннях чинне одразу для всіх компонентів, що йдуть через t().
  */
 const uk = {
+  'tokens.thousand': 'к',
+  'tokens.million': 'М',
   'chat.close': 'Закрити',
   'chat.newSession': 'Нова розмова',
 
@@ -225,6 +227,8 @@ const uk = {
 } as const;
 
 const en: Record<keyof typeof uk, string> = {
+  'tokens.thousand': 'k',
+  'tokens.million': 'M',
   'chat.close': 'Close',
   'chat.newSession': 'New conversation',
   'thread.new': 'new conversation',
