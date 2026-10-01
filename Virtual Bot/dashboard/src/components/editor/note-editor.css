@@ -1,0 +1,25 @@
+.note-editor { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.note-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; flex-shrink: 0; padding: 6px 10px; border-bottom: 1px solid var(--c-border); background: var(--c-surface); }
+.note-toolbar button { color: var(--c-text-2); }
+.note-toolbar button[aria-pressed="true"] { color: var(--c-accent); background: var(--c-accent-soft); }
+.note-toolbar select { min-width: 80px; max-width: 112px; border: none; padding: 6px; background: transparent; color: var(--c-text-2); font-size: 12px; }
+.note-toolbar-separator { width: 1px; height: 18px; margin: 0 4px; background: var(--c-border); }
+.note-table-tools { padding-block: 2px; background: var(--c-surface-2); }
+.note-editor-content { flex: 1; min-height: 0; overflow: auto; }
+.note-editor .prose-note { max-width: 76ch; margin-inline: auto; padding: 26px clamp(18px, 4vw, 36px) 64px; }
+.note-editor .prose-note > :first-child { margin-top: 0; }
+.note-editor .prose-note .tableWrapper { max-width: 100%; overflow-x: auto; margin-block: 20px; }
+.note-editor .prose-note table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+.note-editor .prose-note td, .note-editor .prose-note th { position: relative; min-width: 80px; padding: 9px 12px; border: 1px solid var(--c-border); vertical-align: top; }
+.note-editor .prose-note th { background: var(--c-surface-2); text-align: left; font-weight: 600; }
+.note-editor .prose-note td p, .note-editor .prose-note th p { margin: 0; }
+.note-editor .prose-note .selectedCell::after { position: absolute; inset: 0; pointer-events: none; content: ''; background: var(--c-accent-soft); }
+.note-editor .prose-note .column-resize-handle { position: absolute; top: 0; bottom: -2px; right: -2px; width: 4px; background: var(--c-accent); pointer-events: none; }
+.note-editor .prose-note.resize-cursor { cursor: col-resize; }
+.note-editor .prose-note ul[data-type="taskList"] { padding-left: 0; list-style: none; }
+.note-editor .prose-note ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 10px; }
+.note-editor .prose-note ul[data-type="taskList"] label { padding-top: 3px; }
+.note-editor .prose-note ul[data-type="taskList"] li > div { flex: 1; }
+.note-editor .prose-note ul[data-type="taskList"] p { margin: 0; }
+.note-editor .prose-note img { max-width: 100%; height: auto; border-radius: 6px; }
+.document-drawing { overflow: hidden; border: 1px solid var(--c-border); border-radius: 8px; margin-block: 20px; }

@@ -2,31 +2,38 @@ import { useEffect } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from '@tiptap/markdown';
+import { TableKit } from '@tiptap/extension-table';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import { NoteEditorToolbar } from './NoteEditorToolbar';
+import { DocumentImage, DocumentWorkspace } from './DocumentImage';
+import type { WorkspaceLocation } from '@/panels/chat/workspaceLinks';
+import './note-editor.css';
 
 /*
- * Редактор нотаток памʼяті.
- *
- * Tiptap v3 з офіційним markdown-розширенням — наш дефолт для текстових
- * редакторів (див. ~/stack/doc-editor.md). Важливо саме round-trip: бот читає
- * й пише ці ж файли як звичайний Markdown, тож редактор мусить віддавати
- * markdown, а не HTML. Стара панель стояла на Milkdown, що суперечило
- * власному каталогу рішень.
+ * The same Markdown document is editable here and readable by the agent.
+ * Drawings remain separate scene files referenced by ordinary Markdown.
  */
 export function NoteEditor({
   value,
   onChange,
   editable = true,
+  workspace,
+  createDrawing,
 }: {
   value: string;
   onChange?: (markdown: string) => void;
   editable?: boolean;
+  workspace?: { sessionId: string; path: string; location: WorkspaceLocation };
+  createDrawing?: () => Promise<string>;
 }) {
   const editor = useEditor({
-    extensions: [StarterKit, Markdown],
+    extensions: [StarterKit.configure({ link: { openOnClick: false } }), Markdown,
+      TableKit.configure({ table: { resizable: true } }), TaskList, TaskItem.configure({ nested: true }), DocumentImage],
     content: value,
+    contentType: 'markdown',
     editable,
-    // Tiptap v3 у React 18+ монтується двічі в StrictMode; прапорець гасить
-    // попередження про невідповідність гідратації.
+    // React StrictMode must not create a second editor during initial rendering.
     immediatelyRender: false,
     onUpdate: ({ editor: instance }) => {
       onChange?.(instance.getMarkdown());
@@ -34,18 +41,24 @@ export function NoteEditor({
     editorProps: {
       attributes: {
         class:
-          'prose-note min-h-full px-5 py-4 outline-none',
+          'prose-note min-h-full outline-none',
       },
     },
   });
 
-  // Зовнішня заміна вмісту (відкрили іншу нотатку). Порівнюємо з поточним
-  // markdown, щоб не збивати курсор на кожен власний апдейт.
+  // Loading a document is not an edit; controlled updates keep the cursor.
   useEffect(() => {
     if (!editor) return;
     if (editor.getMarkdown() === value) return;
-    editor.commands.setContent(value, { contentType: 'markdown' });
+    editor.commands.setContent(value, { contentType: 'markdown', emitUpdate: false });
   }, [editor, value]);
 
-  return <EditorContent editor={editor} className="size-full overflow-y-auto" />;
+  useEffect(() => { editor?.setEditable(editable, false); }, [editor, editable]);
+
+  return <DocumentWorkspace.Provider value={workspace ?? null}>
+    <div className="note-editor">
+      {editor && editable ? <NoteEditorToolbar editor={editor} createDrawing={createDrawing} /> : null}
+      <EditorContent editor={editor} className="note-editor-content" />
+    </div>
+  </DocumentWorkspace.Provider>;
 }

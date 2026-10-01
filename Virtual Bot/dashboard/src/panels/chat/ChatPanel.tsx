@@ -8,6 +8,7 @@ import { SessionList } from './SessionList';
 import { PinnedPanels } from './PinnedPanels';
 import { Workbench, type WorkbenchFocus } from './Workbench';
 import { collectFiles, workbenchHost } from './workFiles';
+import { WorkspaceLinksProvider } from './WorkspaceFileLink';
 import { ModelMenu } from './ModelMenu';
 import { SelectionActions } from './SelectionActions';
 import { useChatRuntime } from './useChatRuntime';
@@ -220,6 +221,11 @@ export default function ChatPanel() {
 
   return (
     <AssistantRuntimeProvider runtime={chat.runtime}>
+      <WorkspaceLinksProvider sessionId={chat.sessionId} onOpen={(path) => {
+        setBenchFocus((old) => ({ path, nonce: (old?.nonce ?? 0) + 1 }));
+        if (isDesk) setBench(true);
+        else setBenchSheet(true);
+      }}>
       <div className="chat-layout flex min-h-0 flex-1">
         {isDesk ? (
           <aside className="chat-sessions flex min-h-0 w-[220px] shrink-0 flex-col border-r border-line bg-surface">
@@ -387,6 +393,7 @@ export default function ChatPanel() {
         {/* Selecting text in a reply turns it into the next question. */}
         <SelectionActions onAsk={(text) => void chat.send(text)} />
       </div>
+      </WorkspaceLinksProvider>
     </AssistantRuntimeProvider>
   );
 }

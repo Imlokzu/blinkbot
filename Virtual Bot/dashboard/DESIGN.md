@@ -265,6 +265,25 @@ Chat on the left, what the bot is making on the right — the owner's ask.
 - Strings: `src/locales/workbench.ts`. Browser check:
   `tests/workbench.browser.mjs` (route fixtures only).
 
+### Editable documents (2026-10-01)
+
+- Markdown opens as an editable Tiptap document, with a compact toolbar using
+  existing warm tokens and Plex typography. Tables, task lists and images
+  round-trip to Markdown; Source uses the same unsaved draft in CodeMirror.
+- Save and Cmd/Ctrl+S write the session file. Pending saves belong to the
+  Workbench, so switching tabs and typing during a request cannot erase edits.
+- Excalidraw is an inline image reference to a separate `.excalidraw` file.
+  Its editor loads on expansion and autosaves; reopening waits for pending
+  saves and fresh scene data. Heavy drawing chunks remain lazy.
+  Canvas focus and keyboard events stay isolated from the text editor.
+- Workspace links in chat open the document inside Workbench, including old
+  absolute links within the authenticated workspace. External web links stay
+  external. Agent tool descriptions teach relative links and `workspace_show`.
+- The header offers Show in Finder when the backend reports macOS support.
+  The authenticated endpoint uses existing user/session path guards.
+- Regression checks: `tests/document-editor.browser.mjs` and
+  `tests/workspaceLinks.test.mjs`, plus the existing Workbench browser check.
+
 ## OpenClaw inference dashboard (2026-09-30)
 
 - The `#/inference` section shares the warm surfaces, Plex fonts, thin borders

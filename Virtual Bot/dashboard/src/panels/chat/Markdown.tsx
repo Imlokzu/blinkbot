@@ -13,6 +13,8 @@ import { ChatGallery, ChatImage } from './Gallery';
 import { remarkImageGroups } from './remarkImageGroups';
 import { cn } from '@/lib/cn';
 import { copyText } from '@/lib/clipboard';
+import { WorkspaceLink } from './WorkspaceFileLink';
+import { safeMarkdownUrl } from './workspaceLinks';
 
 /*
  * Розмітка відповіді.
@@ -160,6 +162,7 @@ export function Markdown() {
        * плагіна просто ніколи не викликались.
        */
       remarkPlugins={[remarkGfm, remarkImageGroups]}
+      urlTransform={safeMarkdownUrl}
       componentsByLanguage={DIFF_LANGUAGE}
       className="text-[15px] leading-[1.62] text-ink"
       components={{
@@ -195,8 +198,8 @@ export function Markdown() {
           <ol className={cn('mb-3 list-decimal space-y-1 pl-5 marker:text-ink-3 marker:font-mono', className)} {...props} />
         ),
         a: ({ className, ...props }) => (
-          <a className={cn('underline decoration-accent/40 underline-offset-2 hover:decoration-accent', className)}
-             target="_blank" rel="noreferrer" {...props} />
+          <WorkspaceLink className={cn('underline decoration-accent/40 underline-offset-2 hover:decoration-accent', className)}
+             {...props} />
         ),
         blockquote: ({ className, ...props }) => (
           <blockquote className={cn('my-3 border-l-2 border-accent/45 pl-3 text-ink-2', className)} {...props} />

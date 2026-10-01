@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowUpRight, Code2, FileText, Globe, Image as ImageIcon, PenTool, RefreshCw, Save, Workflow, X,
+  ArrowUpRight, Code2, FileText, FolderOpen, Globe, Image as ImageIcon, PenTool, RefreshCw, Save, Workflow, X,
 } from 'lucide-react';
 import { get, post } from '@/lib/api';
 import { cn } from '@/lib/cn';
@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/Toaster';
 import { t } from '@/locales/workbench';
 import { collectFiles, currentStep, fileKind, hasPreview, shortPath, type FileKind, type WorkFile } from './workFiles';
 import type { ChatMessage } from './types';
+import type { WorkspaceLocation } from './workspaceLinks';
 
 /*
  * The workbench: chat on the left, what the bot is making on the right.
@@ -53,6 +54,9 @@ function FileView({
   draft,
   onDraft,
   live,
+  location,
+  onSave,
+  saving,
 }: {
   file: WorkFile;
   sessionId: string;
@@ -63,6 +67,9 @@ function FileView({
   onDraft: (next: string | null) => void;
   /** Revision on show for each path — see `live` in Workbench. */
   live: RefObject<Map<string, number>>;
+  location: WorkspaceLocation;
+  onSave: () => Promise<void>;
+  saving: boolean;
 }) {
   const { resolved } = useTheme();
   const client = useQueryClient();
@@ -86,17 +93,15 @@ function FileView({
   const remember = (content: string) => {
     client.setQueryData<FileData>(queryKey, (old) => (old ? { ...old, content } : old));
   };
-  const save = async () => {
-    if (draft === null) return;
-    try {
-      await write(file.path, draft);
-      remember(draft);
-      onDraft(null);
-      toast.ok(t('wb.saved'), file.path);
-    } catch (error) {
-      toast.error(t('wb.saveError'), (error as Error).message);
-    }
-  };
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault(); void onSave();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onSave]);
   /*
    * The drawing autosaves on a delay. If the bot rewrote the file meanwhile
    * (this view is being replaced by the newer revision), a write now would
@@ -150,20 +155,24 @@ function FileView({
       </Suspense>
     );
   }
-  if (mode === 'preview' && file.kind === 'markdown') {
-    return <Suspense fallback={fallback}><NoteEditor value={content} editable={false} /></Suspense>;
-  }
   return (
     <div className="flex size-full flex-col">
       {draft !== null && draft !== content ? (
         <div className="flex shrink-0 items-center justify-end gap-2 border-b border-line px-3 py-1.5">
           <span className="text-[11px] text-accent">{t('wb.unsaved')}</span>
-          <Button variant="solid" size="sm" onClick={() => void save()}><Save />{t('wb.save')}</Button>
+          <Button variant="solid" size="sm" disabled={saving} onClick={() => void onSave()}><Save />{t(saving ? 'wb.saving' : 'wb.save')}</Button>
         </div>
       ) : null}
       <div className="min-h-0 flex-1">
         <Suspense fallback={fallback}>
-          <CodeEditor path={file.path} value={draft ?? content} onChange={onDraft} className="h-full" />
+          {mode === 'preview' && file.kind === 'markdown' ? (
+            <NoteEditor value={draft ?? content} onChange={(next) => onDraft(next === content ? null : next)}
+              workspace={{ sessionId, path: file.path, location }} createDrawing={async () => {
+                const path = `${file.path.replace(/\.(md|markdown)$/i, '')}.drawings/${crypto.randomUUID()}.excalidraw`;
+                await write(path, JSON.stringify({ type: 'excalidraw', version: 2, source: 'claude-bot', elements: [], appState: {}, files: {} }));
+                return path;
+              }} />
+          ) : <CodeEditor path={file.path} value={draft ?? content} onChange={onDraft} className="h-full" />}
         </Suspense>
       </div>
     </div>
@@ -200,9 +209,14 @@ export function Workbench({
   embedded?: boolean;
   onClose: () => void;
 }) {
+  const toast = useToast();
+  const client = useQueryClient();
+  const [revealing, setRevealing] = useState(false);
+  const pending = useRef(new Set<string>());
+  const [savingViews, setSavingViews] = useState<Record<string, boolean>>({});
   const info = useQuery({
     queryKey: ['workspace-info', sessionId],
-    queryFn: () => get<{ session_path?: string }>(`/api/workspace/info?session_id=${encodeURIComponent(sessionId)}`),
+    queryFn: () => get<WorkspaceLocation & { reveal_available?: boolean }>(`/api/workspace/info?session_id=${encodeURIComponent(sessionId)}`),
     staleTime: Infinity,
   });
   const folder = info.data?.session_path ?? '';
@@ -260,7 +274,31 @@ export function Workbench({
   // on an already short path.
   const file = files.find((item) => item.path === shortPath(selected, folder)) ?? files[0];
   const mode: Mode = file && hasPreview(file.kind) ? modes[file.path] ?? 'preview' : 'source';
-  const viewKey = file ? `${file.path}#${file.revision + nonce}` : '';
+  const viewKey = file ? `${sessionId}:${file.path}#${file.revision + nonce}` : '';
+  const saveKey = file ? `${sessionId}:${file.path}` : '';
+  const saveDraft = async () => {
+    const submitted = drafts[viewKey];
+    if (!file || submitted === undefined || pending.current.has(saveKey)) return;
+    const queryKey = ['wb-file', sessionId, file.path, file.revision + nonce];
+    pending.current.add(saveKey);
+    setSavingViews((all) => ({ ...all, [saveKey]: true }));
+    try {
+      await post('/api/workspace/file', { path: file.path, content: submitted, session_id: sessionId });
+      client.setQueryData<FileData>(queryKey, (old) => old ? { ...old, content: submitted } : old);
+      // Compare against current parent state, including edits in a remounted tab.
+      setDrafts((all) => {
+        if (all[viewKey] !== submitted) return all;
+        const { [viewKey]: _saved, ...rest } = all;
+        return rest;
+      });
+      toast.ok(t('wb.saved'), file.path);
+    } catch (error) {
+      toast.error(t('wb.saveError'), (error as Error).message);
+    } finally {
+      pending.current.delete(saveKey);
+      setSavingViews((all) => ({ ...all, [saveKey]: false }));
+    }
+  };
 
   /*
    * The revision each path is showing right now. A view that is on its way
@@ -293,12 +331,20 @@ export function Workbench({
                 ariaLabel={t('wb.title')}
                 value={mode}
                 onChange={(next) => setModes((all) => ({ ...all, [file.path]: next }))}
-                items={[{ value: 'preview', label: t('wb.preview') }, { value: 'source', label: t('wb.source') }]}
+                items={[{ value: 'preview', label: t(file.kind === 'markdown' ? 'wb.document' : 'wb.preview') }, { value: 'source', label: t('wb.source') }]}
               />
             ) : null}
             <Button variant="ghost" size="icon-sm" aria-label={t('wb.reload')} onClick={() => setNonce((n) => n + 1)}>
               <RefreshCw />
             </Button>
+            {info.data?.reveal_available ? (
+              <Button variant="ghost" size="icon-sm" aria-label={t('wb.finder')} title={t('wb.finder')} disabled={revealing}
+                onClick={() => {
+                  setRevealing(true);
+                  void post('/api/workspace/reveal', { path: file.path, session_id: sessionId })
+                    .catch(() => toast.error(t('wb.finderError'))).finally(() => setRevealing(false));
+                }}><FolderOpen /></Button>
+            ) : null}
             <Button variant="ghost" size="icon-sm" aria-label={t('wb.newTab')}
                     onClick={() => window.open(previewUrl(file.path, sessionId, file.revision + nonce), '_blank', 'noopener')}>
               <ArrowUpRight />
@@ -356,6 +402,9 @@ export function Workbench({
                 return { ...all, [viewKey]: next };
               })}
               live={live}
+              location={info.data ?? {}}
+              onSave={saveDraft}
+              saving={savingViews[saveKey] ?? false}
             />
           </>
         ) : (
