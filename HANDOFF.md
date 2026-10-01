@@ -505,3 +505,53 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   along with static assets, no-store headers and traversal guards returning
   HTTP 400. Test servers and browsers were stopped. The local dashboard
   backend was restarted to load the new analytics routes.
+
+
+## OpenClaw control pages (2026-10-01)
+
+- Added Agents, Sessions, Automation and Channels to the dashboard, using the
+  existing warm surfaces, Plex fonts, locale keys and lazy hash routes. Agents
+  links filter sessions/jobs; model settings links select the Brain tab.
+- Operator-only `/api/openclaw/control/*` endpoints expose allowlisted metadata
+  from installed gateway RPCs. Conversation text, private session keys, paths,
+  credentials, ownership metadata and raw errors never enter these responses.
+  Direct local access requires loopback Host/Origin and no forwarding headers;
+  authenticated operators are allowlisted by `VBOT_OPERATOR_USER_IDS`.
+- Sessions and jobs paginate 50 rows, with agent filtering before pagination.
+  Context freshness and unknown connectivity/status remain explicit. Channels
+  reads cached health without probing, logging in or sending messages.
+- Automation creates paused daily/interval jobs in isolated sessions, with
+  delivery and failure alerts disabled. Enable/pause retains existing job
+  payloads and uses configuration revision guards. Run history returns 20
+  recent metadata entries. No real jobs were created or changed during testing.
+- The enlarged dock remains usable at all four edges: constrained docks scroll,
+  side targets retain 44px height, and top docking stays within the header.
+- Separate native adversarial reviewers fixed operator proxy bypasses, stale
+  cache races, filtering order, queued/unknown states, duplicate mutations,
+  permission-loss display and dock reachability. Fable and the configured
+  code-reviewer model were unavailable; available default native agents
+  performed the independent reviews. Parent fixed definition-list semantics
+  after axe identified invalid nested metadata groups.
+- Validation: full Python suite **928 passed, 6 skipped, 150 subtests**;
+  **77 dashboard tests**, typecheck and isolated production build passed.
+  Browser checks cover both languages, five widths, metadata filters, context
+  freshness, pagination, mocked create/pause, run history, focus restoration,
+  permission loss and all 14 dock targets on four edges at 768/1180 x 600px.
+  Scoped axe checks report zero violations across all four pages in light/dark
+  themes; automated contrast checks still have incomplete results because of
+  existing decorative/header overlays and animated labels.
+- Live read-only HTTP smoke passed 22 checks, including the gateway inventories,
+  run history, referenced production assets, screen assets, memory traversal
+  returning 400, and operator-origin/proxy guards returning 403.
+- Production assets were built from an isolated copy that includes only this
+  task's settings deep-link edit. Pre-existing uncommitted integration settings,
+  API changes, root instructions and unrelated artifacts remain untouched.
+- Limits: agent configuration and channel setup remain in existing settings/
+  OpenClaw; these pages do not edit arbitrary config or forward arbitrary RPCs.
+  The shared RPC helper loses structured revision-conflict details, so failed
+  writes return generic 502; refresh and inspect jobs before retrying an
+  ambiguous create response. Docs: `Virtual Bot/docs/DASHBOARD-CONTROL.md`;
+  design contract: `Virtual Bot/dashboard/DESIGN.md`.
+- Backend, review fixes, UI, production assets and documentation were committed
+  and pushed on `main` under the required owner identity. Test browsers and
+  isolated servers were shut down; the existing OpenClaw gateway was preserved.
