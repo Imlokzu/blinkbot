@@ -119,11 +119,6 @@ export default function ChatPanel() {
     store(SESSIONS_KEY, open ? 'closed' : 'open');
     return !open;
   });
-  const closeSessions = () => {
-    store(SESSIONS_KEY, 'closed');
-    setSessionsOpen(false);
-    sessionsToggle.current?.focus({ preventScroll: true });
-  };
 
   /*
    * The workbench. On the desk it takes the right column's place; narrower,
@@ -236,7 +231,6 @@ export default function ChatPanel() {
         chat.newSession();
         listDrawer.setOpen(false);
       }}
-      onClose={isDesk ? closeSessions : undefined}
     />
   );
 
@@ -247,9 +241,31 @@ export default function ChatPanel() {
         if (isDesk) setBench(true);
         else setBenchSheet(true);
       }}>
-      <div data-chat-session={chat.sessionId} className="chat-layout flex min-h-0 flex-1">
+      <div data-chat-session={chat.sessionId} className={`chat-layout min-h-0 flex-1 ${isDesk ? 'grid' : 'flex'}`}
+        style={isDesk ? { gridTemplateColumns: `${sessionsOpen ? '220px ' : ''}minmax(0, 1fr) auto`, gridTemplateRows: '44px minmax(0, 1fr)' } : undefined}>
+        {isDesk ? (
+          <header data-chat-toolbar className="flex min-w-0 items-center gap-2 border-b border-line bg-surface px-3"
+            style={{ gridColumn: sessionsOpen ? '2 / -1' : '1 / -1', gridRow: 1 }}>
+            <Button ref={sessionsToggle} variant={sessionsOpen ? 'quiet' : 'ghost'} size="icon-sm" onClick={toggleSessions}
+              aria-label={chatT(sessionsOpen ? 'sessions.hideList' : 'sessions.showList')}
+              title={chatT(sessionsOpen ? 'sessions.hideList' : 'sessions.showList')} aria-expanded={sessionsOpen}>
+              <PanelLeft />
+            </Button>
+            <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">
+              {chat.sessions.find((session) => session.id === chat.sessionId)?.title || chatT('chat.newSession')}
+            </span>
+            <Button variant="ghost" size="icon-sm" onClick={chat.newSession}
+              aria-label={chatT('chat.newSession')} title={chatT('chat.newSession')}><Plus /></Button>
+            <Button variant={bench ? 'quiet' : 'ghost'} size="sm" onClick={toggleBench}
+              aria-label={benchT(bench ? 'wb.close' : 'wb.open')} aria-expanded={bench}>
+              <PanelRight />{benchT('wb.title')}
+              {benchFiles ? <span className="font-mono text-[10px] text-ink-3">{benchFiles}</span> : null}
+            </Button>
+          </header>
+        ) : null}
         {isDesk && sessionsOpen ? (
-          <aside className="chat-sessions flex min-h-0 w-[220px] shrink-0 flex-col border-r border-line bg-surface">
+          <aside className="chat-sessions flex min-h-0 w-[220px] shrink-0 flex-col border-r border-line bg-surface"
+            style={{ gridColumn: 1, gridRow: '1 / -1' }}>
             {project ? <ProjectChip name={projectName} /> : null}
             {list}
           </aside>
@@ -260,7 +276,8 @@ export default function ChatPanel() {
          * список розмов — та сама ліва шухляда, що й на телефоні.
          */}
 
-        <div ref={glassRoot} className="chat-conversation relative flex min-h-0 min-w-0 flex-1 flex-col">
+        <div ref={glassRoot} className="chat-conversation relative flex min-h-0 min-w-0 flex-1 flex-col"
+          style={isDesk ? { gridColumn: sessionsOpen ? 2 : 1, gridRow: 2 } : undefined}>
           {/*
            * Narrow header: conversations | model | new conversation.
            *
@@ -363,26 +380,6 @@ export default function ChatPanel() {
             </div>
           ) : null}
 
-          {isDesk ? (
-            <header data-chat-toolbar className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-surface px-3">
-              <Button ref={sessionsToggle} variant={sessionsOpen ? 'quiet' : 'ghost'} size="icon-sm" onClick={toggleSessions}
-                aria-label={chatT(sessionsOpen ? 'sessions.hideList' : 'sessions.showList')}
-                title={chatT(sessionsOpen ? 'sessions.hideList' : 'sessions.showList')} aria-expanded={sessionsOpen}>
-                <PanelLeft />
-              </Button>
-              <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">
-                {chat.sessions.find((session) => session.id === chat.sessionId)?.title || chatT('chat.newSession')}
-              </span>
-              <Button variant="ghost" size="icon-sm" onClick={chat.newSession}
-                aria-label={chatT('chat.newSession')} title={chatT('chat.newSession')}><Plus /></Button>
-              <Button variant={bench ? 'quiet' : 'ghost'} size="sm" onClick={toggleBench}
-                aria-label={benchT(bench ? 'wb.close' : 'wb.open')} aria-expanded={bench}>
-                <PanelRight />{benchT('wb.title')}
-                {benchFiles ? <span className="font-mono text-[10px] text-ink-3">{benchFiles}</span> : null}
-              </Button>
-            </header>
-          ) : null}
-
           <Thread
             compactedFrom={chat.compactedFrom}
             retryId={retryId}
@@ -408,7 +405,8 @@ export default function ChatPanel() {
         </div>
 
         {isDesk && bench ? (
-          <div className="relative flex min-h-0 shrink-0 border-l border-line" style={{ width: benchWidth.width, maxWidth: BENCH_MAX_WIDTH }}>
+          <div className="relative flex min-h-0 shrink-0 border-l border-line"
+            style={{ width: benchWidth.width, maxWidth: BENCH_MAX_WIDTH, gridColumn: sessionsOpen ? 3 : 2, gridRow: 2 }}>
             <div
               role="separator"
               aria-orientation="vertical"

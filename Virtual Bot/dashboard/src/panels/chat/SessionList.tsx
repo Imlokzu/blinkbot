@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Plus, PanelLeftClose } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { PulseHeart, SwipeRow } from '@/vendor/reactbits';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/Button';
@@ -61,7 +61,6 @@ export function SessionList({
   current,
   onOpen,
   onNew,
-  onClose,
   className,
 }: {
   sessions: SessionSummary[];
@@ -69,7 +68,6 @@ export function SessionList({
   current: string;
   onOpen: (id: string) => void;
   onNew: () => void;
-  onClose?: () => void;
   className?: string;
 }) {
   const client = useQueryClient();
@@ -190,8 +188,6 @@ export function SessionList({
         <Button variant="ghost" size="icon-sm" onClick={onNew} aria-label={chatT('chat.newSession')}>
           <Plus />
         </Button>
-        {onClose ? <Button variant="ghost" size="icon-sm" onClick={onClose}
-          aria-label={chatT('sessions.hideList')} title={chatT('sessions.hideList')}><PanelLeftClose /></Button> : null}
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden pb-2">
