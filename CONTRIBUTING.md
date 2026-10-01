@@ -1,25 +1,25 @@
-# Участь у проєкті
+# Contributing
 
-Дякуємо за внесок у «Клод Бот». UI і коментарі пишемо українською. Перед змінами прочитайте [`AGENTS.md`](AGENTS.md), не додавайте секрети й працюйте вузькими логічними змінами.
+Thank you for contributing to Claude Bot. Documentation, identifiers, and code comments must be in English. User-visible text belongs in locale files and must be referenced through translation keys, with Ukrainian and English translations. Before making changes, read [`AGENTS.md`](AGENTS.md), never add secrets, and keep each logical change narrowly scoped.
 
-## Multi-agent процес
+## Multi-agent workflow
 
-1. **Planner** уточнює обсяг, контракти, ризики та план перевірок. Він не підміняє реалізацію.
-2. **Worker** робить мінімальну зміну в окремій логічній ділянці, запускає доречні тести та фіксує evidence.
-3. **Adversarial critic** окремо шукає регресії, граничні випадки, проблеми безпеки й невідповідність контракту. За потреби виправлення проходять повторну перевірку.
-4. **Pro/con analyst** зважує альтернативи, переваги, недоліки й залишкові ризики, не розширюючи погоджений scope.
-5. **Final integrator** перевіряє diff, узгодженість документації, результати тестів і готовність до інтеграції.
+1. **Planner** clarifies the scope, contracts, risks, and validation plan. Planning does not replace implementation.
+2. **Worker** makes a minimal change within one logical area, runs the relevant tests, and records validation evidence.
+3. **Adversarial critic** independently looks for regressions, edge cases, security issues, and contract violations. Fixes are reviewed again when needed.
+4. **Pro/con analyst** weighs alternatives, benefits, drawbacks, and remaining risks without expanding the agreed scope.
+5. **Final integrator** checks the diff, documentation consistency, test results, and readiness for integration.
 
-Ролі можуть виконувати різні агенти або люди, але критика має бути незалежною від автора зміни.
+These roles may be performed by different agents or people, but the reviewer must be independent of the change's author.
 
-## Evidence і smoke test
+## Validation evidence and smoke tests
 
-Кожен етап має залишити відтворюваний evidence: змінені файли, команди, результати тестів і відомі ризики. Для сервісних змін фінальний smoke test охоплює запуск, health/API endpoints, негативні сценарії (зокрема path traversal, якщо є робота з файлами), статичні assets і коректне завершення процесів.
+Each stage must leave reproducible evidence: changed files, commands, test results, and known risks. For service changes, the final smoke test covers startup, health and API endpoints, negative scenarios (including path traversal when file access is involved), static assets, and clean process shutdown.
 
-Для документаційних змін перевірте всі Markdown-файли синтаксично або за допомогою доступного linter-а, перегляньте diff і переконайтеся, що не з’явилися URL, імена чи секрети без підстав.
+For documentation changes, check all affected Markdown files for valid syntax or use an available linter, review the diff, and ensure no URLs, names, or secrets were added without justification.
 
-## Pull request
+## Pull requests
 
-Описуйте мету, scope, evidence, smoke test, residual risks і ручні кроки. Використовуйте шаблон pull request та відповідний шаблон issue. Коміти мають відповідати Conventional Commits; не додавайте `LICENSE` без окремого вибору власника.
+Describe the purpose, scope, validation evidence, smoke test, remaining risks, and any manual steps. Use the pull request template and the appropriate issue template. Commits must follow Conventional Commits; do not add a `LICENSE` without the owner's explicit choice.
 
 See [docs/I18N.md](docs/I18N.md) for how to handle translations and localization in this repository.

@@ -1,4 +1,4 @@
-# Клод Бот (Claude Bot)
+# Claude Bot
 
 A DIY personal AI companion for experimenting with a software-first, virtual AI companion before buying hardware. The repository combines vision, voice, display, remote control, setup tooling, and a Virtual Bot control panel around a Raspberry Pi/home-server architecture. The physical bot will be a **Raspberry Pi 3**
 (camera, mic, speaker, SPI touchscreen) talking to a **home i5 server** and the
@@ -6,16 +6,19 @@ A DIY personal AI companion for experimenting with a software-first, virtual AI 
 hardware later** — every module runs virtually on macOS/Linux today, before any
 hardware is purchased.
 
-> UI text and code comments are written in **Ukrainian** — please keep that
-> convention (see `AGENTS.md`).
+> Documentation and code comments must be written in **English**. User-visible
+> text belongs in locale files and is referenced by translation keys, with
+> Ukrainian and English translations (see [`AGENTS.md`](AGENTS.md) and the
+> [localization guide](docs/I18N.md)).
 
 **Key docs:**
+
 - [`claude-bot-full-spec-v3.md`](claude-bot-full-spec-v3.md) — full architecture (Edge/Fog/Cloud), BOM, roadmap
 - [`claude-bot-dev-order.md`](claude-bot-dev-order.md) — development order (6 steps)
 - [`HANDOFF.md`](HANDOFF.md) — session handoff, current state, known bugs, next tasks
 - [`AGENTS.md`](AGENTS.md) — rules for AI agents/tools working in this repo
-- [`STATUS.md`](STATUS.md) — оперативний сумарний статус, відомі баги й наступні кроки
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — multi-agent процес, review та evidence
+- [`STATUS.md`](STATUS.md) — current status summary, known bugs, and next steps
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — multi-agent workflow, review, and validation evidence
 - [`LICENSE`](LICENSE) — GNU GPL v3
 
 ## GitHub metadata
@@ -90,7 +93,7 @@ python test_webcam.py   # optional live webcam test (quit with q)
 cd "Voice Loop"
 pip install -r requirements.txt --break-system-packages
 # Requires OpenClaw gateway running on :18789 and a token in config.yaml
-python voice_loop.py    # speak after "Слухаю…", Ctrl+C to quit
+python voice_loop.py    # speak after the listening prompt, Ctrl+C to quit
 ```
 
 ### claude-bot-display — port 8001
