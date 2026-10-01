@@ -30,6 +30,10 @@ const PANELS: Record<string, React.LazyExoticComponent<() => React.ReactElement>
   vision: lazy(() => import('@/panels/vision/VisionPanel')),
   services: lazy(() => import('@/panels/services/ServicesPanel')),
   inference: lazy(() => import('@/panels/inference/InferencePanel')),
+  agents: lazy(() => import('@/panels/control/AgentsPanel')),
+  sessions: lazy(() => import('@/panels/control/SessionsPanel')),
+  automation: lazy(() => import('@/panels/control/AutomationPanel')),
+  channels: lazy(() => import('@/panels/control/ChannelsPanel')),
   logs: lazy(() => import('@/panels/logs/LogsPanel')),
   settings: lazy(() => import('@/panels/settings/SettingsPanel')),
 };

@@ -143,6 +143,7 @@
  * тож обрізати нема чого.
  */
 .dock-panel { overflow: visible; }
+.dock-panel .dock-item { flex-shrink: 0; }
 @media (max-width: 759px) {
   .dock-panel { overflow-x: auto; }
   .dock-panel .dock-item {
@@ -208,14 +209,16 @@
  * Підпис розділу переїжджає ПІД значок: над шапкою його нема куди подіти —
  * там край вікна.
  */
-#dock-slot { position: relative; display: flex; align-items: center; }
-#dock-slot .dock-outer { height: auto !important; width: auto; margin: 0; }
+#dock-slot { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; }
+#dock-slot .dock-navigation { width: 100%; min-width: 0; }
+#dock-slot .dock-outer { height: auto !important; width: 100%; margin: 0; }
 
 .dock-panel.dock-inline {
   position: static;
   transform: none;
-  width: auto;
-  max-width: none;
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
   max-height: none;
   gap: 0.3rem;
   padding: 0;
@@ -252,6 +255,17 @@
   align-items: flex-start;
 }
 [data-dock='top'] .dock-outer { display: flex; align-items: flex-start; }
+
+/* Keep all sections reachable without shrinking targets or covering the brand.
+   Native titles replace clipped hover labels only while the dock scrolls. */
+.dock-navigation { max-width: 100%; min-width: 0; }
+.dock-navigation[data-overflow='true'] .dock-panel { overflow-x: auto; overflow-y: hidden; }
+.dock-navigation[data-overflow='true'] .dock-panel[data-axis='y'] {
+  width: 58px !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.dock-navigation[data-overflow='true'] .dock-label { display: none; }
 
 .dock-item {
   background: var(--c-surface-2);

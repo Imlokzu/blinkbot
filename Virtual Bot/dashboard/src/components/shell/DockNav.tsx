@@ -45,6 +45,9 @@ export function DockNav({
 
   const vertical = side === 'left' || side === 'right';
   const inTopbar = side === 'top';
+  const baseItemSize = inTopbar ? 32 : isPhone ? 44 : vertical ? 44 : 38;
+  const navigation = useRef<HTMLDivElement>(null);
+  const [overflowing, setOverflowing] = useState(false);
 
   /*
    * Вузол шапки, у який віддаємо док. Шукаємо в ефекті, а не одразу: шапка
@@ -54,6 +57,44 @@ export function DockNav({
   useEffect(() => {
     setSlot(inTopbar ? document.getElementById('dock-slot') : null);
   }, [inTopbar]);
+
+  // More sections must remain reachable when the header or viewport is short.
+  // Constrained docks scroll at their resting size; roomy docks keep the zoom.
+  useEffect(() => {
+    const measure = () => {
+      const panel = navigation.current?.querySelector('.dock-panel');
+      if (!panel) return;
+      const style = getComputedStyle(panel);
+      const available = vertical ? window.innerHeight - 88
+        : inTopbar ? slot?.clientWidth ?? 0 : window.innerWidth - 24;
+      const padding = vertical
+        ? parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
+        : parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+      const resting = SECTIONS.length * baseItemSize + (SECTIONS.length - 1) * parseFloat(style.gap) + padding + 2;
+      setOverflowing(isPhone || resting + 48 > available);
+      for (const item of panel.querySelectorAll<HTMLElement>('.dock-item')) {
+        item.title = item.getAttribute('aria-label') || '';
+      }
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (slot) observer.observe(slot);
+    window.addEventListener('resize', measure);
+    return () => { observer.disconnect(); window.removeEventListener('resize', measure); };
+  }, [baseItemSize, inTopbar, isPhone, slot, vertical]);
+
+  useEffect(() => {
+    const element = navigation.current;
+    if (!element || !overflowing || vertical) return;
+    const wheel = (event: WheelEvent) => {
+      const panel = element.querySelector('.dock-panel');
+      if (!panel || panel.scrollWidth <= panel.clientWidth || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      event.preventDefault();
+      panel.scrollLeft += event.deltaY;
+    };
+    element.addEventListener('wheel', wheel, { passive: false });
+    return () => element.removeEventListener('wheel', wheel);
+  }, [overflowing, vertical, slot]);
 
   /*
    * Перенесення слухаємо на ВІКНІ, а не на самому доці.
@@ -109,8 +150,10 @@ export function DockNav({
 
   const dock = (
     <div
+      ref={navigation}
+      data-overflow={overflowing}
       className={cn(
-        'pointer-events-auto select-none',
+        'dock-navigation pointer-events-auto select-none',
         isPhone ? 'touch-pan-x' : 'touch-none',
         aim ? 'cursor-grabbing' : 'cursor-grab',
       )}
@@ -138,8 +181,8 @@ export function DockNav({
         // У шапці все менше: смуга 56 px, і значок мусить у неї влазити
         // разом зі збільшенням. На телефоні збільшення не спрацьовує
         // (курсора нема), тож там усе просто менше й рівне.
-        baseItemSize={inTopbar ? 32 : isPhone ? 44 : vertical ? 44 : 38}
-        magnification={inTopbar ? 42 : isPhone ? 44 : 58}
+        baseItemSize={baseItemSize}
+        magnification={overflowing ? baseItemSize : inTopbar ? 42 : isPhone ? 44 : 58}
         distance={inTopbar ? 110 : 150}
         panelHeight={inTopbar ? 42 : 52}
         dockHeight={inTopbar ? 42 : 140}

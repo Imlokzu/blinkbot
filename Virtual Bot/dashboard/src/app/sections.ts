@@ -9,11 +9,16 @@ import {
   Sliders,
   Eye,
   ChartNoAxesCombined,
+  Bot,
+  CalendarClock,
+  MessagesSquare,
+  Radio,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { t as inferenceText } from '@/locales/inference';
+import { t as controlText } from '@/locales/control';
 
-/** Розділи панелі. Порядок тут = порядок у рейці й у нижній навігації. */
+/** Dashboard sections, in the same order as the dock and mobile navigation. */
 export interface SectionDef {
   id: string;
   label: string;
@@ -31,6 +36,10 @@ export const SECTIONS: SectionDef[] = [
   { id: 'vision', label: 'Зір', icon: Eye },
   { id: 'services', label: 'Сервіси', icon: Sliders },
   { id: 'inference', get label() { return inferenceText('nav'); }, icon: ChartNoAxesCombined },
+  { id: 'agents', get label() { return controlText('nav.agents'); }, icon: Bot },
+  { id: 'sessions', get label() { return controlText('nav.sessions'); }, icon: MessagesSquare },
+  { id: 'automation', get label() { return controlText('nav.automation'); }, icon: CalendarClock },
+  { id: 'channels', get label() { return controlText('nav.channels'); }, icon: Radio },
   { id: 'logs', label: 'Логи', icon: ScrollText },
   { id: 'settings', label: 'Налаштування', icon: Settings, primary: true },
 ];

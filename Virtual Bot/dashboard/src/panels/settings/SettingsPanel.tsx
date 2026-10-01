@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouteParam } from '@/app/useRoute';
 import { AudioLines, Brain, Compass, Palette, Plug, Puzzle, Search, Sparkles, User, Wrench } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -52,7 +53,15 @@ const fieldControl = 'h-8 w-[200px] text-[13px]';
 export default function SettingsPanel() {
   const toast = useToast();
   const client = useQueryClient();
-  const [section, setSection] = useState<SectionId>('profile');
+  const requestedTab = useRouteParam('tab');
+  const [section, setSection] = useState<SectionId>(() =>
+    SECTIONS.some((item) => item.id === requestedTab) ? requestedTab as SectionId : 'profile');
+  useEffect(() => {
+    if (SECTIONS.some((item) => item.id === requestedTab)) {
+      setSection(requestedTab as SectionId);
+      setQuery('');
+    }
+  }, [requestedTab]);
   const [query, setQuery] = useState('');
   const openclaw = useOpenClawSettings();
   // Майстер показуємо, доки профіль не позначено налаштованим; після

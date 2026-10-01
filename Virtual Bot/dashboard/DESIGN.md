@@ -45,7 +45,8 @@ pixelated, but it must share its bloodline: warm, handcrafted, slightly technica
 - Shadows deeper than `--shadow-pop`.
 - More than two radius sizes in a single composite element.
 - A spinner where a skeleton or real progress can be shown.
-- Placeholder text in English. The interface is entirely Ukrainian.
+- Hardcoded interface text. New surfaces use English and Ukrainian locale keys;
+  labels follow the language selected in Settings.
 
 ## Typography
 
@@ -309,3 +310,42 @@ Chat on the left, what the bot is making on the right — the owner's ask.
   fall back to keyword rules. Unknown usage stays unknown. Unrecorded historical
   routing is disclosed and never claimed as measured Jev savings.
 - New strings stay in `locales/inference.ts` and `locales/comparison.ts`.
+
+## OpenClaw control pages (2026-09-30)
+
+- Extend the existing dock, mobile section drawer and command palette with
+  Agents, Sessions, Automation and Channels. A compact local navigation row
+  connects these pages; each remains a bookmarkable hash route. Settings links
+  select the intended tab through `#/settings?tab=brain`.
+  Constrained desktop docks scroll at their resting size, retaining 44px side
+  targets and keeping the top dock inside its header slot. Roomy docks preserve
+  their existing magnification. Keyboard focus and mouse-wheel scrolling reach
+  every section.
+- Preserve warm surfaces, self-hosted Plex fonts, thin borders and all accents.
+  Use flat metric strips, readable metadata rows and existing Panel/Field/Button
+  components. Agent/channel rosters use two columns only on wide screens;
+  session/job metadata stacks on phones. No new design library or imagery.
+- Agents shows configured model routes and execution defaults, with links to
+  that agent's sessions and automation. Defaults are distinct from the actual
+  model shown in Usage after a fallback.
+- Sessions shows bounded, paginated metadata across configured agents. Search
+  only the visible metadata. Opaque ids replace private session keys; no titles,
+  conversation previews, ownership details or transcripts enter the response.
+  Current and stale context counts remain distinct; absent counts are unknown.
+- Automation shows real schedules, scheduler state, outcomes and 20 recent run
+  metadata entries. Create daily or interval agent jobs inline, paused, isolated,
+  without automatic delivery or failure alerts. Enabling an existing job retains
+  its authored task/delivery; changing enabled state uses a revision guard.
+- Channels shows configured/running/connected as separate facts. No connection
+  is inferred from a running process; unknown connectivity stays explicit.
+  Read status without sending messages, probing or starting login flows.
+  Channel setup links to the official guide, independent of unfinished local
+  integration settings work.
+- These gateway-wide pages are operator surfaces. Direct local access follows
+  the launcher; authenticated installations explicitly allowlist operators.
+  Loading uses skeletons; errors allow refresh, and retained data is marked stale.
+- New labels: `src/locales/control.ts` in both languages. Keyboard focus stays
+  visible; inline form completion/cancellation restores its trigger. Respect
+  existing reduced-motion and touch behavior. Validate phone, tablet, desktop,
+  both themes, both languages, mutations through isolated browser mocks, and
+  real read-only HTTP endpoints. Never create live schedules for UI testing.
