@@ -59,6 +59,7 @@ try {
   assert.equal(evaluate('window.__reads.some(url => url.includes("interactive.md"))'), false, 'the active main file is still never fetched');
   assert.equal(evaluate(`document.querySelector('.agent-file-paper .excalidraw [data-testid="toolbar-rectangle"]') === null`), true, 'live inline drawing is inspectable in view mode');
   browser('click', '.agent-file-paper .document-drawing button');
+  assert.equal(evaluate('document.querySelector(".agent-file-paper .document-drawing button").textContent'), 'View drawing');
 
   // A native mouse drag must retain its actual selection through confirmed
   // content arriving and the tool finishing, until the reader resumes.

@@ -306,6 +306,14 @@ Chat on the left, what the bot is making on the right — the owner's ask.
   formatted document; untouched paragraphs remain visible. Playback is read-only,
   never saves, never takes composer focus, and keeps its editor mounted while
   waiting for the confirmed file. Missing input retains the last confirmed text.
+- Playback's document remains selectable and scrollable. Wheel/touch/navigation
+  input stops automatic following, with an explicit return-to-agent control.
+  Visual transactions and completion wait while a reader selects text; the real
+  write proceeds. Inline drawings open in view mode without saving. Only the
+  formatting toolbar is inert during agent ownership.
+- Desktop has one conversations toggle in a toolbar spanning chat and the right
+  panel. The Workbench toggle stays at the far right in both open/closed states;
+  the conversations list has no duplicate close control.
 - Agent revisions and manual reloads are separate cache-key fields. Playback
   starts from the most recently confirmed prior version, including a reload
   cached before Workbench was closed. Long documents skip the bounded animation.

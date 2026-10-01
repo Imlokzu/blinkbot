@@ -695,3 +695,31 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   dashboard entry/SW and all 274 release static assets (200). Release assets
   were built from current HEAD plus only these changes; the local live build
   retains the owner's unrelated pending UI/settings edits.
+
+
+## 2026-10-01 — Chat toolbar and usable live documents
+
+- Desktop now has one conversations toggle in a shared toolbar spanning the
+  conversation and right panel. Workbench's toggle stays at the far right in
+  both states; the sidebar no longer has a duplicate close button. Phone and
+  tablet drawers retain their existing navigation.
+- Live Markdown remains scrollable and selectable. Manual wheel/touch/keyboard
+  navigation stops following until the reader chooses the localized return to
+  the agent cursor. Visual transactions and confirmed-file completion wait for
+  a reader's selection/drag to finish; the actual file write continues.
+- Only the formatting toolbar remains inert during agent ownership. Inline
+  drawings can expand and pan in view mode, labelled View drawing, without
+  scene edits or autosaves. Existing stale-canvas and file-read guards remain.
+- Independent max-effort review added native content capture for React node-view
+  portals, pointer-release capture/window-blur handling, and destroyed-editor
+  guards. Its harness verified final content, completion once, resuming and
+  cleanup. Browser checks verified layout/toggle focus, native mouse selection
+  through confirmed writes, scroll position, inline scenes and zero file saves.
+  The CLI wheel command always dispatches at (0,0); the regression exercises
+  DOM wheel handling plus targeted scrolling and native mouse dragging.
+- Validation: typecheck/build, 93 clean-source dashboard unit tests (92 with the
+  owner's existing local deletion); Python 934 passed, 6 skipped, 150 subtests.
+  Navigation, interaction, writing, document/drawing and reduced-motion browser
+  checks passed. Isolated HTTP smoke covers workspace reads, traversal 400,
+  entry/SW and all release resources. Clean assets exclude unrelated pending
+  owner changes; the live local build preserves those changes.
