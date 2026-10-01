@@ -33,6 +33,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from workspace_guidance import DOCUMENT_GUIDANCE, SHOW_DESCRIPTION
 
 VBOT_URL = os.environ.get("VBOT_URL", "http://127.0.0.1:8100").rstrip("/")
 # Сесія, у теку якої писати за префіксом `session/` (порожня → sessions/default)
@@ -42,11 +43,7 @@ PROTOCOL_VERSION = "2024-11-05"
 TOOLS = [
     {
         "name": "workspace_show",
-        "description": (
-            "ПОКАЗАТИ користувачу файл із робочої теки прямо в панелі: сайт відкриється "
-            "сторінкою, картинка — зображенням, нотатка — текстом. Використовуй ЗАВЖДИ, коли "
-            "просять «відкрий» чи «покажи» — НЕ диктуй команди для термінала, ти можеш показати сам."
-        ),
+        "description": SHOW_DESCRIPTION,
         "inputSchema": {
             "type": "object",
             "properties": {"path": {"type": "string", "description": "Напр. 'projects/cats/index.html'."}},
@@ -81,7 +78,7 @@ TOOLS = [
             "Create or overwrite a file in the workspace (folders are created as needed). "
             "Prefixes: 'session/' is this conversation's folder, 'games/' games, 'notes/' notes. "
             "Diagrams: write Mermaid to a .mmd file — the chat's workbench draws it as a "
-            "hand-drawn Excalidraw sketch. Every file written here opens there, beside the chat."
+            "hand-drawn Excalidraw sketch. " + DOCUMENT_GUIDANCE
         ),
         "inputSchema": {
             "type": "object",

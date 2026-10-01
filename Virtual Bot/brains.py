@@ -34,6 +34,7 @@ import openclaw_config
 import openclaw_models
 from openclaw_activity import GatewayActivity
 import tools as tool_registry
+from workspace_guidance import DOCUMENT_GUIDANCE
 
 # Тип історії сесії: [{'role': 'user'|'assistant', 'content': str}, ...]
 ChatHistory = list[dict[str, str]]
@@ -184,7 +185,7 @@ WHERE YOU ARE: the device's own screen, 320x240, a few lines at a time.
     "chat": """
 WHERE YOU ARE: the control panel on the computer. Markdown, lists and
 tables render here; longer answers are fine when they are asked for.
-""",
+""" + DOCUMENT_GUIDANCE,
 }
 
 CHANNELS = tuple(_CHANNEL_RULES)
