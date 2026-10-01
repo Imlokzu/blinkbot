@@ -637,3 +637,33 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   for panel/screen/static assets and 400 for memory path traversal.
 - Independent native adversarial review fixed preference refresh after periods
   without subscribers and checked the empty-text gate. Fable was unavailable.
+
+
+## 2026-10-01 — Chat navigation and live file creation
+
+- The Workbench toggle is stationary in the chat toolbar and opens/closes from
+  the same control. The conversation list can collapse from its header and
+  reopen from the toolbar; keyboard focus returns to that toggle.
+- Conversation selection lives only for the loaded page. Section navigation
+  restores the selected chat; fresh visits/reloads start a new conversation.
+  Visiting an untouched project leaves the last main selection intact.
+- Sending while history restores waits for the exact request and session. The
+  composer visibly queues the submission and retains further typed drafts.
+- Workbench starts closed and automatically opens only for file creation/update
+  calls from the current conversation. Old history, read/show calls and old
+  open preferences do not auto-open it. A manual close stays respected for
+  that reply; batched instant writes and updates still open on the next turn.
+- File creation shows the pixel agent icon and a bounded reveal of real input
+  or confirmed file content. Reduced motion skips the reveal. Active writes
+  block partial file reads and editor writes; completed content opens normally.
+- Drawing flushes respect active writer ownership. Inline serialized saves
+  capture their revision and recheck it before dispatch, including after the
+  agent has finished an intervening update. Read/show entries retain write locks.
+- Shared agent guidance explains that show selects a file and only writes open
+  the panel automatically; tool success alone does not prove panel visibility.
+- Validation: 87 dashboard unit tests, TypeScript, clean production build,
+  navigation/queued-send and real-SSE writing browser checks, existing Workbench
+  and rich-document/drawing browser regressions. The writing test covers old
+  canvas flush suppression and no reads while a replacement is active.
+  Python suite: 934 passed, 6 skipped, 150 subtests passed; smoke verifies
+  session reads, static assets and traversal rejection with 400.
