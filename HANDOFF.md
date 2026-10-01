@@ -723,3 +723,24 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   checks passed. Isolated HTTP smoke covers workspace reads, traversal 400,
   entry/SW and all release resources. Clean assets exclude unrelated pending
   owner changes; the live local build preserves those changes.
+
+
+## 2026-10-01 — Night review: reliable model picking
+
+- Validated saved model preferences and catalog snapshots, preventing malformed
+  browser storage from crashing chat. Added factual vision/fast filters, combined
+  search, unique counts and localized failed/empty/disconnected states with Retry.
+- Settings reads bypass HTTP caching. Confirmed model/effort responses update
+  shared state and the reload cache before refetch; pending state is shared with
+  the composer, overlapping writes are blocked and rejected picks stay out of
+  recents. Async failure feedback survives menu remounts.
+- Independent maximum-effort code and architecture reviewers found no blocking
+  issues (Fable and configured specialist models unavailable). Their persistence
+  finding was fixed. Python: 934 passed, 6 skipped, 150 subtests; isolated dashboard:
+  97 unit tests, typecheck and build passed. Picker and existing document/live
+  Workbench browser regressions passed. Isolated HTTP smoke: 300 checks passed,
+  including both traversal guards returning 400 and all release static files.
+- Test browsers/server were stopped and Mac output remains muted. Concurrent
+  agents' pending/staged edits and live build were preserved; release assets use
+  committed sources plus only this change. Full scope, findings and evidence:
+  `reports/night-agent-model-picker-2026-10-01.md`.

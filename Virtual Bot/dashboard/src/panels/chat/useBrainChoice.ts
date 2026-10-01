@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useMutationState, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/Toaster';
 import { useBrainModels, useSelectBrainModel, useSetThinking } from '@/lib/queries';
 import { t } from '@/locales/chat';
@@ -24,6 +25,12 @@ export function useBrainChoice() {
   const selectModel = useSelectBrainModel();
   const setThinking = useSetThinking();
   const toast = useToast();
+  const client = useQueryClient();
+  // Composer and both menus observe the same writes, including while remounting.
+  const pending = useMutationState({
+    filters: { mutationKey: ['brain-choice'], status: 'pending' },
+    select: (mutation) => ({ kind: mutation.options.mutationKey?.[1], value: mutation.state.variables as string }),
+  });
 
   const models = brain.data?.models ?? [];
   // An empty `selected` means "keep the agent's default model" — show that
@@ -31,18 +38,24 @@ export function useBrainChoice() {
   // While a change is in flight, show the requested value rather than the
   // old one: the config round-trip takes a moment, and a control that snaps
   // back on release reads as "it did not take".
-  const current = (selectModel.isPending && selectModel.variables)
+  const current = pending.find((write) => write.kind === 'model')?.value
     || brain.data?.selected || brain.data?.default || '';
   const currentModel = models.find((model) => model.id === current);
 
   const pickModel = useCallback(
-    (id: string) => {
-      if (!id || id === current) return;
-      selectModel.mutate(id, {
-        onError: (error) => toast.error(t('composer.modelFailed'), (error as Error).message),
-      });
+    async (id: string): Promise<boolean> => {
+      // Check the live cache too: two events may arrive before React rerenders.
+      if (!id || client.isMutating({ mutationKey: ['brain-choice'] })) return false;
+      if (id === current) return true;
+      try {
+        await selectModel.mutateAsync(id);
+        return true;
+      } catch (error) {
+        toast.error(t('composer.modelFailed'), (error as Error).message);
+        return false;
+      }
     },
-    [current, selectModel, toast],
+    [current, selectModel, toast, client],
   );
 
   /*
@@ -53,24 +66,30 @@ export function useBrainChoice() {
    * state from "off" — the built-in default applies, and the CLI does not
    * name it.
    */
-  const thinking = setThinking.isPending ? (setThinking.variables ?? '') : brain.data?.thinking || '';
+  const thinking = pending.find((write) => write.kind === 'thinking')?.value ?? brain.data?.thinking ?? '';
   const pickThinking = useCallback(
-    (level: string) => {
-      if (level === thinking) return;
+    async (level: string) => {
+      if (level === thinking || client.isMutating({ mutationKey: ['brain-choice'] })) return;
       const label = level ? thinkingLabel(level) : t('composer.asConfigured');
-      setThinking.mutate(level, {
-        onSuccess: () =>
-          toast.toast(t('composer.effortToast', { level: label }), {
-            description: level ? t('composer.effortSaved') : t('composer.effortCleared'),
-          }),
-        onError: (error) => toast.error(t('composer.effortFailed'), (error as Error).message),
-      });
+      try {
+        await setThinking.mutateAsync(level);
+        toast.toast(t('composer.effortToast', { level: label }), {
+          description: level ? t('composer.effortSaved') : t('composer.effortCleared'),
+        });
+      } catch (error) {
+        toast.error(t('composer.effortFailed'), (error as Error).message);
+      }
     },
-    [thinking, setThinking, toast],
+    [thinking, setThinking, toast, client],
   );
 
   return {
     loading: brain.isPending && !brain.data,
+    refreshing: brain.isFetching,
+    failed: brain.isError,
+    unavailable: brain.data?.available === false,
+    saving: pending.length > 0,
+    retry: () => brain.refetch({ cancelRefetch: false }),
     models,
     current,
     currentModel,

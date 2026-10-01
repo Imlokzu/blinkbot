@@ -1,6 +1,29 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { arrange, brandOf, byLineup, hostOf, matches, remember } from '../src/panels/chat/modelCatalog.ts';
+import { arrange, brandOf, byLineup, hostOf, matches, parseRecent, parseSort, remember } from '../src/panels/chat/modelCatalog.ts';
+
+test('old or malformed stored preferences cannot break opening or picking a model', () => {
+  for (const value of [null, {}, 3, 'model', false]) assert.deepEqual(parseRecent(value), []);
+  assert.deepEqual(parseRecent(['a', null, 'a', '', ' ', {}, 'b', 'c', 'd']), ['a', 'b', 'c']);
+  for (const value of [null, {}, ['name'], 'unknown']) assert.equal(parseSort(value), 'maker');
+  assert.equal(parseSort('name'), 'name');
+  assert.equal(parseSort('context'), 'context');
+});
+
+test('capability filters use only reported facts and never promise Jev can do them', () => {
+  const models = [
+    { id: 'jev', label: 'Jev', auto: true, fast: true, vision: true },
+    { id: 'openai/vision', label: 'Vision', vision: true },
+    { id: 'regolo/fast', label: 'Fast', fast: true },
+    { id: 'openai/unknown', label: 'Unknown' },
+  ];
+  const ids = (options) => [...new Set(arrange(models, options).flatMap((group) => group.models.map((model) => model.id)))];
+  assert.deepEqual(ids({ capability: 'vision', recent: ['regolo/fast', 'openai/vision'] }), ['openai/vision']);
+  assert.deepEqual(ids({ capability: 'fast', query: 'regolo' }), ['regolo/fast']);
+  assert.deepEqual(ids({ capability: 'fast', query: 'vision' }), []);
+  assert.equal(ids({ capability: 'all' }).length, 4);
+  assert.equal(arrange(models, { recent: ['regolo/fast', 'regolo/fast'] }).find((group) => group.brand === 'recent').models.length, 1);
+});
 
 // The real OpenClaw catalog on 2026-09-24, trimmed to the cases that matter.
 const CATALOG = [

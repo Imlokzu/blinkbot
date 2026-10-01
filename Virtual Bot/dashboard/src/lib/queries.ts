@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { get, post } from './api';
+import { api, get, post } from './api';
+import { parseBrainModelsCache } from './brainModelsCache';
 
 /*
  * Запити до бекенда. Один файл на всі ~90 ендпоїнтів переростив би себе,
@@ -129,12 +130,18 @@ function keptModels(data: BrainModelsResponse): BrainModelsResponse {
   return { ...data, models: data.models.filter(keptModel) };
 }
 
+function saveBrainModelsCache(data: BrainModelsResponse): void {
+  if (!data.models.length) return;
+  try {
+    localStorage.setItem(BRAIN_MODELS_CACHE_KEY, JSON.stringify({ data, savedAt: Date.now() }));
+  } catch { /* Browser storage is an optimization, never a requirement. */ }
+}
+
 function readBrainModelsCache(): { data: BrainModelsResponse; savedAt: number } | undefined {
   if (typeof localStorage === 'undefined') return undefined;
   try {
-    const parsed = JSON.parse(localStorage.getItem(BRAIN_MODELS_CACHE_KEY) || '');
-    if (!parsed?.data?.models?.length || !Number.isFinite(parsed.savedAt)) return undefined;
-    return { data: keptModels(parsed.data as BrainModelsResponse), savedAt: Number(parsed.savedAt) };
+    const parsed = parseBrainModelsCache(JSON.parse(localStorage.getItem(BRAIN_MODELS_CACHE_KEY) || ''));
+    return parsed ? { data: keptModels(parsed.data), savedAt: parsed.savedAt } : undefined;
   } catch {
     return undefined;
   }
@@ -143,15 +150,13 @@ function readBrainModelsCache(): { data: BrainModelsResponse; savedAt: number } 
 export function useBrainModels() {
   return useQuery({
     queryKey: ['brain-models'],
-    queryFn: async () => {
-      const data = keptModels(await get<BrainModelsResponse>('/api/brain/models'));
+    queryFn: async ({ signal }) => {
+      // React Query owns freshness. HTTP caching can otherwise return the old
+      // selection after a successful config write and keep it fresh for 2 minutes.
+      const data = keptModels(await api<BrainModelsResponse>('/api/brain/models', { cache: 'no-store', signal }));
       // An empty reply is a timed-out catalog, not a real list. Saving it
       // made the picker stay blank for the whole stale window.
-      if (data.models.length > 0) {
-        try {
-          localStorage.setItem(BRAIN_MODELS_CACHE_KEY, JSON.stringify({ data, savedAt: Date.now() }));
-        } catch { /* Browser storage is an optimization, never a requirement. */ }
-      }
+      saveBrainModelsCache(data);
       return data;
     },
     initialData: readBrainModelsCache()?.data,
@@ -164,10 +169,15 @@ export function useBrainModels() {
 export function useSelectBrainModel() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (model: string) => post('/api/brain/model', { model }),
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: ['brain-models'] });
-      // У шапці показана модель, якою відповіли востаннє, — вона теж змінилась.
+    mutationKey: ['brain-choice', 'model'],
+    mutationFn: (model: string) => post<{ ok: boolean; selected: string }>('/api/brain/model', { model }),
+    onSuccess: async (result) => {
+      // A confirmed write remains visible even if the subsequent catalog read fails.
+      await client.cancelQueries({ queryKey: ['brain-models'] });
+      const confirmed = client.setQueryData<BrainModelsResponse>(['brain-models'], (data) => data ? { ...data, selected: result.selected } : data);
+      if (confirmed) saveBrainModelsCache(confirmed);
+      await client.invalidateQueries({ queryKey: ['brain-models'] });
+      // Refresh last-run telemetry separately from the requested model.
       void client.invalidateQueries({ queryKey: ['models'] });
     },
   });
@@ -176,7 +186,13 @@ export function useSelectBrainModel() {
 export function useSetThinking() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (level: string) => post('/api/brain/thinking', { level }),
-    onSuccess: () => client.invalidateQueries({ queryKey: ['brain-models'] }),
+    mutationKey: ['brain-choice', 'thinking'],
+    mutationFn: (level: string) => post<{ ok: boolean; thinking: string }>('/api/brain/thinking', { level }),
+    onSuccess: async (result) => {
+      await client.cancelQueries({ queryKey: ['brain-models'] });
+      const confirmed = client.setQueryData<BrainModelsResponse>(['brain-models'], (data) => data ? { ...data, thinking: result.thinking } : data);
+      if (confirmed) saveBrainModelsCache(confirmed);
+      await client.invalidateQueries({ queryKey: ['brain-models'] });
+    },
   });
 }

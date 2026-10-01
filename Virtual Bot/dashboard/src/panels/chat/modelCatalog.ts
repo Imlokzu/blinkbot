@@ -23,11 +23,24 @@ export interface CatalogModel {
   id: string;
   label: string;
   context?: number;
+  vision?: boolean;
+  fast?: boolean;
   /** An automatic pick (Jev), listed above every real model. */
   auto?: boolean;
 }
 
 export type SortMode = 'maker' | 'name' | 'context';
+export type Capability = 'all' | 'vision' | 'fast';
+
+/** Stored JSON has no type guarantees, including values written by old tabs. */
+export function parseSort(value: unknown): SortMode {
+  return value === 'name' || value === 'context' ? value : 'maker';
+}
+
+export function parseRecent(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((id): id is string => typeof id === 'string' && Boolean(id.trim())))].slice(0, 3);
+}
 
 /*
  * Order matters: the first match wins. Names are matched as whole-ish words
@@ -211,9 +224,13 @@ export interface ModelGroup<M extends CatalogModel> {
  */
 export function arrange<M extends CatalogModel>(
   models: M[],
-  { query = '', sort = 'maker', recent = [] }: { query?: string; sort?: SortMode; recent?: string[] } = {},
+  { query = '', sort = 'maker', recent = [], capability = 'all' }: {
+    query?: string; sort?: SortMode; recent?: string[]; capability?: Capability;
+  } = {},
 ): ModelGroup<M>[] {
-  const matched = models.filter((model) => matches(model, query));
+  // Automatic routing promises no fixed capability; filters use reported facts.
+  const matched = models.filter((model) => matches(model, query)
+    && (capability === 'all' || (!model.auto && model[capability] === true)));
   const groups: ModelGroup<M>[] = [];
 
   // The automatic pick is a way of choosing, not a model of some maker:
@@ -224,7 +241,7 @@ export function arrange<M extends CatalogModel>(
 
   if (!query.trim() && recent.length) {
     const byId = new Map(found.map((model) => [model.id, model]));
-    const picks = recent.map((id) => byId.get(id)).filter((model): model is M => Boolean(model));
+    const picks = parseRecent(recent).map((id) => byId.get(id)).filter((model): model is M => Boolean(model));
     if (picks.length) groups.push({ key: 'recent', brand: 'recent', models: picks });
   }
 

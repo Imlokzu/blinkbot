@@ -5,9 +5,10 @@ import { Segmented } from '@/components/ui/Segmented';
 import { t as inferenceText } from '@/locales/inference';
 import { cn } from '@/lib/cn';
 import { t } from '@/locales/chat';
+import { t as pickerText } from '@/locales/modelPicker';
 import type { BrainModel } from '@/lib/queries';
 import { BrandLogo } from './BrandLogo';
-import { BRAND_NAMES, arrange, hostOf, remember, type SortMode } from './modelCatalog';
+import { BRAND_NAMES, arrange, hostOf, parseRecent, parseSort, remember, type Capability, type SortMode } from './modelCatalog';
 import { thinkingLabel, useBrainChoice } from './useBrainChoice';
 import { shortNumber } from './tokens';
 
@@ -49,9 +50,10 @@ function save(key: string, value: unknown): void {
  * then no stop is lit. Dragging along the track previews a level and lets go
  * to commit it, because every commit rewrites the OpenClaw config.
  */
-function EffortStops({ levels, value, onPick, onPreview }: {
+function EffortStops({ levels, value, disabled, onPick, onPreview }: {
   levels: string[];
   value: string;
+  disabled: boolean;
   onPick: (level: string) => void;
   /** The level under the finger mid-drag, or null once it lifts. */
   onPreview: (level: string | null) => void;
@@ -72,6 +74,7 @@ function EffortStops({ levels, value, onPick, onPreview }: {
   };
 
   const onKey = (event: React.KeyboardEvent) => {
+    if (disabled) return;
     const step = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[event.key];
     if (!step) return;
     event.preventDefault();
@@ -87,11 +90,12 @@ function EffortStops({ levels, value, onPick, onPreview }: {
     <div
       ref={track}
       role="radiogroup"
+      aria-disabled={disabled}
       aria-label={t('composer.chooseEffort')}
       className="relative mx-2.5 h-10 touch-none"
       onKeyDown={onKey}
       onPointerDown={(event) => {
-        if (event.button !== 0) return;
+        if (disabled || event.button !== 0) return;
         event.currentTarget.setPointerCapture(event.pointerId);
         setPreview(indexAt(event.clientX));
       }}
@@ -104,6 +108,7 @@ function EffortStops({ levels, value, onPick, onPreview }: {
         setPreview(null);
       }}
       onPointerCancel={() => setPreview(null)}
+      onLostPointerCapture={() => setPreview(null)}
     >
       <span className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-surface-3" />
       {shown >= 0 ? (
@@ -116,6 +121,7 @@ function EffortStops({ levels, value, onPick, onPreview }: {
         <button
           key={level}
           type="button"
+          disabled={disabled}
           role="radio"
           aria-checked={index === chosen}
           aria-label={thinkingLabel(level)}
@@ -157,11 +163,12 @@ function GroupHead({ brand, count }: { brand: string | null; count: number }) {
   );
 }
 
-function ModelRow({ model, id, current, active, showContext, onPick, onHover }: {
+function ModelRow({ model, id, current, active, disabled, showContext, onPick, onHover }: {
   model: BrainModel;
   id: string;
   current: boolean;
   active: boolean;
+  disabled: boolean;
   /** Sorted by window size: show the number the order is based on. */
   showContext: boolean;
   onPick: () => void;
@@ -174,15 +181,17 @@ function ModelRow({ model, id, current, active, showContext, onPick, onHover }: 
       id={id}
       role="option"
       aria-selected={current}
+      aria-disabled={disabled}
       data-active={active ? '' : undefined}
       onPointerEnter={onHover}
       // A mouse press must not steal focus from the search field, or the
       // arrow keys would stop working after the first hover-and-miss.
       onMouseDown={(event) => event.preventDefault()}
-      onClick={onPick}
+      onClick={() => { if (!disabled) onPick(); }}
       className={cn(
         'flex min-h-11 cursor-pointer items-center gap-2.5 rounded-md px-2 text-left text-ink transition-colors',
         current ? 'bg-accent-soft' : 'data-[active]:bg-surface-2',
+        disabled && 'cursor-default opacity-50',
       )}
     >
       <BrandLogo model={model} />
@@ -215,20 +224,23 @@ export function ModelMenu({ variant = 'header' }: {
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [sort, setSortState] = useState<SortMode>(() => load<SortMode>(SORT_KEY, 'maker'));
-  const [recent, setRecent] = useState<string[]>(() => load<string[]>(RECENT_KEY, []));
+  const [sort, setSortState] = useState<SortMode>(() => parseSort(load<unknown>(SORT_KEY, 'maker')));
+  const [recent, setRecent] = useState<string[]>(() => parseRecent(load<unknown>(RECENT_KEY, [])));
+  const [capability, setCapability] = useState<Capability>('all');
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const base = useId();
 
   const groups = useMemo(
-    () => arrange(brain.models, { query, sort, recent }),
-    [brain.models, query, sort, recent],
+    () => arrange(brain.models, { query, sort, recent, capability }),
+    [brain.models, query, sort, recent, capability],
   );
   // One flat sequence for the arrow keys; a model can appear twice (recent
   // and its own group), so rows are addressed by position, not by id.
   const flat = useMemo(() => groups.flatMap((group) => group.models), [groups]);
   const cursor = Math.min(active, Math.max(0, flat.length - 1));
+  const count = new Set(flat.map((model) => model.id)).size;
+  const disabled = brain.saving || brain.unavailable;
 
   const setSort = (next: SortMode) => {
     setSortState(next);
@@ -236,9 +248,10 @@ export function ModelMenu({ variant = 'header' }: {
     setActive(0);
   };
 
-  const pick = (model: BrainModel) => {
-    brain.pickModel(model.id);
-    const next = remember(recent, model.id);
+  const pick = async (model: BrainModel) => {
+    if (disabled || model.available === false || !await brain.pickModel(model.id)) return;
+    // Only acknowledged choices enter recents; a rejected write stays retryable.
+    const next = remember(parseRecent(load<unknown>(RECENT_KEY, recent)), model.id);
     setRecent(next);
     save(RECENT_KEY, next);
     setOpen(false);
@@ -248,6 +261,7 @@ export function ModelMenu({ variant = 'header' }: {
   useEffect(() => {
     if (!open) return;
     setQuery('');
+    setCapability('all');
     setActive(0);
   }, [open]);
 
@@ -258,10 +272,16 @@ export function ModelMenu({ variant = 'header' }: {
   }, [open, cursor, base]);
 
   const onKey = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    // Enter confirms an IME composition before it can choose a model.
+    if (event.nativeEvent.isComposing) return;
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       if (!flat.length) return;
       setActive((cursor + (event.key === 'ArrowDown' ? 1 : flat.length - 1)) % flat.length);
+    } else if (event.key === 'Home' || event.key === 'End') {
+      if (query) return; // Preserve text-caret navigation while searching.
+      event.preventDefault();
+      setActive(event.key === 'Home' ? 0 : Math.max(0, flat.length - 1));
     } else if (event.key === 'Enter') {
       event.preventDefault();
       if (flat[cursor]) pick(flat[cursor]);
@@ -339,6 +359,7 @@ export function ModelMenu({ variant = 'header' }: {
                 aria-label={t('models.search')}
                 role="combobox"
                 aria-expanded="true"
+                aria-autocomplete="list"
                 aria-controls={`${base}-list`}
                 aria-activedescendant={flat.length ? `${base}-${cursor}` : undefined}
                 autoComplete="off"
@@ -351,6 +372,7 @@ export function ModelMenu({ variant = 'header' }: {
                   aria-label={t('models.clear')}
                   onClick={() => {
                     setQuery('');
+                    setActive(0);
                     input.current?.focus();
                   }}
                   className="grid size-6 place-items-center rounded-sm text-ink-3 hover:text-ink"
@@ -371,12 +393,45 @@ export function ModelMenu({ variant = 'header' }: {
                 { value: 'context', label: t('models.sortContext') },
               ]}
             />
+            <Segmented<Capability>
+              size="sm"
+              ariaLabel={pickerText('filter')}
+              value={capability}
+              onChange={(next) => { setCapability(next); setActive(0); }}
+              className="w-full"
+              items={[
+                { value: 'all', label: pickerText('all') },
+                { value: 'vision', label: t('trait.vision') },
+                { value: 'fast', label: t('trait.fast') },
+              ]}
+            />
+            <p role="status" className="text-[11px] text-ink-3">
+              {brain.saving ? pickerText('saving') : pickerText('count', { count })}
+            </p>
           </div>
+
+          {brain.failed || brain.unavailable || (!brain.loading && !brain.models.length) ? (
+            <div className="flex items-center gap-2 border-b border-line px-3 py-2" role="status">
+              <p className="min-w-0 flex-1 text-[12px] text-ink-2">
+                {brain.failed ? pickerText(brain.models.length ? 'stale' : 'failed')
+                  : brain.unavailable ? pickerText('unavailable') : pickerText('empty')}
+              </p>
+              <button
+                type="button"
+                disabled={brain.refreshing || brain.saving}
+                onClick={() => { void brain.retry(); }}
+                className="min-h-11 shrink-0 rounded-md px-2 text-[12px] text-ink hover:bg-surface-2 disabled:opacity-50"
+              >
+                {pickerText(brain.refreshing ? 'retrying' : 'retry')}
+              </button>
+            </div>
+          ) : null}
 
           <ul
             id={`${base}-list`}
             role="listbox"
             aria-label={t('composer.models')}
+            aria-busy={brain.loading || brain.saving}
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 pb-1.5"
           >
             {groups.map((group) => (
@@ -394,6 +449,7 @@ export function ModelMenu({ variant = 'header' }: {
                       model={model}
                       current={model.id === brain.current}
                       active={index === cursor}
+                      disabled={disabled || model.available === false}
                       showContext={sort === 'context'}
                       onHover={() => setActive(index)}
                       onPick={() => pick(model)}
@@ -404,7 +460,9 @@ export function ModelMenu({ variant = 'header' }: {
             ))}
             {!flat.length ? (
               <li className="px-2 py-4 text-center text-[13px] text-ink-3">
-                {brain.models.length ? t('models.none', { query }) : t('composer.loading')}
+                {brain.loading ? t('composer.loading')
+                  : brain.models.length ? (capability !== 'all' && !query ? pickerText('noCapability') : t('models.none', { query }))
+                    : null}
               </li>
             ) : null}
           </ul>
@@ -420,12 +478,13 @@ export function ModelMenu({ variant = 'header' }: {
                 <span>{t('composer.faster')}</span>
                 <span>{t('composer.smarter')}</span>
               </div>
-              <EffortStops levels={brain.levels} value={brain.thinking} onPick={brain.pickThinking} onPreview={setDragging} />
+              <EffortStops levels={brain.levels} value={brain.thinking} disabled={disabled} onPick={brain.pickThinking} onPreview={setDragging} />
               <div className="flex items-center gap-2">
                 <p className="min-w-0 flex-1 text-[11px] leading-snug text-ink-3">{t('composer.effortHintShort')}</p>
                 {brain.thinking ? (
                   <button
                     type="button"
+                    disabled={disabled}
                     onClick={() => brain.pickThinking('')}
                     className="shrink-0 rounded-sm px-2 py-1 font-mono text-[11px] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink max-[759px]:py-2"
                   >
