@@ -21,6 +21,8 @@ try {
   route('**/api/brain/models', { models: [{ id: 'test', label: 'Test', context: 200000 }],
     selected: 'test', default: 'test', thinking: 'high', thinking_levels: ['high'], available: true });
   browser('reload');
+  browser('wait', '[data-session-id="ui-fixture"]');
+  browser('click', '[data-session-id="ui-fixture"]');
   browser('wait', '.chat-gallery');
   assert.equal(evaluate('document.querySelectorAll(".chat-gallery").length'), 1);
   assert.equal(evaluate('document.querySelectorAll(".ag-panel").length'), 2);

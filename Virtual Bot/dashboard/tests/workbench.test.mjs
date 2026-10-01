@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { collectFiles, currentStep, fileKind, shortPath } from '../src/panels/chat/workFiles.ts';
+import { collectFiles, currentStep, fileKind, shortPath, workspaceWrites, workspaceWriteId } from '../src/panels/chat/workFiles.ts';
 
 const reply = (...steps) => ({ id: 'a', role: 'assistant', content: '', steps });
 const step = (label, path, extra = {}) => ({ id: `${label}-${path}`, label, detail: path, status: 'done', ...extra });
@@ -67,4 +67,36 @@ test('the live line only follows a reply that is still streaming', () => {
   const active = { id: 's', label: 'web_search', detail: 'crabs', status: 'active' };
   assert.equal(currentStep([{ ...reply(active), id: 'draft' }])?.label, 'web_search');
   assert.equal(currentStep([reply(active)]), null);
+});
+
+test('only valid create/update calls can automatically open the workbench', () => {
+  const changes = workspaceWrites([
+    step('workspace_read', 'notes/read.md'), step('workspace_show', 'notes/read.md'),
+    step('workspace_write', 'notes/new.md', { status: 'active' }),
+    step('workspace__workspace_write', 'notes/update.md'),
+    step('workspace_write', 'notes/broken.md', { status: 'failed' }),
+    step('workspace_write', 'notes/stopped.md', { status: 'interrupted' }),
+    step('workspace_write', ''),
+  ]);
+  assert.deepEqual(changes.map((change) => change.detail), ['notes/new.md', 'notes/update.md']);
+});
+
+test('writing preview uses actual input and stable identity through a show call', () => {
+  const write = step('workspace_write', 'session/plan.md', { input: { path: 'session/plan.md', content: '# Real plan' } });
+  const files = collectFiles([reply(write, step('workspace_show', 'session/plan.md'))]);
+  assert.equal(files[0].writeContent, '# Real plan');
+  assert.equal(files[0].writeId, workspaceWriteId(write));
+  assert.equal(files[0].writing, false);
+  assert.notEqual(workspaceWriteId(write), workspaceWriteId({ ...write, input: { path: 'session/other.md' } }));
+});
+
+test('showing a file cannot release another active writer of the same file', () => {
+  const active = step('workspace_write', 'session/plan.md', { status: 'active', input: { path: 'session/plan.md', content: '# Still writing' } });
+  const showing = step('workspace_show', 'session/plan.md', { input: { path: 'session/plan.md' }, result: { shown: 'sessions/abc/plan.md' } });
+  const files = collectFiles([reply(active, showing)], 'sessions/abc');
+  assert.equal(files[0].writing, true);
+  assert.equal(files[0].writeContent, '# Still writing');
+  assert.equal(files[0].writeId, workspaceWriteId(active));
+  const finished = collectFiles([reply({ ...active, status: 'done' }, showing)], 'sessions/abc');
+  assert.equal(finished[0].writing, false);
 });

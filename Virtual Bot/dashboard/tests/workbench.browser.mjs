@@ -15,7 +15,7 @@ const evaluate = (code) => JSON.parse(browser('--json', 'eval', code)).data.resu
 const route = (url, body) => browser('network', 'route', url, '--body', JSON.stringify(body));
 const shot = process.env.WORKBENCH_SHOTS;
 // The dashboard follows the browser's language, so labels are matched in both.
-const clickLabel = (...names) => browser('click', names.map((name) => `button[aria-label="${name}"]`).join(', '));
+const clickLabel = (...names) => browser('find', 'first', names.map((name) => `button[aria-label="${name}"]`).join(', '), 'click');
 
 const write = (id, file, extra = {}) => ({
   id, label: 'workspace_write', detail: file, status: 'done', input: { path: file }, result: { ok: true, path: file }, ...extra,
@@ -54,6 +54,9 @@ try {
     selected: 'test', default: 'test', thinking: 'high', thinking_levels: ['high'], available: true });
   evaluate("localStorage.setItem('claudeBotWorkbench', 'open')");
   browser('reload');
+  browser('wait', '[data-session-id="wb-fixture"]');
+  browser('click', '[data-session-id="wb-fixture"]');
+  clickLabel('Показати робоче місце', 'Show the workbench');
 
   // Newest write first; the failed one never becomes a tab.
   browser('wait', '.workbench nav button');
@@ -96,7 +99,7 @@ try {
   // Closing brings the pins column back and is remembered.
   clickLabel('Сховати робоче місце', 'Hide the workbench');
   browser('wait', '.chat-pins');
-  assert.equal(evaluate("localStorage.getItem('claudeBotWorkbench')"), 'closed');
+  assert.equal(evaluate('document.querySelector(".workbench") === null'), true);
   assert.equal(evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
 
   // Phone: a sheet, opened from the header.

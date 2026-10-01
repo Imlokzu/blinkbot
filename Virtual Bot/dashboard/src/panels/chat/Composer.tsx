@@ -44,6 +44,7 @@ import { t as appT } from '@/lib/i18n';
 
 export function Composer({
   busy,
+  queued = false,
   usedTokens,
   sessionId,
   onSend,
@@ -53,6 +54,7 @@ export function Composer({
   onOpenPanels,
 }: {
   busy: boolean;
+  queued?: boolean;
   usedTokens: number;
   sessionId: string;
   onSend: (text: string, attachments?: unknown[]) => void;
@@ -136,6 +138,7 @@ export function Composer({
           children.
         */}
         <div className="prompt-bar-slot relative">
+          {queued ? <p role="status" data-chat-queued="" className="mb-2 px-2 text-[12px] text-ink-3">{t('composer.waitHistory')}</p> : null}
           {/* The lens is a plate under the field. On the field itself the
               SVG filter clips a tall draft down to the last line. */}
           <div className="liquid-glass liquid-glass-plate" aria-hidden="true" />

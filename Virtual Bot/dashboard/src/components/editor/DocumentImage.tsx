@@ -11,7 +11,7 @@ import { Empty, SkeletonList } from '@/components/ui/Feedback';
 import { t } from '@/locales/editor';
 import { workspaceLinkPath, type WorkspaceLocation } from '@/panels/chat/workspaceLinks';
 
-export const DocumentWorkspace = createContext<{ sessionId: string; path: string; location: WorkspaceLocation } | null>(null);
+export const DocumentWorkspace = createContext<{ sessionId: string; path: string; location: WorkspaceLocation; isWriting?: (path: string) => boolean; canSave?: (path: string) => boolean; captureSaveGuard?: (path: string) => () => boolean } | null>(null);
 const DrawingView = lazy(() => import('@/panels/chat/DrawingView'));
 
 function DocumentImageView({ node }: NodeViewProps) {
@@ -24,6 +24,7 @@ function DocumentImageView({ node }: NodeViewProps) {
   const source = String(node.attrs.src ?? '');
   const path = context ? workspaceLinkPath(source, context.location, context.path) : null;
   const drawing = /\.excalidraw(?:\.json)?$/i.test(source);
+  const writing = Boolean(path && context?.isWriting?.(path));
   const queryKey = ['document-drawing', context?.sessionId, path];
   const query = useQuery({
     queryKey,
@@ -32,7 +33,7 @@ function DocumentImageView({ node }: NodeViewProps) {
       await pendingSave.current.catch(() => undefined);
       return get<{ content: string }>(`/api/workspace/file?path=${encodeURIComponent(path!)}&session_id=${encodeURIComponent(context!.sessionId)}`);
     },
-    enabled: drawing && expanded && Boolean(context && path),
+    enabled: drawing && expanded && !writing && Boolean(context && path),
     staleTime: 0,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -54,11 +55,17 @@ function DocumentImageView({ node }: NodeViewProps) {
       </Button>
     </header>
     {expanded ? <div className="h-[420px] min-h-0">
-      {query.isError ? <Empty title={t('drawingFailed')} /> : query.data && !query.isFetching ? (
+      {writing ? <SkeletonList rows={6} /> : query.isError ? <Empty title={t('drawingFailed')} /> : query.data && !query.isFetching ? (
         <Suspense fallback={<SkeletonList rows={6} />}>
           <DrawingView key={path} kind="drawing" source={query.data.content} dark={resolved === 'dark'}
             onSave={(content) => {
+              // A scene the agent is replacing must not receive an old editor's
+              // unmount flush. The writing view already owns this file.
+              if (context.canSave && !context.canSave(path)) return Promise.resolve();
+              const stillCurrent = context.captureSaveGuard?.(path);
               const request = pendingSave.current.catch(() => undefined).then(async () => {
+                if (stillCurrent && !stillCurrent()) return;
+                if (context.canSave && !context.canSave(path)) return;
                 await post('/api/workspace/file', { path, content, session_id: context.sessionId });
                 client.setQueryData(queryKey, { content });
               }).catch((error) => { toast.error(t('drawingFailed')); throw error; });

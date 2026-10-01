@@ -22,6 +22,9 @@ export interface WorkFile {
   revision: number;
   /** Still being written: the step has not finished yet. */
   active: boolean;
+  writing?: boolean;
+  writeId?: string;
+  writeContent?: string;
 }
 
 const IMAGE = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'avif']);
@@ -75,6 +78,18 @@ function stepPath(step: ToolStep): string {
   return typeof path === 'string' ? path.trim().replace(/^\/+/, '') : '';
 }
 
+/** Only real create/update calls can automatically open the Workbench. */
+export function workspaceWrites(steps: ToolStep[]): ToolStep[] {
+  return steps.filter((step) => TOOL.exec(step.label)?.[1] === 'write'
+    && (step.status === 'active' || step.status === 'done') && Boolean(stepPath(step)));
+}
+
+/** Some older brains reuse call ids; pair the id with its requested file. */
+export function workspaceWriteId(step: ToolStep): string {
+  const asked = object(step.input)?.path;
+  return JSON.stringify([step.id, typeof asked === 'string' && asked.trim() ? asked.trim() : stepPath(step)]);
+}
+
 /*
  * The bot says `session/plan.md`; the backend answers with the real
  * `sessions/<slug>/plan.md`. Both must land on one tab, so the real folder
@@ -88,6 +103,16 @@ export function shortPath(path: string, sessionFolder: string): string {
 /** Files the bot touched in this conversation, the most recent first. */
 export function collectFiles(messages: ChatMessage[], sessionFolder = ''): WorkFile[] {
   const files = new Map<string, WorkFile>();
+  const writing = new Map<string, ToolStep>();
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue;
+    for (const step of workspaceWrites(message.steps ?? [])) {
+      if (step.status !== 'active') continue;
+      writing.set(shortPath(stepPath(step), sessionFolder), step);
+      const asked = object(step.input)?.path;
+      if (typeof asked === 'string') writing.set(shortPath(asked, sessionFolder), step);
+    }
+  }
   for (const message of messages) {
     if (message.role !== 'assistant') continue;
     for (const step of message.steps ?? []) {
@@ -98,13 +123,19 @@ export function collectFiles(messages: ChatMessage[], sessionFolder = ''): WorkF
       const path = shortPath(stepPath(step), sessionFolder);
       if (!path) continue;
       const old = files.get(path);
+      const asked = object(step.input)?.path;
+      const writer = writing.get(path) ?? (typeof asked === 'string' ? writing.get(shortPath(asked, sessionFolder)) : undefined);
+      const input = object((writer ?? (tool === 'write' ? step : undefined))?.input);
       files.delete(path);
       if (tool === 'delete') continue;
       files.set(path, {
         path,
         kind: fileKind(path),
         revision: (old?.revision ?? 0) + (tool === 'write' && step.status !== 'active' ? 1 : 0),
-        active: step.status === 'active',
+        active: Boolean(writer) || step.status === 'active',
+        writing: Boolean(writer),
+        writeId: writer ? workspaceWriteId(writer) : tool === 'write' ? workspaceWriteId(step) : old?.writeId,
+        writeContent: typeof input?.content === 'string' ? input.content : tool === 'write' ? undefined : old?.writeContent,
       });
     }
   }

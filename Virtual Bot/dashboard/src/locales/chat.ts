@@ -10,6 +10,8 @@ const uk = {
   'tokens.million': 'М',
   'chat.close': 'Закрити',
   'chat.newSession': 'Нова розмова',
+  'sessions.showList': 'Показати список розмов',
+  'sessions.hideList': 'Сховати список розмов',
 
   // Стрічка
   'thread.new': 'нова розмова',
@@ -24,6 +26,7 @@ const uk = {
 
   // Композер
   'composer.placeholder': 'Напиши боту…',
+  'composer.waitHistory': 'Чекаю завантаження розмови…',
   'composer.effort': 'Думання',
   'composer.effortHint': 'Глибше думання — довша відповідь. Це налаштування OpenClaw, воно діє на всі розмови.',
   'composer.faster': 'Швидше',
@@ -231,6 +234,8 @@ const en: Record<keyof typeof uk, string> = {
   'tokens.million': 'M',
   'chat.close': 'Close',
   'chat.newSession': 'New conversation',
+  'sessions.showList': 'Show conversations',
+  'sessions.hideList': 'Hide conversations',
   'thread.new': 'new conversation',
   'thread.suggestion1': 'What can you do right now?',
   'thread.suggestion2': 'Show me what you remember',
@@ -242,6 +247,7 @@ const en: Record<keyof typeof uk, string> = {
   'thread.toLatestAria': 'Jump to the latest reply',
 
   'composer.placeholder': 'Write to the bot…',
+  'composer.waitHistory': 'Waiting for the conversation to load…',
   'composer.effort': 'Thinking',
   'composer.effortHint': 'Deeper thinking — longer replies. This is an OpenClaw setting, it applies to all conversations.',
   'composer.faster': 'Faster',

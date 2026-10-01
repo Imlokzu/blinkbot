@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AssistantRuntimeProvider } from '@assistant-ui/react';
 import { createPortal } from 'react-dom';
-import { List, PanelRight, Plus, X } from 'lucide-react';
+import { List, PanelLeft, PanelRight, Plus, X } from 'lucide-react';
 import { Thread } from './Thread';
 import { Composer } from './Composer';
 import { SessionList } from './SessionList';
 import { PinnedPanels } from './PinnedPanels';
 import { Workbench, type WorkbenchFocus } from './Workbench';
-import { collectFiles, workbenchHost } from './workFiles';
+import { collectFiles, workspaceWrites, workspaceWriteId, workbenchHost } from './workFiles';
 import { WorkspaceLinksProvider } from './WorkspaceFileLink';
 import { ModelMenu } from './ModelMenu';
 import { SelectionActions } from './SelectionActions';
@@ -24,6 +24,7 @@ import { Dialog, DialogContent } from '@/components/ui/Dialog';
 import { t as workspaceT } from '@/locales/workspace';
 import { t as benchT } from '@/locales/workbench';
 import { t } from '@/lib/i18n';
+import { t as chatT } from '@/locales/chat';
 
 /*
  * Чат. Три колонки на столі: розмови | стрічка | обличчя.
@@ -51,8 +52,8 @@ function ProjectChip({ name }: { name: string }) {
   );
 }
 
-const BENCH_KEY = 'claudeBotWorkbench';
 const BENCH_WIDTH_KEY = 'claudeBotWorkbenchWidth';
+const SESSIONS_KEY = 'claudeBotConversationList';
 
 function readStored(key: string): string | null {
   try { return localStorage.getItem(key); } catch { return null; }
@@ -106,19 +107,30 @@ function useBenchWidth() {
 export default function ChatPanel() {
   const isPhone = useIsPhone();
   const isDesk = useIsDesk();
-  const chat = useChatRuntime();
+  const project = useRouteParam('project');
+  const chat = useChatRuntime(project);
   const glassRoot = useRef<HTMLDivElement>(null);
   useLiquidGlass(glassRoot);
   const listDrawer = useDrawer();
   const [panelsOpen, setPanelsOpen] = useState(false);
+  const [sessionsOpen, setSessionsOpen] = useState(() => readStored(SESSIONS_KEY) !== 'closed');
+  const sessionsToggle = useRef<HTMLButtonElement>(null);
+  const toggleSessions = () => setSessionsOpen((open) => {
+    store(SESSIONS_KEY, open ? 'closed' : 'open');
+    return !open;
+  });
+  const closeSessions = () => {
+    store(SESSIONS_KEY, 'closed');
+    setSessionsOpen(false);
+    sessionsToggle.current?.focus({ preventScroll: true });
+  };
 
   /*
    * The workbench. On the desk it takes the right column's place; narrower,
    * it is a full sheet. It opens by itself the first time a reply writes a
    * file — unless it was closed during that same reply: closing is an answer.
    */
-  const [bench, setBenchState] = useState(() => readStored(BENCH_KEY) === 'open');
-  const setBench = (open: boolean) => { setBenchState(open); store(BENCH_KEY, open ? 'open' : 'closed'); };
+  const [bench, setBench] = useState(false);
   // Narrow layouts: a sheet opened on request, never restored on load.
   const [benchSheet, setBenchSheet] = useState(false);
   const [benchFocus, setBenchFocus] = useState<WorkbenchFocus | null>(null);
@@ -131,14 +143,32 @@ export default function ChatPanel() {
   }, [chat.sessionId]);
   const benchWidth = useBenchWidth();
   const closedThisTurn = useRef(false);
-  const draft = chat.messages[chat.messages.length - 1];
-  const liveFiles = draft?.id === 'draft' ? collectFiles([draft]).length : 0;
-  useEffect(() => { if (chat.running) closedThisTurn.current = false; }, [chat.running]);
+  const observedWrites = useRef(new Set<string>());
+  const revealedWrites = useRef(new Set<string>());
+  const writes = useMemo(() => workspaceWrites(chat.steps), [chat.steps]);
+  const recentWriteIds = useMemo(() => new Set(writes.map(workspaceWriteId)), [writes]);
   useEffect(() => {
-    if (liveFiles > 0 && isDesk && !closedThisTurn.current) setBench(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveFiles, isDesk]);
+    closedThisTurn.current = false;
+    observedWrites.current.clear();
+    revealedWrites.current.clear();
+  }, [chat.turnId]);
+  useEffect(() => {
+    const unseen = writes.some((step) => !observedWrites.current.has(workspaceWriteId(step)));
+    for (const step of writes) observedWrites.current.add(workspaceWriteId(step));
+    if (!unseen || closedThisTurn.current) return;
+    if (isDesk) setBench(true);
+    else setBenchSheet(true);
+  }, [writes, isDesk]);
   const closeBench = () => { closedThisTurn.current = true; setBench(false); };
+  const toggleBench = () => {
+    if (isDesk) {
+      if (bench) closeBench();
+      else setBench(true);
+    } else {
+      if (benchSheet) closedThisTurn.current = true;
+      setBenchSheet((open) => !open);
+    }
+  };
 
   // While the chat is on screen, "show me the file" lands in the workbench
   // instead of the floating preview dock.
@@ -146,10 +176,10 @@ export default function ChatPanel() {
   useBotEvents((event) => {
     if (event.type !== 'preview' || !event.path) return;
     setBenchFocus((old) => ({ path: String(event.path), nonce: (old?.nonce ?? 0) + 1 }));
-    if (isDesk) setBench(true);
-    else setBenchSheet(true);
+    // Showing/reading an existing file only changes the selection. Automatic
+    // opening belongs exclusively to writes in this conversation's stream.
   });
-  const benchFiles = useMemo(() => collectFiles(chat.messages).length, [chat.messages]);
+  const benchFiles = useMemo(() => collectFiles(chat.visibleMessages).length, [chat.visibleMessages]);
 
   useEffect(() => {
     window.__vbotSendMessage = (text: string) => {
@@ -169,7 +199,6 @@ export default function ChatPanel() {
    * Проєкт із адреси (`#/chat?project=cats`) — так тека проєктів з «Огляду»
    * справді відкривається, а не просто веде в спільний список.
    */
-  const project = useRouteParam('project');
   const projects = useQuery({
     queryKey: ['projects'],
     queryFn: () => get<{ projects: { id: string; name: string }[] }>('/api/projects'),
@@ -194,15 +223,6 @@ export default function ChatPanel() {
 
 
 
-  // Відкриваємо найсвіжішу розмову при вході в розділ — повернутись до неї
-  // хочеться майже завжди, а порожній екран змушує шукати її руками.
-  useEffect(() => {
-    if (chat.sessionId || chat.sessionsLoading || sessions.length === 0) return;
-    void chat.openSession(sessions[0].id);
-    // Один раз на завантаження списку (і ще раз при зміні проєкту).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chat.sessionsLoading, project]);
-
   const list = (
     <SessionList
       sessions={sessions}
@@ -216,6 +236,7 @@ export default function ChatPanel() {
         chat.newSession();
         listDrawer.setOpen(false);
       }}
+      onClose={isDesk ? closeSessions : undefined}
     />
   );
 
@@ -226,8 +247,8 @@ export default function ChatPanel() {
         if (isDesk) setBench(true);
         else setBenchSheet(true);
       }}>
-      <div className="chat-layout flex min-h-0 flex-1">
-        {isDesk ? (
+      <div data-chat-session={chat.sessionId} className="chat-layout flex min-h-0 flex-1">
+        {isDesk && sessionsOpen ? (
           <aside className="chat-sessions flex min-h-0 w-[220px] shrink-0 flex-col border-r border-line bg-surface">
             {project ? <ProjectChip name={projectName} /> : null}
             {list}
@@ -256,7 +277,7 @@ export default function ChatPanel() {
                 size="icon"
                 aria-label={t('chat.sessions')}
                 aria-expanded={listDrawer.open}
-                onClick={() => listDrawer.setOpen(true)}
+                onClick={() => listDrawer.setOpen((open) => !open)}
               >
                 <List />
               </Button>
@@ -266,10 +287,10 @@ export default function ChatPanel() {
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label={benchT('wb.open')}
+                aria-label={benchT(benchSheet ? 'wb.close' : 'wb.open')}
                 aria-expanded={benchSheet}
                 className="relative"
-                onClick={() => setBenchSheet(true)}
+                onClick={toggleBench}
               >
                 <PanelRight />
                 {benchFiles ? <span className="wb-badge" aria-hidden="true">{benchFiles}</span> : null}
@@ -324,30 +345,42 @@ export default function ChatPanel() {
                   <PinnedPanels embedded messages={chat.messages} sessionId={chat.sessionId} />
                 </DialogContent>
               </Dialog>
-              <Dialog open={benchSheet} onOpenChange={setBenchSheet}>
+              <Dialog open={benchSheet} onOpenChange={(open) => {
+                if (!open) closedThisTurn.current = true;
+                setBenchSheet(open);
+              }}>
                 <DialogContent
                   title={benchT('wb.title')}
                   side={isPhone ? 'bottom' : 'center'}
                   className="h-[min(92dvh,900px)] p-0 sm:max-w-[min(960px,calc(100vw-32px))]"
                   bodyClassName="p-0 sm:p-0"
                 >
-                  <Workbench embedded messages={chat.messages} sessionId={chat.sessionId} focus={benchFocus} onClose={() => setBenchSheet(false)} />
+                  <Workbench embedded messages={chat.visibleMessages} sessionId={chat.sessionId} focus={benchFocus}
+                    recentWriteIds={recentWriteIds} revealedWrites={revealedWrites}
+                    onClose={() => { closedThisTurn.current = true; setBenchSheet(false); }} />
                 </DialogContent>
               </Dialog>
             </div>
           ) : null}
 
-          {isDesk && !bench ? (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={benchT('wb.open')}
-              className="wb-toggle absolute right-3 top-3 z-10"
-              onClick={() => setBench(true)}
-            >
-              <PanelRight />
-              {benchFiles ? <span className="wb-badge" aria-hidden="true">{benchFiles}</span> : null}
-            </Button>
+          {isDesk ? (
+            <header data-chat-toolbar className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-surface px-3">
+              <Button ref={sessionsToggle} variant={sessionsOpen ? 'quiet' : 'ghost'} size="icon-sm" onClick={toggleSessions}
+                aria-label={chatT(sessionsOpen ? 'sessions.hideList' : 'sessions.showList')}
+                title={chatT(sessionsOpen ? 'sessions.hideList' : 'sessions.showList')} aria-expanded={sessionsOpen}>
+                <PanelLeft />
+              </Button>
+              <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">
+                {chat.sessions.find((session) => session.id === chat.sessionId)?.title || chatT('chat.newSession')}
+              </span>
+              <Button variant="ghost" size="icon-sm" onClick={chat.newSession}
+                aria-label={chatT('chat.newSession')} title={chatT('chat.newSession')}><Plus /></Button>
+              <Button variant={bench ? 'quiet' : 'ghost'} size="sm" onClick={toggleBench}
+                aria-label={benchT(bench ? 'wb.close' : 'wb.open')} aria-expanded={bench}>
+                <PanelRight />{benchT('wb.title')}
+                {benchFiles ? <span className="font-mono text-[10px] text-ink-3">{benchFiles}</span> : null}
+              </Button>
+            </header>
           ) : null}
 
           <Thread
@@ -359,7 +392,8 @@ export default function ChatPanel() {
               <Composer
                 lean={!isDesk}
                 onOpenPanels={() => setPanelsOpen(true)}
-                busy={chat.running}
+                busy={chat.running || chat.queuedSend}
+                queued={chat.queuedSend}
                 usedTokens={chat.usedTokens}
                 sessionId={chat.sessionId}
                 onSend={chat.send}
@@ -384,7 +418,8 @@ export default function ChatPanel() {
               onPointerDown={benchWidth.onPointerDown}
               onKeyDown={benchWidth.onKeyDown}
             />
-            <Workbench messages={chat.messages} sessionId={chat.sessionId} focus={benchFocus} onClose={closeBench} />
+            <Workbench messages={chat.visibleMessages} sessionId={chat.sessionId} focus={benchFocus} onClose={closeBench}
+              recentWriteIds={recentWriteIds} revealedWrites={revealedWrites} />
           </div>
         ) : isDesk ? (
           <PinnedPanels messages={chat.messages} sessionId={chat.sessionId} />

@@ -13,6 +13,7 @@ import { typingLeaveMs } from './Bubbles';
 import { useToast } from '@/components/ui/Toaster';
 import { estimateTokens } from './tokens';
 import type { ChatMessage, SessionDetail, SessionSummary, ToolStep } from './types';
+import { readChatSelection, rememberChatSelection } from './chatNavigation';
 
 /*
  * Зшивання нашого бекенда з assistant-ui.
@@ -26,11 +27,21 @@ import type { ChatMessage, SessionDetail, SessionSummary, ToolStep } from './typ
 let localId = 0;
 const nextId = () => `local-${++localId}`;
 
-export function useChatRuntime() {
+export function useChatRuntime(project = '') {
   const client = useQueryClient();
   const toast = useToast();
 
-  const [sessionId, setSessionId] = useState<string>('');
+  const [sessionId, setSessionIdState] = useState<string>('');
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const sessionIdRef = useRef('');
+  const restoration = useRef<Promise<SessionDetail> | null>(null);
+  const queuedTicket = useRef<symbol | null>(null);
+  const [queuedSend, setQueuedSend] = useState(false);
+  const setSessionId = useCallback((id: string, remember = true) => {
+    if (remember) rememberChatSelection(client, id, project);
+    sessionIdRef.current = id;
+    setSessionIdState(id);
+  }, [client, project]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   // Відповідь, яка ще пишеться. Окремо від messages, бо її текст міняється
   // на кожен чанк, а історія — ні.
@@ -46,6 +57,7 @@ export function useChatRuntime() {
   const timelineRef = useRef<LiveEntry[]>([]);
   const draftRef = useRef('');
   const generation = useRef(0);
+  const [turnId, setTurnId] = useState(0);
   // Whether the last painted frame was showing the typing pill. A reply that
   // arrives in the same chunk as `done` never paints on the draft, so the
   // saved message has to open out of the pill itself.
@@ -81,13 +93,19 @@ export function useChatRuntime() {
     queryFn: async () => (await get<{ sessions: SessionSummary[] }>('/api/sessions')).sessions ?? [],
   });
 
-  /** Відкриває збережену розмову. */
+  /** Open only an explicitly selected conversation, never a guessed list item. */
   const openSession = useCallback(
-    async (id: string) => {
+    async (id: string, remember = true) => {
       const version = ++generation.current;
       abortRef.current?.abort();
       abortRef.current = null;
-      setSessionId(id);
+      queuedTicket.current = null;
+      setQueuedSend(false);
+      setSessionId(id, remember);
+      setMessages([]);
+      setSessionLoading(Boolean(id));
+      if (settleTimer.current) window.clearTimeout(settleTimer.current);
+      setSettling(false);
       setDraft(null);
       setSteps([]);
       stepsRef.current = [];
@@ -96,11 +114,14 @@ export function useChatRuntime() {
       draftRef.current = '';
       setCompactedFrom(0);
       if (!id) {
+        restoration.current = null;
         setMessages([]);
         return;
       }
+      const request = get<SessionDetail>(`/api/sessions/${encodeURIComponent(id)}`);
+      restoration.current = request;
       try {
-        const data = await get<SessionDetail>(`/api/sessions/${encodeURIComponent(id)}`);
+        const data = await request;
         if (version !== generation.current) return;
         // Переказ завжди стоїть першим і єдиним — саме так його пише
         // chat_store.compact.
@@ -125,17 +146,27 @@ export function useChatRuntime() {
           }),
         );
       } catch (error) {
-        if (version === generation.current) toast.error(t('chat.openError'), (error as Error).message);
+        if (version === generation.current) {
+          setSessionId('');
+          toast.error(t('chat.openError'), (error as Error).message);
+        }
+      } finally {
+        if (restoration.current === request) restoration.current = null;
+        if (version === generation.current) setSessionLoading(false);
       }
     },
-    [toast],
+    [toast, setSessionId],
   );
 
   const newSession = useCallback(() => {
     generation.current += 1;
     abortRef.current?.abort();
     abortRef.current = null;
+    restoration.current = null;
+    queuedTicket.current = null;
+    setQueuedSend(false);
     setSessionId('');
+    setSessionLoading(false);
     setMessages([]);
     if (settleTimer.current) window.clearTimeout(settleTimer.current);
     setSettling(false);
@@ -146,17 +177,48 @@ export function useChatRuntime() {
     timelineRef.current = [];
     draftRef.current = '';
     setCompactedFrom(0);
-  }, []);
+  }, [setSessionId]);
+
+  useEffect(() => {
+    // The QueryClient identifies this loaded page. No browser storage is used,
+    // so fresh visits stay empty while section navigation retains selection.
+    const selected = readChatSelection(client, project);
+    // Merely visiting an untouched project must not erase the main selection.
+    void openSession(selected, Boolean(selected));
+    // Restore on mount or project change, not when a callback rerenders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, project]);
 
   const send = useCallback(
     async (text: string, attachments: unknown[] = []) => {
       const trimmed = text.trim();
       if (!trimmed || abortRef.current) return;
+      if (queuedTicket.current) { toast.error(chatT('composer.waitHistory')); return; }
+      const pendingHistory = restoration.current;
+      const selectedGeneration = generation.current;
+      if (pendingHistory) {
+        const ticket = Symbol('queued-send');
+        queuedTicket.current = ticket;
+        setQueuedSend(true);
+        try {
+          await pendingHistory;
+          if (queuedTicket.current !== ticket || selectedGeneration !== generation.current || abortRef.current) return;
+        } catch { return; }
+        finally {
+          if (queuedTicket.current === ticket) {
+            queuedTicket.current = null;
+            setQueuedSend(false);
+          }
+        }
+      }
+      const targetSession = sessionIdRef.current;
+      setSessionLoading(false);
 
       const controller = new AbortController();
       abortRef.current = controller;
       const version = ++generation.current;
       const isCurrent = () => version === generation.current && !controller.signal.aborted;
+      setTurnId(version);
 
       const safeAttachments = attachments.filter(
         (item): item is ChatAttachment => Boolean(item && typeof item === 'object' && 'url' in item),
@@ -204,7 +266,7 @@ export function useChatRuntime() {
       await streamChat(
         {
           message: trimmed,
-          session_id: sessionId || undefined,
+          session_id: targetSession || undefined,
           attachments: safeAttachments,
           // reasoning_effort тут більше не шлемо. Він діяв лише на прямий
           // виклик Omni (картинки), а в чаті відповідає OpenClaw, і глибину
@@ -280,7 +342,7 @@ export function useChatRuntime() {
             if (result.model) setStreamModel(result.model);
             // Each assistant message owns its activity, including saved history.
             // Бекенд міг створити нову розмову й дати їй назву у фоні.
-            if (result.session_id && result.session_id !== sessionId) setSessionId(result.session_id);
+            if (result.session_id && result.session_id !== targetSession) setSessionId(result.session_id);
             void client.invalidateQueries({ queryKey: ['sessions'] });
             void client.invalidateQueries({ queryKey: ['models'] });
           },
@@ -299,7 +361,7 @@ export function useChatRuntime() {
 
       if (abortRef.current === controller) abortRef.current = null;
     },
-    [client, sessionId, toast],
+    [client, sessionId, toast, setSessionId],
   );
 
   /**
@@ -323,6 +385,11 @@ export function useChatRuntime() {
   }, [messages, send]);
 
   const cancel = useCallback(async () => {
+    if (queuedTicket.current) {
+      queuedTicket.current = null;
+      setQueuedSend(false);
+      return; // Cancel the queued submission, while history continues loading.
+    }
     generation.current += 1;
     abortRef.current?.abort();
     abortRef.current = null;
@@ -381,7 +448,7 @@ export function useChatRuntime() {
 
   const runtime = useExternalStoreRuntime<ChatMessage>({
     isRunning: draft !== null && !settling,
-    isLoading: false,
+    isLoading: sessionLoading,
     messages: visible,
     convertMessage: (message): ThreadMessageLike => ({
       id: message.id,
@@ -413,10 +480,13 @@ export function useChatRuntime() {
     newSession,
     steps,
     running: draft !== null && !settling,
+    queuedSend,
     compactedFrom,
     usedTokens,
     // Сира історія — для панелі витрат (вхідні/вихідні рахуються окремо).
     messages,
+    visibleMessages: visible,
+    turnId,
     // PromptBar володіє власним текстом, тож надсилання й зупинка потрібні
     // назовні напряму, повз композер assistant-ui.
     send,

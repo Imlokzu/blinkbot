@@ -14,6 +14,7 @@ import { t } from '@/locales/workbench';
 import { collectFiles, currentStep, fileKind, hasPreview, shortPath, type FileKind, type WorkFile } from './workFiles';
 import type { ChatMessage } from './types';
 import type { WorkspaceLocation } from './workspaceLinks';
+import { AgentFilePreview } from './AgentFilePreview';
 
 /*
  * The workbench: chat on the left, what the bot is making on the right.
@@ -57,6 +58,9 @@ function FileView({
   location,
   onSave,
   saving,
+  recentWriteIds,
+  revealedWrites,
+  writingPaths,
 }: {
   file: WorkFile;
   sessionId: string;
@@ -66,14 +70,18 @@ function FileView({
   draft: string | null;
   onDraft: (next: string | null) => void;
   /** Revision on show for each path — see `live` in Workbench. */
-  live: RefObject<Map<string, number>>;
+  live: RefObject<Map<string, { revision: number; writing: boolean }>>;
   location: WorkspaceLocation;
   onSave: () => Promise<void>;
   saving: boolean;
+  recentWriteIds: ReadonlySet<string>;
+  revealedWrites: RefObject<Set<string>>;
+  writingPaths: ReadonlySet<string>;
 }) {
   const { resolved } = useTheme();
   const client = useQueryClient();
   const toast = useToast();
+  const [revealing, setRevealing] = useState(() => Boolean(file.writeId && recentWriteIds.has(file.writeId) && !revealedWrites.current.has(file.writeId)));
   const revision = file.revision + nonce;
   const media = file.kind === 'html' || file.kind === 'image';
   const needsText = !(media && mode === 'preview');
@@ -81,7 +89,7 @@ function FileView({
   const data = useQuery({
     queryKey,
     queryFn: () => get<FileData>(fileQuery(sessionId, file.path)),
-    enabled: needsText,
+    enabled: needsText && !file.writing,
     staleTime: Infinity,
   });
 
@@ -96,12 +104,12 @@ function FileView({
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
-        event.preventDefault(); void onSave();
+        event.preventDefault(); if (!file.writing) void onSave();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onSave]);
+  }, [onSave, file.writing]);
   /*
    * The drawing autosaves on a delay. If the bot rewrote the file meanwhile
    * (this view is being replaced by the newer revision), a write now would
@@ -109,12 +117,16 @@ function FileView({
    * that is no longer listed at all (another chat opened) still saves.
    */
   const autosave = async (json: string) => {
-    const showing = live.current.get(file.path);
-    if (showing !== undefined && showing !== revision) return;
+    const showing = live.current.get(`${sessionId}:${file.path}`);
+    if (showing && (showing.writing || showing.revision !== revision)) return;
     await write(file.path, json);
     remember(json);
   };
 
+  if (file.writing) {
+    const text = ['markdown', 'code', 'text', 'html', 'mermaid'].includes(file.kind) ? file.writeContent : '';
+    return <AgentFilePreview path={file.path} content={text} busy updated={file.revision > 0} />;
+  }
   if (media && mode === 'preview') {
     const src = previewUrl(file.path, sessionId, revision);
     return file.kind === 'image' ? (
@@ -133,6 +145,13 @@ function FileView({
   if (data.data.binary) return <Empty title={t('wb.binary')} />;
   if (data.data.too_large) return <Empty title={t('wb.tooLarge')} />;
   const content = data.data.content ?? '';
+  if (revealing && ['markdown', 'code', 'text', 'html'].includes(file.kind)) {
+    return <AgentFilePreview path={file.path} content={content} busy={false} updated={file.revision > 1}
+      onRevealed={() => {
+        if (file.writeId) revealedWrites.current.add(file.writeId);
+        setRevealing(false);
+      }} />;
+  }
 
   if (mode === 'preview' && (file.kind === 'drawing' || file.kind === 'mermaid')) {
     return (
@@ -167,7 +186,18 @@ function FileView({
         <Suspense fallback={fallback}>
           {mode === 'preview' && file.kind === 'markdown' ? (
             <NoteEditor value={draft ?? content} onChange={(next) => onDraft(next === content ? null : next)}
-              workspace={{ sessionId, path: file.path, location }} createDrawing={async () => {
+              workspace={{ sessionId, path: file.path, location,
+                isWriting: (path) => writingPaths.has(path),
+                canSave: (path) => !live.current.get(`${sessionId}:${path}`)?.writing,
+                captureSaveGuard: (path) => {
+                  const key = `${sessionId}:${path}`;
+                  const baseline = live.current.get(key)?.revision;
+                  return () => {
+                    const current = live.current.get(key);
+                    return !current?.writing && current?.revision === baseline;
+                  };
+                },
+              }} createDrawing={async () => {
                 const path = `${file.path.replace(/\.(md|markdown)$/i, '')}.drawings/${crypto.randomUUID()}.excalidraw`;
                 await write(path, JSON.stringify({ type: 'excalidraw', version: 2, source: 'claude-bot', elements: [], appState: {}, files: {} }));
                 return path;
@@ -201,6 +231,8 @@ export function Workbench({
   focus,
   embedded = false,
   onClose,
+  recentWriteIds = new Set<string>(),
+  revealedWrites: suppliedRevealedWrites,
 }: {
   messages: ChatMessage[];
   sessionId: string;
@@ -208,8 +240,12 @@ export function Workbench({
   focus?: WorkbenchFocus | null;
   embedded?: boolean;
   onClose: () => void;
+  recentWriteIds?: ReadonlySet<string>;
+  revealedWrites?: RefObject<Set<string>>;
 }) {
   const toast = useToast();
+  const ownRevealedWrites = useRef(new Set<string>());
+  const revealedWrites = suppliedRevealedWrites ?? ownRevealedWrites;
   const client = useQueryClient();
   const [revealing, setRevealing] = useState(false);
   const pending = useRef(new Set<string>());
@@ -278,7 +314,7 @@ export function Workbench({
   const saveKey = file ? `${sessionId}:${file.path}` : '';
   const saveDraft = async () => {
     const submitted = drafts[viewKey];
-    if (!file || submitted === undefined || pending.current.has(saveKey)) return;
+    if (!file || file.writing || submitted === undefined || pending.current.has(saveKey)) return;
     const queryKey = ['wb-file', sessionId, file.path, file.revision + nonce];
     pending.current.add(saveKey);
     setSavingViews((all) => ({ ...all, [saveKey]: true }));
@@ -305,10 +341,11 @@ export function Workbench({
    * out (the bot rewrote its file) reads this from its unmount cleanup, which
    * React runs after this commit's layout effects, so it sees the new value.
    */
-  const live = useRef(new Map<string, number>());
+  const live = useRef(new Map<string, { revision: number; writing: boolean }>());
+  const writingPaths = useMemo(() => new Set(files.filter((item) => item.writing).map((item) => item.path)), [files]);
   useLayoutEffect(() => {
-    live.current = new Map(files.map((item) => [item.path, item.revision + nonce]));
-  }, [files, nonce]);
+    live.current = new Map(files.map((item) => [`${sessionId}:${item.path}`, { revision: item.revision + nonce, writing: Boolean(item.writing) }]));
+  }, [files, nonce, sessionId]);
 
   return (
     <section
@@ -388,7 +425,7 @@ export function Workbench({
         {file ? (
           <>
             <FileView
-              key={viewKey}
+              key={`${viewKey}:${file.writeId ?? ''}`}
               file={file}
               sessionId={sessionId}
               mode={mode}
@@ -405,6 +442,9 @@ export function Workbench({
               location={info.data ?? {}}
               onSave={saveDraft}
               saving={savingViews[saveKey] ?? false}
+              recentWriteIds={recentWriteIds}
+              revealedWrites={revealedWrites}
+              writingPaths={writingPaths}
             />
           </>
         ) : (

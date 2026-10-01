@@ -284,6 +284,28 @@ Chat on the left, what the bot is making on the right — the owner's ask.
 - Regression checks: `tests/document-editor.browser.mjs` and
   `tests/workspaceLinks.test.mjs`, plus the existing Workbench browser check.
 
+### Chat controls and live file creation (2026-10-01)
+
+- A stationary chat toolbar carries the conversation-list toggle, current
+  title, New conversation and Workbench toggle. The list can collapse from its
+  own header; closing returns keyboard focus to the toolbar toggle.
+- The selected conversation is remembered only within the loaded page.
+  Returning from Settings restores it; fresh visits and reloads start empty.
+  Merely visiting an untouched project cannot erase the last main selection.
+- A submission during history restoration waits for that history. The composer
+  shows a queued state and retains further typed drafts instead of consuming them.
+- Workbench starts closed and automatically opens only for create/update calls
+  from the current chat stream, including calls completed in a single chunk.
+  Reading/showing and saved history do not open it. Closing stays respected for
+  that response; manual opening remains available.
+- The writing view uses the existing pixel agent icon and actual file text.
+  Active writes never fetch incomplete files; successful text output reveals
+  confirmed content before the editor appears. Reduced motion skips the reveal.
+- Active write ownership blocks old canvas flushes. Inline serialized saves
+  capture the file revision before queuing and verify it before dispatch.
+- Checks: `tests/chatNavigation.test.mjs`, `tests/chat-navigation.browser.mjs`,
+  `tests/workbench-writing.browser.mjs`, and existing document/workbench checks.
+
 ## OpenClaw inference dashboard (2026-09-30)
 
 - The `#/inference` section shares the warm surfaces, Plex fonts, thin borders

@@ -24,7 +24,7 @@ export function NoteEditor({
   value: string;
   onChange?: (markdown: string) => void;
   editable?: boolean;
-  workspace?: { sessionId: string; path: string; location: WorkspaceLocation };
+  workspace?: { sessionId: string; path: string; location: WorkspaceLocation; isWriting?: (path: string) => boolean; canSave?: (path: string) => boolean; captureSaveGuard?: (path: string) => () => boolean };
   createDrawing?: () => Promise<string>;
 }) {
   const editor = useEditor({

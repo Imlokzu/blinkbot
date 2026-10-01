@@ -8,7 +8,7 @@ const page = process.env.DASHBOARD_TEST_PATH || '/static/dash/';
 const browser = (...args) => execFileSync('agent-browser', ['--session', session, ...args], { encoding: 'utf8' });
 const evaluate = (code) => JSON.parse(browser('--json', 'eval', `(() => eval(${JSON.stringify(code)}))()`)).data.result;
 const route = (url, body) => browser('network', 'route', url, '--body', JSON.stringify(body));
-const clickLabel = (...names) => browser('click', names.map((name) => `button[aria-label="${name}"]`).join(', '));
+const clickLabel = (...names) => browser('find', 'first', names.map((name) => `button[aria-label="${name}"]`).join(', '), 'click');
 const content = '# Project plan\n\nWrite together with the agent.\n\n| Item | Quantity | Price |\n| --- | --- | --- |\n| Laptop | 2 | 1200 |\n\n- [x] Read the brief\n- [ ] Review the table\n\n![Diagram](notes/flow.excalidraw)\n\nFinal notes.\n';
 
 try {
@@ -33,6 +33,9 @@ try {
     selected: 'test', default: 'test', thinking: 'high', thinking_levels: ['high'], available: true });
   evaluate("localStorage.setItem('claudeBotWorkbench', 'open')");
   browser('reload');
+  browser('wait', '[data-session-id="doc-fixture"]');
+  browser('click', '[data-session-id="doc-fixture"]');
+  clickLabel('Показати робоче місце', 'Show the workbench');
   browser('wait', '.workbench .note-toolbar');
   evaluate(`window.__documentRequests = []; window.__drawingFile = { elements: [] }; const originalFetch = window.fetch; window.fetch = async (url, options) => {
     if (String(url).includes('path=notes%2Fflow.excalidraw')) {
