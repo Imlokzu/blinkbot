@@ -12,6 +12,7 @@ import { ContextMeter } from './ContextMeter';
 import { AttachSheet } from './AttachSheet';
 import { useBrainChoice } from './useBrainChoice';
 import { ModelMenu } from './ModelMenu';
+import { useSendBubbleEffect } from './useSendBubbleEffect';
 import { t } from '@/locales/chat';
 import { t as appT } from '@/lib/i18n';
 
@@ -68,6 +69,8 @@ export function Composer({
   const fileInput = useRef<HTMLInputElement>(null);
   const bar = useRef<PromptBarControl | null>(null);
   const plus = useRef<HTMLButtonElement>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const sendBubble = useSendBubbleEffect(root);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const closeSheet = useCallback(() => setSheetOpen(false), []);
@@ -101,7 +104,8 @@ export function Composer({
   };
 
   return (
-    <div className="chat-composer u-safe-b shrink-0 px-4 pb-3 pt-2 sm:px-6">
+    <div ref={root} className="chat-composer u-safe-b shrink-0 px-4 pb-3 pt-2 sm:px-6">
+      {sendBubble.overlay}
       <div className="mx-auto flex w-full max-w-[760px] flex-col items-stretch gap-1.5">
         {lean ? (
           <AttachSheet
@@ -206,6 +210,7 @@ export function Composer({
               { key: 'status', name: t('composer.cmdStatus'), description: t('composer.cmdStatusDesc') },
             ]}
             onSend={(text, meta) => {
+              if (text.trim()) sendBubble.launch();
               setSheetOpen(false);
               onSend(text, meta.attachments);
             }}

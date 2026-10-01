@@ -368,3 +368,13 @@ Chat on the left, what the bot is making on the right — the owner's ask.
   existing reduced-motion and touch behavior. Validate phone, tablet, desktop,
   both themes, both languages, mutations through isolated browser mocks, and
   real read-only HTTP endpoints. Never create live schedules for UI testing.
+
+
+## Send feedback (2026-10-01)
+
+Appearance groups optional visual feedback under Extra effects. The requested
+send bubble is a 720ms one-shot exception to the usual micro-motion duration:
+a circular copy of the armed arrow rises above the stationary button and
+dissolves with motion blur. It uses the existing button palette, adds no
+background animation, and is disabled by reduced motion or its saved switch.
+The body portal is decorative and never intercepts input.

@@ -615,3 +615,23 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   tab/source draft retention, delayed-save races, internal links and phone layout.
   Live smoke verified session reads, static assets, real Finder selection and
   traversal rejection (400).
+
+
+## Chat send bubble (2026-10-01)
+
+- The send button stays in place while a separate circular arrow lifts upward
+  and dissolves with a short blurred trail. Mouse and Enter share the effect;
+  empty drafts and rejected attachment-only sends do not launch it.
+- Appearance now separates Extra effects from the screen settings. Send bubble
+  is enabled by default; its local preference survives reloads and synchronizes
+  across tabs. Reduced motion suppresses the effect; the overlay never captures
+  input or appears in the accessibility tree. Timers are released on unmount.
+- New labels use English/Ukrainian locale keys in locales/effects.ts. The effect
+  follows the armed button palette in both themes.
+- Validation: dashboard unit tests, typecheck and isolated production build;
+  tests/sendBubble.browser.mjs covers mouse/Enter, upward travel and blur,
+  cleanup, persistent/cross-tab toggles, reduced motion and desktop/phone layouts.
+  Virtual Bot suite: 934 passed, 6 skipped, 150 subtests. HTTP smoke returned 200
+  for panel/screen/static assets and 400 for memory path traversal.
+- Independent native adversarial review fixed preference refresh after periods
+  without subscribers and checked the empty-text gate. Fable was unavailable.

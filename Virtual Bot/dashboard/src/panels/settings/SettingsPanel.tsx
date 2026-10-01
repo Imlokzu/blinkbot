@@ -16,6 +16,8 @@ import { t as lookT } from '@/lib/i18n';
 import { t } from '@/locales/settings';
 import { ACCENTS, THEMES, useTheme } from '@/hooks/useTheme';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useSendBubblePreference } from '@/hooks/useSendBubblePreference';
+import { t as effectsT } from '@/locales/effects';
 import { JellyRadio } from '@/vendor/reactbits';
 import { useCssVar } from '@/hooks/useAccentRgb';
 import { DiscoverSection } from './DiscoverSection';
@@ -324,6 +326,7 @@ function SaveBar({ saving, onSave }: { saving: boolean; onSave: () => void }) {
 function LookSection() {
   const { theme, accent, popup, setTheme, setAccent, setPopup } = useTheme();
   const [lang, setLang] = useLanguage();
+  const [sendBubble, setSendBubble] = useSendBubblePreference();
   const accentColor = useCssVar('--c-accent', '#b95f3d');
   const accentInk = useCssVar('--c-accent-ink', '#fff');
   const surface2 = useCssVar('--c-surface-2', '#efe9df');
@@ -402,6 +405,11 @@ function LookSection() {
           })}
         </div>
       </SettingRow>
+      </SettingGroup>
+      <SettingGroup label={effectsT('effects.title')}>
+        <SettingRow label={effectsT('effects.sendBubble')} hint={glue(effectsT('effects.sendBubbleHint'))}>
+          <Switch checked={sendBubble} onChange={setSendBubble} label={effectsT('effects.sendBubble')} />
+        </SettingRow>
       </SettingGroup>
     </div>
   );
