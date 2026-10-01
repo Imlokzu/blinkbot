@@ -1,0 +1,2 @@
+# Synthetic credentials used by integration tests; Gitleaks excludes the same fixture.
+Virtual Bot/tests/test_integrations\.py$

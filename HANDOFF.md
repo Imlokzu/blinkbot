@@ -570,3 +570,21 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   passed. Browser checks covered 320/390px phone layouts, English labels,
   desktop dock preservation, section switching, static assets and memory
   traversal returning HTTP 400. Test browsers and local servers were stopped.
+
+## Secret scanning (2026-10-01)
+
+- Installed Gitleaks 8.30.1, TruffleHog 3.97.9 and pre-commit 4.6.2 locally
+  with Homebrew.
+- Added a repository pre-commit configuration with Gitleaks as the primary
+  staged scan and a TruffleHog staged-snapshot scan. The TruffleHog wrapper
+  suppresses detector output so blocked credentials are not copied into logs.
+- Added a TruffleHog full-history CI job alongside the existing Gitleaks job.
+  The existing `.gitleaks.toml` and the new `.trufflehogignore` document the
+  synthetic integration-test fixture excluded from both scanners.
+- Verified the public GitHub repository has Secret Scanning and push
+  protection enabled. GitHub non-provider patterns are unavailable to this
+  user-owned public repository on the current plan, so local scanners cover
+  generic patterns.
+- Validation: Gitleaks full-history scan passed; TruffleHog full-history scan
+  passed; both pre-commit hooks passed on the staged security configuration;
+  a staged synthetic RSA key was blocked by the Gitleaks hook.

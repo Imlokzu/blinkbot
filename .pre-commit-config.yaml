@@ -1,0 +1,18 @@
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: Gitleaks staged secret scan
+        description: Block commits that contain secrets in staged changes.
+        entry: gitleaks git --staged --redact --no-banner --config .gitleaks.toml --gitleaks-ignore-path . --exit-code 1
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
+
+      - id: trufflehog
+        name: TruffleHog staged secret scan
+        description: Scan the complete staged snapshot for credentials.
+        entry: scripts/secret_scan_trufflehog.sh staged
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
