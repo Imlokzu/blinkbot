@@ -28,6 +28,8 @@ import { FirstRun } from './FirstRun';
 import { VoiceSection } from './VoiceSection';
 import { fieldMatches, OpenClawFields, useOpenClawSettings } from './OpenClawSection';
 import { SettingGroup, SettingRow } from './SettingRow';
+import { ConnectorsSection } from './ConnectorsSection';
+import { BookOpen } from 'lucide-react';
 import type { SetupData } from './types';
 
 /*
@@ -36,9 +38,10 @@ import type { SetupData } from './types';
  * row is marked and sits next to the local row it belongs with.
  */
 
-type SectionId = 'profile' | 'style' | 'brain' | 'voice' | 'look' | 'tools' | 'mcp' | 'skills' | 'discover';
+type SectionId = 'connectors' | 'profile' | 'style' | 'brain' | 'voice' | 'look' | 'tools' | 'mcp' | 'skills' | 'discover';
 
 const SECTIONS: { id: SectionId; label: `settings.section.${SectionId}`; icon: LucideIcon; local: string }[] = [
+  { id: 'connectors', label: 'settings.section.connectors', icon: BookOpen, local: 'connector notebooklm sources' },
   { id: 'profile', label: 'settings.section.profile', icon: User, local: 'імʼя мова характер опис name persona' },
   { id: 'style', label: 'settings.section.style', icon: Sparkles, local: 'емодзі привітання довжина спонтанні emoji greeting reply' },
   { id: 'brain', label: 'settings.section.brain', icon: Brain, local: 'модель ключ omni токен model key' },
@@ -278,6 +281,7 @@ export default function SettingsPanel() {
               ) : null}
 
               {current?.id === 'look' ? <LookSection /> : null}
+              {current?.id === 'connectors' ? <ConnectorsSection /> : null}
               {current?.id === 'voice' ? (
                 <div className="space-y-6">
                   {narrowed('voice') ? null : <VoiceSection />}

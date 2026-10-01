@@ -77,6 +77,7 @@ import events
 import music
 import integrations
 import chat_attachments
+import connector_api
 import screen_store
 import log_redact
 import lyrics
@@ -436,6 +437,7 @@ async def _require_openclaw_operator(request: Request) -> None:
 
 
 app.include_router(openclaw_control.router(_require_openclaw_operator))
+app.include_router(connector_api.router(_require_openclaw_operator, _require_user))
 
 
 async def _tool_caller(request: Request) -> str:

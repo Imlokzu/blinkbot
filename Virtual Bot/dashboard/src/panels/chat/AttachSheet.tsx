@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react';
 import { Camera, ChevronRight, FileText, Image, PanelRightOpen, Wrench } from 'lucide-react';
 import { ContextMeter } from './ContextMeter';
 import { t } from '@/locales/chat';
+import { t as connectorT } from '@/locales/connectors';
+import { Cable } from 'lucide-react';
 
 /*
  * What the "+" opens on a phone.
@@ -59,6 +61,7 @@ export function AttachSheet({
   onFiles,
   onTools,
   onPanels,
+  onConnectors,
   context,
 }: {
   open: boolean;
@@ -68,6 +71,7 @@ export function AttachSheet({
   onFiles: (files: File[]) => void;
   onTools: () => void;
   onPanels: () => void;
+  onConnectors: () => void;
   context: React.ComponentProps<typeof ContextMeter>;
 }) {
   const root = useRef<HTMLDivElement>(null);
@@ -134,6 +138,7 @@ export function AttachSheet({
             <Tile icon={<FileText />} label={t('sheet.files')} onClick={() => files.current?.click()} />
           </div>
           <ContextMeter {...context} variant="row" />
+          <Row icon={<Cable />} label={connectorT('connectors.title')} onClick={onConnectors} />
           <Row icon={<Wrench />} label={t('sheet.tools')} onClick={onTools} />
           <Row icon={<PanelRightOpen />} label={t('sheet.panels')} onClick={onPanels} />
         </div>

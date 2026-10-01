@@ -420,3 +420,16 @@ with blur while the readable message remains. Line breaks, dimensions and the
 existing message palette stay intact. It adds no background animation and is
 disabled by reduced motion or its saved switch. The body overlay is decorative,
 inert and never intercepts input.
+
+
+## Chat sources (2026-10-01)
+
+Desktop and phone share the + sheet: camera, photos, files and Connectors.
+Attachments show upload progress and persist their names in the conversation.
+Connectors lists actual OpenClaw MCP servers and offers NotebookLM notebook/source
+selection. Ready source text is imported as a real private document; failed or
+unready sources stay disabled. Large extracts are labelled partial.
+Settings → Connectors owns profile selection, Google sign-in/check and native
+OpenClaw agent access. Configuration/access are separate from verified connection
+state; an unchecked or expired login never enables the agent button. Use existing
+warm tokens, standard Dialog/Field/Button controls and English/Ukrainian keys.

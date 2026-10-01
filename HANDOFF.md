@@ -762,3 +762,28 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   typecheck, tests and production build passed. attachments.browser.mjs uses the
   real multipart endpoint on desktop/phone and isolates chat writes. Independent
   native adversarial review fixed quota/ownership and extraction edge cases.
+
+
+## NotebookLM and chat connectors (2026-10-01)
+
+- The + sheet now opens Connectors on desktop and phone. Its inventory reads
+  the actual OpenClaw MCP configuration, with enabled/access state kept distinct
+  from a verified connection. Existing MCP servers link to their native setup.
+- NotebookLM uses the installed notebooklm-py 0.8.3 typed API inside its existing
+  environment. The picker lists real notebooks/sources and imports selected
+  source text as a private attachment. Unready/error sources cannot be selected.
+- Settings → Connectors provides profile selection, passive authentication check,
+  bounded Google browser login and agent setup. Setup registers the native
+  NotebookLM MCP server and its five read/query tools in OpenClaw, preserving
+  existing tool permissions with conditional configuration writes.
+- Source/setup routes require the gateway operator. Cookie/token contents stay
+  in the installed API profile; errors and CLI output never expose credentials.
+  Child processes and login browsers are cleaned up, and imports publish
+  complete files with 0600 permissions atomically with partial-extraction notices.
+- The installed Google session failed its live preflight. The owner must finish
+  Google sign-in in Settings → Connectors, then check and enable agent access.
+- Validation: 963 Python tests passed, 6 skipped, 150 subtests; 96 dashboard tests,
+  typecheck and production build passed. Connector browser fixtures cover the
+  catalog, source readiness/import, expired login and phone layout; real upload
+  browser checks exercise the actual multipart endpoint. Independent native
+  adversarial review checked process/profile/config races and source publication.

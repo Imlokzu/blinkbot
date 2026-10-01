@@ -40,7 +40,7 @@ try {
     browser('click', '.prompt-bar__tool[aria-label="Add to conversation"]');
     browser('wait', '[role=dialog][data-state=open]');
     browser('upload', '[data-attachment-picker=files]', file);
-    browser('wait', '.prompt-bar__chip');
+    browser('wait', '--fn', 'document.querySelector(".prompt-bar__chip")?.textContent.includes("upload-fixture.md")');
     assert.equal(evaluate('document.querySelector(".prompt-bar__chip").textContent.includes("upload-fixture.md")'), true);
     assert.equal(evaluate('document.querySelector(".prompt-bar__send").disabled'), false, 'files can be sent without a typed draft');
     browser('click', '.prompt-bar__send');
@@ -57,6 +57,9 @@ try {
   })()`);
   assert.equal(bytes, '# Actual upload\n\nThe deadline is October 15.\n');
   console.log('PASS: real multipart upload, numeric metadata, file-only send, transcript attachments, desktop/phone + menu');
+} catch (error) {
+  console.error(evaluate('({ uploads: window.__uploads, sends: window.__sends, chips: [...document.querySelectorAll(".prompt-bar__chip")].map(x=>x.textContent) })'));
+  throw error;
 } finally {
   // Remove only files this fixture created in the test backend's uploads folder.
   if (process.env.DASHBOARD_TEST_UPLOADS_DIR) {

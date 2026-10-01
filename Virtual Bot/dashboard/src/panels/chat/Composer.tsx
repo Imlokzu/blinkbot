@@ -10,6 +10,7 @@ import { useDictation } from '@/hooks/useDictation';
 import { ToolsSection } from '@/panels/settings/ToolsSection';
 import { ContextMeter } from './ContextMeter';
 import { AttachSheet } from './AttachSheet';
+import { ConnectorPicker } from './ConnectorPicker';
 import { useBrainChoice } from './useBrainChoice';
 import { ModelMenu } from './ModelMenu';
 import { useSendBubbleEffect } from './useSendBubbleEffect';
@@ -76,6 +77,7 @@ export function Composer({
   const sendBubble = useSendBubbleEffect(root);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [connectorsOpen, setConnectorsOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const uploadsInFlight = useRef(0);
   const currentSession = useRef(sessionId);
@@ -139,6 +141,10 @@ export function Composer({
             onTools={() => {
               setSheetOpen(false);
               setToolsOpen(true);
+            }}
+            onConnectors={() => {
+              setSheetOpen(false);
+              setConnectorsOpen(true);
             }}
             onPanels={() => {
               setSheetOpen(false);
@@ -313,13 +319,19 @@ export function Composer({
         ) : null}
       </div>
 
-      {lean ? (
         <Dialog open={toolsOpen} onOpenChange={setToolsOpen}>
           <DialogContent title={appT('tools.title')} side="bottom" className="h-[min(80dvh,720px)]">
             <ToolsSection />
           </DialogContent>
         </Dialog>
-      ) : null}
+      {connectorsOpen ? <ConnectorPicker key={sessionId} open onClose={() => {
+        setConnectorsOpen(false);
+        requestAnimationFrame(() => plus.current?.focus({ preventScroll: true }));
+      }}
+        onAttach={(attachment) => {
+          if ((bar.current?.attachmentCount ?? 0) >= 8) toast.error(uploadT('upload.limit'));
+          else bar.current?.addAttachments([attachment]);
+        }} /> : null}
     </div>
   );
 }
