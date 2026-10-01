@@ -3620,7 +3620,9 @@ async def api_workspace_info(request: Request, session_id: str = Query(default="
     """Де тека лежить на диску, які розділи, яка тека в цієї сесії."""
     clerk_uid = await _require_user(request)
     with brain_context.set_clerk_user(clerk_uid):
-        return _workspace_call(session_id, workspace.info)
+        import workspace_desktop
+
+        return {**_workspace_call(session_id, workspace.info), "reveal_available": workspace_desktop.can_reveal()}
 
 
 @app.get("/api/workspace/list")
@@ -3659,6 +3661,16 @@ async def api_workspace_mkdir(req: WorkspacePathRequest, request: Request) -> di
     clerk_uid = await _require_user(request)
     with brain_context.set_clerk_user(clerk_uid):
         return _workspace_call(req.session_id, workspace.make_dir, req.path)
+
+
+@app.post("/api/workspace/reveal")
+async def api_workspace_reveal(req: WorkspacePathRequest, request: Request) -> dict:
+    """Reveal a file in Finder using the same user and session path guards."""
+    import workspace_desktop
+
+    clerk_uid = await _require_user(request)
+    with brain_context.set_clerk_user(clerk_uid):
+        return _workspace_call(req.session_id, workspace_desktop.reveal, req.path)
 
 
 @app.post("/api/workspace/delete")
