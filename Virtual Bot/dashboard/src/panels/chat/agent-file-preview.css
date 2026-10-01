@@ -6,6 +6,9 @@
 .agent-file-paper.is-document { padding: 0; overflow: hidden; }
 .agent-file-paper > pre { margin: 0; font-family: var(--f-mono); font-size: 13px; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--c-text-2); }
 .agent-note-editor .prose-note { padding-top: 36px; padding-bottom: 96px; overflow-wrap: anywhere; }
+.agent-note-editor { position: relative; }
+.agent-note-editor .note-editor-content { overscroll-behavior: contain; }
+.agent-follow-button { position: absolute; right: 16px; bottom: 16px; border: 1px solid var(--c-border); background: var(--c-surface); }
 .agent-note-editor .note-toolbar { opacity: 0.65; }
 .agent-note-editor .prose-note > :first-child { margin-top: 0; }
 .agent-edit-selection { background: var(--c-accent-soft); color: var(--c-accent); }

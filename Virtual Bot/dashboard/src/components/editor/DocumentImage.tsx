@@ -11,7 +11,7 @@ import { Empty, SkeletonList } from '@/components/ui/Feedback';
 import { t } from '@/locales/editor';
 import { workspaceLinkPath, type WorkspaceLocation } from '@/panels/chat/workspaceLinks';
 
-export const DocumentWorkspace = createContext<{ sessionId: string; path: string; location: WorkspaceLocation; isWriting?: (path: string) => boolean; canSave?: (path: string) => boolean; captureSaveGuard?: (path: string) => () => boolean } | null>(null);
+export const DocumentWorkspace = createContext<{ sessionId: string; path: string; location: WorkspaceLocation; readOnly?: boolean; isWriting?: (path: string) => boolean; canSave?: (path: string) => boolean; captureSaveGuard?: (path: string) => () => boolean } | null>(null);
 const DrawingView = lazy(() => import('@/panels/chat/DrawingView'));
 
 function DocumentImageView({ node }: NodeViewProps) {
@@ -51,14 +51,14 @@ function DocumentImageView({ node }: NodeViewProps) {
       <PenTool className="size-4 text-accent" />
       <span title={source} className="min-w-0 flex-1 truncate text-[12px] text-ink-2">{node.attrs.alt || t('drawingTitle')}</span>
       <Button variant="ghost" size="sm" onClick={() => setExpanded((open) => !open)}>
-        {expanded ? <ChevronUp /> : <ChevronDown />}{t(expanded ? 'closeDrawing' : 'openDrawing')}
+        {expanded ? <ChevronUp /> : <ChevronDown />}{t(expanded ? 'closeDrawing' : context.readOnly ? 'viewDrawing' : 'openDrawing')}
       </Button>
     </header>
     {expanded ? <div className="h-[420px] min-h-0">
       {writing ? <SkeletonList rows={6} /> : query.isError ? <Empty title={t('drawingFailed')} /> : query.data && !query.isFetching ? (
         <Suspense fallback={<SkeletonList rows={6} />}>
-          <DrawingView key={path} kind="drawing" source={query.data.content} dark={resolved === 'dark'}
-            onSave={(content) => {
+          <DrawingView key={path} kind="drawing" source={query.data.content} dark={resolved === 'dark'} readOnly={context.readOnly}
+            onSave={context.readOnly ? undefined : (content) => {
               // A scene the agent is replacing must not receive an old editor's
               // unmount flush. The writing view already owns this file.
               if (context.canSave && !context.canSave(path)) return Promise.resolve();

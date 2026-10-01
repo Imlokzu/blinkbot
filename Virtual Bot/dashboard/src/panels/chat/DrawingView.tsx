@@ -76,6 +76,7 @@ export default function DrawingView({
   dark,
   onSave,
   onSaveAs,
+  readOnly = false,
 }: {
   kind: 'drawing' | 'mermaid';
   /**
@@ -89,6 +90,7 @@ export default function DrawingView({
   onSave?: (json: string) => Promise<void>;
   /** Writes a converted Mermaid diagram next to its source as `.excalidraw`. */
   onSaveAs?: (json: string) => Promise<void>;
+  readOnly?: boolean;
 }) {
   const [scene, setScene] = useState<Scene | null>(null);
   const [failed, setFailed] = useState(false);
@@ -158,6 +160,7 @@ export default function DrawingView({
         excalidrawAPI={(instance) => { api.current = instance; }}
         initialData={initialData}
         theme={dark ? 'dark' : 'light'}
+        viewModeEnabled={readOnly}
         langCode={lang}
         UIOptions={{ canvasActions: { loadScene: false, saveToActiveFile: false, toggleTheme: false } }}
         onChange={(elements, appState, files) => {

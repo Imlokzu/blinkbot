@@ -6,7 +6,7 @@ const en = {
   table: 'Insert table', addRow: 'Add row', addColumn: 'Add column', deleteTable: 'Delete table',
   link: 'Insert link', image: 'Insert image', drawing: 'Insert Excalidraw',
   url: 'Address', urlPlaceholder: 'https://…', insert: 'Insert', cancel: 'Cancel',
-  drawingTitle: 'Excalidraw', openDrawing: 'Edit drawing', closeDrawing: 'Collapse drawing',
+  drawingTitle: 'Excalidraw', openDrawing: 'Edit drawing', viewDrawing: 'View drawing', closeDrawing: 'Collapse drawing',
   drawingFailed: 'Could not save the drawing', invalidUrl: 'Enter a valid link or workspace file path',
 };
 const uk: Record<keyof typeof en, string> = {
@@ -16,7 +16,7 @@ const uk: Record<keyof typeof en, string> = {
   table: 'Вставити таблицю', addRow: 'Додати рядок', addColumn: 'Додати колонку', deleteTable: 'Видалити таблицю',
   link: 'Вставити посилання', image: 'Вставити зображення', drawing: 'Вставити Excalidraw',
   url: 'Адреса', urlPlaceholder: 'https://…', insert: 'Вставити', cancel: 'Скасувати',
-  drawingTitle: 'Excalidraw', openDrawing: 'Редагувати малюнок', closeDrawing: 'Згорнути малюнок',
+  drawingTitle: 'Excalidraw', openDrawing: 'Редагувати малюнок', viewDrawing: 'Переглянути малюнок', closeDrawing: 'Згорнути малюнок',
   drawingFailed: 'Не вдалося зберегти малюнок', invalidUrl: 'Введи коректне посилання або шлях до файла робочої теки',
 };
 export function t(key: keyof typeof en): string {
