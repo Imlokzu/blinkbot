@@ -23,7 +23,7 @@ import { t } from '@/locales/chat';
  * read; with named types it transcodes to JPEG on the way out.
  */
 const IMAGE_TYPES = 'image/png,image/jpeg,image/webp,image/gif';
-const FILE_TYPES = `${IMAGE_TYPES},.txt,.md,.json,.pdf`;
+const FILE_TYPES = `${IMAGE_TYPES},.txt,.md,.json,.csv,.tsv,.pdf,.docx,.py,.js,.ts,.tsx,.jsx,.html,.css,.yaml,.yml,.xml,.sql,.log`;
 
 function Tile({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
@@ -65,7 +65,7 @@ export function AttachSheet({
   onClose: () => void;
   /** The "+" that toggles the sheet — a tap on it is not an outside tap. */
   anchor: React.RefObject<HTMLElement | null>;
-  onFiles: (files: FileList) => void;
+  onFiles: (files: File[]) => void;
   onTools: () => void;
   onPanels: () => void;
   context: React.ComponentProps<typeof ContextMeter>;
@@ -105,7 +105,7 @@ export function AttachSheet({
   /** One handler for all three inputs: hand the files over, reset, close. */
   const picked = (event: React.ChangeEvent<HTMLInputElement>) => {
     const list = event.currentTarget.files;
-    if (list?.length) onFiles(list);
+    if (list?.length) onFiles(Array.from(list));
     // Cleared so that picking the same photo twice still fires `change`.
     event.currentTarget.value = '';
     onClose();
@@ -118,7 +118,7 @@ export function AttachSheet({
           would drop the files on the floor. */}
       <input ref={camera} type="file" accept={IMAGE_TYPES} capture="environment" className="hidden" tabIndex={-1} aria-hidden="true" onChange={picked} />
       <input ref={photos} type="file" accept={IMAGE_TYPES} multiple className="hidden" tabIndex={-1} aria-hidden="true" onChange={picked} />
-      <input ref={files} type="file" accept={FILE_TYPES} multiple className="hidden" tabIndex={-1} aria-hidden="true" onChange={picked} />
+      <input ref={files} data-attachment-picker="files" type="file" accept={FILE_TYPES} multiple className="hidden" tabIndex={-1} aria-hidden="true" onChange={picked} />
 
       {open ? (
         <div

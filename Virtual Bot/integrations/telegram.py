@@ -34,6 +34,7 @@ from typing import Any, Awaitable, Callable, Optional
 import httpx
 
 import app_config
+import chat_attachments
 
 from . import batching, formatting, secrets_store
 from .locales import pick_lang, t
@@ -457,7 +458,8 @@ class TelegramBridge:
         except Exception as exc:  # noqa: BLE001 — a missing picture must not drop the message
             log.warning("Telegram download failed: %s", exc)
             return None
-        name = f"tg-{uuid.uuid4().hex[:16]}{Path(path).suffix.lower() or suffix}"
+        prefix = chat_attachments.owner_prefix(str(self.config().get('clerk_user_id') or ''))
+        name = f"{prefix}tg-{uuid.uuid4().hex[:16]}{Path(path).suffix.lower() or suffix}"
         target = Path(app_config.UPLOADS_DIR) / name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)

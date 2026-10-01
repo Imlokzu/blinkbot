@@ -744,3 +744,21 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   agents' pending/staged edits and live build were preserved; release assets use
   committed sources plus only this change. Full scope, findings and evidence:
   `reports/night-agent-model-picker-2026-10-01.md`.
+
+
+## Working chat uploads (2026-10-01)
+
+- Desktop and phone share the + attachment sheet. File selections are copied
+  before resetting the picker; uploads show progress, cap at eight files and
+  cannot attach a delayed result to another conversation. File-only sends work.
+- Numeric upload sizes now survive ChatRequest validation. Text/code, PDF and
+  DOCX contents reach the brain from validated server files; filenames remain
+  visible in the conversation. Partial extracts are disclosed. Documents allow
+  20 MiB; images allow 10 MiB and must match their image signature.
+- Uploads use unique owner-scoped names, reject symlinks/traversal and incomplete
+  files, and authenticate downloads with no-store caching. Messenger uploads
+  follow the same owner mapping. PDF and ZIP/XML work is bounded.
+- Validation: 952 Python tests passed, 6 skipped, 150 subtests; dashboard
+  typecheck, tests and production build passed. attachments.browser.mjs uses the
+  real multipart endpoint on desktop/phone and isolates chat writes. Independent
+  native adversarial review fixed quota/ownership and extraction edge cases.

@@ -30,6 +30,7 @@ from typing import Any, Optional
 import httpx
 
 import app_config
+import chat_attachments
 
 from . import batching, formatting, secrets_store
 from .locales import t
@@ -330,7 +331,8 @@ class DiscordBridge:
         except Exception as exc:  # noqa: BLE001
             log.warning("Discord download failed: %s", exc)
             return None
-        filename = f"dc-{uuid.uuid4().hex[:16]}{Path(name).suffix.lower() or '.png'}"
+        prefix = chat_attachments.owner_prefix(str(self.config().get('clerk_user_id') or ''))
+        filename = f"{prefix}dc-{uuid.uuid4().hex[:16]}{Path(name).suffix.lower() or '.png'}"
         target = Path(app_config.UPLOADS_DIR) / filename
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(response.content)

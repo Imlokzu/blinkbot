@@ -5,6 +5,7 @@ import { get, post } from '@/lib/api';
 import { cleanEmotionTag, streamChat, type AgentStatus, type ChatAttachment } from '@/lib/chatStream';
 import { t } from '@/lib/i18n';
 import { t as chatT } from '@/locales/chat';
+import { t as uploadT, localizeUploadError } from '@/locales/attachments';
 import { updateActivity, finishActivity, restoreActivity } from './activity';
 import {
   answerText, applyBreak, applyDelta, applyNote, applyStep, restoreParts, toParts, type LiveEntry,
@@ -191,7 +192,7 @@ export function useChatRuntime(project = '') {
 
   const send = useCallback(
     async (text: string, attachments: unknown[] = []) => {
-      const trimmed = text.trim();
+      const trimmed = text.trim() || (attachments.length ? uploadT('upload.filePrompt') : '');
       if (!trimmed || abortRef.current) return;
       if (queuedTicket.current) { toast.error(chatT('composer.waitHistory')); return; }
       const pendingHistory = restoration.current;
@@ -349,7 +350,7 @@ export function useChatRuntime(project = '') {
           onError: (message) => {
             if (!isCurrent() || terminal) return;
             preserveInterrupted();
-            toast.error(t('chat.replyError'), message);
+            toast.error(t('chat.replyError'), localizeUploadError(message) ?? message);
           },
         },
         controller.signal,
@@ -459,7 +460,7 @@ export function useChatRuntime(project = '') {
         model: message.model || (message.id === 'draft' ? streamModel : undefined),
         parts: message.parts, reaction: message.reaction, reactions: message.reactions,
         reactable: Boolean(message.serverId && sessionId),
-        fromTyping: message.fromTyping } },
+        fromTyping: message.fromTyping, attachments: message.attachments } },
     }),
     onNew: async (message: AppendMessage) => {
       const text = message.content

@@ -178,6 +178,7 @@ export default function PromptBar({
   labels,
   onDictateStop,
   busy = false,
+  sendDisabled = false,
   onSend,
   onStop,
   onAttach,
@@ -230,9 +231,10 @@ export default function PromptBar({
      before any parent effect can call it. */
   if (controlRef) {
     controlRef.current = {
+      attachmentCount: attachments.length,
       addAttachments: files => {
         const list = Array.isArray(files) ? files : [files];
-        if (list.length) setAttachments(a => [...a, ...list]);
+        if (list.length) setAttachments(a => [...a, ...list].slice(0, 8));
       }
     };
   }
@@ -276,7 +278,7 @@ export default function PromptBar({
     return [];
   }, [open, query, sources, commands, models]);
   const cursor = Math.min(active, Math.max(0, list.length - 1));
-  const canSend = draft.trim().length > 0 || attachments.length > 0;
+  const canSend = !sendDisabled && (draft.trim().length > 0 || attachments.length > 0);
   const armed = busy || canSend;
   const level = efforts[effortIndex] ?? '';
   const maxed = efforts.length > 1 && effortIndex === efforts.length - 1;
@@ -468,7 +470,7 @@ export default function PromptBar({
       setDraft(head);
       Promise.resolve(latest.current.onAttach?.()).then(files => {
         if (!files) return;
-        setAttachments(a => [...a, ...(Array.isArray(files) ? files : [files])]);
+        setAttachments(a => [...a, ...(Array.isArray(files) ? files : [files])].slice(0, 8));
       });
     } else if (open === 'at') {
       setDraft(`${head}@${row.name} `);

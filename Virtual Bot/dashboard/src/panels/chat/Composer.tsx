@@ -15,6 +15,7 @@ import { ModelMenu } from './ModelMenu';
 import { useSendBubbleEffect } from './useSendBubbleEffect';
 import { t } from '@/locales/chat';
 import { t as appT } from '@/lib/i18n';
+import { t as uploadT, uploadError } from '@/locales/attachments';
 
 /*
  * The input is React Bits' PromptBar (reactbits.dev/c/micro), as is.
@@ -75,22 +76,44 @@ export function Composer({
   const sendBubble = useSendBubbleEffect(root);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const uploadsInFlight = useRef(0);
+  const currentSession = useRef(sessionId);
+  currentSession.current = sessionId;
   const closeSheet = useCallback(() => setSheetOpen(false), []);
 
   const uploadFiles = async (files: FileList | File[]): Promise<unknown[]> => {
+    if (uploadsInFlight.current) {
+      toast.toast(uploadT('upload.busy'));
+      return [];
+    }
+    const destination = sessionId;
+    const chosen = Array.from(files);
+    const remaining = Math.max(0, 8 - (bar.current?.attachmentCount ?? 0));
+    if (chosen.length > remaining) toast.error(uploadT('upload.limit'));
+    if (!remaining) return [];
+    uploadsInFlight.current += 1;
+    setUploading(true);
     const uploaded = [];
-    for (const file of Array.from(files).slice(0, 8)) {
+    try {
+    for (const file of chosen.slice(0, remaining)) {
       const body = new FormData();
       body.append('file', file);
       try {
-        uploaded.push(await post<{ url: string; name: string; type: string; size: number }>(
+        const attachment = await post<{ url: string; name: string; type: string; size: number; truncated?: boolean }>(
           '/api/chat/upload', body,
-        ));
+        );
+        uploaded.push(attachment);
+        if (attachment.truncated) toast.toast(uploadT('upload.truncated'));
       } catch (error) {
-        toast.error(t('composer.uploadFailed'), (error as Error).message);
+        toast.error(uploadT('upload.failed'), uploadError((error as Error).message));
       }
     }
-    return uploaded;
+    } finally {
+      uploadsInFlight.current -= 1;
+      if (root.current) setUploading(uploadsInFlight.current > 0);
+    }
+    return root.current?.isConnected && currentSession.current === destination ? uploaded : [];
   };
 
   const surface = useCssVar('--c-surface', '#fffdf8');
@@ -108,7 +131,6 @@ export function Composer({
   return (
     <div ref={root} className="chat-composer u-safe-b shrink-0 px-4 pb-3 pt-2 sm:px-6">
       <div className="mx-auto flex w-full max-w-[760px] flex-col items-stretch gap-1.5">
-        {lean ? (
           <AttachSheet
             open={sheetOpen}
             onClose={closeSheet}
@@ -124,7 +146,6 @@ export function Composer({
             }}
             context={context}
           />
-        ) : null}
 
         {/*
           The glow is laid OVER the field, not wrapped around it.
@@ -166,6 +187,7 @@ export function Composer({
             radius={16}
             maxRows={8}
             busy={busy}
+            sendDisabled={uploading}
             background={surface}
             color={ink}
             menuBackground={surface3}
@@ -176,7 +198,7 @@ export function Composer({
             models={[]}
             efforts={[]}
             modelSlot={lean ? undefined : <ModelMenu variant="bar" />}
-            plusSlot={lean ? (
+            plusSlot={(
               <button
                 ref={plus}
                 type="button"
@@ -191,7 +213,7 @@ export function Composer({
                   style={{ transform: sheetOpen ? 'rotate(45deg)' : undefined }}
                 />
               </button>
-            ) : undefined}
+            )}
             sources={[
               { key: 'files', name: t('composer.srcFiles'), description: t('composer.srcFilesDesc'), icon: Paperclip, attach: true },
               { key: 'web', name: t('composer.srcWeb'), description: t('composer.srcWebDesc'), icon: Globe },
@@ -212,9 +234,11 @@ export function Composer({
               { key: 'status', name: t('composer.cmdStatus'), description: t('composer.cmdStatusDesc') },
             ]}
             onSend={(text, meta) => {
-              if (text.trim()) sendBubble.launch(text);
+              const message = text.trim() || (meta.attachments.length ? uploadT('upload.filePrompt') : '');
+              if (!message || uploading) return;
+              sendBubble.launch(message);
               setSheetOpen(false);
-              onSend(text, meta.attachments);
+              onSend(message, meta.attachments);
             }}
             onStop={onStop}
             /*
@@ -232,6 +256,7 @@ export function Composer({
               return text;
             }}
           />
+          {uploading ? <p role="status" className="mt-1 text-[12px] text-ink-3">{uploadT('upload.busy')}</p> : null}
 
           <input
             ref={fileInput}

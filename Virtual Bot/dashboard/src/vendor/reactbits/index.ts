@@ -746,10 +746,12 @@ export interface PromptBarCommand {
 }
 
 export interface PromptBarControl {
+  attachmentCount: number;
   addAttachments: (files: unknown[]) => void;
 }
 
 export interface PromptBarProps extends Common {
+  sendDisabled?: boolean;
   placeholder?: string;
   sources?: PromptBarSource[];
   commands?: PromptBarCommand[];
