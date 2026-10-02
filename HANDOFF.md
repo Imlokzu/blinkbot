@@ -804,3 +804,40 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   The final full suite passed 967 tests with 6 skips and 150 subtests; 15
   connector regressions cover Zen, profile resolution and timeout cleanup.
   Independent native review and live API/static/traversal smoke passed.
+
+
+## 2026-10-02 — Attachment previews and an adaptive source picker
+
+- The + picker overlays the composer without shifting the draft. Desktop uses
+  compact photo/file rows; phone/tablet keep camera/photo/file touch targets.
+  Its scroll height fits the available space above a tall draft or keyboard.
+  Opening focuses an action; Escape and closing Tools restore the + trigger.
+- Drafts and saved user messages use matching preview cards. Images fetch owned
+  uploads with bearer headers into revocable blob URLs; text/PDF/DOCX cards show
+  real server extraction and open a bounded text preview with original download.
+  Dialogs register their triggers for focus restoration. Private preview text
+  stays in component state; requests abort on unmount and reject redirects.
+- Authenticated GET /api/chat/attachment-preview returns text/truncated/type/size
+  from validated server bytes, caps preview text at 4,000 characters and sends
+  Cache-Control: no-store. Ownership, traversal and descriptor checks remain.
+- The agent receives every attachment name, validated type and order as escaped
+  reference metadata in both streaming and ordinary chat. Image MIME comes from
+  server files, so missing or forged client MIME cannot shift filename/image
+  correspondence. A failed expected image fails the turn instead of disappearing.
+- Explicit conversation selection and New reset the composer generation,
+  including a reset between two unsaved chats with empty ids. Late uploads cannot
+  enter a different draft. A same-chat compaction refresh preserves unsent text
+  and attachments; a real reply gaining its session id does not reset the draft.
+- Independent max-effort review found and verified the focus, private-cache,
+  draft-generation and MIME-order fixes. Fable was unavailable; a separate
+  supported native reviewer approved the corrected scope. The preexisting gap
+  between upload path validation and FileResponse remains a separate follow-up.
+- Validation: 993 Python tests passed, 6 skipped, 150 subtests; 60 focused upload/
+  image/stream tests; typecheck, production build and 100 clean-source dashboard
+  unit tests (99 with the owner's existing local test deletion). Real multipart
+  browser checks cover previews before/after send and history restoration,
+  file-only sends, keyboard focus, source menus on desktop/phone, connector
+  compatibility, removal, delayed uploads/reset and compaction draft retention.
+- Isolated HTTP smoke verified workspace/attachment traversal rejection (400),
+  dashboard entry/SW and all release resources (200). Release assets match the
+  committed source; the live local build retains unrelated owner UI edits.
