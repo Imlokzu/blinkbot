@@ -768,6 +768,8 @@ export interface PromptBarProps extends Common {
   modelSlot?: ReactNode;
   /** Our edit: lets a sheet outside the bar add attachments to it. */
   controlRef?: { current: PromptBarControl | null };
+  /** Render the same attachments that the bar sends, with an index-based remove action. */
+  renderAttachments?: (files: unknown[], remove: (index: number) => void) => ReactNode;
   /** Підписи компонента — у вендора вони зашиті англійською. */
   labels?: {
     effort?: string;

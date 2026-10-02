@@ -387,6 +387,7 @@ export default function ChatPanel() {
             onReact={chat.react}
             composer={
               <Composer
+                key={chat.composerEpoch}
                 lean={!isDesk}
                 onOpenPanels={() => setPanelsOpen(true)}
                 busy={chat.running || chat.queuedSend}
@@ -398,7 +399,7 @@ export default function ChatPanel() {
                 // Після стискання на диску лежить уже переказ — перечитуємо
                 // розмову, інакше на екрані лишились би репліки, яких у
                 // контексті бота вже немає.
-                onCompacted={() => void chat.openSession(chat.sessionId)}
+                onCompacted={() => void chat.openSession(chat.sessionId, true, false)}
               />
             }
           />

@@ -34,6 +34,7 @@ export function useChatRuntime(project = '') {
 
   const [sessionId, setSessionIdState] = useState<string>('');
   const [sessionLoading, setSessionLoading] = useState(false);
+  const [composerEpoch, setComposerEpoch] = useState(0);
   const sessionIdRef = useRef('');
   const restoration = useRef<Promise<SessionDetail> | null>(null);
   const queuedTicket = useRef<symbol | null>(null);
@@ -96,7 +97,8 @@ export function useChatRuntime(project = '') {
 
   /** Open only an explicitly selected conversation, never a guessed list item. */
   const openSession = useCallback(
-    async (id: string, remember = true) => {
+    async (id: string, remember = true, resetComposer = true) => {
+      if (resetComposer) setComposerEpoch((epoch) => epoch + 1);
       const version = ++generation.current;
       abortRef.current?.abort();
       abortRef.current = null;
@@ -160,6 +162,7 @@ export function useChatRuntime(project = '') {
   );
 
   const newSession = useCallback(() => {
+    setComposerEpoch((epoch) => epoch + 1);
     generation.current += 1;
     abortRef.current?.abort();
     abortRef.current = null;
@@ -482,6 +485,7 @@ export function useChatRuntime(project = '') {
     steps,
     running: draft !== null && !settling,
     queuedSend,
+    composerEpoch,
     compactedFrom,
     usedTokens,
     // Сира історія — для панелі витрат (вхідні/вихідні рахуються окремо).

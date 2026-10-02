@@ -1,22 +1,14 @@
-import { useEffect, useRef } from 'react';
-import { Camera, ChevronRight, FileText, Image, PanelRightOpen, Wrench } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { Cable, Camera, ChevronRight, FileText, Image, PanelRightOpen, Wrench, X } from 'lucide-react';
 import { ContextMeter } from './ContextMeter';
 import { t } from '@/locales/chat';
 import { t as connectorT } from '@/locales/connectors';
-import { Cable } from 'lucide-react';
+import './attach-sheet.css';
 
 /*
- * What the "+" opens on a phone.
- *
- * The desktop "+" is a list of sources beside a wide field. On a phone the
- * things you actually reach for are different — take a photo, pick one from
- * the gallery, attach a file — and each deserves a thumb-sized target rather
- * than a row in a dropdown. The context meter and the tool switches move in
- * here as well: under the field they cost a line on every screen, and they
- * are checked now and then, not read on every reply.
- *
- * It opens in place above the prompt bar instead of as a modal, so the
- * conversation stays visible behind it and the draft keeps its focus.
+ * Attachment actions sit above the composer without pushing its draft or
+ * conversation out of view. Desktop uses compact rows; touch uses media tiles.
+ * Hidden inputs stay mounted so an OS file-picker result cannot be lost.
  */
 
 /*
@@ -32,10 +24,10 @@ function Tile({ icon, label, onClick }: { icon: React.ReactNode; label: string; 
     <button
       type="button"
       onClick={onClick}
-      className="flex h-24 min-w-0 flex-col items-center justify-center gap-2 rounded-lg bg-surface-2 text-ink transition-[background-color,transform] duration-[120ms] hover:bg-surface-3 active:scale-[0.97] motion-reduce:active:scale-100 [&_svg]:size-9 [&_svg]:stroke-[1.75]"
+      className="attach-media-tile"
     >
       {icon}
-      <span className="font-mono text-[13px]">{label}</span>
+      <span>{label}</span>
     </button>
   );
 }
@@ -45,10 +37,10 @@ function Row({ icon, label, onClick }: { icon: React.ReactNode; label: string; o
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-14 w-full items-center gap-3 rounded-lg bg-surface-2 px-4 text-left text-ink transition-colors hover:bg-surface-3 [&>svg:first-child]:size-6 [&>svg:first-child]:stroke-[1.75]"
+      className="attach-action-row"
     >
       {icon}
-      <span className="font-mono text-[15px]">{label}</span>
+      <span>{label}</span>
       <ChevronRight className="ml-auto size-4 text-ink-3" />
     </button>
   );
@@ -63,6 +55,7 @@ export function AttachSheet({
   onPanels,
   onConnectors,
   context,
+  compact = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -73,11 +66,33 @@ export function AttachSheet({
   onPanels: () => void;
   onConnectors: () => void;
   context: React.ComponentProps<typeof ContextMeter>;
+  compact?: boolean;
 }) {
   const root = useRef<HTMLDivElement>(null);
   const camera = useRef<HTMLInputElement>(null);
   const photos = useRef<HTMLInputElement>(null);
   const files = useRef<HTMLInputElement>(null);
+
+  useLayoutEffect(() => {
+    const panel = root.current;
+    const composer = panel?.parentElement;
+    if (!open || !panel || !composer) return;
+    const fit = () => {
+      // A tall draft, attachment row or on-screen keyboard can leave less room
+      // than a fixed viewport percentage. Scroll the menu within that space.
+      const available = composer.getBoundingClientRect().top - 68;
+      panel.style.maxHeight = `${Math.max(0, Math.min(480, available))}px`;
+    };
+    fit();
+    // The actions precede the trigger in DOM order. Start keyboard navigation
+    // inside the menu instead of sending Tab past it into the composer.
+    panel.querySelector<HTMLButtonElement>('.attach-media-rows button, .attach-media-grid button')?.focus({ preventScroll: true });
+    const observer = new ResizeObserver(fit);
+    observer.observe(composer);
+    window.addEventListener('resize', fit);
+    window.visualViewport?.addEventListener('resize', fit);
+    return () => { observer.disconnect(); window.removeEventListener('resize', fit); window.visualViewport?.removeEventListener('resize', fit); };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -97,6 +112,7 @@ export function AttachSheet({
       if (event.key !== 'Escape') return;
       if (document.querySelector('[data-radix-popper-content-wrapper]')) return;
       onClose();
+      anchor.current?.focus({ preventScroll: true });
     };
     document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey);
@@ -129,18 +145,28 @@ export function AttachSheet({
           ref={root}
           role="dialog"
           aria-label={t('composer.add')}
+          id="chat-attachment-menu"
+          data-attachment-menu=""
           data-state="open"
-          className="u-pop space-y-2 rounded-xl border border-line bg-surface p-2.5 shadow-pop"
+          className={`attach-sheet u-pop ${compact ? 'is-compact' : ''}`}
         >
-          <div className="grid grid-cols-3 gap-2">
+          <header className="attach-sheet-heading"><div><p>{t('composer.add')}</p><span>{t('sheet.hint')}</span></div>
+            <button type="button" aria-label={t('sheet.close')} onClick={() => { onClose(); anchor.current?.focus({ preventScroll: true }); }}><X size={16} /></button>
+          </header>
+          {compact ? <div className="attach-media-rows">
+            <Row icon={<Image />} label={t('sheet.photos')} onClick={() => photos.current?.click()} />
+            <Row icon={<FileText />} label={t('sheet.files')} onClick={() => files.current?.click()} />
+          </div> : <div className="attach-media-grid">
             <Tile icon={<Camera />} label={t('sheet.camera')} onClick={() => camera.current?.click()} />
             <Tile icon={<Image />} label={t('sheet.photos')} onClick={() => photos.current?.click()} />
             <Tile icon={<FileText />} label={t('sheet.files')} onClick={() => files.current?.click()} />
-          </div>
-          <ContextMeter {...context} variant="row" />
+          </div>}
+          <div className="attach-sheet-options">
           <Row icon={<Cable />} label={connectorT('connectors.title')} onClick={onConnectors} />
           <Row icon={<Wrench />} label={t('sheet.tools')} onClick={onTools} />
           <Row icon={<PanelRightOpen />} label={t('sheet.panels')} onClick={onPanels} />
+          </div>
+          {!compact ? <div className="attach-context"><ContextMeter {...context} variant="row" /></div> : null}
         </div>
       ) : null}
     </>

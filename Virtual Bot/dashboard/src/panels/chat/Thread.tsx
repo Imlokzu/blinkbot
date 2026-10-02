@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { MessagePrimitive, ThreadPrimitive, useAuiState } from '@assistant-ui/react';
-import { ArrowDown, Paperclip } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
+import { AttachmentCards } from './AttachmentCards';
 import { GalleryScope } from './Gallery';
 import { cn } from '@/lib/cn';
 import { TextType } from '@/vendor/reactbits';
@@ -129,15 +130,7 @@ function UserMessage() {
     <MessagePrimitive.Root className={cn('mb-7 flex justify-end', meta.reaction && 'mb-10')}>
       <div ref={bubble} data-user-message={id} className="chat-bubble-in u-measure relative rounded-lg bg-ink px-3.5 py-2 text-[15px] leading-[1.55] text-bg">
         <MessagePrimitive.Parts />
-        {meta.attachments?.length ? (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {meta.attachments.map((file, index) => (
-              <span key={file.url || index} className="flex max-w-full items-center gap-1.5 rounded-md border border-current/20 px-2 py-1 text-[12px]">
-                <Paperclip className="size-3 shrink-0" /><span className="truncate">{file.name}</span>
-              </span>
-            ))}
-          </div>
-        ) : null}
+        {meta.attachments?.length ? <AttachmentCards files={meta.attachments} /> : null}
         {meta.reaction ? (
           <ReactionChip key={meta.reaction} emoji={meta.reaction} align="end" landing={pending || flying === meta.reaction}
             label={t('reaction.bot', { emoji: meta.reaction })} />

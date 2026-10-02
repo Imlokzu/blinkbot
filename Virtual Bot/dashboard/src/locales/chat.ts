@@ -74,6 +74,8 @@ const uk = {
   'sheet.files': 'файли',
   'sheet.tools': 'Інструменти',
   'sheet.panels': 'Панелі',
+  'sheet.hint': 'Фото, документи та джерела для агента',
+  'sheet.close': 'Закрити меню вкладень',
 
   // Вибір моделі
   'models.search': 'Пошук моделі…',
@@ -294,6 +296,8 @@ const en: Record<keyof typeof uk, string> = {
   'sheet.files': 'files',
   'sheet.tools': 'Tools',
   'sheet.panels': 'Panels',
+  'sheet.hint': 'Photos, documents and sources for the agent',
+  'sheet.close': 'Close attachment menu',
 
   'models.search': 'Search models…',
   'models.clear': 'Clear search',

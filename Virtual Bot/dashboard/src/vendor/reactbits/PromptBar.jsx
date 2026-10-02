@@ -175,6 +175,7 @@ export default function PromptBar({
   plusSlot,
   modelSlot,
   controlRef,
+  renderAttachments,
   labels,
   onDictateStop,
   busy = false,
@@ -680,7 +681,8 @@ export default function PromptBar({
         }}
       >
         <canvas ref={sparkRef} className="prompt-bar__sparks" aria-hidden="true" />
-        {attachments.length > 0 ? (
+        {/* App previews use the exact list submitted by this composer. */}
+        {attachments.length > 0 && renderAttachments ? renderAttachments(attachments, index => setAttachments(a => a.filter((_, i) => i !== index))) : attachments.length > 0 ? (
           <div className="prompt-bar__chips">
             {attachments.map((file, i) => {
               const name = attachmentName(file);

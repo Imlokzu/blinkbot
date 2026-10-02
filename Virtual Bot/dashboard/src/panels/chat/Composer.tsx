@@ -10,6 +10,7 @@ import { useDictation } from '@/hooks/useDictation';
 import { ToolsSection } from '@/panels/settings/ToolsSection';
 import { ContextMeter } from './ContextMeter';
 import { AttachSheet } from './AttachSheet';
+import { AttachmentCards } from './AttachmentCards';
 import { ConnectorPicker } from './ConnectorPicker';
 import { useBrainChoice } from './useBrainChoice';
 import { ModelMenu } from './ModelMenu';
@@ -132,9 +133,10 @@ export function Composer({
 
   return (
     <div ref={root} className="chat-composer u-safe-b shrink-0 px-4 pb-3 pt-2 sm:px-6">
-      <div className="mx-auto flex w-full max-w-[760px] flex-col items-stretch gap-1.5">
+      <div className="relative mx-auto flex w-full max-w-[760px] flex-col items-stretch gap-1.5">
           <AttachSheet
             open={sheetOpen}
+            compact={!lean}
             onClose={closeSheet}
             anchor={plus}
             onFiles={(files) => void uploadFiles(files).then((uploaded) => bar.current?.addAttachments(uploaded))}
@@ -199,6 +201,7 @@ export function Composer({
             menuBackground={surface3}
             sparkColor={accent}
             controlRef={bar}
+            renderAttachments={(files, remove) => <AttachmentCards files={files} onRemove={remove} />}
             // Empty lists hide the vendor pickers; ModelMenu replaces them —
             // in the bar on the desk, in the chat header on a phone.
             models={[]}
@@ -211,6 +214,8 @@ export function Composer({
                 className="prompt-bar__tool"
                 aria-label={t('composer.add')}
                 aria-expanded={sheetOpen}
+                aria-controls="chat-attachment-menu"
+                aria-haspopup="dialog"
                 data-on={sheetOpen ? '' : undefined}
                 onClick={() => setSheetOpen((value) => !value)}
               >
@@ -320,7 +325,9 @@ export function Composer({
       </div>
 
         <Dialog open={toolsOpen} onOpenChange={setToolsOpen}>
-          <DialogContent title={appT('tools.title')} side="bottom" className="h-[min(80dvh,720px)]">
+          <DialogContent title={appT('tools.title')} side="bottom" className="h-[min(80dvh,720px)]" onCloseAutoFocus={(event) => {
+            event.preventDefault(); plus.current?.focus({ preventScroll: true });
+          }}>
             <ToolsSection />
           </DialogContent>
         </Dialog>

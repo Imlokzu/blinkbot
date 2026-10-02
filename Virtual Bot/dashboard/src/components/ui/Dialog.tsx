@@ -19,6 +19,7 @@ export function DialogContent({
   side = 'center',
   className,
   bodyClassName,
+  onCloseAutoFocus,
   children,
 }: {
   title: string;
@@ -26,6 +27,7 @@ export function DialogContent({
   side?: 'center' | 'bottom';
   className?: string;
   bodyClassName?: string;
+  onCloseAutoFocus?: React.ComponentProps<typeof RadixDialog.Content>['onCloseAutoFocus'];
   children: React.ReactNode;
 }) {
   return (
@@ -35,6 +37,7 @@ export function DialogContent({
         style={{ background: 'var(--c-overlay)', zIndex: 'var(--z-modal)' }}
       />
       <RadixDialog.Content
+        onCloseAutoFocus={onCloseAutoFocus}
         style={{ zIndex: 'var(--z-modal)' }}
         className={cn(
           'fixed border border-line bg-surface shadow-pop outline-none',

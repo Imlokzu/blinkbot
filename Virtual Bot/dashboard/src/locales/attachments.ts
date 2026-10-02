@@ -13,6 +13,12 @@ const uk = {
   'upload.image_too_large': 'Зображення завелике. Максимум — 10 МБ.',
   'upload.invalid_image': 'Не вдалося прочитати зображення.',
   'upload.truncated': 'Великий документ: агент отримає початковий уривок.',
+  'preview.open': 'Переглянути',
+  'preview.remove': 'Прибрати',
+  'preview.loading': 'Завантажую перегляд…',
+  'preview.unavailable': 'Перегляд недоступний. Спробуй завантажити файл.',
+  'preview.partial': 'Показано початковий уривок документа. Завантаж файл, щоб відкрити його повністю.',
+  'preview.download': 'Завантажити файл',
 } as const;
 const en: Record<keyof typeof uk, string> = {
   'upload.filePrompt': 'Use the attached files.',
@@ -29,6 +35,12 @@ const en: Record<keyof typeof uk, string> = {
   'upload.image_too_large': 'The image is too large. Maximum size is 10 MB.',
   'upload.invalid_image': 'Could not read the image.',
   'upload.truncated': 'Large document: the agent will receive its opening excerpt.',
+  'preview.open': 'Preview',
+  'preview.remove': 'Remove',
+  'preview.loading': 'Loading preview…',
+  'preview.unavailable': 'Preview unavailable. Try downloading the file.',
+  'preview.partial': 'Showing the opening excerpt. Download the file to open the complete document.',
+  'preview.download': 'Download file',
 };
 export function t(key: keyof typeof uk): string {
   return (document.documentElement.lang === 'uk' ? uk : en)[key];

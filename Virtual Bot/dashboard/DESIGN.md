@@ -424,8 +424,23 @@ inert and never intercepts input.
 
 ## Chat sources (2026-10-01)
 
-Desktop and phone share the + sheet: camera, photos, files and Connectors.
-Attachments show upload progress and persist their names in the conversation.
+The + picker overlays the composer without moving its draft. Desktop uses
+compact photo/file rows; phone and tablet use camera/photo/file touch targets.
+Its height follows the available room above the composer, including a tall draft
+or on-screen keyboard. Escape closes one layer and returns to the + trigger.
+Connectors, Tools and Panels are secondary rows; touch context details remain
+available in the sheet. Hidden file inputs stay mounted through OS selection.
+
+Images and documents have the same preview cards in the draft and conversation.
+Image thumbnails and full views fetch owned uploads with bearer headers and
+revocable object URLs. Text/PDF/DOCX previews show up to 4,000 characters from
+server extraction, with an explicit partial label and original-file download.
+Private text remains in component state, never the shared query cache; requests
+abort on unmount. External attachment URLs cannot create requests. Preview
+dialogs return focus to their cards, and removal stays separate from preview.
+The agent receives every filename, validated type and order as escaped reference
+metadata, including image names; real document bytes remain its content source.
+
 Connectors lists actual OpenClaw MCP servers and offers NotebookLM notebook/source
 selection. Ready source text is imported as a real private document; failed or
 unready sources stay disabled. Large extracts are labelled partial.
@@ -433,3 +448,5 @@ Settings → Connectors owns profile selection, Google sign-in/check and native
 OpenClaw agent access. Configuration/access are separate from verified connection
 state; an unchecked or expired login never enables the agent button. Use existing
 warm tokens, standard Dialog/Field/Button controls and English/Ukrainian keys.
+Checks: `tests/attachmentInfo.test.mjs`, `tests/attachment-previews.browser.mjs`,
+existing attachment/connector browsers and backend `tests/test_chat_uploads.py`.
