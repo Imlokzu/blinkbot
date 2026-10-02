@@ -780,10 +780,27 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   in the installed API profile; errors and CLI output never expose credentials.
   Child processes and login browsers are cleaned up, and imports publish
   complete files with 0600 permissions atomically with partial-extraction notices.
-- The installed Google session failed its live preflight. The owner must finish
-  Google sign-in in Settings → Connectors, then check and enable agent access.
+- Google sign-in was completed in Zen on 2026-10-02. Passive token verification
+  succeeded, the API listed two real notebooks, and native OpenClaw agent access
+  was enabled. The local login preference is Zen; its existing Google session is
+  refreshed through the notebooklm-py cookies extra without launching Chrome.
 - Validation: 963 Python tests passed, 6 skipped, 150 subtests; 96 dashboard tests,
   typecheck and production build passed. Connector browser fixtures cover the
   catalog, source readiness/import, expired login and phone layout; real upload
   browser checks exercise the actual multipart endpoint. Independent native
   adversarial review checked process/profile/config races and source publication.
+
+
+## Zen NotebookLM login (2026-10-02)
+
+- The login button uses the saved Zen browser preference on this Mac. It opens
+  NotebookLM in the existing Zen session and refreshes only the chosen SDK
+  profile through the installed cookies extra. It does not launch Chrome or
+  close the owner's Zen browser. Waits and child-process cleanup are bounded.
+- Login pins the resolved profile and rejects configuration changes before
+  verification; automatic cookie/language metadata updates do not change it.
+- Live validation: Google token fetch succeeded, two real notebooks were listed,
+  and OpenClaw exposed/probed all five read/query tools with no diagnostics.
+  The final full suite passed 967 tests with 6 skips and 150 subtests; 15
+  connector regressions cover Zen, profile resolution and timeout cleanup.
+  Independent native review and live API/static/traversal smoke passed.

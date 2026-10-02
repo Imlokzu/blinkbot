@@ -246,6 +246,73 @@ async def save_profile(value: str) -> dict:
     return await status()
 
 
+def login_browser() -> str:
+    selected = secrets_store.load('notebooklm').get('browser')
+    if isinstance(selected, str) and selected in {'zen', 'chrome'}:
+        return selected
+    # Zen is Firefox-based: its authenticated cookie store is supported by the
+    # NotebookLM cookies extra, but Playwright's --browser flag cannot launch it.
+    return 'zen' if Path('/Applications/Zen.app').is_dir() else 'chrome'
+
+
+def _login_profile() -> str:
+    # Pin the same explicit/env/default precedence as notebooklm.paths, so a
+    # default-profile change cannot redirect a later retry to another account.
+    selected = profile() or os.environ.get('NOTEBOOKLM_PROFILE')
+    if not selected:
+        home = Path(os.environ.get('NOTEBOOKLM_HOME') or Path.home() / '.notebooklm').expanduser()
+        try:
+            settings = json.loads((home / 'config.json').read_text(encoding='utf-8'))
+            selected = settings.get('default_profile') if isinstance(settings, dict) else None
+        except (OSError, ValueError):
+            selected = None
+        selected = selected if isinstance(selected, str) and selected else 'default'
+    if not isinstance(selected, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]{0,63}', selected):
+        raise ConnectorError('invalid_profile')
+    return selected
+
+
+async def _zen_login(selected: str) -> bool:
+    if not selected:
+        selected = _login_profile()
+    if os.environ.get('NOTEBOOKLM_AUTH_JSON'):
+        raise ConnectorError('request_failed')
+    opened = await asyncio.create_subprocess_exec('open', '-a', 'Zen', 'https://notebook.google.com/',
+        stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL, start_new_session=True)
+    try:
+        await asyncio.wait_for(opened.wait(), 10)
+        if opened.returncode != 0:
+            raise ConnectorError('request_failed')
+    finally:
+        await _terminate(opened)
+    deadline = time.monotonic() + 300
+    while time.monotonic() < deadline:
+        # CLI 0.8.3 explicitly rejects --json with --browser-cookies. Suppress
+        # all auth output and use its verified exit status, then check via JSON.
+        command = _command('auth', 'refresh', '--browser-cookies', 'zen', '--verify', '--quiet', selected=selected)
+        process = await asyncio.create_subprocess_exec(*command, stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL, start_new_session=True)
+        try:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            await asyncio.wait_for(process.wait(), min(25, remaining))
+            if process.returncode == 0:
+                return True
+        except asyncio.TimeoutError:
+            pass
+        finally:
+            # This process only reads Zen's existing session. Never stop the
+            # owner's browser when cancelling the connector's login waiter.
+            await _terminate(process)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False
+        await asyncio.sleep(min(3, remaining))
+    return False
+
+
 async def login() -> dict:
     global _login_task, _verified, _login_error
 
@@ -261,17 +328,25 @@ async def login() -> dict:
                 finally:
                     if mute.returncode is None:
                         await _terminate(mute)
-            process = await asyncio.create_subprocess_exec(*command, stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL, start_new_session=True)
-            await asyncio.wait_for(process.wait(), 330)
-            if process.returncode != 0:
-                _login_error = 'request_failed'
+            if browser == 'zen':
+                succeeded = await _zen_login(selected)
             else:
+                process = await asyncio.create_subprocess_exec(*command, stdin=asyncio.subprocess.DEVNULL,
+                    stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL, start_new_session=True)
+                await asyncio.wait_for(process.wait(), 330)
+                succeeded = process.returncode == 0
+            if not succeeded:
+                _login_error = 'timeout' if browser == 'zen' else 'needs_login'
+            else:
+                if _login_profile() != selected or _profile_key()[:4] != context:
+                    raise ConnectorError('config_conflict')
                 checked = await status(check=True)
                 _login_error = '' if checked.get('connected') else str(checked.get('code') or 'needs_login')
         except asyncio.TimeoutError:
             _login_error = 'timeout'
-        except (OSError, ConnectorError):
+        except ConnectorError as exc:
+            _login_error = exc.code
+        except OSError:
             _login_error = 'request_failed'
         finally:
             # A successful CLI exit can still leave its browser descendants.
@@ -280,7 +355,10 @@ async def login() -> dict:
 
     async with _config_lock, _sdk_lock:
         if not _login_task or _login_task.done():
-            command = _command('login', '--browser', 'chrome', '--browser-timeout', '300')
+            browser = login_browser()
+            selected = _login_profile()
+            context = _profile_key()[:4]
+            command = _command('login', '--browser', 'chrome', '--browser-timeout', '300', selected=selected)
             _verified = None
             _login_error = ''
             _login_task = asyncio.create_task(authenticate())

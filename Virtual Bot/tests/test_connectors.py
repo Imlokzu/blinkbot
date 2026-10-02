@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import sys
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from fastapi.testclient import TestClient
 import connectors
@@ -165,3 +165,54 @@ def test_native_agent_access_requires_every_read_tool_and_enabled_server(tmp_pat
         settings['tools.alsoAllow'].append('notebooklm__*')
         server['enabled'] = False
         assert connectors.inventory()['connectors'][0]['agent_access'] is False
+
+
+def test_explicit_zen_preference_uses_cookie_import_instead_of_chrome():
+    with patch.object(connectors.secrets_store, 'load', return_value={'browser': 'zen'}):
+        assert connectors.login_browser() == 'zen'
+
+
+def test_login_pins_the_resolved_profile_and_ignores_metadata_updates(tmp_path):
+    home = tmp_path / 'notebooklm'
+    home.mkdir()
+    configuration = home / 'config.json'
+    configuration.write_text(json.dumps({'default_profile': 'zen-account', 'language': 'en'}))
+    with patch.dict(os.environ, {'NOTEBOOKLM_HOME': str(home)}, clear=False), \
+            patch.object(connectors, 'profile', return_value=''):
+        with patch.dict(os.environ, {'NOTEBOOKLM_PROFILE': ''}):
+            assert connectors._login_profile() == 'zen-account'
+            configuration.write_text(json.dumps({'default_profile': 'zen-account', 'language': 'uk'}))
+            assert connectors._login_profile() == 'zen-account'
+        with patch.dict(os.environ, {'NOTEBOOKLM_PROFILE': 'explicit-account'}):
+            assert connectors._login_profile() == 'explicit-account'
+
+
+def test_zen_retry_respects_remaining_deadline_and_cleans_only_its_children():
+    processes = [SimpleNamespace(pid=1, returncode=0, wait=AsyncMock()),
+        SimpleNamespace(pid=2, returncode=1, wait=AsyncMock())]
+    async def run():
+        with patch.object(connectors.asyncio, 'create_subprocess_exec', AsyncMock(side_effect=processes)), \
+                patch.object(connectors, '_command', return_value=['notebooklm']), \
+                patch.object(connectors, 'time', SimpleNamespace(monotonic=Mock(side_effect=[0, 299, 299.5, 300]))), \
+                patch.object(connectors, '_terminate', AsyncMock()) as stop, \
+                patch.object(connectors.asyncio, 'sleep', AsyncMock()) as sleep:
+            assert await connectors._zen_login('fixture') is False
+            assert [call.args[0].pid for call in stop.await_args_list] == [1, 2]
+            sleep.assert_not_awaited()
+    asyncio.run(run())
+
+
+def test_zen_login_uses_verified_cookie_refresh_without_json_or_credentials():
+    processes = [SimpleNamespace(pid=1, returncode=0, wait=AsyncMock()),
+        SimpleNamespace(pid=2, returncode=0, wait=AsyncMock())]
+    async def run():
+        with patch.object(connectors.asyncio, 'create_subprocess_exec', AsyncMock(side_effect=processes)) as spawn, \
+                patch.object(connectors, '_command', side_effect=lambda *args, **kwargs: ['notebooklm', *args]) as command, \
+                patch.object(connectors, '_terminate', AsyncMock()):
+            assert await connectors._zen_login('fixture') is True
+            assert spawn.await_args_list[0].args == ('open', '-a', 'Zen', 'https://notebook.google.com/')
+            args = command.call_args.args
+            assert args == ('auth', 'refresh', '--browser-cookies', 'zen', '--verify', '--quiet')
+            assert '--json' not in args
+            assert command.call_args.kwargs['selected'] == 'fixture'
+    asyncio.run(run())
