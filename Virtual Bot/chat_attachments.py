@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import mimetypes
 import os
 import re
 import stat
+import unicodedata
 import uuid
 import zipfile
 from dataclasses import dataclass
@@ -16,6 +18,8 @@ from xml.etree import ElementTree
 MAX_BYTES = 20 * 1024 * 1024
 MAX_TEXT = 40_000
 MAX_CONTEXT = 60_000
+MAX_PREVIEW = 4_000
+MAX_NAME = 180
 MAX_PDF_PAGES = 100
 MAX_PDF_STREAM = 4 * 1024 * 1024
 TEXT_SUFFIXES = {'.txt', '.md', '.json', '.csv', '.tsv', '.log', '.py', '.js', '.ts', '.tsx', '.jsx', '.html', '.css', '.yaml', '.yml', '.xml', '.sql'}
@@ -33,6 +37,7 @@ class AttachmentError(ValueError):
 class ExtractedDocument:
     text: str
     truncated: bool = False
+    size: int = 0
 
 
 def owner_prefix(user_id: str) -> str:
@@ -44,8 +49,8 @@ def upload_name(name: str, user_id: str) -> tuple[str, str]:
     suffix = Path(display).suffix.lower()
     if suffix not in SUFFIXES:
         raise AttachmentError('unsupported_type')
-    if len(display) > 180:
-        display = display[:180 - len(suffix)] + display[-len(suffix):]
+    if len(display) > MAX_NAME:
+        display = display[:MAX_NAME - len(suffix)] + display[-len(suffix):]
     return owner_prefix(user_id) + uuid.uuid4().hex + suffix, display
 
 
@@ -72,12 +77,15 @@ def resolve_upload(root: Path, url: str, user_id: str = '') -> Path:
 
 def _document_bytes(path: Path) -> bytes:
     # Hold the opened file, rather than following a path changed after validation.
-    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    with os.fdopen(descriptor, 'rb') as document:
-        info = os.fstat(document.fileno())
-        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_BYTES:
-            raise AttachmentError('invalid_attachment')
-        data = document.read(MAX_BYTES + 1)
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(descriptor, 'rb') as document:
+            info = os.fstat(document.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_BYTES:
+                raise AttachmentError('invalid_attachment')
+            data = document.read(MAX_BYTES + 1)
+    except OSError as exc:
+        raise AttachmentError('invalid_attachment') from exc
     if len(data) > MAX_BYTES:
         raise AttachmentError('invalid_attachment')
     return data
@@ -91,7 +99,7 @@ def extract_document(path: Path) -> ExtractedDocument:
             if b'\0' in data:
                 raise AttachmentError('unreadable_document')
             text = data.decode('utf-8-sig')
-            return ExtractedDocument(text[:MAX_TEXT], len(text) > MAX_TEXT)
+            return ExtractedDocument(text[:MAX_TEXT], len(text) > MAX_TEXT, size=len(data))
         if suffix == '.pdf':
             from pypdf import PdfReader, apply_configuration
             # Context-local limits also apply when extraction runs in a worker
@@ -112,10 +120,10 @@ def extract_document(path: Path) -> ExtractedDocument:
                 for index, page in enumerate(pages[:MAX_PDF_PAGES]):
                     text += (page.extract_text() or '') + '\n'
                     if len(text) > MAX_TEXT:
-                        return ExtractedDocument(text[:MAX_TEXT], True)
+                        return ExtractedDocument(text[:MAX_TEXT], True, size=len(data))
                     if len(text) == MAX_TEXT:
-                        return ExtractedDocument(text, index + 1 < count)
-                return ExtractedDocument(text[:MAX_TEXT], count > MAX_PDF_PAGES)
+                        return ExtractedDocument(text, index + 1 < count, size=len(data))
+                return ExtractedDocument(text[:MAX_TEXT], count > MAX_PDF_PAGES, size=len(data))
         if suffix == '.docx':
             with zipfile.ZipFile(io.BytesIO(data)) as archive:
                 entry = archive.getinfo('word/document.xml')
@@ -139,16 +147,66 @@ def extract_document(path: Path) -> ExtractedDocument:
                         parts.append('\t')
                 paragraphs.append(''.join(parts))
             text = '\n'.join(paragraphs)
-            return ExtractedDocument(text[:MAX_TEXT], len(text) > MAX_TEXT)
+            return ExtractedDocument(text[:MAX_TEXT], len(text) > MAX_TEXT, size=len(data))
     except AttachmentError:
         raise
     except Exception as exc:
         raise AttachmentError('unreadable_document') from exc
-    return ExtractedDocument('')
+    return ExtractedDocument('', size=len(data))
 
 
 def extract_text(path: Path) -> str:
     return extract_document(path).text
+
+
+def _attachment_type(path: Path) -> str:
+    if path.suffix.lower() not in SUFFIXES:
+        raise AttachmentError('unsupported_type')
+    return mimetypes.guess_type(path.name)[0] or 'application/octet-stream'
+
+
+def attachment_preview(root: Path, url: str, user_id: str = '') -> dict:
+    """Preview only server bytes; size comes from the same safely opened file."""
+    path = resolve_upload(root, url, user_id)
+    mime = _attachment_type(path)
+    extracted = extract_document(path)
+    if path.suffix.lower() not in IMAGE_SUFFIXES and not extracted.text.strip():
+        raise AttachmentError('unreadable_document')
+    return {
+        'text': extracted.text[:MAX_PREVIEW],
+        'truncated': extracted.truncated or len(extracted.text) > MAX_PREVIEW,
+        'type': mime,
+        'size': extracted.size,
+    }
+
+
+def _attachment_display_name(attachment: dict, path: Path) -> str:
+    name = str(attachment.get('name') or path.name)[:MAX_NAME]
+    # Controls, bidi overrides and Unicode line separators cannot create new
+    # prompt records or hide the boundaries of a filename.
+    return ''.join(' ' if unicodedata.category(char).startswith('C')
+        or char in '\u2028\u2029' else char for char in name)
+
+
+def _reference_json(value: str | dict) -> str:
+    # Each record is an object (never an array), so escaping brackets here
+    # only affects filenames. Role/content tags and fences stay literal data.
+    return json.dumps(value, ensure_ascii=True).translate({
+        ord(char): f'\\u{ord(char):04x}' for char in '<>&[]`'
+    })
+
+
+def attachment_manifest(root: Path, attachments: list[dict], user_id: str = '') -> str:
+    """Ordered JSON records identify documents and the separately sent images."""
+    records = []
+    for position, attachment in enumerate(attachments[:8], start=1):
+        path = resolve_upload(root, str(attachment.get('url') or ''), user_id)
+        records.append(_reference_json({
+            'position': position,
+            'name': _attachment_display_name(attachment, path),
+            'type': _attachment_type(path),
+        }))
+    return '\n'.join(records)
 
 
 def document_context(root: Path, attachments: list[dict], user_id: str = '') -> str:
@@ -161,7 +219,7 @@ def document_context(root: Path, attachments: list[dict], user_id: str = '') -> 
     for attachment, path in files:
         if path.suffix.lower() in IMAGE_SUFFIXES:
             continue
-        name = str(attachment.get('name') or path.name).replace('\n', ' ').replace('\r', ' ')[:180]
+        name = _reference_json(_attachment_display_name(attachment, path))
         if not remaining:
             blocks.append(f'Attached document: {name}\n[Document omitted: the attachment text budget was exhausted.]')
             continue
