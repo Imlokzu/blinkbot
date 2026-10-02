@@ -861,3 +861,15 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   the owner's existing local deletion), Python 993 passed, 6 skipped and
   150 subtests. Isolated HTTP smoke checks traversal 400 and release assets200.
   Clean release assets match committed source; local owner UI edits remain.
+
+## 2026-10-02 — Forwarded tool bridge hardening
+
+- A tokenless OpenClaw tool call is still allowed from direct loopback, but a
+  loopback socket carrying `Forwarded` or `X-Forwarded-*` is now treated as a
+  proxied request and requires Clerk. Authenticated forwarded calls continue to
+  work; rejected calls never execute a tool.
+- Regression coverage includes direct loopback, remote, both forwarded-header
+  spellings and an authenticated forwarded call. Targeted tests: 11 passed;
+  full Virtual Bot suite: 995 passed, 6 skipped, 150 subtests. Dashboard tests
+  (99), typecheck and live HTTP smoke passed. Traversal guards returned 400 and
+  the server was stopped. Details: `reports/night-agent-tool-bridge-2026-10-02.md`.

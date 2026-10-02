@@ -410,6 +410,11 @@ def _is_loopback(request: Request) -> bool:
     return host in {"127.0.0.1", "::1", "localhost"}
 
 
+def _has_forwarded_headers(request: Request) -> bool:
+    """A local socket is not trusted when a proxy says the caller is remote."""
+    return any(name == "forwarded" or name.startswith("x-forwarded-") for name in request.headers)
+
+
 async def _require_openclaw_operator(request: Request) -> None:
     """Gateway-wide controls belong to the operator, not every chat account."""
     from urllib.parse import urlsplit
@@ -457,6 +462,11 @@ async def _tool_caller(request: Request) -> str:
     if token:
         payload = auth_clerk.verify_clerk_token(token)
         return auth_clerk.user_id_from_payload(payload)
+    # A reverse proxy commonly connects from loopback on behalf of a remote
+    # browser. Do not let its forwarded identity inherit the local bridge
+    # exception; an authenticated bearer token remains valid below.
+    if _has_forwarded_headers(request):
+        raise HTTPException(status_code=401, detail="Потрібен вхід (Clerk)")
     if _is_loopback(request):
         return ""
     raise HTTPException(status_code=401, detail="Потрібен вхід (Clerk)")

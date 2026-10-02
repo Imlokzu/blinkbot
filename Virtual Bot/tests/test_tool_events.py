@@ -95,6 +95,33 @@ class ToolCallEventTests(unittest.TestCase):
             denied = remote.post("/api/tools/call", json={"name": "web_search", "args": {"query": "b2c"}})
             self.assertEqual(denied.status_code, 401)
 
+    def test_forwarded_loopback_requires_a_clerk_session(self) -> None:
+        """A proxy cannot turn a remote request into an unauthenticated bridge call."""
+        with patch.object(main.auth_clerk, "is_auth_disabled", return_value=False), \
+             patch.object(main.tools, "execute_tool", AsyncMock(return_value={"results": []})) as execute:
+            local = TestClient(main.app, client=("127.0.0.1", 50000))
+            for header in ({"X-Forwarded-For": "203.0.113.5"}, {"Forwarded": "for=203.0.113.5"}):
+                denied = local.post(
+                    "/api/tools/call",
+                    json={"name": "web_search", "args": {"query": "b2c"}},
+                    headers=header,
+                )
+                self.assertEqual(denied.status_code, 401, header)
+            execute.assert_not_awaited()
+
+    def test_authenticated_forwarded_call_still_works(self) -> None:
+        """Forwarding is allowed when the caller proves its Clerk identity."""
+        with patch.object(main.auth_clerk, "is_auth_disabled", return_value=False), \
+             patch.object(main.auth_clerk, "verify_clerk_token", return_value={"sub": "alice"}), \
+             patch.object(main.tools, "execute_tool", AsyncMock(return_value={"results": []})):
+            local = TestClient(main.app, client=("127.0.0.1", 50000))
+            response = local.post(
+                "/api/tools/call",
+                json={"name": "web_search", "args": {"query": "b2c"}},
+                headers={"Authorization": "Bearer test-token", "X-Forwarded-For": "203.0.113.5"},
+            )
+            self.assertEqual(response.status_code, 200)
+
 
 if __name__ == "__main__":
     unittest.main()
