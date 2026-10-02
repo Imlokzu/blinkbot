@@ -428,6 +428,12 @@ The + picker overlays the composer without moving its draft. Desktop uses
 compact photo/file rows; phone and tablet use camera/photo/file touch targets.
 Its height follows the available room above the composer, including a tall draft
 or on-screen keyboard. Escape closes one layer and returns to the + trigger.
+The picker opens from its bottom-left trigger origin over 240ms; its action rows
+follow with short staggered rises. Attachment previews open over 240ms on
+desktop and slide 22px over 260ms on phones. Scoped motion animates only opacity
+and transform, preserving desktop centering and avoiding label blur. Reduced
+motion disables these animations completely. Preview closing takes 130ms and
+retains Radix focus restoration.
 Connectors, Tools and Panels are secondary rows; touch context details remain
 available in the sheet. Hidden file inputs stay mounted through OS selection.
 
@@ -450,3 +456,5 @@ state; an unchecked or expired login never enables the agent button. Use existin
 warm tokens, standard Dialog/Field/Button controls and English/Ukrainian keys.
 Checks: `tests/attachmentInfo.test.mjs`, `tests/attachment-previews.browser.mjs`,
 existing attachment/connector browsers and backend `tests/test_chat_uploads.py`.
+`tests/attachment-motion.browser.mjs` samples actual browser keyframes, viewport
+fit and focus on desktop/phone with both motion preferences.

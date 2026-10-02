@@ -841,3 +841,23 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
 - Isolated HTTP smoke verified workspace/attachment traversal rejection (400),
   dashboard entry/SW and all release resources (200). Release assets match the
   committed source; the live local build retains unrelated owner UI edits.
+
+
+## 2026-10-02 — Attachment opening motion
+
+- The + source picker opens from the bottom-left trigger origin in 240ms,
+  with short staggered action rises. It keeps the composer stationary.
+- Attachment previews open with a 240ms scale/rise on desktop and a 260ms
+  bottom slide on phones. Scoped keyframes animate transform and opacity only,
+  preserve Tailwind centering and avoid the generic popup's text blur.
+  Closing takes 130ms and retains Radix focus restoration; reduced motion
+  disables all scoped opening/closing/stagger effects completely.
+- Independent max-effort native review approved the scoped CSS and test.
+  Fable was unavailable. Browser animation samples verify start/middle/end
+  opacity, no blur, viewport fit, centering, repeated menu opening and focus
+  on desktop/phone with both motion preferences. Existing real upload/preview
+  browser regressions verify interaction behavior on the release build.
+- Validation: typecheck/build, 100 clean-source dashboard unit tests (99 with
+  the owner's existing local deletion), Python 993 passed, 6 skipped and
+  150 subtests. Isolated HTTP smoke checks traversal 400 and release assets200.
+  Clean release assets match committed source; local owner UI edits remain.

@@ -1,5 +1,16 @@
 .attach-sheet { position: absolute; z-index: 30; bottom: calc(100% + 8px); left: 0; width: min(400px, 100%); max-height: min(60dvh, 480px); overflow-y: auto; overscroll-behavior: contain; padding: 8px; border: 1px solid var(--c-border); border-radius: 12px; background: var(--c-surface); box-shadow: var(--shadow-pop); }
 .attach-sheet.is-compact { width: min(320px, 100%); }
+/* Grow from the source trigger without moving the draft or blurring labels. */
+.attach-sheet[data-state='open'] { transform-origin: bottom left; animation: attach-menu-open 240ms var(--e-spring) both; }
+.attach-sheet[data-state='open'] .attach-media-grid > *,
+.attach-sheet[data-state='open'] .attach-media-rows > *,
+.attach-sheet[data-state='open'] .attach-sheet-options > * { animation: attach-action-open 160ms var(--e-out) both; }
+.attach-sheet .attach-media-grid > :nth-child(1), .attach-sheet .attach-media-rows > :nth-child(1) { animation-delay: 20ms; }
+.attach-sheet .attach-media-grid > :nth-child(2), .attach-sheet .attach-media-rows > :nth-child(2) { animation-delay: 40ms; }
+.attach-sheet .attach-media-grid > :nth-child(3) { animation-delay: 60ms; }
+.attach-sheet .attach-sheet-options > :nth-child(1) { animation-delay: 60ms; }
+.attach-sheet .attach-sheet-options > :nth-child(2) { animation-delay: 80ms; }
+.attach-sheet .attach-sheet-options > :nth-child(3) { animation-delay: 100ms; }
 .attach-sheet-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 8px 8px 12px; }
 .attach-sheet-heading p { margin: 0; font-size: 14px; font-weight: 600; color: var(--c-text); }
 .attach-sheet-heading span { display: block; margin-top: 3px; font-size: 12px; color: var(--c-text-3); }
@@ -18,3 +29,17 @@
 .attach-context > button { min-height: 44px; padding: 8px 12px; border-radius: 6px; background: transparent; }
 .attach-context > button span { font-size: 12px; }
 @media (max-width: 759px) { .attach-sheet { width: 100%; } .attach-sheet-heading > button { width: 44px; height: 44px; } }
+@keyframes attach-menu-open {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes attach-action-open {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .attach-sheet[data-state], .attach-sheet[data-state] .attach-media-grid > *,
+  .attach-sheet[data-state] .attach-media-rows > *, .attach-sheet[data-state] .attach-sheet-options > * {
+    animation: none !important;
+  }
+}
