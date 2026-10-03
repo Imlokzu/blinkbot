@@ -14,10 +14,12 @@ import uvicorn
 import brain_context
 import brains
 import chat_store
+import emotions
 import main
 import mobile_api
 import mobile_bridge
 from mobile_store import MobileStore
+from openclaw_activity import GatewayActivity
 
 
 @asynccontextmanager
@@ -184,3 +186,161 @@ def test_completed_mobile_reply_is_not_retyped_as_simulated_deltas(isolated_turn
         assert next(data["reply"] for event, data in observed if event == "done") == "A completed response without provider deltas."
     asyncio.run(check())
 
+
+@pytest.mark.parametrize("ending", ["error", "eof"])
+def test_partial_provider_failure_never_completes_or_advances_mobile_queue(isolated_turn, monkeypatch, ending):
+    """An error frame or lost final marker must preserve partial output as failed."""
+    async def check():
+        release_final = asyncio.Event()
+        calls, observed = [], []
+        store = isolated_turn
+        app = FastAPI()
+        provider_origin = ""
+
+        @app.post("/fake-provider")
+        async def provider():
+            calls.append(True)
+
+            async def output():
+                yield 'data: {"choices":[{"delta":{"content":"Partial output"}}]}\n\n'
+                await release_final.wait()
+                if ending == "error":
+                    yield 'data: {"error":{"message":"Private provider detail"}}\n\n'
+                    yield "data: [DONE]\n\n"
+            return StreamingResponse(output(), media_type="text/event-stream")
+
+        async def fake_brain(message, history, emit=None, **kwargs):
+            reply = await brains._stream_openai_compatible(
+                provider_origin + "/fake-provider", {}, {}, 5, False, emit=emit,
+            )
+            return reply, "idle", "test", []
+
+        async def owner(request):
+            return ""
+
+        monkeypatch.setattr(brains, "chat", fake_brain)
+        app.include_router(mobile_api.router(owner, owner, mobile_bridge.runner(main.ChatRequest, main.chat_turn),
+                                             store=store, scan_interval=0.01))
+        async with local_server(app) as origin:
+            provider_origin = origin
+            async with httpx.AsyncClient(base_url=origin, timeout=5, trust_env=False) as client:
+                payload = {"client_id": "partial", "session_id": "partial-stream", "message": "Isolated message"}
+                response = await client.post("/api/mobile/messages", json=payload)
+                assert response.status_code == 200
+                job = response.json()
+                try:
+                    async with client.stream("GET", f"/api/mobile/messages/{job['id']}/events") as stream:
+                        async for sequence, event, data in frames(stream):
+                            observed.append((event, data))
+                            if event == "delta":
+                                assert data["chunk"] == "Partial output"
+                                queued_response = await client.post("/api/mobile/messages", json={**payload, "client_id": "queued"})
+                                assert queued_response.status_code == 200
+                                queued = queued_response.json()
+                                release_final.set()
+                finally:
+                    release_final.set()
+        assert len(calls) == 1
+        assert not any(event == "done" for event, _ in observed)
+        assert next(data for event, data in observed if event == "error")["error"] == "mobile_turn_failed"
+        assert "Private provider detail" not in json.dumps(observed)
+        assert store.get("", job["id"])["state"] == "failed"
+        assert store.get("", queued["id"])["state"] == "queued"
+        assert all(job["conversation_paused"] for job in store.messages("", "partial-stream"))
+    asyncio.run(check())
+
+
+@pytest.mark.parametrize("corrected_http", [False, True])
+def test_replaceable_gateway_snapshot_arrives_before_http_final_and_is_not_echoed(isolated_turn, monkeypatch, corrected_http):
+    async def check():
+        release_final, finished = asyncio.Event(), asyncio.Event()
+        store = isolated_turn
+        app, observed = FastAPI(), []
+        provider_origin = ""
+        final_raw = "Authoritative correction." if corrected_http else "[emotion:happy]Final answer [[msg]]Complete."
+
+        @app.post("/fake-provider")
+        async def provider():
+            async def output():
+                await release_final.wait()
+                # The real gateway holds replaceable snapshots until here.
+                yield "data: " + json.dumps({"choices": [{"delta": {"content": final_raw}}]}) + "\n\n"
+                yield "data: [DONE]\n\n"
+                finished.set()
+            return StreamingResponse(output(), media_type="text/event-stream")
+
+        async def fake_brain(message, history, emit=None, session_key=None, **kwargs):
+            observer = GatewayActivity(emit, session_key=session_key, preview_assistant=True)
+            await emit({"type": "note", "id": "pre", "text": "Checking provider", "done": True})
+            for sequence, text in enumerate(("Draft [[ms", "[emotion:happy]Final answer [[msg"), start=1):
+                await observer.handle({"type": "event", "event": "agent", "payload": {
+                    "sessionKey": session_key, "runId": "r1", "seq": sequence, "stream": "assistant",
+                    "data": {"itemId": "answer", "text": text, "replace": True, "replaceable": True},
+                }})
+            reply = await brains._stream_openai_compatible(provider_origin + "/fake-provider", {}, {}, 5, False, emit=emit)
+            return emotions.extract_emotion(reply)[0], "happy", "test", []
+
+        async def owner(request):
+            return ""
+
+        monkeypatch.setattr(brains, "chat", fake_brain)
+        app.include_router(mobile_api.router(owner, owner, mobile_bridge.runner(main.ChatRequest, main.chat_turn),
+                                             store=store, scan_interval=0.01))
+        async with local_server(app) as origin:
+            provider_origin = origin
+            async with httpx.AsyncClient(base_url=origin, timeout=5, trust_env=False) as client:
+                response = await client.post("/api/mobile/messages", json={
+                    "client_id": "snapshot", "session_id": "snapshot", "message": "Isolated request",
+                })
+                assert response.status_code == 200
+                job = response.json()
+                try:
+                    async with client.stream("GET", f"/api/mobile/messages/{job['id']}/events") as stream:
+                        async for sequence, event, data in frames(stream):
+                            observed.append((event, data))
+                            if event == "reply_snapshot" and not release_final.is_set():
+                                assert data["text"] == "Draft "
+                                assert not finished.is_set()
+                                assert store.get("", job["id"])["state"] == "running"
+                                release_final.set()
+                finally:
+                    release_final.set()
+        snapshots = [data for event, data in observed if event == "reply_snapshot"]
+        assert [data["text"] for data in snapshots[:2]] == ["Draft ", "Final answer "]
+        assert [data["id"] for data in snapshots] == ["r1:assistant"] * len(snapshots)
+        assert all("emotion:" not in data["text"] and "[[" not in data["text"] for data in snapshots)
+        if corrected_http:
+            assert snapshots[-1]["text"] == final_raw
+            assert not any(event == "delta" for event, _ in observed)
+        else:
+            assert len(snapshots) == 2
+            assert [data["chunk"] for event, data in observed if event == "delta"] == ["Complete."]
+            assert sum(event == "break" for event, _ in observed) == 1
+        done = next(data for event, data in observed if event == "done")
+        assert done["reply"] == (final_raw if corrected_http else "Final answer\n\nComplete.")
+        assert done["parts"][0] == {"type": "text", "text": "Checking provider", "note": True}
+        assert len([part for part in done["parts"] if part.get("note")]) == 1
+        assert len([part for part in done["parts"] if part["type"] == "text" and not part.get("note")]) == (1 if corrected_http else 2)
+    asyncio.run(check())
+
+
+def test_gateway_assistant_snapshots_are_mobile_opt_in():
+    async def check():
+        web_events, mobile_events = [], []
+        async def web_emit(event):
+            web_events.append(event)
+        async def mobile_emit(event):
+            mobile_events.append(event)
+        web = GatewayActivity(web_emit, session_key="own")
+        mobile = GatewayActivity(mobile_emit, session_key="own", preview_assistant=True)
+        for sequence, text in enumerate(("Draft", "Corrected reply"), start=1):
+            frame = {"type": "event", "event": "agent", "payload": {
+                "sessionKey": "own", "runId": "r1", "seq": sequence, "stream": "assistant",
+                "data": {"text": text, "replaceable": True},
+            }}
+            await web.handle(frame)
+            await mobile.handle(frame)
+        assert web_events == []
+        assert mobile_events == [{"type": "reply_snapshot", "id": "r1:assistant", "text": "Draft"},
+                                 {"type": "reply_snapshot", "id": "r1:assistant", "text": "Corrected reply"}]
+    asyncio.run(check())

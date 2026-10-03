@@ -190,13 +190,15 @@ def test_shared_routes_accept_valid_mobile_credentials_in_legacy_transports(tmp_
     assert main._clerk_user_or_none(req) == ""
 
 
-def test_no_replay_after_observed_work(monkeypatch):
+@pytest.mark.parametrize("event", [{"type": "tool_start", "tool": "write_file"},
+                                   {"type": "reply_snapshot", "id": "answer", "text": "Live preview"}])
+def test_no_replay_after_observed_work(monkeypatch, event):
     calls = []
     async def models(): return [{"id": "a/one", "provider": "a"}, {"id": "a/two", "provider": "a"}]
     async def emit(event): pass
     async def gateway(*args, **kwargs):
         calls.append(mobile_routing.model_override())
-        await kwargs["emit"]({"type": "tool_start", "tool": "write_file"})
+        await kwargs["emit"](event)
         raise RuntimeError("connection lost")
     monkeypatch.setattr(mobile_routing.openclaw_models, "catalog", models)
     monkeypatch.setattr(brains, "chat_openclaw", gateway)

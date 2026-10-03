@@ -44,6 +44,7 @@ def test_mobile_runner_waits_for_underlying_stream_cleanup_before_returning():
 
 @pytest.mark.parametrize("event", [{"type": "note", "id": "pre", "text": "Checking", "done": False},
                                    {"type": "delta", "chunk": "Partial reply"},
+                                   {"type": "reply_snapshot", "id": "answer", "text": "Partial snapshot"},
                                    {"type": "tool_start", "tool": "test"}])
 @pytest.mark.parametrize("error_type", [RuntimeError, brains._NeedsTools])
 def test_gateway_does_not_replay_a_stream_after_visible_or_tool_work(monkeypatch, event, error_type):

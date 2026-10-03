@@ -795,6 +795,7 @@ async def chat_openclaw(
     # Durable OpenClaw sessions already own their transcript. Sending the
     # application history again makes the Gateway wrap it as pending context
     # (`Chat messages since your last reply`) and duplicates every turn.
+    import mobile_api
     import mobile_routing
     request_history = [] if session_key and not mobile_routing.seed_history() else history
     # Vision goes to OpenClaw's image model; text follows the panel's pick,
@@ -847,12 +848,13 @@ async def chat_openclaw(
                     observed_model["value"] = f"{provider}/{model}"
                 await emit(event)
                 return
-            if event.get("type") in {"delta", "note"} or str(event.get("type", "")).startswith("tool_"):
+            if event.get("type") in {"delta", "note", "reply_snapshot"} or str(event.get("type", "")).startswith("tool_"):
                 observed_work = True
             await emit(event)
 
         try:
-            async with GatewayActivity(tracked_emit, session_key=session_key) as activity:
+            activity_options = {"preview_assistant": True} if mobile_api.current_turn_options() is not None else {}
+            async with GatewayActivity(tracked_emit, session_key=session_key, **activity_options) as activity:
                 text = await _stream_openai_compatible(
                     url, {**headers, "x-openclaw-session-key": activity.session_key},
                     payload, cfg.CHAT_OPENCLAW_TIMEOUT_S, trust_env,
@@ -1254,6 +1256,7 @@ async def _stream_openai_compatible(
     """
     payload = {**payload_base, "stream": True}
     parts: list[str] = []
+    finished = False
     budget = httpx.Timeout(
         timeout,
         connect=min(timeout, 10.0),
@@ -1271,12 +1274,17 @@ async def _stream_openai_compatible(
                 data_str = line[len("data:"):].strip()
                 if not data_str or data_str == "[DONE]":
                     if data_str == "[DONE]":
+                        finished = True
                         break
                     continue
                 try:
                     chunk = json.loads(data_str)
                 except json.JSONDecodeError:
                     continue
+                if isinstance(chunk, dict) and "error" in chunk:
+                    # Gateway errors can follow valid partial output. Do not
+                    # turn that prefix into a successful mobile completion.
+                    raise RuntimeError("Provider streaming failed")
                 try:
                     delta = chunk["choices"][0].get("delta") or {}
                 except (KeyError, IndexError, TypeError):
@@ -1289,6 +1297,8 @@ async def _stream_openai_compatible(
                     parts.append(piece)
                     if emit:
                         await _emit_tool_event(emit, {"type": "delta", "chunk": piece})
+    if not finished:
+        raise RuntimeError("Incomplete provider stream")
     text = "".join(parts)
     if not text.strip():
         raise RuntimeError("Порожній стрім від мозку")

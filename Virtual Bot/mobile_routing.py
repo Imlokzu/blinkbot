@@ -67,7 +67,7 @@ async def chat_gateway(message: str, system_prompt: str, history: list,
 
     async def tracked(event: dict[str, Any]):
         nonlocal observed_work, observed_model
-        if event.get("type") in {"delta", "note"} or str(event.get("type", "")).startswith("tool_"):
+        if event.get("type") in {"delta", "note", "reply_snapshot"} or str(event.get("type", "")).startswith("tool_"):
             observed_work = True
         if event.get("type") == "model" and event.get("model"):
             observed_model = effective_model(str(event["model"]), str(event.get("provider") or provider))

@@ -2405,6 +2405,7 @@ async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str
             # Скільки тексту вже віддали СПРАВЖНІМ стрімом токенів (brains шле delta).
             # Якщо мозок стрімить — НЕ ріжемо готову відповідь на слова вдруге.
             streamed = {"text": ""}
+            snapshot = {"raw": "", "http": "", "id": ""}
             # Тег [емоція:…] моделі не має світитись у чаті: ріжемо його прямо в
             # потоці, а знайдену емоцію показуємо на обличчі ОДРАЗУ, а не в кінці.
             tag_filter = emotions.StreamTagFilter()
@@ -2457,6 +2458,31 @@ async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str
                         parts += [{"type": "text", "text": b} for b in answer]
                 return parts
 
+            async def preview_answer(raw: str, snapshot_id: str) -> None:
+                nonlocal shaper, tag_filter
+                # Snapshot corrections replace only the answer. Notes and
+                # tool activity remain in the same saved/live timeline.
+                preview_filter = emotions.StreamTagFilter()
+                visible, found = preview_filter.feed(chat_bubbles.trim_open_tag(raw))
+                visible = (visible + preview_filter.flush()).lstrip()
+                shaper = chat_bubbles.BubbleStream()
+                shaped = shaper.feed(visible)
+                streamed["text"] = visible
+                tag_filter = emotions.StreamTagFilter()
+                if shaper.text_bubbles():
+                    add_answer()
+                if found:
+                    try:
+                        events.publish_emotion(found)
+                    except Exception:  # A face integration cannot stop a reply.
+                        log.exception("Publishing a snapshot emotion failed")
+                    await event_queue.put({"type": "emotion", "emotion": found})
+                for item in shaped:
+                    if item["type"] == "reaction":
+                        await queue_shaped([item])
+                await event_queue.put({"type": "reply_snapshot", "id": snapshot_id,
+                                       "text": "\n\n".join(shaper.bubbles), "bubbles": shaper.text_bubbles()})
+
             async def emit(event: dict) -> None:
                 if event.get("type") == "model":
                     mobile_model.update(mobile_bridge.model_metadata(event))
@@ -2480,8 +2506,28 @@ async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str
                     notes[note_id] = bubbles
                     await event_queue.put({"type": "note", "id": note_id, "bubbles": bubbles})
                     return
+                if mobile_stream and event.get("type") == "reply_snapshot":
+                    # An unfinished tag was not displayed; its entire text
+                    # must still reach the incremental filters on HTTP later.
+                    snapshot["raw"] = chat_bubbles.trim_open_tag(str(event.get("text") or ""))
+                    snapshot["id"] = str(event.get("id") or "assistant")
+                    await preview_answer(snapshot["raw"], snapshot["id"])
+                    return
                 if event.get("type") == "delta":
-                    visible, found = tag_filter.feed(event.get("chunk") or "")
+                    chunk = event.get("chunk") or ""
+                    if mobile_stream and snapshot["id"]:
+                        # The gateway later repeats held snapshots on HTTP.
+                        # Suppress that prefix; deliver only genuinely new text.
+                        snapshot["http"] += chunk
+                        if snapshot["raw"].startswith(snapshot["http"]):
+                            return
+                        if not snapshot["http"].startswith(snapshot["raw"]):
+                            snapshot["raw"] = snapshot["http"]
+                            await preview_answer(snapshot["raw"], snapshot["id"])
+                            return
+                        chunk = snapshot["http"][len(snapshot["raw"]):]
+                        snapshot["raw"] = snapshot["http"]
+                    visible, found = tag_filter.feed(chunk)
                     if found:
                         try:
                             events.publish_emotion(found)

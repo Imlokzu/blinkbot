@@ -23,8 +23,11 @@ log = logging.getLogger("virtual_bot.openclaw_activity")
 
 
 class GatewayActivity:
-    def __init__(self, emit, session_key: str | None = None):
+    def __init__(self, emit, session_key: str | None = None, *, preview_assistant: bool = False):
         self.emit = emit
+        self.preview_assistant = preview_assistant
+        self.assistant_run = ""
+        self.assistant_parts: dict[str, str] = {}
         # Keep the random fallback for short-lived callers that do not own a
         # durable conversation id.
         self.session_key = session_key or "virtual-bot:" + uuid.uuid4().hex
@@ -121,6 +124,24 @@ class GatewayActivity:
         if payload.get("stream") == "lifecycle":
             if data.get("phase") in ("end", "error"):
                 self.terminal.set()
+            return
+        if payload.get("stream") == "assistant":
+            # The HTTP adapter holds replaceable output until completion.
+            # Mobile can preview its real cumulative snapshots instead; web
+            # callers retain their existing append-only HTTP stream.
+            if not self.preview_assistant or data.get("replaceable") is not True:
+                return
+            if self.assistant_run != run_id:
+                self.assistant_run, self.assistant_parts = run_id, {}
+            item_id = str(data.get("itemId") or "assistant")
+            text, delta = data.get("text"), data.get("delta")
+            if not isinstance(text, str) and not isinstance(delta, str):
+                return
+            if data.get("replace") is True and item_id not in self.assistant_parts:
+                self.assistant_parts.clear()
+            self.assistant_parts[item_id] = text if isinstance(text, str) else self.assistant_parts.get(item_id, "") + delta
+            snapshot = "\n\n".join(text for text in self.assistant_parts.values() if text)
+            await self.emit({"type": "reply_snapshot", "id": f"{run_id}:assistant", "text": snapshot})
             return
         if payload.get("stream") == "item":
             # What the model says BEFORE a tool call ("ok, I'll look it up")
