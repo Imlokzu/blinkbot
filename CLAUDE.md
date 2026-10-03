@@ -17,19 +17,44 @@
 - зробив правку, прогнав тести, вони зелені — коміт;
 - збираєшся братись за наступне — спершу поглянь, чи попереднє закомічене.
 
+Commit as the owner, in English, and push to GitHub. Every logical change.
+Do not leave it local.
+
+- **Author:** `Imlokzu <lokzuhd@gmail.com>` — author and committer. Do not
+  commit as anyone else. Do not change `git config`. Set the identity on
+  that commit only, as below.
+- **English only.** Commit messages, code, comments, and docs you add are
+  English. The language of the request does not change this.
+- **Push.** After the commit succeeds, push the current branch to `origin`.
+  If it has no upstream, `git push -u origin HEAD`. Never force-push. Never
+  switch branches in order to push.
+
 ```bash
-git status                       # завжди спершу — подивитись, що там
-git add <саме свої файли>        # ніколи -A і ніколи . наосліп
+git status                       # always first — see what is there
+git add <only the files you changed>   # never -A and never . blindly
+GIT_AUTHOR_NAME='Imlokzu' \
+GIT_AUTHOR_EMAIL='lokzuhd@gmail.com' \
+GIT_COMMITTER_NAME='Imlokzu' \
+GIT_COMMITTER_EMAIL='lokzuhd@gmail.com' \
 git commit -m "fix(virtual-bot): ..."
+git push                         # or: git push -u origin HEAD
 ```
 
-Формат повідомлень і скоупи — в `AGENTS.md`, розділ 1.
+Message format and scopes are in `AGENTS.md`, section 1.
 
-> Станом на 19.09.2026 в репо лежало **42 незакомічені шляхи**, а останній
-> коміт був **два тижні тому**. Саме через це правило стоїть першим.
+> As of 2026-09-19 this repo had **42 uncommitted paths**, and the last
+> commit was **two weeks old**. That is why this rule comes first.
 
-Гілку не міняй і в `main` не пуш без прямої вказівки. Пуш — теж лише коли
-попросили; коміт локально можна й треба завжди.
+Do not change the current branch.
+
+### Delegate routine asynchronous work
+
+When Jules is configured, prefer handing off routine, self-contained, and
+non-urgent work that can wait for a pull request, such as translating comments
+or documentation, mechanical refactors, or repetitive test updates. Give Jules
+the exact scope, acceptance criteria, and validation commands. Keep work in the
+current session when it needs immediate completion, interactive decisions,
+local-only context, or secrets Jules cannot access.
 
 ## 2. Чим Claude Code відрізняється від робочого агента
 
@@ -41,7 +66,8 @@ git commit -m "fix(virtual-bot): ..."
 пропустив. Не «здається, працює», а «перевірив ось так, ось результат».
 
 **Не роби за власника незворотного.** Перезапуск його служб, видалення,
-відправка назовні, пуш — питай. Особливо:
+відправка назовні (крім `git push` поточного бранча, який обовʼязковий після
+кожного коміту) — питай. Особливо:
 
 - **OpenClaw не чіпати.** Конфіг правити можна, процес — ні.
 - **Запущеного бота не перезапускати.** Він може крутити стару версію коду —
@@ -121,6 +147,6 @@ PYTHONPATH="$PWD" .venv/bin/pytest tests/ -q
 ## 5. Наприкінці задачі
 
 - [ ] тести модуля зелені, вивід показано власнику
-- [ ] `git status` чистий — усе своє закомічено
+- [ ] `git status` чистий — усе своє закомічено як `Imlokzu <lokzuhd@gmail.com>` і запушено в `origin`
 - [ ] у дифі нема ключів і токенів
 - [ ] сказано чесно, що зроблено, а що ні

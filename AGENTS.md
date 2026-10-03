@@ -5,8 +5,8 @@ Cursor, Copilot, Fable reviewers, etc.) MUST follow when working in this
 repository. Read this file fully before making any change.
 
 Project overview and full context live in `HANDOFF.md` and
-`claude-bot-full-spec-v3.md`. Comments and UI text are written in Ukrainian;
-keep that convention.
+`claude-bot-full-spec-v3.md`. Everything you add to this repo is **English
+only** — commit messages, code, comments, and docs. See section 5.
 
 ---
 
@@ -19,14 +19,27 @@ stands on its own.
 Workflow for each change:
 
 ```bash
+git status
 git add <the files you changed>
+GIT_AUTHOR_NAME='Imlokzu' \
+GIT_AUTHOR_EMAIL='lokzuhd@gmail.com' \
+GIT_COMMITTER_NAME='Imlokzu' \
+GIT_COMMITTER_EMAIL='lokzuhd@gmail.com' \
 git commit -m "<type>: <short summary>"
+git push
 ```
+
+If the branch has no upstream yet, use `git push -u origin HEAD` instead of
+`git push`.
 
 - Never use `git add -A` / `git add .` blindly — stage only what you changed and
   verify no secrets or ignored files sneak in (`git status` first).
-- Never use `--force` on shared branches.
-- If a change spans multiple files that belong together, commit them together.
+- Never use `--force` on shared branches. Never force-push.
+- Do not switch branches in order to commit or push. Push the branch you are
+  already on.
+- If a change spans multiple files that belong together, commit them together,
+  then push that commit.
+- A change is not done until it is on GitHub (`origin`).
 
 ### Commit message convention (Conventional Commits)
 
@@ -59,10 +72,16 @@ docs: add project wiki.html
 
 ## 2. Identity / attribution
 
-Commits are attributed to the repository's configured `git config user.name`
-and `user.email`. Do **not** change the committer identity, impersonate another
-person, or hardcode author overrides (`--author=...`) unless the repo owner has
-explicitly told you to. If unsure, ask — do not guess an identity.
+The owner requires every commit in this repository to be authored **and**
+committed as:
+
+- name: `Imlokzu`
+- email: `lokzuhd@gmail.com`
+
+Do not commit as any other name or email. Do not change `git config`. Do not
+use `--author`. Set `GIT_AUTHOR_*` and `GIT_COMMITTER_*` for that commit only,
+as in section 1. This identity is the owner's; using it is required, not
+impersonation.
 
 ---
 
@@ -122,6 +141,15 @@ bw lock                                                # when done
   - TS/JS modules: `npm test` / `tsc --noEmit` / `npm run build`.
 - Follow the API contracts already agreed in `HANDOFF.md` and
   `claude-bot-display/API_CONTRACT.md`.
+
+### Delegate routine asynchronous work
+
+When Jules is configured, prefer handing off routine, self-contained, and
+non-urgent work that can wait for a pull request, such as translating comments
+or documentation, mechanical refactors, or repetitive test updates. Give Jules
+the exact scope, acceptance criteria, and validation commands. Keep work in the
+current session when it needs immediate completion, interactive decisions,
+local-only context, or secrets Jules cannot access.
 
 ---
 
@@ -203,8 +231,9 @@ applies; this adds what is specific to building rather than fixing.
 ### Commit as you go, not at the end
 
 You have no human to notice that an hour of work vanished. A session can be cut
-short at any moment, so **unpushed work only exists if it is committed**. Commit
-each part as soon as it stands on its own — a passing module, a new endpoint, a
+short at any moment, so work only exists once it is **committed as
+`Imlokzu <lokzuhd@gmail.com>` and pushed to `origin`**. Commit and push each
+part as soon as it stands on its own — a passing module, a new endpoint, a
 new test file — rather than saving one large commit for the end.
 
 If you finish a task and `git status` is not clean, the task is not finished.
@@ -287,5 +316,6 @@ the same change. The owner decides what gets built.
 - [ ] `git status` reviewed — only intended files staged
 - [ ] No secrets in the diff
 - [ ] Build/tests pass for the touched module
-- [ ] Commit message follows the convention above
+- [ ] Commit is `Imlokzu <lokzuhd@gmail.com>`, message is English and follows the convention above
+- [ ] That commit is pushed to `origin`
 - [ ] `HANDOFF.md` updated if the change affects project state / known bugs
