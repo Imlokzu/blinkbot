@@ -149,6 +149,8 @@ function AssistantMessage() {
   const content = useAuiState((state) => state.message.content);
   const retry = useContext(RetryContext);
   const react = useContext(ReactContext);
+  const reply = useRef<HTMLDivElement>(null);
+  const [flying, setFlying] = useState<{ bubble: number; emoji: string } | null>(null);
 
   // Plain text of the reply, for copying and for reading aloud. Taken from the
   // message itself rather than from the rendered DOM, so code blocks, tables
@@ -173,6 +175,15 @@ function AssistantMessage() {
   const textCount = parts.reduce((count, part) => count + (part.type === 'text' ? 1 : 0), 0);
   const motion = useBubbleMotion(typing, textCount);
   const lost = running && (meta.agentStatus === 'unavailable' || meta.agentStatus === 'disconnected');
+  // Count every text part, including notes and suppressed generated-image text,
+  // so the bottom action addresses the same server bubble as its visible badge.
+  let textIndex = -1;
+  let reactionBubble = -1;
+  for (const part of parts) {
+    if (part.type !== 'text') continue;
+    textIndex += 1;
+    if (!part.note && !imageOnlyDelivery(part.text, deliveredSources)) reactionBubble = textIndex;
+  }
 
   // "Thanks!" → 👍 and nothing else: the reaction sits on the user's bubble.
   // The pill stays one beat longer so its dots can shrink away instead of
@@ -181,7 +192,7 @@ function AssistantMessage() {
 
   let bubble = -1;
   return (
-    <MessagePrimitive.Root className="group/reply mb-10 flex gap-3">
+    <MessagePrimitive.Root ref={reply} data-assistant-message={id} className="group/reply mb-10 flex gap-3">
       {/* Use the same static character as the header, aligned to the first line. */}
       <BotIcon className="mt-1.5" />
       {/* All rendered images share one viewer, including generated media and
@@ -205,10 +216,12 @@ function AssistantMessage() {
             return (
               <BotBubble
                 key={`bubble-${at}`}
+                index={at}
                 text={part.text}
                 note={part.note}
                 running={running && index === parts.length - 1}
                 reaction={meta.reactions?.[String(at)]}
+                flyingReaction={flying?.bubble === at ? flying.emoji : null}
                 fromTyping={at === (motion.born >= 0 ? motion.born : meta.fromTyping)}
                 onReact={!running && meta.reactable && react ? (emoji) => react(id, at, emoji) : undefined}
               />
@@ -224,7 +237,13 @@ function AssistantMessage() {
               and its text is half-written — neither is worth acting on yet. */}
           {!running ? <SourceStrip steps={steps} /> : null}
           {!running && text ? (
-            <MessageActions text={text} onRetry={retry?.id === id ? retry.run : undefined} />
+            <MessageActions text={text} onRetry={retry?.id === id ? retry.run : undefined}
+              reaction={meta.reactable && react && reactionBubble >= 0 ? {
+                current: meta.reactions?.[String(reactionBubble)], bubbleIndex: reactionBubble,
+                onReact: emoji => react(id, reactionBubble, emoji),
+                target: () => reply.current?.querySelector<HTMLElement>(`[data-assistant-bubble="${reactionBubble}"]`) ?? null,
+                onFlight: emoji => setFlying(emoji ? { bubble: reactionBubble, emoji } : null),
+              } : undefined} />
           ) : null}
         </div>
       </GalleryScope>

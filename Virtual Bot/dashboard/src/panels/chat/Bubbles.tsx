@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { TextMessagePartProvider } from '@assistant-ui/react';
 import { SmilePlus } from 'lucide-react';
@@ -270,7 +270,8 @@ export function ReactionChip({ emoji, label, onClick, align, landing, delayMs = 
   );
 }
 
-function ReactionPicker({ current, onPick, onClose, boundary }: {
+function ReactionPicker({ id, current, onPick, onClose, boundary }: {
+  id: string;
   current?: string;
   onPick: (emoji: string | null, source?: HTMLElement) => void;
   onClose: () => void;
@@ -292,16 +293,33 @@ function ReactionPicker({ current, onPick, onClose, boundary }: {
     };
   }, [onClose, boundary]);
 
+  const onMenuKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const buttons = [...(ref.current?.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]') ?? [])];
+    const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    if (index < 0 || !buttons.length) return;
+    const columns = getComputedStyle(ref.current!).gridTemplateColumns.split(' ').length;
+    const vertical = columns < buttons.length ? columns : 1;
+    const delta = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1
+      : event.key === 'ArrowDown' ? vertical : event.key === 'ArrowUp' ? -vertical : 0;
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1
+      : delta ? (index + delta + buttons.length) % buttons.length : -1;
+    if (next >= 0) {
+      event.preventDefault();
+      buttons[next].focus();
+    } else if (event.key === 'Tab') onClose();
+  };
+
   return (
-    <div ref={ref} role="menu" aria-label={t('reaction.pick')} data-state="open"
-      className="popup-shell u-pop absolute bottom-full left-0 z-20 mb-1.5 flex gap-0.5 rounded-full border border-line bg-surface p-1 shadow-pop">
+    <div ref={ref} id={id} role="menu" aria-label={t('reaction.pick')} data-state="open" data-reaction-picker
+      onKeyDown={onMenuKey}
+      className="popup-shell u-pop absolute bottom-full left-0 z-20 mb-1.5 grid w-max max-w-[calc(100vw-32px)] grid-cols-4 gap-0.5 rounded-xl border border-line bg-surface p-1 shadow-pop min-[480px]:pointer-fine:grid-cols-8">
       <div className="popup-plate liquid-glass" aria-hidden="true" />
       {QUICK_REACTIONS.map((emoji) => (
         <button key={emoji} type="button" role="menuitem"
           aria-label={emoji === current ? t('reaction.remove', { emoji }) : emoji}
           onClick={(event) => { onPick(emoji === current ? null : emoji, event.currentTarget); onClose(); }}
           className={cn(
-            'grid size-8 place-items-center rounded-full text-[17px] transition-transform hover:scale-115 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none',
+            'grid size-8 place-items-center rounded-full text-[17px] transition-transform hover:scale-115 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent motion-reduce:transition-none max-[759px]:size-11 pointer-coarse:size-11',
             emoji === current && 'bg-accent-soft',
           )}>
           {emoji}
@@ -311,11 +329,45 @@ function ReactionPicker({ current, onPick, onClose, boundary }: {
   );
 }
 
-/**
- * One grey bubble of the bot's reply. Hovering (or focusing) it reveals the
- * react button next to it, the way messengers do; on touch it stays visible.
- */
-export function BotBubble({ text, note, running, reaction, onReact, fromTyping }: {
+export interface ReactionControlProps {
+  current?: string;
+  bubbleIndex: number;
+  onReact: (emoji: string | null) => void;
+  target: () => HTMLElement | null;
+  onFlight?: (emoji: string | null) => void;
+}
+
+/** The reply action targets one real answer bubble without adding side buttons. */
+export function ReactionControl({ current, bubbleIndex, onReact, target, onFlight }: ReactionControlProps) {
+  const [picking, setPicking] = useState(false);
+  const boundary = useRef<HTMLSpanElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const pickerId = useId();
+  const launch = useEmojiFlight();
+  const closePicker = useCallback(() => {
+    setPicking(false);
+    trigger.current?.focus({ preventScroll: true });
+  }, []);
+  const pick = (emoji: string | null, source?: HTMLElement) => {
+    const bubble = target();
+    const flying = Boolean(emoji && source && bubble
+      && flyEmoji(launch, emoji, source.getBoundingClientRect(), reactionTarget(bubble.getBoundingClientRect(), 'start')));
+    onFlight?.(flying ? emoji : null);
+    onReact(emoji);
+  };
+  return <span ref={boundary} className="relative inline-flex shrink-0">
+    <button ref={trigger} type="button" aria-label={t('reaction.add')} aria-haspopup="menu" aria-expanded={picking}
+      aria-controls={picking ? pickerId : undefined} data-reaction-trigger data-reaction-bubble={bubbleIndex}
+      onClick={() => setPicking(open => !open)}
+      className="grid size-7 place-items-center rounded-sm text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent max-[759px]:size-11 pointer-coarse:size-11">
+      <SmilePlus className="size-4" aria-hidden="true" />
+    </button>
+    {picking ? <ReactionPicker id={pickerId} current={current} onPick={pick} onClose={closePicker} boundary={boundary} /> : null}
+  </span>;
+}
+
+/** One grey bubble; existing badges retain their original per-bubble address. */
+export function BotBubble({ text, note, running, reaction, onReact, fromTyping, index, flyingReaction }: {
   text: string;
   /** Said while working rather than the answer — drawn a step quieter. */
   note?: boolean;
@@ -325,15 +377,11 @@ export function BotBubble({ text, note, running, reaction, onReact, fromTyping }
   onReact?: (emoji: string | null) => void;
   /** This bubble took the place of the typing dots, so the dots fade inside it. */
   fromTyping?: boolean;
+  index?: number;
+  flyingReaction?: string | null;
 }) {
-  const [picking, setPicking] = useState(false);
-  const [flying, setFlying] = useState<string | null>(null);
   const [dots, setDots] = useState(fromTyping);
-  const row = useRef<HTMLDivElement>(null);
   const bubble = useRef<HTMLDivElement>(null);
-  const launch = useEmojiFlight();
-  // Stable, so the picker's listeners are not re-attached on every render.
-  const closePicker = useCallback(() => setPicking(false), []);
   useEffect(() => {
     if (!fromTyping) {
       setDots(false);
@@ -343,18 +391,9 @@ export function BotBubble({ text, note, running, reaction, onReact, fromTyping }
     const id = window.setTimeout(() => setDots(false), typingLeaveMs());
     return () => window.clearTimeout(id);
   }, [fromTyping]);
-  const pick = (emoji: string | null, source?: HTMLElement) => {
-    if (emoji && source && bubble.current
-      && flyEmoji(launch, emoji, source.getBoundingClientRect(), reactionTarget(bubble.current.getBoundingClientRect(), 'start'))) {
-      setFlying(emoji);
-    } else {
-      setFlying(null);
-    }
-    onReact?.(emoji);
-  };
   return (
-    <div ref={row} className={cn('group/bubble relative flex max-w-full items-center gap-1', reaction && 'mb-3')}>
-      <div ref={bubble} {...{ [REPLY_ATTRIBUTE]: '' }}
+    <div className={cn('group/bubble relative flex max-w-full items-center gap-1', reaction && 'mb-3')}>
+      <div ref={bubble} data-assistant-bubble={index} {...{ [REPLY_ATTRIBUTE]: '' }}
         className={cn(
           'chat-bubble-in relative min-w-0 max-w-full rounded-lg bg-surface-2 px-3.5 py-2',
           fromTyping && 'chat-bubble-open',
@@ -373,21 +412,11 @@ export function BotBubble({ text, note, running, reaction, onReact, fromTyping }
           </TextMessagePartProvider>
         </div>
         {reaction ? (
-          <ReactionChip key={reaction} emoji={reaction} align="start" landing={flying === reaction} delayMs={FLIGHT_LAND_MS}
+          <ReactionChip key={reaction} emoji={reaction} align="start" landing={flyingReaction === reaction} delayMs={FLIGHT_LAND_MS}
             label={t('reaction.yours', { emoji: reaction })}
             onClick={onReact ? () => onReact(null) : undefined} />
         ) : null}
       </div>
-      {onReact ? (
-        <button type="button" aria-label={t('reaction.add')} aria-haspopup="menu" aria-expanded={picking}
-          onClick={() => setPicking((open) => !open)}
-          className="grid size-7 shrink-0 place-items-center rounded-full text-ink-3 opacity-0 transition-opacity hover:bg-surface-2 hover:text-ink focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent group-hover/bubble:opacity-100 aria-expanded:opacity-100 max-[759px]:opacity-60 motion-reduce:transition-none">
-          <SmilePlus className="size-4" />
-        </button>
-      ) : null}
-      {picking && onReact ? (
-        <ReactionPicker current={reaction} onPick={pick} onClose={closePicker} boundary={row} />
-      ) : null}
     </div>
   );
 }

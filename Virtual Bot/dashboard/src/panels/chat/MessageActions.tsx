@@ -9,17 +9,16 @@ import { Tip } from '@/components/ui/Tip';
 import { cn } from '@/lib/cn';
 import { t } from '@/locales/chat';
 import { speakableText } from './speech';
+import { ReactionControl, type ReactionControlProps } from './Bubbles';
 
 /*
  * What you can do with a finished reply.
  *
- * Until now a reply was read-only: to keep a paragraph you selected it by
- * hand, and to hear it you had to be near the bot's own speaker. Three things
- * turned out to be asked for over and over — copy it, hear it, ask again —
- * so they live under the reply instead of nowhere.
+ * Reactions, copying, voice playback and retry share the space beneath a
+ * finished answer, keeping the bubbles themselves clear.
  *
  * The row is quiet by default and only gains contrast on hover or keyboard
- * focus: it sits under every reply in the thread, and three bright icons per
+ * focus: it sits under every reply in the thread, and bright icons on every
  * message would fight the text for attention (DESIGN.md, rule 3). On touch
  * there is no hover, so it stays legible there without the reveal.
  */
@@ -49,7 +48,7 @@ function Action({ label, onClick, active, children }: {
         className={cn(
           'grid size-7 place-items-center rounded-sm text-ink-3 transition-colors',
           'hover:bg-surface-2 hover:text-ink focus-visible:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
-          'max-[759px]:size-9',
+          'max-[759px]:size-11 pointer-coarse:size-11',
           active && 'text-accent',
         )}
       >
@@ -59,7 +58,7 @@ function Action({ label, onClick, active, children }: {
   );
 }
 
-export function MessageActions({ text, onRetry }: { text: string; onRetry?: () => void }) {
+export function MessageActions({ text, onRetry, reaction }: { text: string; onRetry?: () => void; reaction?: ReactionControlProps }) {
   const toast = useToast();
   const [copied, setCopied] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -132,6 +131,7 @@ export function MessageActions({ text, onRetry }: { text: string; onRetry?: () =
       className="mt-2 flex items-center gap-0.5 opacity-60 transition-opacity focus-within:opacity-100 group-hover/reply:opacity-100 motion-reduce:transition-none max-[759px]:opacity-100"
       data-reply-actions
     >
+      {reaction ? <ReactionControl {...reaction} /> : null}
       <Action label={copied ? t('reply.copied') : t('reply.copy')} onClick={() => void copy()} active={copied}>
         {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
       </Action>
