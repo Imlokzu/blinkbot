@@ -7,7 +7,7 @@
     "test": "node --test tests/*.test.mjs",
     "test:browser": "node tests/workspace.browser.mjs",
     "dev": "node scripts/copy-excalidraw-fonts.mjs && vite",
-    "build": "node scripts/copy-excalidraw-fonts.mjs && vite build",
+    "build": "node scripts/build-dashboard.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },

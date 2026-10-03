@@ -1336,3 +1336,22 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   focus, blur and favicon cases; 156 frontend tests, TypeScript/build and all
   300 smoke resources pass. Temporary test servers and browser sessions are
   stopped. Original staged changes and unrelated source drafts are preserved.
+
+
+## Guarded dashboard publication (2026-10-03)
+
+- An actual HTTP probe reproduced the stale sidebar: the served dirty index
+  referenced older ChatPanel chunks without the committed glass/list classes.
+  Generated output changed during inspection; its writer is not identified.
+  The /static/dash/ worker scope cannot control the owner's /dash/ route.
+- npm run build now builds in isolation and publishes assets before an atomic
+  shell switch, retaining old hashes for open tabs. Revision/input changes,
+  earlier build timestamps and unsafe output paths are rejected. A short lock
+  serializes publication; failed shell replacement rolls worker/stamp back.
+- Explicit --outDir builds artifacts only. Snapshot builds pass the real repo
+  through DASHBOARD_SOURCE_ROOT and captured DASHBOARD_EXPECTED_HEAD. Public
+  build-info.json contains only revision and start time, never environment data.
+- Independent maximum-effort review fixed duplicate flags, symlink/root output
+  aliases and argument terminators. Fourteen focused publication tests passed.
+  The new wrapper's real isolated production build, TypeScript and all 170
+  frontend tests passed. Unrelated owner drafts and staged work remain intact.
