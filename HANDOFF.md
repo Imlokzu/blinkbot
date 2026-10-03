@@ -1053,3 +1053,38 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   checks requiring manual inspection were reviewed visually. HTTP status,
   screen and dashboard returned 200; memory traversal returned 400.
 - Unrelated drafts and existing staged owner changes remain untouched.
+
+
+## Phone chat navigation and compact model picker (2026-10-03)
+
+- Phones now have one safe-area-aware chat toolbar: Menu, Conversations,
+  compact model selection and New conversation. The global chat band and
+  labelled bottom rail are removed, including their reserved space. Other
+  phone pages retain a compact header with the same shared sections menu.
+  The related unfinished footer removal is now part of the committed source.
+- The sections drawer uses the existing dialog focus trap and dismissal,
+  restores focus across route changes and respects landscape notch insets.
+  A left-edge gesture transfers an open Menu to Conversations rather than
+  stacking drawers; focus stays inside the remaining active dialog.
+- Phone Workbench access moves to its own '+' row, independently of pinned
+  Panels, and closing it restores '+'. Tablets retain their header control.
+  Desktop navigation/docking remain unchanged. Keeping dock normalization
+  mounted prevents saved desktop side offsets from creating phone gutters.
+- Phone model/effort popup height is bounded by 360px, 52dvh and available
+  space; width is at most 360px. Typography is compact while touch targets
+  remain 44px. Both columns scroll, keep their current choice visible, and
+  retain reachable cached-catalog recovery/retry controls in short viewports.
+- The removed footer's malformed leftover CSS comment is fixed. Chat input
+  uses 16px type on phones to avoid small-input zoom, with safe top/side insets.
+- Independent supported maximum-effort review fixed drawer stacking, escape
+  focus, notch padding and transfer focus. A separate picker review fixed
+  recovery content clipping; the existing model/effort browser suite passed.
+  Fable remains unavailable in this runtime; supported reviewers supplied
+  the independent validation without claiming that model's certification.
+- Validation: 1,049 Python tests passed, 6 skipped and 178 subtests; 139
+  frontend tests, TypeScript and isolated production build passed. Browser
+  fixtures cover 320/390/430 portrait, 667 landscape, short keyboard areas,
+  both locales, coarse-pointer targets, Menu/Conversations transfer, route
+  return, separate Workbench/Panels, body-lock/focus cleanup, and desktop
+  resize/dock restoration. Existing chat navigation and Workbench checks pass.
+  Unrelated Settings/API/backend/security drafts and staged changes remain.

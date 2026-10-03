@@ -2,7 +2,6 @@ import { Suspense, lazy } from 'react';
 import { ClickSpark } from '@/vendor/reactbits';
 import { Topbar } from '@/components/shell/Topbar';
 import { DockNav } from '@/components/shell/DockNav';
-import { MobileNav } from '@/components/shell/MobileNav';
 import { CommandPalette } from '@/components/shell/CommandPalette';
 import { PanelBoundary } from '@/components/shell/PanelBoundary';
 import { Loader } from '@/components/ui/Status';
@@ -86,11 +85,7 @@ export function App() {
         </PanelBoundary>
       </main>
 
-      {isPhone ? (
-        <MobileNav current={section} onNavigate={navigate} />
-      ) : (
-        <DockNav current={section} onNavigate={navigate} />
-      )}
+      {isPhone ? null : <DockNav current={section} onNavigate={navigate} />}
       <CommandPalette />
     </div>
   );

@@ -102,9 +102,14 @@ try {
   assert.equal(evaluate('document.querySelector(".workbench") === null'), true);
   assert.equal(evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
 
-  // Phone: a sheet, opened from the header.
+  // Phone: a sheet, opened from the compact composer's plus menu.
   browser('set', 'viewport', '390', '844');
-  clickLabel('Показати робоче місце', 'Show the workbench');
+  browser('wait', '.chat-phone-toolbar');
+  evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  browser('click', '.prompt-bar__tool[aria-controls="chat-attachment-menu"]');
+  browser('wait', '[data-attachment-menu]');
+  browser('find', 'role', 'button', 'click', '--name',
+    evaluate('document.documentElement.lang') === 'uk' ? 'Показати робоче місце' : 'Show the workbench', '--exact');
   browser('wait', '[role="dialog"] .workbench');
   assert.equal(evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
   if (shot) browser('screenshot', `${shot}/workbench-phone.png`);

@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Menu, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { Brand } from './Brand';
 import { AuthCorner } from './AuthCorner';
@@ -12,13 +10,13 @@ import { Tip } from '@/components/ui/Tip';
 import { useBotEvents, useEventsConnected } from '@/hooks/useBotEvents';
 import { useDockSide } from '@/hooks/useDockSide';
 import { useIsPhone } from '@/hooks/useMediaQuery';
-import { useDrawer } from '@/hooks/useDrawer';
-import { findSection, SECTIONS } from '@/app/sections';
+import { findSection } from '@/app/sections';
 import { useRoute } from '@/app/useRoute';
 import { cn } from '@/lib/cn';
 import { t } from '@/lib/i18n';
 import { useBrainModels, useModels, useStatus } from '@/lib/queries';
 import { mobileSectionLabel } from './mobileNavLabels';
+import { PhoneNavigationMenu } from './PhoneNavigationMenu';
 
 /*
  * Шапка тримає СТАН бота й нічого більше: налаштування вигляду живуть у
@@ -27,8 +25,7 @@ import { mobileSectionLabel } from './mobileNavLabels';
  */
 export function Topbar() {
   const isPhone = useIsPhone();
-  const [section, navigate] = useRoute();
-  const drawer = useDrawer();
+  const [section] = useRoute();
   const status = useStatus();
   const models = useModels();
   const brain = useBrainModels();
@@ -59,80 +56,20 @@ export function Topbar() {
   const brainModel = brain.data?.models.find((model) => model.id === brainId);
   const activeModel = brainModel?.label || brainId || models.data?.active || '';
 
+  // Keep dock-side normalization mounted while chat owns the single phone toolbar.
+  if (isPhone && section === 'chat') return null;
+
   return (
-    <header className="u-safe-t flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-3 sm:px-4"
+    <header data-global-topbar className={cn("u-safe-t flex shrink-0 items-center gap-3 border-b border-line bg-surface px-3 sm:px-4", isPhone ? "min-h-[calc(48px+env(safe-area-inset-top,0px))]" : "h-14")}
             style={{ zIndex: 'var(--z-topbar)' }}>
       {isPhone ? (
         <>
-          <button
-            type="button"
-            aria-label={t('nav.all')}
-            aria-expanded={drawer.open}
-            onClick={() => drawer.setOpen(true)}
-            className="mobile-topbar__menu"
-          >
-            <Menu size={19} />
-          </button>
+          <PhoneNavigationMenu />
           <Brand compact className="shrink-0" />
           <div className="mobile-topbar__title" aria-live="polite">
             {mobileSectionLabel(section) ?? findSection(section).label}
           </div>
           <span className="mobile-topbar__action" aria-hidden="true" />
-
-          {drawer.open
-            ? createPortal(
-                <>
-                  <div
-                    {...drawer.veilProps}
-                    className="u-veil fixed inset-0"
-                    style={{ background: 'var(--c-overlay)', zIndex: 'var(--z-drawer)' }}
-                  />
-                  <div
-                    {...drawer.panelProps}
-                    aria-label={t('nav.all')}
-                    className="u-sheet-l u-safe-t u-safe-b fixed inset-y-0 left-0 flex w-[280px] max-w-[85vw] flex-col border-r border-line bg-surface"
-                    style={{ zIndex: 'var(--z-drawer)' }}
-                  >
-                    <header className="flex items-center justify-between border-b border-line px-4 py-3">
-                      <span className="text-[15px] font-semibold text-ink">{t('nav.sections')}</span>
-                      <button
-                        type="button"
-                        aria-label={t('chat.close')}
-                        onClick={() => drawer.setOpen(false)}
-                        className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-ink-3"
-                      >
-                        <X size={18} />
-                      </button>
-                    </header>
-                    <nav aria-label={t('nav.all')} className="flex-1 overflow-y-auto p-2">
-                      {SECTIONS.map((item) => {
-                        const Icon = item.icon;
-                        const active = item.id === section;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            aria-current={active ? 'page' : undefined}
-                            onClick={() => {
-                              navigate(item.id);
-                              drawer.setOpen(false);
-                            }}
-                            className={cn(
-                              'flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-[14px] transition-colors',
-                              active ? 'bg-accent-soft font-medium text-ink' : 'text-ink-2',
-                            )}
-                          >
-                            <Icon size={17} strokeWidth={active ? 2.1 : 1.75} />
-                            <span>{item.label}</span>
-                          </button>
-                        );
-                      })}
-                    </nav>
-                  </div>
-                </>,
-                document.body,
-              )
-            : null}
         </>
       ) : <Brand compact className="shrink-0" />}
 

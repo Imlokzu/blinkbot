@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Cable, Camera, ChevronRight, FileText, Image, ImagePlus, PanelRightOpen, Wrench, X } from 'lucide-react';
 import { ContextMeter } from './ContextMeter';
 import { t } from '@/locales/chat';
+import { t as benchT } from '@/locales/workbench';
 import { t as connectorT } from '@/locales/connectors';
 import { t as imageT } from '@/locales/imageGeneration';
 import './attach-sheet.css';
@@ -54,6 +55,7 @@ export function AttachSheet({
   onFiles,
   onTools,
   onPanels,
+  onWorkbench,
   onConnectors,
   onImageGeneration,
   context,
@@ -66,6 +68,7 @@ export function AttachSheet({
   onFiles: (files: File[]) => void;
   onTools: () => void;
   onPanels: () => void;
+  onWorkbench?: () => void;
   onConnectors: () => void;
   onImageGeneration: () => void;
   context: React.ComponentProps<typeof ContextMeter>;
@@ -170,6 +173,7 @@ export function AttachSheet({
           <Row icon={<Cable />} label={connectorT('connectors.title')} onClick={onConnectors} />
           <Row icon={<Wrench />} label={t('sheet.tools')} onClick={onTools} />
           <Row icon={<PanelRightOpen />} label={t('sheet.panels')} onClick={onPanels} />
+          {onWorkbench ? <Row icon={<PanelRightOpen />} label={benchT('wb.open')} onClick={onWorkbench} /> : null}
           </div>
           {!compact ? <div className="attach-context"><ContextMeter {...context} variant="row" /></div> : null}
         </div>

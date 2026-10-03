@@ -148,8 +148,8 @@ stops following it. Therefore, the axis became a parameter of the component itse
 
 ## Layout
 
-Three breakpoints: `< 760px` phone (bottom navigation, one column, drawers
-instead of side panels), `760–1180px` tablet, `> 1180px` desk (side rail
+Three breakpoints: `< 760px` phone (one chat toolbar, shared navigation drawer,
+one column), `760–1180px` tablet, `> 1180px` desk (side rail
 of sections + two-three columns). iOS safe zones via `env(safe-area-inset-*)` —
 the dashboard is installed on the home screen as a PWA.
 
@@ -176,19 +176,32 @@ the dashboard is installed on the home screen as a PWA.
 Below the desk breakpoint the chat is reorganised around the thumb, after the
 owner's sketch:
 
-- **Header:** conversations list | model name as the title | new conversation.
-  The title opens `ModelMenu`: the model list and the thinking level as a row
-  of stops. The compact face is gone from this header — at this width it was
-  an ornament competing with the model name.
+- **Phone header:** menu | conversations | compact model | new conversation.
+  Chat owns this single safe-area-aware toolbar; the global band and bottom
+  navigation are absent. Other phone pages retain a compact header with the
+  same sections drawer, including a route back to chat.
+- The model button opens two independently scrolling columns: models and
+  thinking. Phones cap the popup at 360px and 52dvh, with 44px touch targets,
+  a 13px trigger and 12px model names. The selected choices remain visible
+  when the keyboard or a recovery message reduces available space.
 - **Prompt bar:** only what you type with — "+", the field, mic, send. The
   model and thinking pickers moved to the header; they squeezed the field to
   a few words.
 - **"+" sheet** (`AttachSheet`), opening in place above the bar: camera,
   photos and files as thumb-sized tiles, then context, tools and panels as
-  rows. The context meter moved here from under the bar.
+  rows. Workbench has its own phone row, separate from pinned Panels; closing
+  it returns focus to "+". Tablets keep their toolbar Workbench action.
+  The context meter moved here from under the bar.
 - Escape peels one layer at a time; a tap inside the context popover does not
   count as a tap outside the sheet.
 - The desktop layout is unchanged.
+- The shared navigation drawer traps and restores focus, respects landscape
+  notch insets, and releases body locks on close or desktop resize. Edge
+  gestures transfer ownership to Conversations instead of stacking drawers.
+- Phone text input uses 16px type to avoid automatic browser zoom. No space
+  remains reserved for the removed footer or a remembered desktop side dock.
+- Regression checks: `tests/phone-navigation.browser.mjs`,
+  `tests/mobile-picker.browser.mjs`, and existing chat/Workbench fixtures.
 
 ## Model picker (2026-09-24)
 

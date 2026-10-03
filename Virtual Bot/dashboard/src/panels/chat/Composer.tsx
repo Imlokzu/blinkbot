@@ -56,6 +56,7 @@ export function Composer({
   onCompacted,
   lean = false,
   onOpenPanels,
+  onOpenWorkbench,
 }: {
   busy: boolean;
   queued?: boolean;
@@ -68,6 +69,7 @@ export function Composer({
   lean?: boolean;
   /** Opens the pinned panels; on narrow screens the sheet is the way in. */
   onOpenPanels?: () => void;
+  onOpenWorkbench?: () => void;
 }) {
   const brain = useBrainChoice();
   const dictation = useDictation();
@@ -158,6 +160,7 @@ export function Composer({
               setSheetOpen(false);
               onOpenPanels?.();
             }}
+            onWorkbench={onOpenWorkbench ? () => { setSheetOpen(false); onOpenWorkbench(); } : undefined}
             context={context}
           />
 
@@ -216,6 +219,7 @@ export function Composer({
             plusSlot={(
               <button
                 ref={plus}
+                data-workbench-trigger={onOpenWorkbench ? '' : undefined}
                 type="button"
                 className="prompt-bar__tool"
                 aria-label={t('composer.add')}

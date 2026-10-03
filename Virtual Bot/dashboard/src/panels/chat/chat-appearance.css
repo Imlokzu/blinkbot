@@ -82,6 +82,16 @@ html[data-chat-material="solid"] .chat-conversation .liquid-glass-plate { backgr
   .chat-landing-suggestions button { font-size: 11px; padding-inline: 10px; }
   .chat-conversation .prompt-bar__field { padding: 12px; }
 }
+@media (max-width: 759px) {
+  .chat-phone-toolbar {
+    padding-top: max(4px, env(safe-area-inset-top, 0px));
+    padding-bottom: 4px;
+    padding-left: max(8px, env(safe-area-inset-left, 0px));
+    padding-right: max(8px, env(safe-area-inset-right, 0px));
+  }
+  /* iOS must not zoom the whole chat when its textarea receives focus. */
+  .chat-conversation .prompt-bar__input { font-size: 16px; }
+}
 /* Keep tall drafts and a software keyboard reachable in a short viewport. */
 @media (max-height: 560px) {
   .chat-thread[data-empty] .chat-composer-position { margin-top: auto; margin-bottom: 0; }

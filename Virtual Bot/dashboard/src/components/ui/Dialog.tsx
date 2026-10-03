@@ -5,9 +5,8 @@ import { Button } from './Button';
 import { t } from '@/lib/i18n';
 
 /*
- * Модальне вікно й нижня шухляда — один компонент із двома розкладками.
- * На телефоні модалка посеред екрана недосяжна великим пальцем, тому там
- * вміст приїжджає знизу (side="bottom").
+ * Modal, bottom sheet and navigation drawer share focus trapping and
+ * dismissal. The left drawer gives phone navigation a reachable layout.
  */
 
 export const Dialog = RadixDialog.Root;
@@ -25,7 +24,7 @@ export function DialogContent({
 }: {
   title: string;
   description?: string;
-  side?: 'center' | 'bottom';
+  side?: 'center' | 'bottom' | 'left';
   className?: string;
   bodyClassName?: string;
   onCloseAutoFocus?: React.ComponentProps<typeof RadixDialog.Content>['onCloseAutoFocus'];
@@ -42,11 +41,13 @@ export function DialogContent({
         style={{ zIndex: 'var(--z-modal)' }}
         className={cn(
           'fixed border border-line bg-surface shadow-pop outline-none',
-          // Вікно по центру виростає, шухляда знизу — приїжджає з-за краю.
-          side === 'center' ? 'u-pop' : 'u-sheet',
+          // Each surface enters from the edge that matches its position.
+          side === 'center' ? 'u-pop' : side === 'left' ? 'u-sheet-l' : 'u-sheet',
           side === 'center'
             ? 'left-1/2 top-1/2 max-h-[85dvh] w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-lg'
-            : 'u-safe-b inset-x-0 bottom-0 max-h-[min(85dvh,calc(100dvh-env(safe-area-inset-top,0px)-12px))] rounded-t-xl border-b-0',
+            : side === 'left'
+              ? 'u-safe-t u-safe-b inset-y-0 left-0 max-h-dvh w-[min(300px,86vw)] rounded-r-xl border-l-0 pl-[env(safe-area-inset-left,0px)]'
+              : 'u-safe-b inset-x-0 bottom-0 max-h-[min(85dvh,calc(100dvh-env(safe-area-inset-top,0px)-12px))] rounded-t-xl border-b-0',
           'flex flex-col',
           className,
         )}

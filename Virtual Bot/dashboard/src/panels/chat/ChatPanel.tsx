@@ -22,6 +22,7 @@ import { useBotEvents } from '@/hooks/useBotEvents';
 import { useQuery } from '@tanstack/react-query';
 import { get } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
+import { PhoneNavigationMenu } from '@/components/shell/PhoneNavigationMenu';
 import { Dialog, DialogContent } from '@/components/ui/Dialog';
 import { t as workspaceT } from '@/locales/workspace';
 import { t as benchT } from '@/locales/workbench';
@@ -300,7 +301,8 @@ export default function ChatPanel() {
            * was a 64 px ornament competing with the model name.
            */}
           {!isDesk ? (
-            <div className="chat-narrow-toolbar relative grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1 border-b border-line px-2 py-1.5">
+            <div className={`chat-narrow-toolbar relative grid shrink-0 items-center gap-1 border-b border-line px-2 py-1.5 ${isPhone ? 'chat-phone-toolbar grid-cols-[auto_auto_minmax(0,1fr)_auto]' : 'grid-cols-[auto_minmax(0,1fr)_auto_auto]'}`}>
+              {isPhone ? <PhoneNavigationMenu /> : null}
               <Button
                 variant="ghost"
                 size="icon"
@@ -313,9 +315,10 @@ export default function ChatPanel() {
               <div className="flex min-w-0 items-center justify-center gap-1">
                 <ModelMenu />
               </div>
-              <Button
+              {!isPhone ? <Button
                 variant="ghost"
                 size="icon"
+                data-workbench-trigger=""
                 aria-label={benchT(benchSheet ? 'wb.close' : 'wb.open')}
                 aria-expanded={benchSheet}
                 className="relative"
@@ -323,7 +326,7 @@ export default function ChatPanel() {
               >
                 <PanelRight />
                 {benchFiles ? <span className="wb-badge" aria-hidden="true">{benchFiles}</span> : null}
-              </Button>
+              </Button> : null}
               <Button
                 variant="ghost"
                 size="icon"
@@ -383,6 +386,12 @@ export default function ChatPanel() {
                   side={isPhone ? 'bottom' : 'center'}
                   className="h-[min(92dvh,900px)] p-0 sm:max-w-[min(960px,calc(100vw-32px))]"
                   bodyClassName="p-0 sm:p-0"
+                  onCloseAutoFocus={(event) => {
+                    const trigger = glassRoot.current?.querySelector<HTMLButtonElement>('[data-workbench-trigger]');
+                    if (!trigger) return;
+                    event.preventDefault();
+                    trigger.focus({ preventScroll: true });
+                  }}
                 >
                   <Workbench embedded messages={chat.visibleMessages} sessionId={chat.sessionId} focus={benchFocus}
                     recentWriteIds={recentWriteIds} revealedWrites={revealedWrites}
@@ -402,6 +411,7 @@ export default function ChatPanel() {
                 key={chat.composerEpoch}
                 lean={!isDesk}
                 onOpenPanels={() => setPanelsOpen(true)}
+                onOpenWorkbench={isPhone ? toggleBench : undefined}
                 busy={chat.running || chat.queuedSend}
                 queued={chat.queuedSend}
                 usedTokens={chat.usedTokens}

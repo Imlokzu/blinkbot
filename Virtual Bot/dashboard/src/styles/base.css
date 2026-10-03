@@ -233,9 +233,12 @@ a { color: var(--c-accent); text-decoration-thickness: 1px; text-underline-offse
   .pin-screen { width: 192px; height: 144px; }
   .pin-screen-frame { width: 320px; height: 240px; max-width: none; transform: scale(0.6); transform-origin: top left; }
   @media (max-width: 759px) {
-    .chat-conversation { padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
-    .chat-scroll-latest { bottom: 128px; }
-    [data-kb] .chat-scroll-latest { bottom: 128px; }
+    :root[data-dock] .u-under-dock,
+    .u-under-dock { padding: 0; }
+    .u-under-dock::before { display: none; }
+    .chat-conversation { padding-bottom: 0; }
+    .chat-scroll-latest { bottom: 104px; }
+    [data-kb] .chat-scroll-latest { bottom: 104px; }
     .chat-composer {
       padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
       padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
@@ -244,53 +247,7 @@ a { color: var(--c-accent); text-decoration-thickness: 1px; text-underline-offse
   }
 }
 
-/* Phone navigation follows the familiar app pattern: a quiet top bar and a
-   labelled bottom rail with only the four destinations used most often. */
-.mobile-nav { display: none; }
-@media (max-width: 759px) {
-  .mobile-nav {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: var(--z-rail);
-    display: block;
-    border-top: 1px solid var(--c-border);
-    background: var(--c-surface);
-  }
-  .mobile-nav__items {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    width: min(100%, 520px);
-    min-height: 64px;
-    margin: 0 auto;
-    padding: 4px 8px 0;
-  }
-  .mobile-nav__item {
-    display: flex;
-    min-width: 0;
-    min-height: 56px;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    border-radius: var(--r-md);
-    color: var(--c-text-3);
-    font-size: 11px;
-    line-height: 1.15;
-    transition: color var(--t-fast) var(--e-out), background-color var(--t-fast) var(--e-out);
-  }
-  .mobile-nav__item:active { transform: translateY(1px); }
-  .mobile-nav__item--active {
-    background: var(--c-accent-soft);
-    color: var(--c-accent);
-    font-weight: 500;
-  }
-  .mobile-nav__icon { display: grid; place-items: center; min-height: 20px; }
-}
-
-/* The global header stays useful on every panel without competing with the
-   chat header or forcing primary destinations into a horizontal scroller. */
+/* Other phone pages keep one compact header; chat owns its navigation controls. */
 .mobile-topbar__menu,
 .mobile-topbar__action {
   display: grid;
