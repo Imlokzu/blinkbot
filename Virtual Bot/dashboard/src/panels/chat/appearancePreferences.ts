@@ -1,8 +1,14 @@
-export type ChatBackground = 'none' | 'sky' | 'dusk' | 'forest' | 'custom';
+export type ChatBackground = 'none' | 'sky' | 'dusk' | 'forest' | 'custom' | 'video';
 export type ChatColor = 'theme' | 'rose' | 'sage' | 'ocean' | 'lavender';
+export type BackgroundTarget = 'chat' | 'navigation' | 'sessions' | 'panels' | 'pages';
+export type ChatMaterial = 'glass' | 'solid';
 export interface ChatAppearance {
   background: ChatBackground;
   image: string | null;
+  videoId: string | null;
+  targets: readonly BackgroundTarget[];
+  sidebarVisible: boolean;
+  material: ChatMaterial;
   opacity: number;
   blur: number;
   color: ChatColor;
@@ -11,10 +17,12 @@ export interface ChatAppearance {
 export const APPEARANCE_STORAGE_KEY = 'claudeBotChatAppearance';
 export const MAX_BACKGROUND_FILE_BYTES = 8 * 1024 * 1024;
 export const MAX_BACKGROUND_IMAGE_LENGTH = 1024 * 1024;
+export const BACKGROUND_TARGETS: readonly BackgroundTarget[] = Object.freeze(['chat', 'navigation', 'sessions', 'panels', 'pages']);
 export const DEFAULT_CHAT_APPEARANCE: Readonly<ChatAppearance> = Object.freeze({
-  background: 'sky', image: null, opacity: 88, blur: 8, color: 'theme',
+  background: 'sky', image: null, videoId: null, targets: Object.freeze(['chat'] as BackgroundTarget[]),
+  sidebarVisible: true, material: 'glass', opacity: 35, blur: 12, color: 'theme',
 });
-const BACKGROUNDS = new Set<ChatBackground>(['none', 'sky', 'dusk', 'forest', 'custom']);
+const BACKGROUNDS = new Set<ChatBackground>(['none', 'sky', 'dusk', 'forest', 'custom', 'video']);
 const COLORS = new Set<ChatColor>(['theme', 'rose', 'sage', 'ocean', 'lavender']);
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
@@ -44,18 +52,39 @@ function boundedNumber(value: unknown, fallback: number, min: number, max: numbe
     ? Math.round(Math.max(min, Math.min(max, value))) : fallback;
 }
 
+/** A saved video reference is an opaque local key, never a URL or a path. */
+export function isWallpaperVideoId(value: unknown): value is string {
+  return typeof value === 'string' && /^wallpaper-[A-Za-z0-9-]{8,80}$/.test(value);
+}
+
+export function hasFullAppBackground(appearance: Pick<ChatAppearance, 'targets'>): boolean {
+  return BACKGROUND_TARGETS.every(target => appearance.targets.includes(target));
+}
+
 export function normalizeChatAppearance(value: unknown): ChatAppearance {
   const input = value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown> : {};
   const image = isBackgroundImage(input.image) ? input.image : null;
+  const videoId = isWallpaperVideoId(input.videoId) ? input.videoId : null;
   let background = BACKGROUNDS.has(input.background as ChatBackground)
     ? input.background as ChatBackground : DEFAULT_CHAT_APPEARANCE.background;
   if (background === 'custom' && !image) background = DEFAULT_CHAT_APPEARANCE.background;
+  if (background === 'video' && !videoId) background = DEFAULT_CHAT_APPEARANCE.background;
+  const requestedTargets = input.targets;
+  const targets = Array.isArray(requestedTargets)
+    ? BACKGROUND_TARGETS.filter(target => requestedTargets.includes(target))
+    : [...DEFAULT_CHAT_APPEARANCE.targets];
+  // The previous stock fill obscured the restored lens; deliberate custom values survive.
+  const legacyStockGlass = !('material' in input) && input.opacity === 88 && input.blur === 8;
   return {
     background,
     image,
-    opacity: boundedNumber(input.opacity, DEFAULT_CHAT_APPEARANCE.opacity, 65, 100),
-    blur: boundedNumber(input.blur, DEFAULT_CHAT_APPEARANCE.blur, 0, 16),
+    videoId,
+    targets: Object.freeze(targets),
+    sidebarVisible: typeof input.sidebarVisible === 'boolean' ? input.sidebarVisible : DEFAULT_CHAT_APPEARANCE.sidebarVisible,
+    material: input.material === 'solid' ? 'solid' : 'glass',
+    opacity: legacyStockGlass ? DEFAULT_CHAT_APPEARANCE.opacity : boundedNumber(input.opacity, DEFAULT_CHAT_APPEARANCE.opacity, 15, 100),
+    blur: legacyStockGlass ? DEFAULT_CHAT_APPEARANCE.blur : boundedNumber(input.blur, DEFAULT_CHAT_APPEARANCE.blur, 0, 16),
     color: COLORS.has(input.color as ChatColor) ? input.color as ChatColor : DEFAULT_CHAT_APPEARANCE.color,
   };
 }
@@ -68,7 +97,9 @@ export type AppearanceUpdate = Partial<ChatAppearance> | ((previous: ChatAppeara
 
 function equalAppearance(a: ChatAppearance, b: ChatAppearance): boolean {
   return a.background === b.background && a.image === b.image && a.opacity === b.opacity
-    && a.blur === b.blur && a.color === b.color;
+    && a.blur === b.blur && a.color === b.color && a.videoId === b.videoId
+    && a.material === b.material && a.sidebarVisible === b.sidebarVisible
+    && a.targets.length === b.targets.length && a.targets.every((target, index) => target === b.targets[index]);
 }
 
 /** Persist first: quota or privacy restrictions must not create a false saved state. */

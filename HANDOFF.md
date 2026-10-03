@@ -975,3 +975,40 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   the required owner identity. Release assets match committed sources; the live
   local build preserves other agents' pending UI edits. Test servers and browsers
   are stopped after verification. Setup: Virtual Bot/docs/IMAGE-GENERATION.md.
+
+
+## Wallpaper media and quiet chat controls (2026-10-03)
+
+- Model selection now always groups by maker without catalog sorting controls.
+  A separate icon to its right selects server-reported thinking levels. Both
+  menus keep search, availability feedback, serialized writes and keyboard
+  support. Large catalogs and effort lists scroll within Radix's available
+  viewport space so search and reset controls remain reachable.
+- Navigation and icon actions use unfenced glyphs. The chat customization
+  shortcut is removed; Settings > Appearance owns wallpaper, placement,
+  colour, glass/solid material, opacity, blur and right-panel visibility.
+  Closing the rail preserves selected pins and restores focus to its toggle.
+- The new local chat-sky-v2.webp is an original generated painted cloudscape
+  (1672x941, 213 KB), with provenance and its exact built-in ImageGen prompt
+  beside it. The exact reference wallpaper was not identified. WebP joins
+  the service-worker precache so the built-in sky remains available offline.
+- One app-wide wallpaper serves selected chat, navigation, conversations,
+  right-panel and other-page surfaces, or the whole app. MP4/WebM uploads up
+  to 40 MB stay in IndexedDB, with bounded JPEG stills; localStorage stores
+  only an opaque ID. Playback loops muted and pauses for hidden tabs, reduced
+  motion, data saving and routes outside the selected areas. Settings uses
+  a still preview rather than starting a second player.
+- Hyalite refraction and rim are restored beneath the composer. Its blur
+  responds to settings; reduced transparency and solid material use opaque
+  controls. Exact old stock defaults migrate to glass; custom values remain.
+- A separate supported maximum-effort adversarial reviewer approved the
+  asset and UI, fixed oversized posters and clipped effort menus, and verified
+  the root's model-menu clipping fix. Fable remains unavailable in this runtime.
+- Validation: 1,049 Python tests passed, 6 skipped, 178 subtests; 128 frontend
+  tests in the isolated committed-source build, 127 in the working tree;
+  TypeScript and production build passed. Browser fixtures verified a
+  63-model catalog, effort writes/rollback/reset, both locales and touch
+  geometry, local image/video upload and reload, one silent player, scope
+  controls, pin-preserving rail closure, keyboard crowding and reduced motion.
+  Status, screen and dashboard HTTP checks returned 200; memory traversal
+  returned 400. Unrelated drafts and the owner's staged changes are preserved.

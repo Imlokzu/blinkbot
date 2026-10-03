@@ -2,16 +2,21 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   APPEARANCE_STORAGE_KEY,
+  BACKGROUND_TARGETS,
   BackgroundImageError,
   DEFAULT_CHAT_APPEARANCE,
   MAX_BACKGROUND_FILE_BYTES,
   MAX_BACKGROUND_IMAGE_LENGTH,
   createChatAppearanceStore,
   isBackgroundImage,
+  hasFullAppBackground,
+  isWallpaperVideoId,
   normalizeChatAppearance,
   prepareBackgroundImage,
   validateBackgroundFile,
 } from '../src/panels/chat/appearancePreferences.ts';
+import { MAX_BACKGROUND_POSTER_BYTES, MAX_BACKGROUND_VIDEO_BYTES, WallpaperMediaError, loadWallpaperVideo, matchesBackgroundVideoSignature,
+  deleteWallpaperVideo, prepareWallpaperVideo, saveWallpaperVideo, validateBackgroundVideoFile } from '../src/panels/chat/wallpaperMedia.ts';
 
 // A real raster header matters: a data URL alone does not make content safe.
 const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lN8AAAAASUVORK5CYII=';
@@ -51,10 +56,10 @@ test('appearance values are bounded without discarding a valid saved image', () 
   assert.deepEqual(normalizeChatAppearance({
     background: 'forest', image: png, opacity: 66.7, blur: 3.8, color: 'ocean', extra: true,
   }), {
-    background: 'forest', image: png, opacity: 67, blur: 4, color: 'ocean',
+    ...DEFAULT_CHAT_APPEARANCE, background: 'forest', image: png, opacity: 67, blur: 4, color: 'ocean',
   });
   const low = normalizeChatAppearance({ opacity: -10, blur: -10 });
-  assert.equal(low.opacity, 65);
+  assert.equal(low.opacity, 15);
   assert.equal(low.blur, 0);
   const high = normalizeChatAppearance({ opacity: 200, blur: 200 });
   assert.equal(high.opacity, 100);
@@ -138,7 +143,7 @@ test('wrong raster MIME types and truncated headers never reach the decoder', as
 });
 
 test('saved settings round trip and snapshots stay stable until a change', () => {
-  const saved = { background: 'custom', image: png, opacity: 75, blur: 5, color: 'rose' };
+  const saved = { ...DEFAULT_CHAT_APPEARANCE, background: 'custom', image: png, opacity: 75, blur: 5, color: 'rose' };
   const storage = memoryStorage(JSON.stringify(saved));
   const store = createChatAppearanceStore(() => storage);
   assert.deepEqual(store.getSnapshot(), saved);
@@ -146,6 +151,247 @@ test('saved settings round trip and snapshots stay stable until a change', () =>
   assert.equal(store.setAppearance({ opacity: 82 }), true);
   assert.deepEqual(JSON.parse(storage.value), { ...saved, opacity: 82 });
   assert.deepEqual(createChatAppearanceStore(() => storage).getSnapshot(), store.getSnapshot());
+});
+
+test('only the old stock glass defaults migrate; deliberate settings survive', () => {
+  const stock = normalizeChatAppearance({ background: 'sky', opacity: 88, blur: 8, color: 'theme' });
+  assert.equal(stock.opacity, 35);
+  assert.equal(stock.blur, 12);
+  assert.equal(stock.material, 'glass');
+  for (const saved of [{ opacity: 88, blur: 7 }, { opacity: 80, blur: 8 }, { opacity: 88, blur: 8, material: 'glass' }]) {
+    const normalized = normalizeChatAppearance(saved);
+    assert.equal(normalized.opacity, saved.opacity);
+    assert.equal(normalized.blur, saved.blur);
+  }
+  // Migrating the display must still retain the local image and the chosen accent.
+  const migratedImage = normalizeChatAppearance({ background: 'custom', image: png, opacity: 88, blur: 8, color: 'rose' });
+  assert.equal(migratedImage.image, png);
+  assert.equal(migratedImage.background, 'custom');
+  assert.equal(migratedImage.color, 'rose');
+});
+
+test('wallpaper placement deduplicates allowed targets in a stable order', () => {
+  assert.deepEqual(normalizeChatAppearance({ targets: ['pages', 'chat', 'chat', 'unknown', 'panels'] }).targets,
+    ['chat', 'panels', 'pages']);
+  assert.deepEqual(normalizeChatAppearance({ targets: [] }).targets, []);
+  for (const targets of [null, 'all', {}, true]) assert.deepEqual(normalizeChatAppearance({ targets }).targets, ['chat']);
+  assert.equal(hasFullAppBackground({ targets: BACKGROUND_TARGETS }), true);
+  assert.equal(hasFullAppBackground({ targets: ['chat', 'navigation'] }), false);
+  assert.equal(normalizeChatAppearance({ sidebarVisible: false, material: 'solid' }).sidebarVisible, false);
+  assert.equal(normalizeChatAppearance({ sidebarVisible: 'false', material: 'unknown' }).sidebarVisible, true);
+  assert.equal(normalizeChatAppearance({ material: 'unknown' }).material, 'glass');
+});
+
+test('placement, material and sidebar participate in saved snapshots', () => {
+  const storage = memoryStorage();
+  const store = createChatAppearanceStore(() => storage);
+  let notifications = 0;
+  const stop = store.subscribe(() => notifications++);
+  assert.equal(store.setAppearance({ targets: ['panels', 'chat'], sidebarVisible: false, material: 'solid' }), true);
+  assert.equal(notifications, 1);
+  assert.deepEqual(store.getSnapshot().targets, ['chat', 'panels']);
+  assert.equal(store.setAppearance({ targets: ['chat', 'panels', 'chat'] }), true);
+  assert.equal(notifications, 1);
+  assert.deepEqual(createChatAppearanceStore(() => storage).getSnapshot(), store.getSnapshot());
+  storage.failWrites = true;
+  const previous = store.getSnapshot();
+  assert.equal(store.setAppearance({ targets: [...BACKGROUND_TARGETS], sidebarVisible: true, material: 'glass' }), false);
+  assert.equal(store.getSnapshot(), previous);
+  stop();
+});
+
+test('video preferences only accept opaque local IDs, never remote or blob URLs', () => {
+  const videoId = 'wallpaper-2d2753ab-9c10-48e5-b970-5d2e11625d8f';
+  assert.equal(isWallpaperVideoId(videoId), true);
+  assert.equal(normalizeChatAppearance({ background: 'video', videoId }).background, 'video');
+  for (const videoId of [null, '', 'https://example.com/video.mp4', 'blob:https://example.com/video', '../video', 'wallpaper-short']) {
+    assert.equal(isWallpaperVideoId(videoId), false);
+    const normalized = normalizeChatAppearance({ background: 'video', videoId });
+    assert.equal(normalized.videoId, null);
+    assert.equal(normalized.background, 'sky');
+  }
+});
+
+test('video uploads enforce formats, finite nonzero sizes and the 40 MB boundary', () => {
+  for (const type of ['video/mp4', 'video/webm']) {
+    assert.equal(validateBackgroundVideoFile({ type, size: 1 }), null);
+    assert.equal(validateBackgroundVideoFile({ type, size: MAX_BACKGROUND_VIDEO_BYTES }), null);
+  }
+  for (const type of ['', 'video/quicktime', 'video/x-matroska', 'image/svg+xml', 'text/html']) {
+    assert.equal(validateBackgroundVideoFile({ type, size: 1 }), 'videoFileType');
+  }
+  for (const size of [0, -1, NaN, Infinity, MAX_BACKGROUND_VIDEO_BYTES + 1]) {
+    assert.equal(validateBackgroundVideoFile({ type: 'video/mp4', size }), 'videoFileSize');
+  }
+});
+
+test('video signatures distinguish MP4 and WebM from renamed or truncated content', () => {
+  const mp4 = Uint8Array.from([0, 0, 0, 24, ...Buffer.from('ftypisom'), 0, 0, 0, 0, ...Buffer.from('isommp42')]);
+  const webm = Uint8Array.from([0x1a, 0x45, 0xdf, 0xa3, 0x87, 0x42, 0x82, 0x84, ...Buffer.from('webm')]);
+  assert.equal(matchesBackgroundVideoSignature('video/mp4', mp4), true);
+  assert.equal(matchesBackgroundVideoSignature('video/webm', webm), true);
+  assert.equal(matchesBackgroundVideoSignature('video/mp4', webm), false);
+  assert.equal(matchesBackgroundVideoSignature('video/webm', mp4), false);
+  assert.equal(matchesBackgroundVideoSignature('video/mp4', mp4.slice(0, 12)), false);
+  assert.equal(matchesBackgroundVideoSignature('video/mp4', new Uint8Array([0, 0, 0, 4, ...Buffer.from('ftypisom')])), false);
+  assert.equal(matchesBackgroundVideoSignature('video/webm', Uint8Array.from([0x1a, 0x45, 0xdf, 0xa3, ...Buffer.from('matroska')])), false);
+  assert.equal(matchesBackgroundVideoSignature('video/webm', Uint8Array.from([0x1a, 0x45, 0xdf, 0xa3, ...Buffer.from('webm')])), false);
+});
+
+test('spoofed video files never reach a decoder or object URL', async t => {
+  const createUrl = t.mock.method(URL, 'createObjectURL', () => { throw new Error('Spoof reached decoder'); });
+  const files = [
+    new File(['<svg><script>alert(1)</script></svg>'], 'pretend.mp4', { type: 'video/mp4' }),
+    new File(['<html>pretend</html>'], 'pretend.webm', { type: 'video/webm' }),
+  ];
+  for (const file of files) await assert.rejects(prepareWallpaperVideo(file), error =>
+    error instanceof WallpaperMediaError && error.code === 'videoFileType');
+  assert.equal(createUrl.mock.callCount(), 0);
+});
+
+test('unavailable IndexedDB reports a storage failure and invalid video IDs never load', async () => {
+  const record = { id: 'wallpaper-2d2753ab-9c10-48e5-b970-5d2e11625d8f', blob: new Blob(['video'], { type: 'video/mp4' }),
+    poster: new Blob(['poster'], { type: 'image/jpeg' }), width: 320, height: 240 };
+  await assert.rejects(saveWallpaperVideo(record), error => error instanceof WallpaperMediaError && error.code === 'videoStorage');
+  await assert.rejects(loadWallpaperVideo('https://example.com/video.mp4'), error =>
+    error instanceof WallpaperMediaError && error.code === 'videoMissing');
+});
+
+test('video decoding remains muted, saves a local still and releases its decoder URL', async t => {
+  const previousDocument = globalThis.document;
+  const listeners = new Map();
+  const decodedURLs = [];
+  const revokedURLs = [];
+  const video = {
+    videoWidth: 320, videoHeight: 180, duration: 2, src: '',
+    canPlayType: () => 'probably',
+    addEventListener: (type, listener) => listeners.set(type, listener),
+    removeEventListener: (type, listener) => { if (listeners.get(type) === listener) listeners.delete(type); },
+    load() { if (this.src) queueMicrotask(() => listeners.get('loadeddata')?.()); },
+    pause() {},
+    play() { throw new Error('Upload preparation must never play video'); },
+    removeAttribute(name) { if (name === 'src') this.src = ''; },
+  };
+  const canvas = { width: 0, height: 0, getContext: () => ({ drawImage() {} }),
+    toBlob: callback => callback(new Blob([Uint8Array.from([0xff, 0xd8, 0xff, 0xe0])], { type: 'image/jpeg' })) };
+  globalThis.document = { createElement: tag => tag === 'video' ? video : canvas };
+  t.mock.method(URL, 'createObjectURL', () => { decodedURLs.push('blob:decoder'); return 'blob:decoder'; });
+  t.mock.method(URL, 'revokeObjectURL', url => revokedURLs.push(url));
+  try {
+    const file = new File([Uint8Array.from([0, 0, 0, 24, ...Buffer.from('ftypisom'), 0, 0, 0, 0, ...Buffer.from('isommp42')])],
+      'private-filename.mp4', { type: 'video/mp4' });
+    const record = await prepareWallpaperVideo(file);
+    assert.equal(isWallpaperVideoId(record.id), true);
+    assert.equal(record.blob.type, 'video/mp4');
+    assert.equal(record.blob.size, file.size);
+    assert.equal('name' in record.blob, false);
+    assert.equal(record.poster.type, 'image/jpeg');
+    assert.equal(record.width, 320);
+    assert.equal(record.height, 180);
+    assert.equal(video.muted, true);
+    assert.equal(video.defaultMuted, true);
+    assert.equal(video.playsInline, true);
+    assert.equal(video.src, '');
+    assert.deepEqual(decodedURLs, ['blob:decoder']);
+    assert.deepEqual(revokedURLs, decodedURLs);
+    assert.equal(listeners.size, 0);
+  } finally { if (previousDocument === undefined) delete globalThis.document; else globalThis.document = previousDocument; }
+});
+
+test('detailed video posters shrink to the durable loader limit before saving', async t => {
+  const previousDocument = globalThis.document;
+  const listeners = new Map();
+  const sizes = [];
+  const video = {
+    videoWidth: 1280, videoHeight: 1280, duration: 2, src: '',
+    canPlayType: () => 'probably',
+    addEventListener: (type, listener) => listeners.set(type, listener),
+    removeEventListener: type => listeners.delete(type),
+    load() { if (this.src) queueMicrotask(() => listeners.get('loadeddata')?.()); },
+    pause() {},
+    removeAttribute(name) { if (name === 'src') this.src = ''; },
+  };
+  let alwaysOversized = false;
+  const canvas = { width: 0, height: 0, getContext: () => ({ drawImage() {} }),
+    toBlob(callback, type, quality) {
+      sizes.push({ width: this.width, height: this.height, quality });
+      const bytes = alwaysOversized || sizes.length === 1 ? MAX_BACKGROUND_POSTER_BYTES + 1 : 200;
+      callback(new Blob([new Uint8Array(bytes)], { type }));
+    } };
+  globalThis.document = { createElement: tag => tag === 'video' ? video : canvas };
+  t.mock.method(URL, 'createObjectURL', () => 'blob:poster-limit');
+  const revoke = t.mock.method(URL, 'revokeObjectURL', () => {});
+  const file = new File([Uint8Array.from([0, 0, 0, 24, ...Buffer.from('ftypisom'), 0, 0, 0, 0, ...Buffer.from('isommp42')])],
+    'detailed-frame.mp4', { type: 'video/mp4' });
+  try {
+    const record = await prepareWallpaperVideo(file);
+    assert.equal(record.poster.size, 200);
+    assert.equal(sizes.length, 2);
+    assert.ok(sizes[1].width < sizes[0].width && sizes[1].height < sizes[0].height);
+    assert.ok(sizes[1].quality < sizes[0].quality);
+    const invalidRecord = { ...record, poster: new Blob([new Uint8Array(MAX_BACKGROUND_POSTER_BYTES + 1)], { type: 'image/jpeg' }) };
+    await assert.rejects(saveWallpaperVideo(invalidRecord), error => error.code === 'videoFailed');
+    alwaysOversized = true;
+    await assert.rejects(prepareWallpaperVideo(file), error => error.code === 'videoFailed');
+    assert.equal(revoke.mock.callCount(), 2, 'both accepted and rejected decoding releases its object URL');
+    assert.equal(video.src, '');
+  } finally { if (previousDocument === undefined) delete globalThis.document; else globalThis.document = previousDocument; }
+});
+
+test('durable video storage waits for commit and preference snapshots only contain its ID', async () => {
+  const previousIndexedDB = globalThis.indexedDB;
+  const records = new Map();
+  let abortWrites = false;
+  let closed = 0;
+  const database = {
+    close() { closed++; },
+    transaction() {
+      const transaction = { objectStore() {
+        const request = (operation) => {
+          const result = {};
+          queueMicrotask(() => {
+            if (abortWrites) transaction.onabort();
+            else { result.result = operation(); transaction.oncomplete(); }
+          });
+          return result;
+        };
+        return {
+          put: record => request(() => { records.set(record.id, record); return record.id; }),
+          get: id => request(() => records.get(id)),
+          delete: id => request(() => { records.delete(id); return undefined; }),
+        };
+      } };
+      return transaction;
+    },
+  };
+  globalThis.indexedDB = { open() {
+    const request = { result: database };
+    queueMicrotask(() => request.onsuccess());
+    return request;
+  } };
+  const record = { id: 'wallpaper-2d2753ab-9c10-48e5-b970-5d2e11625d8f', blob: new Blob(['video'], { type: 'video/mp4' }),
+    poster: new Blob(['poster'], { type: 'image/jpeg' }), width: 320, height: 240 };
+  try {
+    const saving = saveWallpaperVideo(record);
+    assert.equal(records.size, 0);
+    await saving;
+    assert.equal((await loadWallpaperVideo(record.id)).blob, record.blob);
+    const storage = memoryStorage();
+    const store = createChatAppearanceStore(() => storage);
+    assert.equal(store.setAppearance({ background: 'video', videoId: record.id }), true);
+    const saved = JSON.parse(storage.value);
+    assert.equal(saved.videoId, record.id);
+    assert.equal('blob' in saved, false);
+    assert.equal('poster' in saved, false);
+    abortWrites = true;
+    await assert.rejects(saveWallpaperVideo({ ...record, id: 'wallpaper-another-opaque-id' }), error =>
+      error instanceof WallpaperMediaError && error.code === 'videoStorage');
+    assert.equal(records.size, 1);
+    abortWrites = false;
+    await deleteWallpaperVideo(record.id);
+    await assert.rejects(loadWallpaperVideo(record.id), error => error.code === 'videoMissing');
+    assert.equal(closed, 5);
+  } finally { if (previousIndexedDB === undefined) delete globalThis.indexedDB; else globalThis.indexedDB = previousIndexedDB; }
 });
 
 test('failed writes preserve the last saved appearance and do not notify subscribers', () => {

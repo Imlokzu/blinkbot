@@ -54,6 +54,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <Component
         ref={ref}
         type={asChild ? undefined : type}
+        data-icon-button={size === 'icon' || size === 'icon-sm' ? '' : undefined}
+        title={props.title ?? props['aria-label']}
         className={cn(button({ variant, size }), className)}
         {...props}
       />

@@ -15,6 +15,7 @@ import { ConnectorPicker } from './ConnectorPicker';
 import { ImageGenerationDialog } from './ImageGenerationDialog';
 import { useBrainChoice } from './useBrainChoice';
 import { ModelMenu } from './ModelMenu';
+import { EffortMenu } from './EffortMenu';
 import { useSendBubbleEffect } from './useSendBubbleEffect';
 import { t } from '@/locales/chat';
 import { t as appT } from '@/lib/i18n';
@@ -212,7 +213,7 @@ export function Composer({
             // in the bar on the desk, in the chat header on a phone.
             models={[]}
             efforts={[]}
-            modelSlot={lean ? undefined : <ModelMenu variant="bar" />}
+            modelSlot={lean ? undefined : <div className="chat-model-controls"><ModelMenu variant="bar" /><EffortMenu variant="bar" /></div>}
             plusSlot={(
               <button
                 ref={plus}

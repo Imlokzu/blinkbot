@@ -29,25 +29,30 @@ const lens: HyaliteOptions = {
   settle: 0,
 };
 
-export function useLiquidGlass(root: RefObject<HTMLElement | null>) {
+export function useLiquidGlass(root: RefObject<HTMLElement | null>, blur = 0, enabled = true) {
   useEffect(() => {
     const el = root.current;
     const Hyalite = window.Hyalite;
-    if (!el || !Hyalite?.supported()) return;
-    if (window.matchMedia('(prefers-reduced-transparency: reduce)').matches) return;
+    if (!el || !Hyalite?.supported() || !enabled) return;
+    const media = window.matchMedia('(prefers-reduced-transparency: reduce)');
     // The lens sits on a plate behind the field, never on the field itself.
     // The SVG filter clips the element it is attached to, and that was
     // cutting a tall draft down to its last line.
-    const field = Hyalite.watch(el, '.liquid-glass-plate', { ...lens, dispersion: 0.45 });
-    const circle = Hyalite.watch(el, '.chat-scroll-latest', {
-      ...lens,
-      bevel: 18,
-      thickness: 48,
-      dispersion: 0.4,
-    });
-    return () => {
-      field.stop();
-      circle.stop();
+    let stop: (() => void) | undefined;
+    const apply = () => {
+      stop?.(); stop = undefined;
+      if (media.matches) return;
+      const field = Hyalite.watch(el, '.liquid-glass-plate', { ...lens, blur, dispersion: 0.45 });
+      const circle = Hyalite.watch(el, '.chat-scroll-latest', {
+        ...lens, bevel: 18, thickness: 48, dispersion: 0.4,
+      });
+      stop = () => { field.stop(); circle.stop(); };
     };
-  }, [root]);
+    apply();
+    media.addEventListener('change', apply);
+    return () => {
+      media.removeEventListener('change', apply);
+      stop?.();
+    };
+  }, [root, blur, enabled]);
 }

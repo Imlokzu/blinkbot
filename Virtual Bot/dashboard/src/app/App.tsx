@@ -16,6 +16,7 @@ import { BotUiOverlay } from '@/components/shell/BotUiOverlay';
 import { SECTION_IDS } from './sections';
 import { useSwipeNavigation } from '@/hooks/useSwipeNavigation';
 import { usePopupGlass } from '@/hooks/usePopupGlass';
+import { AppWallpaper } from '@/components/shell/AppWallpaper';
 
 /*
  * Розділи вантажаться ліниво. Це не мікрооптимізація: чат тягне за собою
@@ -60,6 +61,7 @@ export function App() {
 
   const tree = (
     <div className="app-shell flex h-dvh flex-col overflow-hidden">
+      <AppWallpaper />
       <WorkspacePreviewDock />
       <BotUiOverlay />
       <Topbar />

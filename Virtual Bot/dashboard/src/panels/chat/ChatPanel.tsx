@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AssistantRuntimeProvider } from '@assistant-ui/react';
 import { createPortal } from 'react-dom';
-import { List, PanelLeft, PanelRight, Plus, X } from 'lucide-react';
+import { Columns2, List, PanelLeft, PanelRight, Plus, X } from 'lucide-react';
 import { Thread } from './Thread';
 import { Composer } from './Composer';
 import { SessionList } from './SessionList';
@@ -11,7 +11,7 @@ import { collectFiles, workspaceWrites, workspaceWriteId, workbenchHost } from '
 import { WorkspaceLinksProvider } from './WorkspaceFileLink';
 import { ModelMenu } from './ModelMenu';
 import { SelectionActions } from './SelectionActions';
-import { ChatAppearanceButton } from './ChatAppearance';
+import { EffortMenu } from './EffortMenu';
 import { useChatAppearance } from './useChatAppearance';
 import './chat-appearance.css';
 import { useChatRuntime } from './useChatRuntime';
@@ -28,6 +28,7 @@ import { t as workspaceT } from '@/locales/workspace';
 import { t as benchT } from '@/locales/workbench';
 import { t } from '@/lib/i18n';
 import { t as chatT } from '@/locales/chat';
+import { t as appearanceT } from '@/locales/chatAppearance';
 
 /*
  * Desktop chat keeps conversations, the thread and optional panels separate.
@@ -105,17 +106,18 @@ function useBenchWidth() {
 }
 
 export default function ChatPanel() {
-  const { appearance } = useChatAppearance();
+  const { appearance, setAppearance } = useChatAppearance();
   const isPhone = useIsPhone();
   const isDesk = useIsDesk();
   const project = useRouteParam('project');
   const chat = useChatRuntime(project);
   const glassRoot = useRef<HTMLDivElement>(null);
-  useLiquidGlass(glassRoot);
+  useLiquidGlass(glassRoot, appearance.blur, appearance.material === 'glass');
   const listDrawer = useDrawer();
   const [panelsOpen, setPanelsOpen] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(() => readStored(SESSIONS_KEY) !== 'closed');
   const sessionsToggle = useRef<HTMLButtonElement>(null);
+  const panelsToggle = useRef<HTMLButtonElement>(null);
   const toggleSessions = () => setSessionsOpen((open) => {
     store(SESSIONS_KEY, open ? 'closed' : 'open');
     return !open;
@@ -255,12 +257,20 @@ export default function ChatPanel() {
             <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">
               {chat.sessions.find((session) => session.id === chat.sessionId)?.title || chatT('chat.newSession')}
             </span>
-            <ChatAppearanceButton />
             <Button variant="ghost" size="icon-sm" onClick={chat.newSession}
               aria-label={chatT('chat.newSession')} title={chatT('chat.newSession')}><Plus /></Button>
-            <Button variant={bench ? 'quiet' : 'ghost'} size="sm" onClick={toggleBench}
+            <Button ref={panelsToggle} variant="ghost" size="icon-sm"
+              aria-label={appearanceT(appearance.sidebarVisible || bench ? 'hidePanels' : 'showPanels')}
+              title={appearanceT(appearance.sidebarVisible || bench ? 'hidePanels' : 'showPanels')}
+              aria-expanded={appearance.sidebarVisible || bench}
+              onClick={() => {
+                if (bench) closeBench();
+                setAppearance({ sidebarVisible: bench ? false : !appearance.sidebarVisible });
+              }}><Columns2 /></Button>
+            <Button variant="ghost" size="icon-sm" onClick={toggleBench}
+              title={benchT(bench ? 'wb.close' : 'wb.open')}
               aria-label={benchT(bench ? 'wb.close' : 'wb.open')} aria-expanded={bench}>
-              <PanelRight />{benchT('wb.title')}
+              <PanelRight />
               {benchFiles ? <span className="font-mono text-[10px] text-ink-3">{benchFiles}</span> : null}
             </Button>
           </header>
@@ -280,14 +290,7 @@ export default function ChatPanel() {
 
         <div ref={glassRoot} data-wallpaper={appearance.background} data-chat-color={appearance.color}
           className="chat-conversation relative flex min-h-0 min-w-0 flex-1 flex-col"
-          style={{
-            ...(isDesk ? { gridColumn: sessionsOpen ? 2 : 1, gridRow: 2 } : {}),
-            '--chat-opacity': `${appearance.opacity}%`,
-            '--chat-blur': `${appearance.blur}px`,
-            ...(appearance.background === 'custom' && appearance.image
-              ? { '--chat-wallpaper': `url("${appearance.image}")` } : {}),
-          } as CSSProperties}>
-          <div aria-hidden="true" className="chat-wallpaper" />
+          style={isDesk ? { gridColumn: sessionsOpen ? 2 : 1, gridRow: 2 } : undefined}>
           {/*
            * Narrow header: conversations | model | new conversation.
            *
@@ -298,7 +301,7 @@ export default function ChatPanel() {
            * was a 64 px ornament competing with the model name.
            */}
           {!isDesk ? (
-            <div className="chat-narrow-toolbar relative grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-1 border-b border-line px-2 py-1.5">
+            <div className="chat-narrow-toolbar relative grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1 border-b border-line px-2 py-1.5">
               <Button
                 variant="ghost"
                 size="icon"
@@ -308,10 +311,10 @@ export default function ChatPanel() {
               >
                 <List />
               </Button>
-              <div className="flex min-w-0 justify-center">
+              <div className="flex min-w-0 items-center justify-center gap-1">
                 <ModelMenu />
+                <EffortMenu variant="header" />
               </div>
-              <ChatAppearanceButton />
               <Button
                 variant="ghost"
                 size="icon"
@@ -431,8 +434,11 @@ export default function ChatPanel() {
             <Workbench messages={chat.visibleMessages} sessionId={chat.sessionId} focus={benchFocus} onClose={closeBench}
               recentWriteIds={recentWriteIds} revealedWrites={revealedWrites} />
           </div>
-        ) : isDesk ? (
-          <PinnedPanels messages={chat.messages} sessionId={chat.sessionId} />
+        ) : isDesk && appearance.sidebarVisible ? (
+          <PinnedPanels messages={chat.messages} sessionId={chat.sessionId} onClose={() => {
+            setAppearance({ sidebarVisible: false });
+            panelsToggle.current?.focus({ preventScroll: true });
+          }} />
         ) : null}
 
         {/* Selecting text in a reply turns it into the next question. */}

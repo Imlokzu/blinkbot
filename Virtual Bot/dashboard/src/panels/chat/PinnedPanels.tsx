@@ -5,6 +5,7 @@ import { Check, Clock, Eye, Folder, Gauge, ListTodo, Monitor, Plus, ArrowUpRight
 import { get } from '@/lib/api';
 import { t } from '@/locales/workspace';
 import { cn } from '@/lib/cn';
+import { t as appearanceT } from '@/locales/chatAppearance';
 import { useBotEvents } from '@/hooks/useBotEvents';
 import { Face } from './Face';
 import { ClockPin } from './ClockPin';
@@ -101,7 +102,7 @@ function VisionPin() {
   );
 }
 
-export function PinnedPanels({ embedded = false, messages = [], sessionId = '' }: { embedded?: boolean; messages?: ChatMessage[]; sessionId?: string }) {
+export function PinnedPanels({ embedded = false, messages = [], sessionId = '', onClose }: { embedded?: boolean; messages?: ChatMessage[]; sessionId?: string; onClose?: () => void }) {
   const [pins, setPins] = useState<PinId[]>(() => {
     try { return parsePins(localStorage.getItem(PINS_KEY)); } catch { return []; }
   });
@@ -119,6 +120,13 @@ export function PinnedPanels({ embedded = false, messages = [], sessionId = '' }
         embedded ? 'size-full' : 'w-[240px] border-l border-line',
       )}
     >
+      {onClose ? <div className="flex shrink-0 items-center justify-between px-3 pt-2">
+        <span className="u-label text-ink-2">{t('pins.title')}</span>
+        <button type="button" aria-label={appearanceT('hidePanels')} title={appearanceT('hidePanels')}
+          className="chat-close-panels grid size-8 place-items-center text-ink-2 hover:text-ink" onClick={onClose}>
+          <X size={16} />
+        </button>
+      </div> : null}
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         <Face />
         {pins.map((id) => {

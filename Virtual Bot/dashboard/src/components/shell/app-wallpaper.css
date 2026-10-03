@@ -1,0 +1,42 @@
+/* A single wallpaper is revealed through the selected zones, never duplicated per panel. */
+.app-shell { position: relative; isolation: isolate; background: var(--c-bg); }
+.app-wallpaper { position: absolute; inset: 0; z-index: 0; pointer-events: none; background-position: center top; background-size: cover; }
+.app-wallpaper video { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.app-wallpaper[data-video-paused] video { visibility: hidden; }
+html[data-wallpaper="none"] .app-wallpaper { display: none; }
+html[data-wallpaper="sky"] .app-wallpaper { background-image: url('../../panels/chat/assets/chat-sky-v2.webp'); }
+html[data-wallpaper="dusk"] .app-wallpaper { background-image: radial-gradient(ellipse at 15% 10%, #e5b5a3, transparent 55%), radial-gradient(ellipse at 85% 5%, #b6a3c8, transparent 65%), linear-gradient(#b9b6d4, #eee1d5); }
+html[data-wallpaper="forest"] .app-wallpaper { background-image: radial-gradient(ellipse at 10% 0, #bccfb0, transparent 55%), radial-gradient(ellipse at 90% 20%, #73918b, transparent 60%), linear-gradient(#bdcbbb, #e4e8db); }
+.app-wallpaper::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--c-bg) 10%, transparent), color-mix(in srgb, var(--c-bg) 30%, transparent) 48%, color-mix(in srgb, var(--c-bg) 88%, transparent)); }
+[data-theme="dark"] .app-wallpaper::after { background: linear-gradient(180deg, color-mix(in srgb, var(--c-bg) 32%, transparent), color-mix(in srgb, var(--c-bg) 48%, transparent) 48%, color-mix(in srgb, var(--c-bg) 92%, transparent)); }
+.app-shell > header, .app-shell > main { position: relative; z-index: 1; }
+.app-shell > main { background: var(--c-bg); }
+.app-shell > main[data-section="chat"] { background: transparent; }
+.chat-conversation { background: var(--c-bg); }
+html[data-background-targets~="chat"] .chat-conversation { background: transparent; }
+html[data-background-targets~="sessions"] .chat-sessions { background: color-mix(in srgb, var(--c-surface) 72%, transparent); }
+html[data-background-targets~="panels"] .chat-pins,
+html[data-background-targets~="panels"] .workbench { background: color-mix(in srgb, var(--c-surface) 70%, transparent); }
+html[data-background-targets~="panels"] .chat-pins > div > section { background: color-mix(in srgb, var(--c-surface-2) 76%, transparent); }
+html[data-background-targets~="pages"] .app-shell > main:not([data-section="chat"]) { background: transparent; }
+html[data-background-targets~="pages"] main:not([data-section="chat"]) :is(.bg-surface, .bg-surface-2) { background-color: color-mix(in srgb, var(--c-surface) 82%, transparent); }
+html[data-background-targets~="navigation"] .app-shell > header,
+html[data-background-targets~="navigation"] [data-chat-toolbar],
+html[data-background-targets~="navigation"] .chat-narrow-toolbar { background: color-mix(in srgb, var(--c-surface) 65%, transparent); }
+html[data-background-targets~="navigation"] .u-under-dock::before { background: color-mix(in srgb, var(--c-surface) 65%, transparent); }
+.app-shell .dock-navigation .dock-item { background: transparent; border: 0; box-shadow: none; }
+.app-shell .dock-navigation .dock-item:hover, .app-shell .dock-navigation .dock-item.dock-item-active { background: transparent; color: var(--c-accent); }
+.app-shell .dock-navigation .dock-panel { border: 0; box-shadow: none; }
+html[data-background-targets~="navigation"] .dock-panel { background: color-mix(in srgb, var(--c-surface) 40%, transparent); }
+.app-shell [data-icon-button] { background: transparent; border: 0; box-shadow: none; }
+.app-shell [data-icon-button]:hover { background: transparent; color: var(--c-accent); }
+.app-shell [data-icon-button]:focus-visible, .chat-close-panels:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 3px; }
+@media (prefers-reduced-transparency: reduce) {
+  html[data-background-targets] .app-shell > header,
+  html[data-background-targets] [data-chat-toolbar],
+  html[data-background-targets] .chat-narrow-toolbar,
+  html[data-background-targets] .chat-sessions,
+  html[data-background-targets] .chat-pins,
+  html[data-background-targets] .workbench,
+  html[data-background-targets] .dock-panel { background: var(--c-surface); }
+}

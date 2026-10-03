@@ -207,11 +207,15 @@ scrolling past all of it.
   makers get a neutral mark rather than a guessed logo.
 - **Search** matches the start of any word, in any order, ignoring the
   catalog's punctuation ("gpt6", "qwen 3.8", "regolo qwen", "xai").
-- **Sort**: by maker (grouped, sticky headings), A–Z, or by context window.
-  The choice persists in `localStorage.claudeBotModelSort`.
+- **Grouping**: always by maker, with sticky headings. The owner removed
+  the catalog sorting row; old saved sort values no longer affect this menu.
 - **Recent**: the last three picks lead the list while nothing is typed.
 - The host is shown under each name, so the copies of one model can be told
   apart.
+- Thinking lives in a separate compact icon immediately to the right of the
+  model picker. Its radio choices come from the gateway's reported levels;
+  clearing the setting uses the gateway default, independently of "off".
+  Both menus retain serialized, acknowledged writes and localized errors.
 
 
 ## Chat personalization (2026-10-03)
@@ -220,20 +224,31 @@ scrolling past all of it.
   heading and suggested prompts. The first accepted message moves it to the
   bottom using a position-only spring; drafts, attachments and microphone
   state survive. Restored history uses the normal conversation layout.
-- The chat palette button and Settings → Appearance share local preferences:
-  sky, dusk, forest, plain or an uploaded raster background; chat accent;
-  composer fill and blur. No account or server upload is involved.
+- Settings → Appearance owns customization. The chat toolbar has no palette
+  button. Options include an original generated cloud wallpaper, dusk,
+  forest, plain, an uploaded image or a muted looping video; chat accent;
+  glass or solid material, opacity and blur. No server upload is involved.
 - Uploaded PNG, JPEG and WebP images are resized and re-encoded locally.
   Unsupported files, oversized images and unavailable storage leave the
   previous saved choice intact with localized feedback.
-- The wallpaper stays stationary and fades into the theme background.
-  Composer transparency is bounded for readable controls. Reduced motion
-  skips the position spring; reduced transparency restores solid controls.
+- One wallpaper layer serves the whole app or selected chat, navigation,
+  conversation list, right panels and other pages. Uploaded MP4/WebM blobs
+  and poster frames live in IndexedDB; localStorage retains only a stable
+  ID. The sole muted player pauses for a hidden tab, reduced motion, data
+  saving or routes outside selected areas. Settings previews use stills.
+- Composer glass uses the existing Hyalite lens and rim again. Chromium
+  follows the blur control; other browsers use a blur fallback. Reduced
+  transparency restores solid controls. Exact old stock defaults migrate
+  to the new glass defaults; custom preferences retain their values.
 - Compact desktop controls retain 44px targets on touch screens. Microphone
   colour indicates its purpose and recording state; maker logos use their own
   theme-aware colours without changing the actual selected provider/model.
+- Navigation and icon actions use unfenced glyphs with hover colour and
+  keyboard focus. The right rail can close and reopen without changing pins;
+  its visibility persists independently of the conversations list.
 - Regression coverage: `tests/chatAppearance.test.mjs`,
-  `tests/brandColors.test.mjs` and `tests/chat-appearance.browser.mjs`.
+  `tests/brandColors.test.mjs`, `tests/chat-appearance.browser.mjs` and
+  `tests/effort-menu.browser.mjs`.
 
 ## Clock, chat usage and model accounts pins (2026-09-26)
 
