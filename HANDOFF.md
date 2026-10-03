@@ -1562,3 +1562,26 @@ Operational details and verification boundaries: `docs/mobile-app/TUNNEL.md`.
   lifecycle, still fallback and URL escaping, then repeated the browser suite.
   Fable was unavailable; no Fable review is claimed. External media may change
   after a successful check; physical phones and Raspberry Pi were not tested.
+
+
+## Chat file drag and drop (2026-10-03)
+
+- Dropping OS files anywhere in the conversation adds them to the existing
+  draft attachment flow. Protected file drags show a localized, inert drop
+  invitation; nested movement keeps it stable. Leaving/cancelling or changing
+  the composer clears feedback. Drops never automatically send a message.
+- Composer registers its latest handler locally and reuses authenticated
+  upload validation, the eight-file cap, upload serialization and stale-session
+  checks. Text/URL drags, directory entries and portal/sidebar targets cannot
+  become chat uploads. Unclaimed file drops cannot replace the browser tab;
+  target widgets that already accept drops and other routes remain unchanged.
+- Separate maximum-effort review passed real CDP file bytes, directory helper
+  probes, focus/layout/320px feedback, outside-drop compatibility and cleanup.
+  The full mocked browser fixture passed previews/order/errors/cap/busy/session
+  isolation in EN/light desktop and UK/dark/reduced-motion phone layouts.
+- Validation: 191 frontend tests, TypeScript/guarded build and 44 backend
+  upload tests passed. Full Python: 1,129 passed, 6 skipped, one unrelated
+  existing clock-boundary test failed comparing two generated timestamps one
+  second apart; its isolated rerun passed. No Python change was made.
+  Follow-up: freeze time in that prompt-join test in a separate task.
+- Unrelated owner drafts and staging are preserved.

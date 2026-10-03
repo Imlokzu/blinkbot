@@ -755,3 +755,18 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   next row tap, and touch gestures inside the portal do not move the drawer.
   Pending hover must respect another card's active action focus.
 - Regressions:tests/session-popup.browser.mjs and session-sidebar.browser.mjs.
+
+
+## File drag and drop (2026-10-03)
+
+- The conversation column accepts file drops into its existing draft. One
+  localized status invitation sits above the column without moving content,
+  stealing focus or intercepting drag targets. Keep text/URI editing native.
+- Reuse Composer uploads, validation, ordering and the eight-file limit. A
+  dropped batch does not send; delayed uploads cannot reach a different draft.
+- Actual DOM boundaries exclude portaled dialogs and other panels. Unclaimed
+  file drops are rejected while chat is mounted, without overriding an
+  accepting target widget. Remove listeners when leaving the chat route.
+- Files are read only on drop; directory entries and dragged URLs are ignored.
+  Escape, drag end, hidden tabs, window blur and composer changes clear feedback.
+- Checks: tests/fileDrop.test.mjs and tests/file-drop.browser.mjs.

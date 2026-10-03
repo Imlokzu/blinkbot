@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AssistantRuntimeProvider } from '@assistant-ui/react';
 import { createPortal } from 'react-dom';
-import { List, PanelLeft, PanelRight, Plus, X } from 'lucide-react';
+import { List, PanelLeft, PanelRight, Paperclip, Plus, X } from 'lucide-react';
 import { Thread } from './Thread';
 import { Composer } from './Composer';
 import { SessionList } from './SessionList';
@@ -29,6 +29,9 @@ import { t as workspaceT } from '@/locales/workspace';
 import { t as benchT } from '@/locales/workbench';
 import { t } from '@/lib/i18n';
 import { t as chatT } from '@/locales/chat';
+import { t as uploadT } from '@/locales/attachments';
+import { useChatFileDrop } from './useChatFileDrop';
+import './file-drop.css';
 
 /*
  * Desktop chat keeps conversations, the thread and optional panels separate.
@@ -111,6 +114,7 @@ export default function ChatPanel() {
   const isDesk = useIsDesk();
   const project = useRouteParam('project');
   const chat = useChatRuntime(project);
+  const fileDrop = useChatFileDrop(chat.composerEpoch);
   const glassRoot = useRef<HTMLDivElement>(null);
   useLiquidGlass(glassRoot, appearance.blur, appearance.material === 'glass');
   const listDrawer = useDrawer();
@@ -283,7 +287,8 @@ export default function ChatPanel() {
          * список розмов — та сама ліва шухляда, що й на телефоні.
          */}
 
-        <div ref={glassRoot} data-wallpaper={appearance.background} data-chat-color={appearance.color}
+        <div ref={glassRoot} {...fileDrop.props} data-file-drop-active={fileDrop.active ? '' : undefined}
+          data-wallpaper={appearance.background} data-chat-color={appearance.color}
           className="chat-conversation relative flex min-h-0 min-w-0 flex-1 flex-col"
           style={isDesk ? { gridColumn: sessionsOpen ? 2 : 1, gridRow: 2 } : undefined}>
           {/*
@@ -410,6 +415,7 @@ export default function ChatPanel() {
             composer={
               <Composer
                 key={chat.composerEpoch}
+                fileDrop={fileDrop.handler}
                 lean={!isDesk}
                 onOpenPanels={() => setPanelsOpen(true)}
                 onOpenWorkbench={isPhone ? toggleBench : undefined}
@@ -426,6 +432,13 @@ export default function ChatPanel() {
               />
             }
           />
+          {fileDrop.active ? <div data-chat-file-drop-overlay className="chat-file-drop-overlay" role="status">
+            <div>
+              <Paperclip size={28} strokeWidth={1.75} aria-hidden="true" />
+              <strong>{uploadT('drop.title')}</strong>
+              <p>{uploadT('drop.hint')}</p>
+            </div>
+          </div> : null}
         </div>
 
         {isDesk && bench ? (

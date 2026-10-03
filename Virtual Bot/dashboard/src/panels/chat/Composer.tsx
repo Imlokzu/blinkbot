@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { FileText, Globe, Paperclip, Plus } from 'lucide-react';
 import VoiceBeam from 'voice-glow';
 import { PromptBar, type PromptBarControl } from '@/vendor/reactbits';
@@ -19,6 +19,7 @@ import { useSendBubbleEffect } from './useSendBubbleEffect';
 import { t } from '@/locales/chat';
 import { t as appT } from '@/lib/i18n';
 import { t as uploadT, uploadError } from '@/locales/attachments';
+import type { FileDropHandler } from './useChatFileDrop';
 
 /*
  * The input is React Bits' PromptBar (reactbits.dev/c/micro), as is.
@@ -57,6 +58,7 @@ export function Composer({
   lean = false,
   onOpenPanels,
   onOpenWorkbench,
+  fileDrop,
 }: {
   busy: boolean;
   queued?: boolean;
@@ -70,6 +72,7 @@ export function Composer({
   /** Opens the pinned panels; on narrow screens the sheet is the way in. */
   onOpenPanels?: () => void;
   onOpenWorkbench?: () => void;
+  fileDrop?: RefObject<FileDropHandler | null>;
 }) {
   const brain = useBrainChoice();
   const dictation = useDictation();
@@ -88,6 +91,7 @@ export function Composer({
   const currentSession = useRef(sessionId);
   currentSession.current = sessionId;
   const closeSheet = useCallback(() => setSheetOpen(false), []);
+  const latestDrop = useRef<FileDropHandler>(() => {});
 
   const uploadFiles = async (files: FileList | File[]): Promise<unknown[]> => {
     if (uploadsInFlight.current) {
@@ -122,6 +126,17 @@ export function Composer({
     }
     return root.current?.isConnected && currentSession.current === destination ? uploaded : [];
   };
+
+  latestDrop.current = (files) => {
+    setSheetOpen(false);
+    void uploadFiles(files).then(uploaded => bar.current?.addAttachments(uploaded));
+  };
+  useLayoutEffect(() => {
+    if (!fileDrop) return;
+    const accept: FileDropHandler = files => latestDrop.current(files);
+    fileDrop.current = accept;
+    return () => { if (fileDrop.current === accept) fileDrop.current = null; };
+  }, [fileDrop]);
 
   const surface = useCssVar('--c-surface', '#fffdf8');
   const surface3 = useCssVar('--c-surface-3', '#e5ddd0');

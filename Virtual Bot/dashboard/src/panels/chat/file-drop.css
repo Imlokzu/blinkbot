@@ -1,0 +1,25 @@
+.chat-file-drop-overlay {
+  position: absolute;
+  inset: 12px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border: 2px dashed var(--c-accent);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--c-surface) 94%, transparent);
+  color: var(--c-text);
+  pointer-events: none;
+  text-align: center;
+}
+.chat-file-drop-overlay > div { max-width: 320px; }
+.chat-file-drop-overlay svg { margin: 0 auto 12px; color: var(--c-accent); }
+.chat-file-drop-overlay strong { display: block; font-size: 20px; font-weight: 500; }
+.chat-file-drop-overlay p { margin-top: 6px; color: var(--c-text-2); font-size: 13px; line-height: 1.5; }
+@media (max-width: 759px) {
+  .chat-file-drop-overlay { inset: 8px; padding: 16px; }
+  .chat-file-drop-overlay strong { font-size: 18px; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .chat-file-drop-overlay { background: var(--c-surface); }
+}

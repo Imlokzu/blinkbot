@@ -1,4 +1,6 @@
 const uk = {
+  'drop.title': 'Перетягни файли сюди',
+  'drop.hint': 'Зображення й документи додадуться до чернетки.',
   'upload.filePrompt': 'Опрацюй прикріплені файли.',
   'upload.busy': 'Завантажую файли…',
   'upload.failed': 'Не вдалося завантажити файл',
@@ -21,6 +23,8 @@ const uk = {
   'preview.download': 'Завантажити файл',
 } as const;
 const en: Record<keyof typeof uk, string> = {
+  'drop.title': 'Drop files into this chat',
+  'drop.hint': 'Images and documents will be added to your draft.',
   'upload.filePrompt': 'Use the attached files.',
   'upload.busy': 'Uploading files…',
   'upload.failed': 'Could not upload the file',
