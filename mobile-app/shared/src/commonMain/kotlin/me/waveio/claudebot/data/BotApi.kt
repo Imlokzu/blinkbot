@@ -174,6 +174,8 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
 
     suspend fun capabilities(): JsonObject = get("mobile", "capabilities")
 
+    suspend fun fetchMobileSkills(): List<MobileSkill> = get<SkillCatalog>("mobile", "skills").skills
+
     suspend fun exchangePairing(code: String, deviceName: String, platform: String): PairingCredentials {
         val reply = post<PairingResponse>(listOf("mobile", "pair", "exchange"), buildJsonObject {
             put("code", code); put("device_name", deviceName); put("platform", platform)

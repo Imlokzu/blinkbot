@@ -289,6 +289,49 @@ class BotApiTest {
         assertEquals(1, requests)
     }
 
+    @Test fun mobileSkillsUseTheAuthenticatedCatalogAndDecodeVisibilityFlags() = runTest {
+        val api = api(MockEngine { request ->
+            assertEquals(HttpMethod.Get, request.method)
+            assertEquals("/api/mobile/skills", request.url.encodedPath)
+            assertEquals("Bearer test-device-token", request.headers[HttpHeaders.Authorization])
+            respond("""{"skills":[{"name":"weather","description":"Forecast","emoji":"🌦️",
+                "source":"host","homepage":"https://example.com/skill","invocation":"${'$'}weather",
+                "bundled":true,"enabled":true,"eligible":true,"user_invocable":true,
+                "blocked_by_allowlist":false,"blocked_by_agent_filter":false,
+                "model_visible":true,"command_visible":true,"selectable":true,"missing":[],"future":1}]}""")
+        })
+        val skill = api.fetchMobileSkills().single()
+        assertEquals("weather", skill.name)
+        assertEquals("Forecast", skill.description)
+        assertEquals("🌦️", skill.emoji)
+        assertEquals("host", skill.source)
+        assertEquals("https://example.com/skill", skill.homepage)
+        assertEquals("\$weather", skill.invocation)
+        assertTrue(skill.bundled && skill.enabled && skill.eligible && skill.userInvocable)
+        assertTrue(skill.modelVisible && skill.commandVisible && skill.selectable)
+        assertFalse(skill.blockedByAllowlist || skill.blockedByAgentFilter)
+    }
+
+    @Test fun sparseSkillMetadataDefaultsToUnavailableAndPreservesMissingRequirements() = runTest {
+        val api = api(MockEngine {
+            respond("""{"skills":[{"name":"sparse"},{"name":"blocked","enabled":true,
+                "blocked_by_allowlist":true,"blocked_by_agent_filter":true,"missing":["binary:tool"]}]}""")
+        })
+        val skills = api.fetchMobileSkills()
+        assertEquals(MobileSkill(name = "sparse"), skills[0])
+        assertFalse(skills[0].selectable || skills[0].eligible || skills[0].userInvocable)
+        assertTrue(skills[1].blockedByAllowlist && skills[1].blockedByAgentFilter)
+        assertEquals(listOf("binary:tool"), skills[1].missing)
+        assertFalse(skills[1].selectable)
+    }
+
+    @Test fun skillCatalogFailureIsNotReportedAsAnEmptySuccessfulCatalog() = runTest {
+        val api = api(MockEngine {
+            respond("""{"detail":{"code":"skills_unavailable"}}""", HttpStatusCode.ServiceUnavailable)
+        })
+        assertEquals("skills_unavailable", assertFailsWith<ApiFailure> { api.fetchMobileSkills() }.code)
+    }
+
     @Test fun newConversationSubmissionUsesServerDefaultsWithoutNullStrings() = runTest {
         val api = api(MockEngine { request ->
             val body = Json.parseToJsonElement((request.body as TextContent).text).jsonObject
