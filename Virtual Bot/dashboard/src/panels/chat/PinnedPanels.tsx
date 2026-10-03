@@ -1,19 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import * as Popover from '@radix-ui/react-popover';
-import { Check, Clock, Eye, Folder, Gauge, ListTodo, Monitor, Plus, ArrowUpRight, Wallet, X } from 'lucide-react';
+import { Check, Clock, Eye, Folder, Gauge, Monitor, Plus, ArrowUpRight, Wallet, X } from 'lucide-react';
 import { get } from '@/lib/api';
 import { t } from '@/locales/workspace';
 import { cn } from '@/lib/cn';
 import { t as appearanceT } from '@/locales/chatAppearance';
-import { useBotEvents } from '@/hooks/useBotEvents';
 import { Face } from './Face';
 import { ClockPin } from './ClockPin';
 import { AccountsPin, ChatUsagePin } from './UsagePins';
 import { PIN_IDS, PINS_KEY, parsePins, type PinId } from './pins';
 import type { ChatMessage } from './types';
 
-const ICONS = { projects: Folder, vision: Eye, screen: Monitor, todo: ListTodo, usage: Gauge, clock: Clock, openclaw: Wallet };
+const ICONS = { projects: Folder, vision: Eye, screen: Monitor, usage: Gauge, clock: Clock, openclaw: Wallet };
 
 function ProjectsPin() {
   const projects = useQuery({
@@ -37,45 +36,6 @@ function ProjectsPin() {
           <Folder size={14} className="shrink-0" /><span className="truncate">{project.name || project.id}</span>
         </a>
       ))}
-    </div>
-  );
-}
-
-interface TodoItem { text?: string; done?: boolean }
-interface TodoData { title?: string; items?: TodoItem[] }
-
-/* Чекліст, який бот створює тулзою todo_list. Подія приходить живцем через
-   SSE, а бекенд шле останню версію ще й одразу після підключення — тож список
-   переживає перезавантаження вкладки. Галочки тут лише для читання: станом
-   володіє бот, він же його й оновлює наступним викликом. */
-function TodoPin() {
-  const [todo, setTodo] = useState<TodoData | null>(null);
-  useBotEvents((event) => {
-    if (event.type !== 'ui' || event.kind !== 'todo') return;
-    setTodo(event.data && typeof event.data === 'object' ? event.data as TodoData : null);
-  });
-  const items = todo?.items ?? [];
-  if (!items.length) return <p className="text-xs text-ink-3">{t('pins.todoEmpty')}</p>;
-  const doneCount = items.filter((item) => item.done).length;
-  return (
-    <div>
-      {todo?.title ? <p className="mb-1.5 truncate text-[11px] font-medium text-ink-2">{todo.title}</p> : null}
-      <ul className="max-h-44 space-y-1 overflow-y-auto">
-        {items.map((item, index) => (
-          <li key={`${item.text}-${index}`} className="flex items-center gap-2 text-[12.5px] text-ink-2">
-            <span className={cn(
-              'grid size-4 shrink-0 place-items-center rounded border',
-              item.done ? 'border-accent bg-accent-soft' : 'border-line',
-            )}>
-              {item.done ? <Check size={11} className="text-accent" /> : null}
-            </span>
-            <span className={cn('min-w-0 flex-1 truncate', item.done && 'text-ink-3 line-through')}>
-              {item.text}
-            </span>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-1.5 text-[10.5px] text-ink-3">{doneCount}/{items.length}</p>
     </div>
   );
 }
@@ -137,7 +97,7 @@ export function PinnedPanels({ embedded = false, messages = [], sessionId = '', 
               <header className="mb-2 flex items-center gap-2">
                 <Icon size={14} className="shrink-0 text-ink-3" />
                 <h2 className="min-w-0 flex-1 truncate text-xs font-medium text-ink-2">{name}</h2>
-                {id === 'todo' || id === 'usage' || id === 'clock' || id === 'openclaw' ? null : (
+                {id === 'usage' || id === 'clock' || id === 'openclaw' ? null : (
                 <a href={id === 'screen' ? '/screen' : id === 'vision' ? '#/vision' : '#/overview'}
                    target={id === 'screen' ? '_blank' : undefined} rel={id === 'screen' ? 'noreferrer' : undefined}
                    aria-label={t('pins.open', { name })} className="pin-panel-action grid place-items-center rounded-xs text-ink-3 hover:text-ink"><ArrowUpRight size={13} /></a>
@@ -147,7 +107,6 @@ export function PinnedPanels({ embedded = false, messages = [], sessionId = '', 
               </header>
               {id === 'projects' ? <ProjectsPin />
                 : id === 'vision' ? <VisionPin />
-                : id === 'todo' ? <TodoPin />
                 : id === 'usage' ? <ChatUsagePin sessionId={sessionId} messages={messages} />
                 : id === 'clock' ? <ClockPin />
                 : id === 'openclaw' ? <AccountsPin />
