@@ -627,9 +627,14 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   animation or blurred text. Solid material, reduced transparency and unsupported
   backdrop filters use an opaque themed surface.
 - Website marks come from completed tool results, beside their activity and in
-  the source strip. Fetch only a public HTTPS source origin's favicon, without
-  article paths, query data, credentials, referrers or an icon-directory service.
-  Local/IP sources and missing/offline icons retain a fixed-size local initial.
+  the source strip. Try the public HTTPS origin's favicon first, then Google S2
+  and DuckDuckGo's cached mark for a blocked or missing default-port icon. Only
+  the validated hostname reaches these caches; article paths, query data,
+  credentials and referrers are excluded. HTTP citations get secure icon
+  requests. Local/IP/home-network sources and unavailable icons retain a
+  fixed-size initial; custom-port apps keep their own origin mark.
+  Bound each visible attempt, preserve working marks across same-origin updates
+  and discard stale callbacks when the source changes.
   Duplicate sites share one summary mark; distinct source pages keep their links.
 - Regression checks: tests/activity-tree.browser.mjs and tests/siteIcons.test.mjs.
 

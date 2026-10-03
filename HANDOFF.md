@@ -1379,3 +1379,34 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   the real port8100 server, rather than only an isolated dev preview.
   HTTP status/screen/dashboard/assets returned200; memory traversal returned400.
   Temporary smoke processes were stopped; unrelated owner work is preserved.
+
+
+## Reliable source favicons (2026-10-03)
+
+- Fixed missing source marks when the website blocks direct favicon requests
+  or lacks the conventional file. Try the validated HTTPS origin, then Google
+  S2 and DuckDuckGo's cached icon, retaining a fixed 18px initial if unavailable.
+  Public HTTP citations get HTTPS icon requests. Only the hostname reaches
+  these caches; article paths, queries, credentials and referrers are excluded.
+  Custom-port applications keep their own origin icon rather than a guessed mark.
+- A working cached mark survives same-origin article updates. Changing origin
+  resets only its mark; stale image callbacks cannot advance a newer attempt.
+  A visible stalled attempt advances after six seconds, with three bounded
+  candidates and complete timer/observer cleanup.
+- Independent supported maximum-effort review reproduced a cold lazy image
+  at 20000px that exhausted attempts without making a request. Deadlines now
+  wait for visible area; observer-less browsers use eager loading with bounded
+  deadlines. Review also blocked local home.arpa names from cache lookups.
+  Fable is unavailable in this runtime; the native reviewer verified both fixes.
+- Real public probes decoded correct OpenAI and Wikipedia marks through both
+  caches, while direct requests returned 403. No fake branding is generated.
+- Validation: 175 frontend tests, TypeScript, guarded isolated production build;
+  1080 Python tests with 6 skipped and 178 subtests. Controlled browser fixtures
+  verify both fallback hops, exhaustion, HTTP citations, stale callbacks,
+  preserved marks, timeout progression, hidden history, previous chat behavior,
+  mobile widths and reduced preferences, without external requests or writes.
+  Independent browser checks cover offscreen recovery and unsupported observers.
+- Post-review smoke passes 7 endpoints and 301 release resources, including
+  build metadata and the exact wallpaper. Both traversal guards return 400.
+  Task-owned test browsers and servers are stopped; unrelated drafts and staged
+  changes remain intact. Final artifacts use the guarded publication workflow.

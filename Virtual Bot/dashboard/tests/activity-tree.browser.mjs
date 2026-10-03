@@ -52,6 +52,25 @@ const controls = selector => evaluate(`(() => {
   const id = control?.getAttribute('aria-controls');
   return { expanded:control?.getAttribute('aria-expanded'), linked:Boolean(id && document.getElementById(id)) };
 })()`);
+const captureIconDeadlines = () => evaluate(`window.__faviconTimers = new Map(); window.__iconSetTimeout = window.setTimeout; window.__iconClearTimeout = window.clearTimeout;
+  window.setTimeout = (callback, delay, ...args) => {
+    if (delay !== 6000) return window.__iconSetTimeout(callback, delay, ...args);
+    const id = window.__iconSetTimeout(() => {}, 600000);
+    window.__faviconTimers.set(id, () => callback(...args)); return id;
+  };
+  window.clearTimeout = id => { window.__faviconTimers.delete(id); window.__iconClearTimeout(id); };
+  window.__fireIconDeadline = () => {
+    const entry = window.__faviconTimers.entries().next().value;
+    if (!entry) throw new Error('No pending fixture icon deadline');
+    const [id, callback] = entry; window.clearTimeout(id); callback(); return true;
+  };
+  window.__fireAllIconDeadlines = () => {
+    const entries = [...window.__faviconTimers];
+    for (const [id, callback] of entries) { window.clearTimeout(id); callback(); }
+    return entries.length;
+  }; true`);
+const restoreIconDeadlines = () => evaluate(`for (const id of window.__faviconTimers.keys()) window.__iconClearTimeout(id);
+  window.__faviconTimers.clear(); window.setTimeout = window.__iconSetTimeout; window.clearTimeout = window.__iconClearTimeout; true`);
 
 let socket;
 let cdpSession;
@@ -59,6 +78,27 @@ let nextId = 0;
 const pending = new Map();
 const faviconRequests = [];
 const unexpectedExternal = [];
+const heldFavicons = [];
+const faviconSites = new Set(['docs.example.org','lookup.example.org','failed.example.org','fresh.example.org','hidden.example.org','timeout.example.org']);
+const faviconCandidate = url => {
+  if (url.pathname === '/favicon.ico' && faviconSites.has(url.hostname)) return { site:url.hostname, candidate:'direct' };
+  if (url.hostname === 'www.google.com' && url.pathname === '/s2/favicons') {
+    const site = url.searchParams.get('domain');
+    if (faviconSites.has(site) && url.searchParams.get('sz') === '32' && [...url.searchParams.keys()].every(key => ['domain','sz'].includes(key))) return { site, candidate:'google' };
+  }
+  if (url.hostname === 'icons.duckduckgo.com' && /^\/ip3\/[^/]+\.ico$/.test(url.pathname)) {
+    const site = decodeURIComponent(url.pathname.slice(5, -4));
+    if (faviconSites.has(site)) return { site, candidate:'ddg' };
+  }
+  return null;
+};
+const waitForFixture = async predicate => {
+  const deadline = Date.now() + 5000;
+  while (!predicate()) {
+    assert.ok(Date.now() < deadline, 'the intercepted favicon request must arrive');
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+};
 // Generated locally: a deterministic blue 16px PNG, never a real site fetch.
 const faviconPng = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGPQq73znxLMMGrAqAGjBgwXAwAX4YYf8tQajgAAAABJRU5ErkJggg==';
 const cdp = (method, params = {}, sessionId = cdpSession) => new Promise((resolve, reject) => {
@@ -116,12 +156,17 @@ const search = { call_id:'search', tool:'web_search', detail:'reference animatio
 const searchResult = { results:[
   { title:'Fixture guide', url:'https://docs.example.org/guide' },
   { title:'Fixture reference', url:'https://docs.example.org/reference?mode=compact' },
+  { title:'Fixture HTTP source', url:'http://lookup.example.org/reading?topic=private' },
   { title:'Fixture unavailable icon', url:'https://failed.example.org/reading' },
   { title:'Fixture private address', url:'https://127.0.0.1/private' },
 ] };
 const untrusted = '<img src=x onerror="window.__activityInjected=true">';
 const saved = { id:'activity-history', messages:[{ role:'assistant', content:'Saved activity fixture.', steps:[
-  { id:'saved-ok', label:'workspace_read', detail:longPath, status:'done', input:{ path:longPath }, result:{ content:untrusted } },
+  { id:'saved-ok', label:'workspace_read', detail:longPath, status:'done', input:{ path:longPath }, result:{ content:untrusted, results:[
+    { title:'Saved public guide', url:'https://docs.example.org/saved' },
+    { title:'Saved public lookup', url:'http://lookup.example.org/saved' },
+    { title:'Previously unseen hidden source', url:'https://hidden.example.org/article?private=query' },
+  ] } },
   { id:'saved-error', label:'web_search', detail:'offline query', status:'failed', result:{ error:'Fixture unavailable' } },
   { id:'saved-stop', label:'workspace_read', detail:'session/unfinished.md', status:'interrupted' },
   { id:'saved-legacy', tool:'legacy_inspector', args:{ path:'session/legacy.md' } },
@@ -158,13 +203,19 @@ try {
       const url = new URL(request.request.url);
       if (url.origin === origin) {
         await cdp('Fetch.continueRequest', { requestId:request.requestId }, message.sessionId);
-      } else if (url.pathname === '/favicon.ico' && ['docs.example.org','failed.example.org'].includes(url.hostname)) {
-        faviconRequests.push({ url:url.href, headers:request.request.headers });
-        await cdp('Fetch.fulfillRequest', { requestId:request.requestId,
-          responseCode:url.hostname === 'failed.example.org' ? 404 : 200,
-          responseHeaders:[{ name:'Content-Type', value:'image/png' }, { name:'Cache-Control', value:'no-store' }],
-          body:url.hostname === 'failed.example.org' ? '' : faviconPng,
-        }, message.sessionId);
+      } else if (faviconCandidate(url)) {
+        const candidate = faviconCandidate(url);
+        faviconRequests.push({ ...candidate, url:url.href, headers:request.request.headers });
+        if (candidate.site === 'timeout.example.org') heldFavicons.push({ requestId:request.requestId, sessionId:message.sessionId, ...candidate });
+        else {
+          const succeeds = (['docs.example.org','fresh.example.org','hidden.example.org'].includes(candidate.site) && candidate.candidate === 'google')
+            || (candidate.site === 'lookup.example.org' && candidate.candidate === 'ddg');
+          await cdp('Fetch.fulfillRequest', { requestId:request.requestId,
+            responseCode:succeeds ? 200 : 404,
+            responseHeaders:[{ name:'Content-Type', value:'image/png' }, { name:'Cache-Control', value:'no-store' }],
+            body:succeeds ? faviconPng : '',
+          }, message.sessionId);
+        }
       } else {
         unexpectedExternal.push(url.href);
         await cdp('Fetch.failRequest', { requestId:request.requestId, errorReason:'BlockedByClient' }, message.sessionId);
@@ -264,13 +315,27 @@ try {
   assert.deepEqual(['read-a','read-b','search'].map(state), ['done','failed','done']);
   assert.equal(evaluate('document.querySelector(".chat-activity-tree").hasAttribute("data-running")'), false, 'reply streaming alone must not mark completed tools as running');
   assert.equal(controls('[data-activity-toggle]').expanded, 'true', 'completed calls remain open until the assistant reply settles');
-  await browserAsync('wait', '--fn', 'document.querySelector(".chat-activity-sites [data-site-icon=\\"docs.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-activity-sites [data-site-icon=\\"failed.example.org\\"]")?.dataset.iconState === "fallback"');
+  await browserAsync('wait', '--fn', 'document.querySelector(".chat-activity-sites [data-site-icon=\\"docs.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-activity-sites [data-site-icon=\\"lookup.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-activity-sites [data-site-icon=\\"failed.example.org\\"]")?.dataset.iconState === "fallback"');
   assert.equal(evaluate('document.querySelectorAll(".chat-activity-sites [data-site-icon=\\"docs.example.org\\"]").length'), 1, 'two completed links from one site share one summary icon');
   const decoded = evaluate('document.querySelector(".chat-activity-sites [data-site-icon=\\"docs.example.org\\"] img")?.naturalWidth');
   assert.equal(decoded, 16, 'the fixture icon actually decodes');
+  assert.deepEqual(faviconRequests.filter(request => request.site === 'docs.example.org').map(request => request.candidate), ['direct','google'], 'a blocked direct icon recovers through Google');
+  assert.deepEqual(faviconRequests.filter(request => request.site === 'lookup.example.org').map(request => request.candidate), ['direct','google','ddg'], 'a second cache recovers after two failures');
+  assert.deepEqual(faviconRequests.filter(request => request.site === 'failed.example.org').map(request => request.candidate), ['direct','google','ddg'], 'the finite chain exhausts into the local initial');
+  assert.ok(faviconRequests.some(request => request.url === 'https://lookup.example.org/favicon.ico'), 'public HTTP source icons upgrade to HTTPS');
   assert.equal(evaluate('document.querySelector(".chat-activity-sites [data-site-icon=\\"failed.example.org\\"]").getBoundingClientRect().width'), 18, 'an error keeps the reserved icon size');
   assert.equal(evaluate('document.querySelector(".chat-activity-sites [data-site-icon=\\"failed.example.org\\"] img")'), null);
   assert.equal(evaluate('document.querySelector(".chat-activity-sites [data-site-icon=\\"127.0.0.1\\"]")?.dataset.iconState'), 'fallback', 'a private source gets a local fallback');
+  evaluate('window.__loadedFallbackWrapper = document.querySelector(".chat-activity-sites [data-site-icon=\\"docs.example.org\\"]"); window.__loadedFallbackImage = window.__loadedFallbackWrapper.querySelector("img"); true');
+  const docsRequests = faviconRequests.filter(request => request.site === 'docs.example.org').length;
+  const updatedSearchResult = { results:searchResult.results.map((source, index) => index === 1 ? { ...source, url:'https://docs.example.org/updated-article?private=query' } : source) };
+  emit('tool_progress', { step:{ id:'search', label:'web_search', status:'done', detail:search.detail, input:search.input, result:updatedSearchResult } });
+  browser('wait', '--fn', 'document.querySelector(".chat-activity-sites [data-site-icon=\\"docs.example.org\\"]")?.dataset.siteUrl === "https://docs.example.org/updated-article?private=query"');
+  assert.equal(evaluate('document.querySelector(".chat-activity-sites [data-site-icon=\\"docs.example.org\\"]") === window.__loadedFallbackWrapper'), true);
+  assert.equal(evaluate('window.__loadedFallbackWrapper.querySelector("img") === window.__loadedFallbackImage && window.__loadedFallbackWrapper.dataset.iconState === "ready"'), true, 'same-origin article updates retain the loaded fallback image');
+  assert.equal(faviconRequests.filter(request => request.site === 'docs.example.org').length, docsRequests, 'same-origin article updates do not retry a blocked direct candidate');
+  emit('tool_progress', { step:{ id:'search', label:'web_search', status:'done', detail:search.detail, input:search.input, result:searchResult } });
+  browser('wait', '--fn', 'document.querySelector(".chat-activity-sites [data-site-icon=\\"docs.example.org\\"]")?.dataset.siteUrl === "https://docs.example.org/reference?mode=compact"');
   assert.match(evaluate(`document.querySelector(${JSON.stringify(`${row('read-a')} [data-tool-details]`)}).textContent`), /Result.*Confirmed read/s);
   assert.equal(evaluate(`document.querySelector(${JSON.stringify(`${row('read-b')} [data-tool-state]`)}).textContent`), 'Failed');
   const connector = evaluate(`(() => {
@@ -305,6 +370,7 @@ try {
     readLabelFits();
     shot(`activity-${width}`);
   }
+  captureIconDeadlines();
   browser('focus', readToggle);
   finish('The controlled calls finished.');
   browser('wait', '--text', 'The controlled calls finished.');
@@ -313,12 +379,20 @@ try {
   assert.equal(evaluate('document.activeElement.isConnected'), true, 'settling never leaves focus on a detached control');
   assert.equal(evaluate(`document.activeElement.matches(${JSON.stringify(`${tree('read-a')} [data-activity-toggle]`)})`), true, 'automatic folding returns focused logs to their own tree header');
   shot('activity-completed-collapsed');
-  await browserAsync('wait', '--fn', 'document.querySelector(".chat-source-strip summary [data-site-icon=\\"docs.example.org\\"]")?.dataset.iconState === "ready"');
+  await browserAsync('wait', '--fn', 'document.querySelector(".chat-source-strip summary [data-site-icon=\\"docs.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-source-strip summary [data-site-icon=\\"lookup.example.org\\"]")?.dataset.iconState === "ready"');
   assert.equal(evaluate('document.querySelectorAll(".chat-source-strip summary [data-site-icon=\\"docs.example.org\\"]").length'), 1);
+  assert.equal(evaluate('document.querySelector(".chat-source-strip").open'), false);
+  for (let hop = 0; hop < 3; hop++) {
+    evaluate('window.__fireAllIconDeadlines()');
+    await browserAsync('--json', 'eval', '(async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); return true; })()');
+  }
+  assert.equal(evaluate('[...document.querySelectorAll(".chat-source-strip ol [data-site-icon=\\"docs.example.org\\"], .chat-source-strip ol [data-site-icon=\\"lookup.example.org\\"]")].every(icon => icon.dataset.iconState !== "fallback")'), true,
+    'closed source rows must not exhaust recoverable candidates before an image load opportunity');
+  restoreIconDeadlines();
   browser('focus', '.chat-source-strip summary');
   browser('press', 'Enter');
   browser('wait', '.chat-source-strip[open]');
-  await browserAsync('wait', '--fn', '[...document.querySelectorAll(".chat-source-strip ol [data-site-icon=\\"docs.example.org\\"]")].every(icon => icon.dataset.iconState === "ready") && document.querySelector(".chat-source-strip ol [data-site-icon=\\"failed.example.org\\"]")?.dataset.iconState === "fallback"');
+  await browserAsync('wait', '--fn', '[...document.querySelectorAll(".chat-source-strip ol [data-site-icon=\\"docs.example.org\\"]")].every(icon => icon.dataset.iconState === "ready") && document.querySelector(".chat-source-strip ol [data-site-icon=\\"lookup.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-source-strip ol [data-site-icon=\\"failed.example.org\\"]")?.dataset.iconState === "fallback"');
   assert.deepEqual(evaluate('[...document.querySelectorAll(".chat-source-strip ol a")].map(link => link.href)'), searchResult.results.map(source => source.url), 'distinct original source pages remain separate links');
   assert.equal(evaluate('document.querySelectorAll(".chat-source-strip ol [data-site-icon=\\"docs.example.org\\"]").length'), 2);
   assert.equal(evaluate('document.querySelector(".chat-source-strip ol [data-site-icon=\\"127.0.0.1\\"]").dataset.iconState'), 'fallback');
@@ -385,6 +459,44 @@ try {
   assert.ok(faviconRequests.some(request => request.url === 'https://docs.example.org/favicon.ico'));
   assert.ok(faviconRequests.every(request => !('Referer' in request.headers) && !('referer' in request.headers)), 'favicons omit the conversation referrer');
 
+  send('A bounded icon lifecycle fixture.');
+  const edge = { id:'icons-edge', label:'web_search', detail:'icon lifecycle', status:'done', input:{ query:'icon lifecycle' }, result:{ results:[{ title:'Old article', url:'https://docs.example.org/old' }] } };
+  emit('tool_done', { step:edge });
+  await browserAsync('wait', '--fn', 'document.querySelector("[data-tool-step=icons-edge] [data-site-icon=\\"docs.example.org\\"]")?.dataset.iconState === "ready"');
+  evaluate('window.__staleSiteImage = document.querySelector("[data-tool-step=icons-edge] [data-site-icon=\\"docs.example.org\\"] img"); true');
+  const freshEdge = { ...edge, result:{ results:[{ title:'Fresh article', url:'https://fresh.example.org/new?keep=local' }] } };
+  emit('tool_progress', { step:freshEdge });
+  await browserAsync('wait', '--fn', 'document.querySelector("[data-tool-step=icons-edge] [data-site-icon=\\"fresh.example.org\\"]")?.dataset.iconState === "ready"');
+  evaluate('window.__staleSiteImage.dispatchEvent(new Event("load")); window.__staleSiteImage.dispatchEvent(new Event("error")); true');
+  assert.equal(evaluate('document.querySelector("[data-tool-step=icons-edge] [data-site-icon=\\"fresh.example.org\\"]").dataset.iconState'), 'ready', 'old image callbacks cannot alter the new domain');
+  assert.equal(evaluate('document.querySelector("[data-tool-step=icons-edge] [data-site-icon=\\"fresh.example.org\\"] img").naturalWidth'), 16);
+  assert.equal(evaluate('document.querySelector("[data-tool-step=icons-edge] [data-site-icon=\\"docs.example.org\\"]")'), null);
+
+  // Capture only newly created six-second icon deadlines. UI timers keep their
+  // real clock; manually firing each deadline proves a stalled request advances.
+  captureIconDeadlines();
+  emit('tool_progress', { step:{ ...edge, result:{ results:[{ title:'Stalled icon', url:'https://timeout.example.org/article?private=query' }] } } });
+  browser('scrollintoview', '[data-tool-step=icons-edge]');
+  for (const candidate of ['direct','google','ddg']) {
+    await waitForFixture(() => heldFavicons.some(request => request.site === 'timeout.example.org' && request.candidate === candidate));
+    await browserAsync('wait', '--fn', 'window.__faviconTimers.size > 0');
+    evaluate('window.__fireIconDeadline()');
+  }
+  browser('wait', '--fn', 'document.querySelector("[data-tool-step=icons-edge] [data-site-icon=\\"timeout.example.org\\"]")?.dataset.iconState === "fallback"');
+  assert.equal(evaluate('document.querySelector("[data-tool-step=icons-edge] [data-site-icon=\\"timeout.example.org\\"]").getBoundingClientRect().width'), 18);
+  assert.equal(evaluate('window.__faviconTimers.size'), 0, 'the bounded chain leaves no icon deadline running');
+  restoreIconDeadlines();
+  for (const request of heldFavicons) {
+    await cdp('Fetch.fulfillRequest', { requestId:request.requestId, responseCode:404, body:'' }, request.sessionId).catch(() => undefined);
+  }
+  assert.deepEqual(faviconRequests.filter(request => request.site === 'timeout.example.org').map(request => request.candidate), ['direct','google','ddg']);
+  assert.ok(faviconRequests.every(request => !request.url.includes('article') && !request.url.includes('private') && !request.url.includes('mode=')), 'cache requests carry only the validated hostname');
+  finish('The icon lifecycle fixture finished.');
+  browser('wait', '--text', 'The icon lifecycle fixture finished.');
+  settleTree('icons-edge', false);
+  assert.deepEqual(unexpectedExternal, []);
+  assert.deepEqual(evaluate('window.__blockedWrites'), []);
+
   // Reloaded legacy activity cannot turn unknown or unfinished outcomes into
   // success. Native reduced-motion emulation also checks the live tree path.
   await cdp('Emulation.setEmulatedMedia', { features:[
@@ -394,6 +506,7 @@ try {
   browser('reload');
   browser('wait', '.chat-phone-toolbar');
   assert.equal(evaluate('matchMedia("(prefers-reduced-motion: reduce)").matches'), true);
+  captureIconDeadlines();
   browser('click', '.chat-narrow-toolbar button[aria-label="Розмови"]');
   browser('wait', '[data-session-id="activity-history"]');
   browser('wait', '--fn', `(() => {
@@ -409,6 +522,19 @@ try {
   browser('wait', '--text', 'Saved activity fixture.');
   assert.equal(controls('[data-activity-toggle]').expanded, 'false', 'saved history starts collapsed');
   settleTree('saved-ok', false);
+  await browserAsync('wait', '--fn', 'document.querySelector(".chat-source-strip summary [data-site-icon=\\"docs.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-source-strip summary [data-site-icon=\\"lookup.example.org\\"]")?.dataset.iconState === "ready"');
+  assert.equal(evaluate('document.querySelector(".chat-source-strip summary [data-site-icon=\\"hidden.example.org\\"]")'), null, 'the third phone site has no visible summary icon to warm its cache');
+  for (let hop = 0; hop < 3; hop++) {
+    evaluate('window.__fireAllIconDeadlines()');
+    await browserAsync('--json', 'eval', '(async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); return true; })()');
+  }
+  assert.equal(evaluate('document.querySelector(".chat-source-strip ol [data-site-icon=\\"hidden.example.org\\"]").dataset.iconState !== "fallback"'), true,
+    'an unseen hidden history icon cannot exhaust before becoming visible');
+  restoreIconDeadlines();
+  browser('focus', '.chat-source-strip summary');
+  browser('press', 'Enter');
+  browser('wait', '.chat-source-strip[open]');
+  await browserAsync('wait', '--fn', 'document.querySelector(".chat-source-strip ol [data-site-icon=\\"hidden.example.org\\"]")?.dataset.iconState === "ready"');
   browser('focus', '[data-activity-toggle]');
   browser('press', 'Enter');
   settleTree('saved-ok', true);

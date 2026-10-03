@@ -13,9 +13,9 @@ import type { ToolStep } from './types';
  * time the question is only "did it actually look anything up, and where".
  * Opening it gives the titles and the links.
  *
- * Icons come from each public website's own origin without the article path
- * or referrer. A fixed-size local initial stays available while loading and
- * when the website has no icon or the panel runs without network.
+ * SiteIcon tries the public origin, then host-only icon caches for blocked
+ * or missing marks. A fixed-size initial remains while loading or offline.
+ * Article paths and referrers never enter the icon lookup.
  */
 
 export function SourceStrip({ steps }: { steps: ToolStep[] }) {
