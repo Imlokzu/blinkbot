@@ -1,5 +1,32 @@
 # HANDOFF — Клод Бот (сесія 2026-07-26, Claude Code / Fable 5)
 
+## KMP phone client implementation (2026-10-03)
+
+The new `mobile-app/` Kotlin Multiplatform client now has the shared Compose
+chat/settings/files UI, Android native integrations and background outbox, and
+an iOS SwiftUI host. The shared host gained one-time QR pairing, revocable
+device tokens, durable jobs/event replay, pause/resume/scheduling, edit/regenerate
+forks and revision-aware workspace saves. PC pairing lives in Settings/Profile.
+Set `MOBILE_API_ORIGIN` for a nondefault HTTPS tunnel hostname; mobile traffic
+preserves the existing owner/history/workspace.
+
+Validation: 69 common state/transport tests, 62 Android unit tests, 32 native
+instrumentation cases and two Compose/controller UI flows passed. Android APK
+build passed and screenshots were inspected. The backend reviewer reports
+69 mobile tests plus ordinary live-server pairing/SSE/queue smoke passed; the
+broader suite passed 1,040 tests with 7 skipped and 88 probe cases excluded,
+with one unrelated image timing failure passing on retry. PC typecheck/build
+and the pairing panel's QR expiry/revocation flows passed.
+
+Remaining release limits: full Xcode compilation/iOS runtime testing, iOS
+background outbox scheduling, APNs/FCM remote push, and strict Steer through the
+installed gateway's public API. Steer is explicitly disabled by capability.
+Public tunnel/provider/microphone production operation was not exercised by
+fixtures. Independent reviewers used available models; no Fable review is claimed.
+See `mobile-app/README.md`, `docs/mobile-app/ARCHITECTURE.md`, and
+`Virtual Bot/docs/MOBILE-API.md` for setup and precise boundaries.
+
+
 Файл-передача контексту для продовження роботи в іншій сесії (Claude Desktop).
 Прочитай його повністю перед будь-якими змінами.
 

@@ -1,6 +1,6 @@
 # Mobile implementation architecture
 
-Status: implementation in progress, 2026-10-03. The owner has now requested
+Status: Android implementation validated, iOS device validation pending, 2026-10-03. The owner has now requested
 implementation of the application. Routine layout parameters may be refined
 within the agreed reference; the product behavior in [DESIGN.md](DESIGN.md)
 remains binding.
@@ -59,3 +59,27 @@ Apple verification remains explicitly pending until a full Xcode SDK is availabl
 Sources: [KMP compatibility](https://kotlinlang.org/docs/multiplatform/multiplatform-compatibility-guide.html),
 [Compose compatibility](https://kotlinlang.org/docs/multiplatform/compose-compatibility-and-versioning.html),
 [Ktor multiplatform client](https://ktor.io/docs/client-create-multiplatform-application.html).
+
+
+## Implementation validation (2026-10-03)
+
+The delivered code includes shared Compose UI and state, device pairing and
+stream transport, native Android integrations with WorkManager, and a SwiftUI
+iOS host. Android debug assembly, 69 shared tests, 62 Android unit tests,
+32 native instrumentation cases and two Compose/controller UI flows passed.
+The screen flows use deterministic service responses, not paid model calls.
+
+The app's foreground outbox and Android background worker share an atomic
+preference transaction. A three-way snapshot merge preserves worker receipts,
+permanent failures and newly queued items while allowing explicit cancellation
+and retry. Credential epochs and per-request generations reject stale work from
+an old device/connection. A foreground refusal to queue is retained through
+backgrounding.
+
+The host adapter has durable SQLite jobs, replay cursors, session turn leases,
+revision-aware workspace writes, model overrides, and shared-history forks.
+Same-provider fallback happens only before observed output/tool work; persisted
+assistant records retain the effective model. The gateway's exported API does
+not guarantee strict steering, so the capability remains false. APNs/FCM remote
+push is unconfigured. iOS outbox retry currently requires a foreground opportunity.
+Full Apple compilation remains unverified because this Mac lacks full Xcode.
