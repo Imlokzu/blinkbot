@@ -956,15 +956,18 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   does not bypass this. Reference-image editing is outside this first provider.
 - Independent native maximum-effort review fixed RPC ordering, inherited tool/
   model settings, process-group cleanup, bounded saved files and identity checks.
-  Architecture review found no remaining blocker; real paid generation remains
-  unverified because the local CLI still needs ChatGPT sign-in. Fable and the
-  configured specialist model were unavailable; supported native agents reviewed.
+  Architecture review found no remaining blocker. Fable and the configured
+  specialist model were unavailable; supported native agents reviewed.
 - Validation: 1047 Python tests passed, 6 skipped, 178 subtests; 117 committed-
   source dashboard tests, TypeScript and production builds passed. Browser
   checks exercised real SSE/history/private publication with a fixture image,
   both locales, desktop/phone fit, focus, viewer and zero scoped axe violations.
   HTTP smoke covered 300 checks, including traversal rejection (400), operator
   proxy rejection, private uploads/history and every release resource.
+- Live native generation succeeded through the running bot's Codex environment:
+  one operator tool call returned a 1536x1024 PNG (995,173 bytes) in 22.6 seconds,
+  with a matching private download. The standalone agent-shell CLI still needs
+  sign-in; its environment does not determine the running bot's readiness.
 - Backend and UI commits passed Gitleaks/TruffleHog and were pushed on main as
   the required owner identity. Release assets match committed sources; the live
   local build preserves other agents' pending UI edits. Test servers and browsers

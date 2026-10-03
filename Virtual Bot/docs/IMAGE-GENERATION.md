@@ -68,5 +68,8 @@ QA launcher, not in production code. HTTP smoke covered all release resources,
 private upload/history, a forwarded operator request and traversal guards (400).
 
 Independent native reviewers fixed the adapter and reviewed its architecture.
-Real subscription generation remains unverified on this machine because the
-local CLI currently requires ChatGPT sign-in.
+Live native generation also passed through the running bot's Codex environment:
+one operator tool call returned a 1536x1024 PNG (995,173 bytes) in 22.6 seconds,
+and its authenticated download matched the generated file. The standalone CLI
+in the agent's shell still requires sign-in; readiness must be checked in the
+bot's process environment rather than inferred from a different shell.
