@@ -2240,7 +2240,7 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat",
     with _brain_context(sid, clerk_uid):
         history = _get_history(sid, req.history)
         if image_request is None:
-            agent_message += _image_history_context(history)
+            agent_message += _image_history_context(history, clerk_uid)
         openclaw_session_key = _openclaw_session_key(sid, clerk_uid)
         # Зберігаємо факти з цього повідомлення ДО відповіді (незалежно від мозку)
         await asyncio.to_thread(_extract_and_save_facts, message)

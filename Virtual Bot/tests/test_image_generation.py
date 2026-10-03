@@ -205,6 +205,37 @@ def test_follow_up_receives_bounded_image_references_without_claiming_pixel_anal
     assert 'not analysis of the pixels' in note
 
 
+def test_shared_session_cache_cannot_forward_another_owners_image_caption():
+    from chat_attachments import owner_prefix
+    url = '/uploads/' + owner_prefix('alice') + '123.png'
+    cached_history = [{'role': 'assistant', 'content': f'![Alice private image prompt]({url})'}]
+    assert 'Alice private image prompt' in history_context(cached_history, 'alice')
+    assert history_context(cached_history, 'bob') == ''
+    assert history_context(cached_history, '') == ''
+
+
+def test_chat_follow_up_filters_image_metadata_for_each_authenticated_owner():
+    from chat_attachments import owner_prefix
+    url = '/uploads/' + owner_prefix('alice') + '123.png'
+    cached_history = [{'role': 'assistant', 'content': f'![Alice private image prompt]({url})'}]
+    seen = []
+
+    async def brain(message, history, **kwargs):
+        seen.append(message)
+        return 'Done.', 'idle', 'test', []
+
+    with patch.object(main, '_get_history', return_value=cached_history), \
+            patch.object(main.brains, 'chat', side_effect=brain), patch.object(main, '_extract_and_save_facts'), \
+            patch.object(main, '_autoname_chat', AsyncMock()), TestClient(main.app) as client:
+        for owner in ['alice', 'bob']:
+            with patch.object(main, '_require_user', AsyncMock(return_value=owner)):
+                response = client.post('/api/chat', json={'message': 'Discuss the image.', 'session_id': 'shared-cache'})
+                assert response.status_code == 200
+    assert 'Alice private image prompt' in seen[0]
+    assert 'Alice private image prompt' not in seen[1]
+    assert url not in seen[1]
+
+
 def test_login_failure_is_localized_chat_reply():
     with patch.object(generation, 'generate', AsyncMock(side_effect=generation.GenerationError('codex_login_required'))):
         reply, _, mode, results = run(brains.chat('/image:uk краб'))
