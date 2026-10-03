@@ -1631,6 +1631,25 @@
     display: none;
   }
 
+  /* No pinning on narrow screens: the window sits under the copy in the flow. */
+  .hero {
+    height: auto;
+    min-height: 0;
+    padding-bottom: 6vh;
+    overflow: visible;
+  }
+
+  .hero__stage {
+    position: relative;
+    inset: auto;
+    padding: 44px var(--gutter) 0;
+    perspective: 1200px;
+  }
+
+  .hero__floor {
+    bottom: -30%;
+  }
+
   .callout__card {
     display: none;
   }
@@ -1757,5 +1776,21 @@
 @media (prefers-reduced-motion: reduce) {
   .statement__text .word {
     opacity: 1;
+  }
+}
+
+/* Without motion the hero is not pinned, so it lays out like the phone one. */
+@media (prefers-reduced-motion: reduce) {
+  .hero {
+    height: auto;
+    min-height: 0;
+    padding-bottom: 6vh;
+    overflow: visible;
+  }
+
+  .hero__stage {
+    position: relative;
+    inset: auto;
+    padding: 44px var(--gutter) 0;
   }
 }

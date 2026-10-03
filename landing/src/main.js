@@ -19,6 +19,9 @@ import { initCards, initFinal, initMagnetic, initMarquee, initNav, initScrollLin
 
 gsap.registerPlugin(ScrollTrigger, ScrollSmoother, SplitText);
 
+// Handy from the console while working on the motion; never shipped.
+if (import.meta.env.DEV) Object.assign(window, { gsap, ScrollTrigger });
+
 const root = document.documentElement;
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const finePointer = window.matchMedia("(pointer: fine)").matches;
@@ -55,8 +58,32 @@ const smoother = reduced
       effects: false,
     });
 
-// Line splitting measures text, so it waits for the real fonts.
-document.fonts.ready.then(() => {
+// Line splitting and every trigger position measure text, so they wait for
+// the real fonts. fonts.ready alone is not enough: it can resolve before the
+// stylesheet has asked for any font at all. Asking for them by name does
+// wait — but never longer than a moment, a missing font must not hold the page.
+const FONTS = ['600 1em "IBM Plex Sans Variable"', 'italic 500 1em "Cormorant Garamond"', '500 1em "IBM Plex Mono"'];
+const fontsLoaded = Promise.race([
+  Promise.all(FONTS.map((font) => document.fonts.load(font))).then(() => document.fonts.ready),
+  new Promise((resolve) => setTimeout(resolve, 2500)),
+]);
+
+// Anything that still changes the page height later (a late font, an image
+// without reserved space) moves every trigger below it: measure again once
+// the height settles.
+function remeasureOnResize() {
+  const main = document.querySelector("main");
+  let measured = main.offsetHeight;
+  const settle = gsap.delayedCall(0.3, () => {
+    ScrollTrigger.refresh();
+    measured = main.offsetHeight;
+  }).pause();
+  new ResizeObserver(() => {
+    if (Math.abs(main.offsetHeight - measured) > 2) settle.restart(true);
+  }).observe(main);
+}
+
+fontsLoaded.then(() => {
   const { intro } = initHero({ reduced, finePointer });
   initReveals({ reduced });
   initTour({ reduced });
@@ -106,4 +133,5 @@ document.fonts.ready.then(() => {
   }
 
   ScrollTrigger.refresh();
+  remeasureOnResize();
 });
