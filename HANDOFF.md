@@ -1256,3 +1256,22 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   fixtures in both locales/themes, plus independent maximum-effort visual
   review of glyph coverage, phone sizing and offline font delivery.
 - Unrelated owner drafts and staged changes remain preserved.
+
+
+## Kotlin Multiplatform mobile discovery (2026-10-03)
+
+- Captured the mobile interview in `docs/mobile-app/DESIGN.md` and the
+  companion `SCREEN_PLAN.md`; root `DESIGN.md` links the separate contract.
+- The new Android/iOS client uses the existing backend, shared history and
+  agent workspace through the owner's Cloudflare Tunnel API hostname.
+  `api-bot.waveio.me` is a proposed address, not a verified deployment.
+- Confirmed messenger bubbles, tool-tree summaries, the centered anchored
+  model/effort picker, 65% menu, device-local wallpaper, ASR-to-composer,
+  text-file autosave and private-by-default opt-in notifications.
+- Final clarifications: model fallback stays within the same provider;
+  Steer updates active work, Stop only stops, and Send later selects a
+  date/time. Stop must not automatically start queued work.
+- These are requirements, not shipped mobile features. No application code,
+  native project, backend migration, or tunnel configuration was changed.
+  Architecture must verify the backend gaps; remaining visual choices need
+  the compact preview described in the screen plan, not another questionnaire.

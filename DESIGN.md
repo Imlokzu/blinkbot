@@ -5,6 +5,8 @@
 - Last refreshed: 2026-09-30
 - Primary product surfaces: `/screen`, its native apps and local app store.
 - The dashboard has its own contract in `Virtual Bot/dashboard/DESIGN.md`.
+- The new Kotlin Multiplatform mobile client has a separate interview-derived
+  contract in `docs/mobile-app/DESIGN.md` and `docs/mobile-app/SCREEN_PLAN.md`.
 - Evidence reviewed: `AGENTS.md`, `HANDOFF.md`,
   `Virtual Bot/docs/SCREEN-PLATFORM.md`, `static/screen/screen.js`,
   `screen.css`, `deep.css`, `drawer.js`, `app-icons.js`, `app-kit.css`,
