@@ -170,6 +170,9 @@ try {
   evaluate('window.__effortDelay = true');
   browser('find', 'role', 'radio', 'click', '--name', labels.en.levels.medium, '--exact');
   browser('wait', '--fn', 'typeof window.__effortRelease === "function"');
+  // Network dispatch can precede React's scheduled mutation-state render.
+  browser('wait', '--fn', `document.querySelector('${groupSelector}')?.getAttribute('aria-busy') === 'true'
+    && [...document.querySelectorAll('${groupSelector} [role=radio]')].every(row => row.getAttribute('aria-disabled') === 'true')`);
   assert.deepEqual(evaluate('window.__effortWrites'), [{ address: '/api/brain/thinking', body: { level: 'medium' } }]);
   assert.ok(rows().every(row => row.disabled === 'true'), 'pending writes disable every radio through ARIA');
   browser('press', 'ArrowDown');
