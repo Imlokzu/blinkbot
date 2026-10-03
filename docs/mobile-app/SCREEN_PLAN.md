@@ -2,7 +2,7 @@
 
 This is the screen/flow inventory derived from [DESIGN.md](DESIGN.md). It records
 product requirements, not a Kotlin module layout or an approved pixel mockup.
-Exact visual choices listed in the design contract still need a preview.
+Version 0.2.0 follows the owner’s 2026-10-04 refinement and verified Android previews.
 
 ## Primary destinations
 
@@ -11,7 +11,7 @@ Exact visual choices listed in the design contract still need a preview.
 | S01 | Connect to bot | First use or reauthentication; scan the PC-issued mascot QR and show actual connection state. |
 | S02 | New chat | Persistent Menu / Model / New chat row, prepared greeting, wallpaper, composer. Fresh launch destination after an explicit close. |
 | S03 | Conversation | Shared server history, messenger replies, tool trees/reports, attachments, active work and pending messages. |
-| S04 | Menu and history | Approximately 65% width; remaining chat visible under a dim overlay. Chats, Search, Agents, Files, Profile. |
+| S04 | Menu and history | Approximately 65% width, revealed beneath the foreground chat as it slides right; the remaining chat is dimmed. Chats, Search, Agents, Files, Profile. |
 | S05 | Search | Search the same conversation collection as PC and open the selected conversation. Search depth/pagination depend on the verified API. |
 | S06 | Files | Existing agent workspace, folder navigation, file selection and previews. |
 | S07 | File preview/editor | View supported files; edit text/Markdown with autosave and visible write state. |
@@ -41,9 +41,9 @@ and verified backend. Admin services/logs are not assumed as new mobile features
 
 | ID | Surface | Required behavior |
 | --- | --- | --- |
-| P01 | Model / effort | Anchored immediately below the top-center model control; branded model choices and separate effort control. |
-| P02 | Dictation | Animated popup with actual voice-responsive line and transcript; manual Stop inserts text into the composer. |
-| P03 | Attachments | Photo library, camera, documents; preserve the active draft during selection/upload. |
+| P01 | Model / effort | Solid themed panel anchored below the top-center model control; model selection opens its separate effort page. |
+| P02 | Dictation | Inline composer with voice-responsive edge glow and live transcript; manual Stop commits recognized text to the draft. |
+| P03 | Attachments | Large Camera / Photos / Files tiles, followed by genuine skills, workspace and scheduling actions; preserve the active draft. |
 | P04 | Message actions | Long press: copy, select text, edit own message, regenerate, share. |
 | P05 | Tool details | Completed short report opens the real branching action tree, with correct failure/stop outcomes. |
 | P06 | Send mode | Long press Send: Steer, Queue, Send later. Keep Stop reachable during active work. |

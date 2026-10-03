@@ -83,3 +83,28 @@ assistant records retain the effective model. The gateway's exported API does
 not guarantee strict steering, so the capability remains false. APNs/FCM remote
 push is unconfigured. iOS outbox retry currently requires a foreground opportunity.
 Full Apple compilation remains unverified because this Mac lacks full Xcode.
+
+
+## Custom interface and live reply refinement (0.2.0)
+
+The mobile interface now uses custom Foundation-based controls, a solid model
+panel with an effort page, opaque message bubbles, and a chat-foreground drawer.
+Manrope and a Lora-derived greeting font are bundled with license notices. ASR
+partials render inside the composer; only explicit Stop/Use text commits the
+transcription to the draft. Attachment tiles open native pickers, while the
+Skills destination reads the existing host catalog and inserts a real reference.
+
+The gateway's replaceable assistant HTTP output can wait for finalization.
+Mobile opts into its real WebSocket answer snapshots, replacing cumulative
+answer text and suppressing duplicate HTTP prefixes. HTTP completion remains
+authoritative. Notes and tool activity retain separate timeline positions.
+Transport error frames and premature EOF now preserve failure/queue-pause state.
+A per-session stream revision stops stale list responses from clearing Stop;
+opening a conversation reconciles a completion that raced its history read.
+
+Wallpaper blur uses cached local image layers and masks. They avoid tracking
+window coordinates as the foreground chat moves. Transition blur effects are
+reused in a few steps, then removed when the animation settles. Reduced-motion
+mode removes transition clocks, including waiting-dot loops. Fonts/typography
+are retained across reply updates. Performance comparisons are emulator/debug
+measurements, not a guarantee for every physical phone.

@@ -20,6 +20,13 @@ The client does not call model providers directly. Conversations, workspace,
 models and bot personalization come from the existing host and owner identity.
 Backend contract and deployment assumptions: [MOBILE-API.md](../Virtual%20Bot/docs/MOBILE-API.md).
 
+## Version 0.2.0
+
+Custom model/effort picker, opaque bubbles, inline dictation with live transcript,
+large attachment tiles, a genuine installed-skills picker, and a drawer revealed
+beneath the foreground conversation. Real gateway snapshots stream before final
+completion. Waiting indicators, context menus and settings share the custom UI.
+
 ## Implemented behavior
 
 - Messenger bubbles, real streamed tool activity, history/search, attachments,
@@ -68,8 +75,8 @@ AGP8.11.1, Gradle8.14.3; minimum Android26. Set `sdk.dir` in the ignored
 APK: `androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
 Apple build instructions: [iosApp/README.md](iosApp/README.md).
 
-Validation on 2026-10-03: 69 shared state/transport tests, 62 Android unit tests,
-32 native instrumentation tests, and two end-to-end Compose/controller flows
+Validation on 2026-10-04: 85 shared state/transport tests, 62 Android unit tests,
+44 native instrumentation tests, and seven end-to-end Compose/controller flows
 passed. The UI flows use a deterministic host fixture and silent OS boundary;
 native permission/storage/worker checks run separately. Screenshots were
 inspected for chat, model picker, drawer, dictation, editor, and both themes.

@@ -1628,3 +1628,31 @@ Operational details and verification boundaries: `docs/mobile-app/TUNNEL.md`.
 - Status, screen, dashboard and referenced assets returned 200; memory
   traversal returned 400. Temporary preview/smoke processes were stopped.
   Source and generated release are pushed; owner drafts/staging remain intact.
+
+## Mobile 0.2.0 custom UI and live replies (2026-10-04)
+
+Replaced the visible stock controls with custom model/effort panels, opaque
+bubbles, attachment tiles, message actions, settings and a schedule picker.
+The chat slides above a revealed menu; ASR partials render in its glowing
+composer. Real installed skills insert references into the draft. Manrope and
+a Lora-derived greeting font are bundled with license notices.
+
+Mobile now consumes genuine replaceable gateway answer snapshots before HTTP
+finalization, suppresses echoed prefixes, and keeps authoritative final text.
+Stream errors/early EOF retain failure state and pause the queue. Stale list
+responses cannot clear newer streamed activity; terminal history races and
+cancelled dictation callbacks are covered. Blank host selections now resolve
+the advertised default, and Off remains distinct from inherited effort.
+
+Verification: 85 shared tests, 62 Android unit tests, 44 platform instrumentation
+checks and seven Compose/controller flows passed. The final APK was built from
+an immutable source snapshot. A paced 176-frame host-GPU emulator sample measured
+median 17 ms / p95 20 ms, matching the old overlay's measured timing after cached
+wallpaper layers and reused transition effects replaced moving blur work.
+Focused streaming tests passed (152 tests plus 32 subtests); the broader backend
+run is explicitly incomplete. Its one issuer-configuration failure passed when
+rerun with a synthetic issuer, with zero network calls. See
+`docs/mobile-app/RELEASE-0.2.md` for exact scope and remaining iOS/push/Steer limits.
+
+The registered backend was restarted after confirming no active mobile jobs;
+new streaming/skills code is loaded and public API authentication remains intact.
