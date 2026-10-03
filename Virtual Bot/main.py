@@ -60,6 +60,7 @@ import openclaw_config
 import jev_router
 import openclaw_models
 import openclaw_settings
+import model_intelligence
 from tool_activity import ActivityLog, detail_for, result_failed
 import coding
 import coding_api
@@ -817,6 +818,21 @@ async def api_brain_models(request: Request, refresh: bool = Query(default=False
         },
         headers={"Cache-Control": "private, max-age=30, stale-while-revalidate=120"},
     )
+
+
+@app.get("/api/brain/intelligence")
+async def api_brain_intelligence(request: Request) -> dict:
+    """
+    Benchmark intelligence index for each model in the picker.
+
+    A separate call, not a field of /api/brain/models: the first one of the
+    day downloads Epoch's archive, and the picker must not wait for that to
+    show its list. The table is cached for a day on disk.
+    """
+    await _require_user(request)
+    models = await openclaw_models.catalog() if openclaw_models.reachable() else []
+    data = await model_intelligence.load()
+    return model_intelligence.for_catalog(data, [str(m["id"]) for m in models])
 
 
 @app.post("/api/brain/model")
