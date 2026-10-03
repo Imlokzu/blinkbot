@@ -1233,3 +1233,12 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   including the exact local JPEG and its precache entry. Both memory and
   workspace traversal attempts returned 400. Task-owned test servers and
   browser sessions are stopped; the existing dashboard server is preserved.
+
+- The final integrated release also includes the preceding committed Settings
+  readability and welcome-typography changes. Its clean-source checks retain
+  152 passing frontend tests and successful TypeScript/build results. The
+  browser SSE suite passes against the live /dash; all 297 final resources and
+  7 smoke endpoints pass, with both traversal guards returning 400. The exact
+  JPEG also returns 200 with matching original bytes over the phone LAN URL.
+  The final PWA precache contains 102 entries. Temporary test servers and
+  browser sessions are closed, and unrelated staged/source drafts are preserved.
