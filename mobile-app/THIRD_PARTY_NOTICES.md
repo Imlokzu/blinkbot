@@ -33,3 +33,13 @@ Dependency versions are pinned in the Gradle files. Kotlin, Compose, Ktor,
 Haze, the Markdown renderer, AndroidX and ZXing retain their respective upstream
 licenses and notices. This document describes the separately vendored visual
 assets; it does not replace the licenses contained in runtime artifacts.
+
+## Typography
+
+Manrope by Mikhail Sharanda and collaborators and Lora by Cyreal are bundled
+from the Google Fonts upstream repositories under the SIL Open Font License.
+The variable sources were instantiated at weights 400/600 (Manrope) and 500
+italic (Lora), with Ukrainian character coverage checked before bundling.
+License copies: `licenses/manrope-OFL.txt` and `licenses/lora-OFL.txt`.
+Sources: https://github.com/google/fonts/tree/main/ofl/manrope and
+https://github.com/google/fonts/tree/main/ofl/lora .
