@@ -1367,3 +1367,15 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   Existing model/effort and mobile fixtures passed, including writes, rollback,
   focus, glass and keyboard-reduced areas. The actual port-8100 sidebar fixture
   also passed. Python checks: 1,073 passed, 6 skipped and 178 subtests.
+
+
+## Verified guarded dashboard release (2026-10-03)
+
+- Published approved source bb20997 through the guarded publisher, then
+  checked actual port8100 HTML, imported ChatPanel JavaScript and CSS. They
+  contain the new glass/conversation metadata and compact440x360 picker.
+  Source revision is recorded in public build-info.json.
+- Fresh-browser sidebar and model/effort fixtures passed against /dash/ on
+  the real port8100 server, rather than only an isolated dev preview.
+  HTTP status/screen/dashboard/assets returned200; memory traversal returned400.
+  Temporary smoke processes were stopped; unrelated owner work is preserved.
