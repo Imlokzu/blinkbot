@@ -1150,3 +1150,27 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   reduced-motion preference changes, remounting the current panel. This task
   leaves that application-wide behavior unchanged; initial reduced-motion
   mode and the new component's preference subscription are verified separately.
+
+
+## New-chat welcome and compact toolbar (2026-10-03)
+
+- The empty chat cycles four localized headings with a short flip every four
+  seconds. Hidden tabs pause it; reduced motion keeps the original heading.
+  Phrase measurement preserves composer position and drafts; assistive
+  technology receives one stable heading rather than repeated announcements.
+- The global header no longer repeats the model, connection dots or local-mode
+  badge. Model selection stays in the composer; authenticated account controls
+  and the token bridge remain mounted.
+- One desktop right-panel menu selects Hidden, Panels or Workbench. Pins and
+  saved visibility survive switching. An explicit non-workbench choice
+  suppresses automatic file-write opening for the current reply; closing
+  the workbench returns focus to the shared trigger. Phone controls remain.
+- Independent supported maximum-effort review fixed that automatic-opening
+  edge case and verified keyboard, focus, glass and stable layout. Fable is
+  unavailable in this runtime; no Fable certification is claimed.
+- Validation: 149 frontend tests, TypeScript, isolated production build,
+  1,049 Python tests with 6 skipped and 178 subtests, appearance and workbench
+  browser fixtures, and a scoped toolbar accessibility audit all passed.
+  The dedicated welcome fixture covers rotation and right-panel selection.
+  HTTP smoke checks verify dashboard/static assets and reject memory traversal.
+- Unrelated owner drafts and staged changes are preserved.

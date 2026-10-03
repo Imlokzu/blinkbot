@@ -56,7 +56,10 @@ try {
   browser('reload');
   browser('wait', '[data-session-id="wb-fixture"]');
   browser('click', '[data-session-id="wb-fixture"]');
-  clickLabel('Показати робоче місце', 'Show the workbench');
+  browser('click', '[data-right-panel-trigger]');
+  evaluate('Promise.all(document.querySelector("[data-right-panel-menu]").getAnimations({subtree:true}).map(animation => animation.finished.catch(() => {})))');
+  browser('click', '[data-panel-choice="workbench"]');
+  browser('wait', '--fn', 'document.querySelector("[data-right-panel-menu]") === null');
 
   // Newest write first; the failed one never becomes a tab.
   browser('wait', '.workbench nav button');

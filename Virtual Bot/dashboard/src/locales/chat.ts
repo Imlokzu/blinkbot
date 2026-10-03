@@ -13,7 +13,7 @@ const uk = {
   'sessions.showList': 'Показати список розмов',
   'sessions.hideList': 'Сховати список розмов',
 
-  // Стрічка
+  // Conversation
   'thread.new': 'нова розмова',
   'thread.suggestion1': 'Що ти зараз умієш?',
   'thread.suggestion2': 'Покажи, що в тебе в памʼяті',
@@ -21,6 +21,9 @@ const uk = {
   'thread.prompt1': 'Про що поговоримо?',
   'thread.prompt2': 'Що зробити?',
   'thread.prompt3': 'Чим зайнятись?',
+  'thread.welcomeIdea': 'Є ідея? Викладай.',
+  'thread.welcomePlan': 'З чого почнемо?',
+  'thread.welcomePlayful': 'Ну що, заваримо ідею?',
   'thread.compacted': 'нижче переказ {count} реплік',
   'thread.toLatestAria': 'До актуальної відповіді',
 
@@ -254,6 +257,9 @@ const en: Record<keyof typeof uk, string> = {
   'thread.prompt1': 'What shall we talk about?',
   'thread.prompt2': 'What should we do?',
   'thread.prompt3': 'What to work on?',
+  'thread.welcomeIdea': 'Got an idea? Let’s hear it.',
+  'thread.welcomePlan': 'Where shall we start?',
+  'thread.welcomePlayful': 'Shall we brew an idea?',
   'thread.compacted': 'summary of {count} messages below',
   'thread.toLatestAria': 'Jump to the latest reply',
 

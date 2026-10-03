@@ -13,6 +13,7 @@ import {
 } from './Bubbles';
 import { SourceStrip } from './SourceStrip';
 import { MessageActions } from './MessageActions';
+import { WelcomeHeading } from './WelcomeHeading';
 import { useSentMessageFlight } from './useSendBubbleEffect';
 import { stepsFor } from './replyParts';
 import { Button } from '@/components/ui/Button';
@@ -300,7 +301,7 @@ export function Thread({
         {empty ? (
           <div className="chat-landing-heading">
             <p className="u-label">{t('thread.new')}</p>
-            <h2>{t('thread.prompt1')}</h2>
+            <WelcomeHeading />
           </div>
         ) : null}
         {composer}

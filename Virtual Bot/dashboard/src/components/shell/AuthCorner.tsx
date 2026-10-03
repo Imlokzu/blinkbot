@@ -18,18 +18,8 @@ function TokenBridge() {
 }
 
 export function AuthCorner() {
-  // Локальний режим (CLERK_DISABLED=1): жодного компонента Clerk — без
-  // валідного ключа вони кидають ще на старті.
-  if (isAuthDisabled()) {
-    return (
-      <span
-        className="u-label rounded-full border border-line px-2 py-1 text-[10px]"
-        title="CLERK_DISABLED=1 — вхід вимкнено для локальної розробки"
-      >
-        локально
-      </span>
-    );
-  }
+  // Local mode has no account controls and must not mount Clerk components.
+  if (isAuthDisabled()) return null;
 
   return (
     <>

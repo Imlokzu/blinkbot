@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AssistantRuntimeProvider } from '@assistant-ui/react';
 import { createPortal } from 'react-dom';
-import { Columns2, List, PanelLeft, PanelRight, Plus, X } from 'lucide-react';
+import { List, PanelLeft, PanelRight, Plus, X } from 'lucide-react';
 import { Thread } from './Thread';
 import { Composer } from './Composer';
 import { SessionList } from './SessionList';
 import { PinnedPanels } from './PinnedPanels';
 import { Workbench, type WorkbenchFocus } from './Workbench';
+import { RightPanelMenu } from './RightPanelMenu';
 import { collectFiles, workspaceWrites, workspaceWriteId, workbenchHost } from './workFiles';
 import { WorkspaceLinksProvider } from './WorkspaceFileLink';
 import { ModelMenu } from './ModelMenu';
@@ -28,7 +29,6 @@ import { t as workspaceT } from '@/locales/workspace';
 import { t as benchT } from '@/locales/workbench';
 import { t } from '@/lib/i18n';
 import { t as chatT } from '@/locales/chat';
-import { t as appearanceT } from '@/locales/chatAppearance';
 
 /*
  * Desktop chat keeps conversations, the thread and optional panels separate.
@@ -259,20 +259,15 @@ export default function ChatPanel() {
             </span>
             <Button variant="ghost" size="icon-sm" onClick={chat.newSession}
               aria-label={chatT('chat.newSession')} title={chatT('chat.newSession')}><Plus /></Button>
-            <Button ref={panelsToggle} variant="ghost" size="icon-sm"
-              aria-label={appearanceT(appearance.sidebarVisible || bench ? 'hidePanels' : 'showPanels')}
-              title={appearanceT(appearance.sidebarVisible || bench ? 'hidePanels' : 'showPanels')}
-              aria-expanded={appearance.sidebarVisible || bench}
-              onClick={() => {
-                if (bench) closeBench();
-                setAppearance({ sidebarVisible: bench ? false : !appearance.sidebarVisible });
-              }}><Columns2 /></Button>
-            <Button variant="ghost" size="icon-sm" onClick={toggleBench}
-              title={benchT(bench ? 'wb.close' : 'wb.open')}
-              aria-label={benchT(bench ? 'wb.close' : 'wb.open')} aria-expanded={bench}>
-              <PanelRight />
-              {benchFiles ? <span className="font-mono text-[10px] text-ink-3">{benchFiles}</span> : null}
-            </Button>
+            <RightPanelMenu ref={panelsToggle} files={benchFiles}
+              mode={bench ? 'workbench' : appearance.sidebarVisible ? 'panels' : 'hidden'}
+              onChange={(mode) => {
+                if (mode === 'workbench') setBench(true);
+                else {
+                  closeBench();
+                  setAppearance({ sidebarVisible: mode === 'panels' });
+                }
+              }} />
           </header>
         ) : null}
         {isDesk && sessionsOpen ? (
@@ -439,7 +434,10 @@ export default function ChatPanel() {
               onPointerDown={benchWidth.onPointerDown}
               onKeyDown={benchWidth.onKeyDown}
             />
-            <Workbench messages={chat.visibleMessages} sessionId={chat.sessionId} focus={benchFocus} onClose={closeBench}
+            <Workbench messages={chat.visibleMessages} sessionId={chat.sessionId} focus={benchFocus} onClose={() => {
+              closeBench();
+              panelsToggle.current?.focus({ preventScroll: true });
+            }}
               recentWriteIds={recentWriteIds} revealedWrites={revealedWrites} />
           </div>
         ) : isDesk && appearance.sidebarVisible ? (

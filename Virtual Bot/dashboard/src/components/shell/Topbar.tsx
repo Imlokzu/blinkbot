@@ -4,32 +4,20 @@ import { Brand } from './Brand';
 import { AuthCorner } from './AuthCorner';
 import { Orb } from '@/vendor/aicss';
 import { Morph } from '@/components/ui/Morph';
-import { Dot } from '@/components/ui/Status';
 import { toolLook } from '@/lib/toolLabels';
-import { Tip } from '@/components/ui/Tip';
-import { useBotEvents, useEventsConnected } from '@/hooks/useBotEvents';
+import { useBotEvents } from '@/hooks/useBotEvents';
 import { useDockSide } from '@/hooks/useDockSide';
 import { useIsPhone } from '@/hooks/useMediaQuery';
 import { findSection } from '@/app/sections';
 import { useRoute } from '@/app/useRoute';
 import { cn } from '@/lib/cn';
-import { t } from '@/lib/i18n';
-import { useBrainModels, useModels, useStatus } from '@/lib/queries';
 import { mobileSectionLabel } from './mobileNavLabels';
 import { PhoneNavigationMenu } from './PhoneNavigationMenu';
 
-/*
- * Шапка тримає СТАН бота й нічого більше: налаштування вигляду живуть у
- * розділі «Налаштування». Так само було в старій панелі — правило перевірене,
- * переносимо як є.
- */
+/* Keep navigation and current tool activity in the header. */
 export function Topbar() {
   const isPhone = useIsPhone();
   const [section] = useRoute();
-  const status = useStatus();
-  const models = useModels();
-  const brain = useBrainModels();
-  const eventsLive = useEventsConnected();
   const [side] = useDockSide();
   const [activity, setActivity] = useState<string | null>(null);
 
@@ -50,11 +38,6 @@ export function Topbar() {
     const timer = setTimeout(() => setActivity(null), 20_000);
     return () => clearTimeout(timer);
   }, [activity]);
-
-  const backendOk = status.isSuccess;
-  const brainId = brain.data?.selected || brain.data?.default || '';
-  const brainModel = brain.data?.models.find((model) => model.id === brainId);
-  const activeModel = brainModel?.label || brainId || models.data?.active || '';
 
   // Keep dock-side normalization mounted while chat owns the single phone toolbar.
   if (isPhone && section === 'chat') return null;
@@ -108,36 +91,7 @@ export function Topbar() {
         </AnimatePresence>
       </div>
 
-      {activeModel && !isPhone ? (
-        <Tip content={t('topbar.model')} side="bottom">
-          <span className="hidden max-w-[180px] truncate font-mono text-[11px] text-ink-3 sm:block">
-            <Morph mono>{activeModel}</Morph>
-          </span>
-        </Tip>
-      ) : null}
-
-      {/* На телефоні шапка лишає лише навігацію: лампочки статусу й бейдж
-          режиму їдять рядок, який і так вузький. */}
-      {!isPhone ? (
-        <>
-          <Tip
-            content={backendOk ? 'Бекенд відповідає' : 'Бекенд не відповідає'}
-            side="bottom"
-          >
-            <span className="flex size-8 items-center justify-center">
-              <Dot kind={status.isPending ? 'idle' : backendOk ? 'ok' : 'err'} />
-            </span>
-          </Tip>
-
-          <Tip content={eventsLive ? 'Стрічка подій жива' : 'Стрічка подій обірвана'} side="bottom">
-            <span className="flex size-8 items-center justify-center">
-              <Dot kind={eventsLive ? 'ok' : 'idle'} />
-            </span>
-          </Tip>
-
-          <AuthCorner />
-        </>
-      ) : null}
+      {!isPhone ? <AuthCorner /> : null}
     </header>
   );
 }

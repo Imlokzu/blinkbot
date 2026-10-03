@@ -554,3 +554,19 @@ hidden documents and offscreen surfaces and releases listeners, observers and
 frames on removal. Scoped accessibility audits, both languages and 320/390/1280
 layouts are covered by `tests/image-generation-motion.browser.mjs`; unit tests
 cover terminal states, private URLs, Markdown delivery and component lifecycle.
+
+
+## New-chat welcome and compact toolbar (2026-10-03)
+
+- The owner-requested welcome rotation is a bounded exception to idle motion:
+  four localized phrases, four-second dwell and a short transform/opacity flip.
+  It runs only in empty chat, pauses in hidden tabs and becomes static with
+  reduced motion. Reserve the tallest phrase and keep a stable accessible name.
+- The global header keeps brand, navigation, live tool activity and real
+  account controls. Omit the repeated model, status dots and local-mode badge.
+- Desktop chat has one explicit right-column choice: Hidden, Panels or
+  Workbench. Keep New conversation separate, preserve saved pin preferences,
+  restore trigger focus and honor explicit choices during streamed writes.
+  Existing phone and tablet controls retain their layout.
+- Labels live in English/Ukrainian locale files. Regression coverage uses
+  tests/chat-welcome.browser.mjs and the appearance/workbench browser fixtures.
