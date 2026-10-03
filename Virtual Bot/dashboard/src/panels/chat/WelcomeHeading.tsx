@@ -9,7 +9,7 @@ const HEADINGS = [
   'thread.welcomePlan',
   'thread.welcomePlayful',
 ] as const;
-const HOLD_MS = 4_000;
+const HOLD_MS = 2_000;
 
 export function WelcomeHeading() {
   const [index, setIndex] = useState(0);

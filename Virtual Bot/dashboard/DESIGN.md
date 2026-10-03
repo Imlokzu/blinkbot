@@ -559,7 +559,7 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
 ## New-chat welcome and compact toolbar (2026-10-03)
 
 - The owner-requested welcome rotation is a bounded exception to idle motion:
-  four localized phrases, four-second dwell and a short transform/opacity flip.
+  four localized phrases, two-second dwell and a short transform/opacity flip.
   It runs only in empty chat, pauses in hidden tabs and becomes static with
   reduced motion. Reserve the tallest phrase and keep a stable accessible name.
 - The global header keeps brand, navigation, live tool activity and real
@@ -570,3 +570,22 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   Existing phone and tablet controls retain their layout.
 - Labels live in English/Ukrainian locale files. Regression coverage uses
   tests/chat-welcome.browser.mjs and the appearance/workbench browser fixtures.
+
+
+## Settings readability and welcome type (2026-10-03)
+
+- Owner-approved Settings navigation extends glass to one stationary sidebar
+  with a readable surface wash. Reduced transparency and unsupported filters
+  use an opaque fill. All tab copy, headings and controls sit on one near-white
+  sheet in light mode and a graphite sheet in dark mode, above the wallpaper.
+  Existing row groups share the sheet; narrow choice/action rows wrap.
+- Glass model group labels scroll with their rows on the shared menu lens.
+  They have no separate white strip or nested filter. Solid/fallback labels
+  retain sticky opaque backgrounds. Default thinking is called Automatic.
+- Lora italic 500 is an owner-requested welcome-only typography exception;
+  regular interface text stays Plex. Ship Latin/Cyrillic font files and their
+  license locally, use 28-44px type and preserve the tallest-phrase measurement.
+  The welcome now has a two-second dwell and keeps the existing short flip,
+  hidden-tab pause, stable accessible name and reduced-motion fallback.
+- Regression coverage: tests/settings-surfaces.browser.mjs,
+  tests/chat-welcome.browser.mjs and tests/model-effort.browser.mjs.

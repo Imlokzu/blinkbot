@@ -1174,3 +1174,29 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   The dedicated welcome fixture covers rotation and right-panel selection.
   HTTP smoke checks verify dashboard/static assets and reject memory traversal.
 - Unrelated owner drafts and staged changes are preserved.
+
+
+## Readable settings and welcome typography (2026-10-03)
+
+- Glass model headings share the popup lens, with clear group labels flowing
+  with their rows. Solid and reduced-transparency modes retain opaque sticky
+  labels. Default thinking is labelled Automatic in both locales; clearing an
+  explicit override keeps its existing semantics, with cleaner confirmation copy.
+- Every Settings section now encloses headings, descriptions and controls in
+  one opaque near-white sheet, or its graphite counterpart in dark mode.
+  Wallpaper remains behind it. The section sidebar uses stationary frosted
+  glass with opaque reduced-transparency and unsupported-browser fallbacks.
+- Welcome headings use self-hosted Lora italic with Latin and Cyrillic subsets;
+  the redistribution license ships under dashboard/public/licenses/. Phrases
+  change every two seconds. Stable layout, hidden-tab pause and static reduced
+  motion continue to work.
+- Independent supported maximum-effort review removed a nested-filter white
+  strip and fixed narrow theme/language choices and Ukrainian MCP actions.
+  Fable remains unavailable; no requested-model certification is claimed.
+- Validation: 149 frontend tests, TypeScript and isolated production build;
+  1,049 Python tests with 6 skipped and 178 subtests; welcome/model-effort
+  browser regressions and every available Settings tab at 320/390/768/1440
+  pixels in both locales/themes. Settings checks include loading, empty/error
+  states, reduced transparency, shared model glass and Automatic reset.
+- The release is built from committed source plus this change. Unrelated
+  integration, activity-tree and customization drafts/staged work remain intact.

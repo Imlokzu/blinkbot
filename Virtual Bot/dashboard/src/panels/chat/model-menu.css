@@ -35,6 +35,13 @@
 .model-picker-title { flex: 1; }
 .brain-picker-list { position: relative; min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 4px 6px 6px; }
 .brain-picker-group { position: sticky; top: -4px; z-index: 1; margin: 0 -2px; padding: 12px 4px 5px; background: var(--c-surface); }
+/* Glass labels share the menu lens. Scrolling with their rows avoids a
+   second filter and keeps model text from crossing a transparent label. */
+html[data-popup="glass"] .popup-lens .model-effort-menu .brain-picker-group,
+html[data-popup="glass"] .model-effort-menu.popup-lens .brain-picker-group {
+  position: static;
+  background: transparent;
+}
 .brain-picker-row { display: flex; width: 100%; min-height: 44px; align-items: center; gap: 9px; padding: 7px 8px; border-radius: 6px; color: var(--c-text); text-align: left; outline: none; transition: background-color 180ms; }
 .brain-picker-row:hover, .brain-picker-row.is-search-active { background: var(--c-surface-2); }
 .brain-picker-row[aria-checked="true"] { background: var(--c-surface-2); }
@@ -87,4 +94,18 @@
 @media (prefers-reduced-motion: reduce) {
   .brain-choice-trigger, .brain-picker-row { transition: none; }
   .model-picker-search-field { transition: opacity 180ms; }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html[data-popup="glass"] .popup-lens .model-effort-menu .brain-picker-group,
+  html[data-popup="glass"] .model-effort-menu.popup-lens .brain-picker-group {
+    position: sticky;
+    background: var(--c-surface);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  html[data-popup="glass"] .popup-lens .model-effort-menu .brain-picker-group,
+  html[data-popup="glass"] .model-effort-menu.popup-lens .brain-picker-group {
+    position: sticky;
+    background: var(--c-surface);
+  }
 }

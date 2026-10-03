@@ -58,7 +58,7 @@ const media = (theme, reduced) => cdp('Emulation.setEmulatedMedia', { features: 
   { name:'prefers-reduced-motion', value:reduced ? 'reduce' : 'no-preference' },
 ] });
 
-// Observe real four-second timers before React mounts. A local EventSource avoids
+// Observe real two-second timers before React mounts. A local EventSource avoids
 // retry timers, and the fetch guard ensures even unexpected mutations stay local.
 const init = `(() => {
   window.__welcomeTimers = new Map(); window.__welcomeTimerLog = [];
@@ -66,7 +66,7 @@ const init = `(() => {
   window.setTimeout = (callback, delay, ...args) => {
     let id;
     id = timeout(() => { window.__welcomeTimers.delete(id); callback(...args); }, delay);
-    if (delay === 4000) {
+    if (delay === 2000) {
       window.__welcomeTimers.set(id, performance.now());
       window.__welcomeTimerLog.push({ delay, at:performance.now() });
     }
@@ -173,7 +173,7 @@ try {
       window.__hiddenAt = performance.now(); Object.defineProperty(document,'hidden',{ configurable:true,value:true });
       document.dispatchEvent(new Event('visibilitychange')); true`);
     assert.equal(evaluate('window.__welcomeTimers.size'), 0, 'hidden documents cancel welcome timers');
-    browser('wait', '--fn', 'performance.now() - window.__hiddenAt >= 4300');
+    browser('wait', '--fn', 'performance.now() - window.__hiddenAt >= 2300');
     assert.equal(phrase(), evaluate('window.__frozenPhrase'), 'a hidden document must keep its current phrase');
     evaluate("delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); true");
     browser('wait', '--fn', 'window.__welcomeTimers.size === 1');
@@ -245,7 +245,7 @@ try {
     assert.equal(evaluate('matchMedia("(prefers-reduced-motion: reduce)").matches'), true, 'native CDP media emulation must be active');
     const original = evaluate('document.querySelector(".welcome-heading").getAttribute("aria-label")');
     evaluate('window.__reducedAt = performance.now(); true');
-    browser('wait', '--fn', 'performance.now() - window.__reducedAt >= 4300');
+    browser('wait', '--fn', 'performance.now() - window.__reducedAt >= 2300');
     assert.equal(phrase(), original);
     assert.deepEqual(evaluate('window.__welcomeTimerLog'), [], 'reduced motion must not schedule a welcome rotation');
     assert.equal(evaluate('document.querySelector(".welcome-heading").getAnimations({subtree:true}).length'), 0);

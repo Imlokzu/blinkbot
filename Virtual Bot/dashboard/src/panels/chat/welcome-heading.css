@@ -1,6 +1,14 @@
-.welcome-heading {
+@import './welcome-font.css';
+
+.chat-landing-heading .welcome-heading {
   display: grid;
   perspective: 600px;
+  font-family: 'Lora', Georgia, serif;
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(28px, 5cqw, 44px);
+  line-height: 1.25;
+  letter-spacing: -.03em;
 }
 .welcome-heading__phrase,
 .welcome-heading__measure {

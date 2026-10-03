@@ -32,6 +32,7 @@ import { SettingGroup, SettingRow } from './SettingRow';
 import { ConnectorsSection } from './ConnectorsSection';
 import { BookOpen } from 'lucide-react';
 import type { SetupData } from './types';
+import './settings-surfaces.css';
 
 /*
  * Settings are tabs. Each tab is a few categories, and a category mixes
@@ -102,8 +103,10 @@ export default function SettingsPanel() {
 
   if (setup.data && !setup.data.configured && !wizardDone) {
     return (
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-        <FirstRun setup={setup.data} onDone={() => setWizardDone(true)} />
+      <div className="settings-panel min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="settings-content-surface mx-auto w-full max-w-[720px]">
+          <FirstRun setup={setup.data} onDone={() => setWizardDone(true)} />
+        </div>
       </div>
     );
   }
@@ -125,7 +128,7 @@ export default function SettingsPanel() {
   };
 
   const nav = (
-    <div className="flex shrink-0 flex-col border-b border-line lg:w-[232px] lg:border-b-0 lg:border-r">
+    <div className="settings-navigation flex shrink-0 flex-col border-b border-line lg:w-[232px] lg:border-b-0 lg:border-r">
       <div className="p-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" />
@@ -165,11 +168,11 @@ export default function SettingsPanel() {
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+    <div className="settings-panel flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row">
       {nav}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8">
-        <div className="mx-auto w-full max-w-[720px]">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8">
+        <div className="settings-content-surface mx-auto w-full max-w-[720px]">
           {current ? (
             <h1 className="mb-5 text-[22px] font-medium tracking-[-0.02em] text-ink">{t(current.label)}</h1>
           ) : null}
