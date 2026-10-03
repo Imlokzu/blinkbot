@@ -12,6 +12,7 @@ import { ContextMeter } from './ContextMeter';
 import { AttachSheet } from './AttachSheet';
 import { AttachmentCards } from './AttachmentCards';
 import { ConnectorPicker } from './ConnectorPicker';
+import { ImageGenerationDialog } from './ImageGenerationDialog';
 import { useBrainChoice } from './useBrainChoice';
 import { ModelMenu } from './ModelMenu';
 import { useSendBubbleEffect } from './useSendBubbleEffect';
@@ -79,6 +80,7 @@ export function Composer({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [connectorsOpen, setConnectorsOpen] = useState(false);
+  const [imageGenerationOpen, setImageGenerationOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const uploadsInFlight = useRef(0);
   const currentSession = useRef(sessionId);
@@ -147,6 +149,10 @@ export function Composer({
             onConnectors={() => {
               setSheetOpen(false);
               setConnectorsOpen(true);
+            }}
+            onImageGeneration={() => {
+              setSheetOpen(false);
+              setImageGenerationOpen(true);
             }}
             onPanels={() => {
               setSheetOpen(false);
@@ -331,6 +337,11 @@ export function Composer({
             <ToolsSection />
           </DialogContent>
         </Dialog>
+      <Dialog open={imageGenerationOpen} onOpenChange={setImageGenerationOpen}>
+        {imageGenerationOpen ? <ImageGenerationDialog key={sessionId} busy={busy || queued}
+          onCloseAutoFocus={(event) => { event.preventDefault(); plus.current?.focus({ preventScroll: true }); }}
+          onGenerate={(message) => { setImageGenerationOpen(false); onSend(message, []); }} /> : null}
+      </Dialog>
       {connectorsOpen ? <ConnectorPicker key={sessionId} open onClose={() => {
         setConnectorsOpen(false);
         requestAnimationFrame(() => plus.current?.focus({ preventScroll: true }));

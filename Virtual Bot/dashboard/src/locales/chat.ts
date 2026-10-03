@@ -158,6 +158,7 @@ const uk = {
   'image.download': 'Завантажити',
   'image.next': 'Наступна',
   'image.prev': 'Попередня',
+  'tool.image_generate': 'Генерую зображення',
   'image.open': 'Відкрити картинку',
   'image.openNamed': 'Відкрити: {alt}',
 
@@ -374,6 +375,7 @@ const en: Record<keyof typeof uk, string> = {
   'image.download': 'Download',
   'image.next': 'Next',
   'image.prev': 'Previous',
+  'tool.image_generate': 'Generating image',
   'image.open': 'Open image',
   'image.openNamed': 'Open: {alt}',
 

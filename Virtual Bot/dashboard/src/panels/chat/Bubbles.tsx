@@ -59,6 +59,7 @@ function bareTool(label: string): string {
 const TOOL_ICONS: Record<string, LucideIcon> = {
   web_search: Search,
   image_search: ImageIcon,
+  image_generate: ImageIcon,
   facts: FileText,
   weather: CloudSun,
   currency: Coins,
@@ -81,6 +82,7 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 const TOOL_TITLES: Record<string, ChatKey> = {
   web_search: 'tool.web_search',
   image_search: 'tool.image_search',
+  image_generate: 'tool.image_generate',
   facts: 'tool.facts',
   weather: 'tool.weather',
   currency: 'tool.currency',

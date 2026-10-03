@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { Cable, Camera, ChevronRight, FileText, Image, PanelRightOpen, Wrench, X } from 'lucide-react';
+import { Cable, Camera, ChevronRight, FileText, Image, ImagePlus, PanelRightOpen, Wrench, X } from 'lucide-react';
 import { ContextMeter } from './ContextMeter';
 import { t } from '@/locales/chat';
 import { t as connectorT } from '@/locales/connectors';
+import { t as imageT } from '@/locales/imageGeneration';
 import './attach-sheet.css';
 
 /*
@@ -54,6 +55,7 @@ export function AttachSheet({
   onTools,
   onPanels,
   onConnectors,
+  onImageGeneration,
   context,
   compact = false,
 }: {
@@ -65,6 +67,7 @@ export function AttachSheet({
   onTools: () => void;
   onPanels: () => void;
   onConnectors: () => void;
+  onImageGeneration: () => void;
   context: React.ComponentProps<typeof ContextMeter>;
   compact?: boolean;
 }) {
@@ -162,6 +165,7 @@ export function AttachSheet({
             <Tile icon={<FileText />} label={t('sheet.files')} onClick={() => files.current?.click()} />
           </div>}
           <div className="attach-sheet-options">
+          <Row icon={<ImagePlus />} label={imageT('title')} onClick={onImageGeneration} />
           <Row icon={<Cable />} label={connectorT('connectors.title')} onClick={onConnectors} />
           <Row icon={<Wrench />} label={t('sheet.tools')} onClick={onTools} />
           <Row icon={<PanelRightOpen />} label={t('sheet.panels')} onClick={onPanels} />

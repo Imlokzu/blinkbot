@@ -1,0 +1,44 @@
+const en = {
+  title: 'Create image',
+  description: 'Describe an image. Codex will generate it and add it to this conversation.',
+  provider: 'Codex · ChatGPT subscription',
+  usage: 'Uses your included Codex limits. Availability depends on your plan and workspace.',
+  prompt: 'Image description',
+  placeholder: 'A small pixel crab watching the sunset…',
+  create: 'Generate',
+  checking: 'Checking Codex…',
+  retry: 'Check again',
+  ready: 'Codex is signed in with ChatGPT.',
+  codex_missing: 'Install Codex CLI on the bot server, then sign in with ChatGPT.',
+  codex_login_required: 'Sign in with ChatGPT on the bot server, then check again.',
+  codex_plan_required: 'This requires a supported paid ChatGPT plan.',
+  codex_unavailable: 'Could not check Codex. Check its installation and try again.',
+  operator_required: 'Image generation is available to the bot operator.',
+  login: 'Run on the bot server: codex login',
+  unavailable: 'Image generation is unavailable. Try again.',
+} as const;
+const uk: Record<keyof typeof en, string> = {
+  title: 'Створити зображення',
+  description: 'Опиши картинку. Codex згенерує її та додасть до цієї розмови.',
+  provider: 'Codex · підписка ChatGPT',
+  usage: 'Використовує ліміти Codex. Доступність залежить від підписки й робочого простору.',
+  prompt: 'Опис зображення',
+  placeholder: 'Маленький піксельний краб дивиться на захід сонця…',
+  create: 'Згенерувати',
+  checking: 'Перевіряю Codex…',
+  retry: 'Перевірити ще раз',
+  ready: 'Codex увійшов через ChatGPT.',
+  codex_missing: 'Встанови Codex CLI на сервері бота й увійди через ChatGPT.',
+  codex_login_required: 'Увійди через ChatGPT на сервері бота й перевір ще раз.',
+  codex_plan_required: 'Потрібна підтримувана платна підписка ChatGPT.',
+  codex_unavailable: 'Не вдалося перевірити Codex. Перевір встановлення й спробуй ще раз.',
+  operator_required: 'Генерація зображень доступна оператору бота.',
+  login: 'Виконай на сервері бота: codex login',
+  unavailable: 'Генерація недоступна. Спробуй ще раз.',
+};
+export function t(key: keyof typeof en): string {
+  return (document.documentElement.lang === 'uk' ? uk : en)[key];
+}
+export function statusMessage(code: string): string {
+  return code in en ? t(code as keyof typeof en) : t('unavailable');
+}

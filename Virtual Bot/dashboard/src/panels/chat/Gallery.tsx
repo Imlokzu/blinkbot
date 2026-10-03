@@ -11,6 +11,7 @@ import {
 import { AccordionGallery, AnimatedContent, GlareHover } from '@/vendor/reactbits';
 import { useAccentColor, useCssVar } from '@/hooks/useAccentRgb';
 import { ImageViewer, type GalleryImage } from './ImageViewer';
+import { usePrivateImage } from './usePrivateImage';
 import { t } from '@/locales/workspace';
 import { t as chatT } from '@/locales/chat';
 
@@ -102,7 +103,7 @@ export function GalleryScope({ children }: { children: React.ReactNode }) {
 }
 
 /** Реєструє свої картинки в області репліки й уміє відкрити переглядач. */
-function useGroup(images: GalleryImage[]) {
+function useGroup(images: GalleryImage[], enabled = true) {
   const api = useContext(ScopeContext);
   const id = useId();
   const node = useRef<HTMLDivElement>(null);
@@ -110,10 +111,11 @@ function useGroup(images: GalleryImage[]) {
   const key = JSON.stringify(images);
 
   useEffect(() => {
+    if (!enabled) return;
     api?.register(id, { node: node.current, images });
     return () => api?.unregister(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [api, id, key]);
+  }, [api, id, key, enabled]);
 
   const open = useCallback(
     (index: number) => api?.open(id, index),
@@ -125,8 +127,9 @@ function useGroup(images: GalleryImage[]) {
 
 /** Одна картинка: кадр сталої висоти з відблиском по наведенню. */
 export function ChatImage({ src, alt }: GalleryImage) {
-  const images = useMemo(() => [{ src, alt }], [src, alt]);
-  const { node, open } = useGroup(images);
+  const resolvedSrc = usePrivateImage(src);
+  const images = useMemo(() => [{ src: resolvedSrc, alt, originalSrc: src }], [resolvedSrc, src, alt]);
+  const { node, open } = useGroup(images, Boolean(resolvedSrc));
   const line = useCssVar('--c-border', '#ded5c6');
   const surface = useCssVar('--c-surface-2', '#f7f2e9');
 
@@ -148,10 +151,11 @@ export function ChatImage({ src, alt }: GalleryImage) {
           <button
             type="button"
             onClick={() => open(0)}
+            disabled={!resolvedSrc}
             aria-label={alt ? chatT('image.openNamed', { alt }) : chatT('image.open')}
             className="block size-full cursor-zoom-in"
           >
-            <img src={src} alt={alt} loading="lazy" draggable={false} />
+            <img src={resolvedSrc || undefined} alt={alt} loading="lazy" draggable={false} />
           </button>
         </GlareHover>
         {alt ? (
@@ -164,13 +168,18 @@ export function ChatImage({ src, alt }: GalleryImage) {
 
 /** Кілька картинок — гармошка на ту саму смугу. */
 export function ChatGallery({ images }: { images: GalleryImage[] }) {
-  const { node, open } = useGroup(images);
+  const privateGroups = images.some((image) => image.src.startsWith('/uploads/'));
+  const { node, open } = useGroup(images, !privateGroups);
   const accent = useAccentColor();
 
   const items = useMemo(
     () => images.map((image) => ({ image: image.src, label: image.alt, alt: image.alt })),
     [images],
   );
+
+  if (privateGroups) {
+    return <div>{images.map((image, index) => <ChatImage key={`${image.src}-${index}`} {...image} />)}</div>;
+  }
 
   return (
     <AnimatedContent distance={14} duration={0.42} threshold={0} className="block">

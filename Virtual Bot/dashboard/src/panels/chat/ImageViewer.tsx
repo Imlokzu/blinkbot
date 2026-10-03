@@ -33,6 +33,7 @@ import { t } from '@/locales/chat';
 export interface GalleryImage {
   src: string;
   alt: string;
+  originalSrc?: string;
 }
 
 /** Кроки масштабу. Не плавний зум: кнопками потрібні передбачувані щаблі. */
@@ -40,6 +41,7 @@ const ZOOM = [1, 1.5, 2, 3, 4];
 
 /** Адреса для збереження — через бота, інакше чужий хост не дасть. */
 function downloadHref(image: GalleryImage): string {
+  if (image.src.startsWith('blob:')) return image.src;
   const name = image.alt?.trim() || t('image.fallback');
   return `/api/image/fetch?url=${encodeURIComponent(image.src)}&name=${encodeURIComponent(name)}`;
 }
@@ -103,7 +105,7 @@ export function ImageViewer({
   }, [go, many]);
 
   const copyLink = () => {
-    void navigator.clipboard.writeText(image.src).then(
+    void navigator.clipboard.writeText(new URL(image.originalSrc || image.src, location.href).href).then(
       () => toast(t('image.linkCopied')),
       () => error(t('image.copyFailed')),
     );
@@ -120,7 +122,7 @@ export function ImageViewer({
       return;
     }
     void navigator
-      .share({ title: image.alt || t('image.fallbackCap'), url: image.src })
+      .share({ title: image.alt || t('image.fallbackCap'), url: new URL(image.originalSrc || image.src, location.href).href })
       .catch(() => undefined);
   };
 
