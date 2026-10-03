@@ -27,6 +27,7 @@ import { SkillsSection } from './SkillsSection';
 import { ToolsSection } from './ToolsSection';
 import { FirstRun } from './FirstRun';
 import { VoiceSection } from './VoiceSection';
+import { MobileConnection } from './MobileConnection';
 import { fieldMatches, OpenClawFields, useOpenClawSettings } from './OpenClawSection';
 import { SettingGroup, SettingRow } from './SettingRow';
 import { ConnectorsSection } from './ConnectorsSection';
@@ -173,6 +174,7 @@ export default function SettingsPanel() {
 
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8">
         <div className="settings-content-surface mx-auto w-full max-w-[720px]">
+          {current?.id === 'profile' && !needle ? <MobileConnection /> : null}
           {current ? (
             <h1 className="mb-5 text-[22px] font-medium tracking-[-0.02em] text-ink">{t(current.label)}</h1>
           ) : null}
