@@ -56,11 +56,21 @@ export function initHero({ reduced, finePointer }) {
   }
 
   // ── Entrance ──
-  const title = SplitText.create(hero.querySelectorAll(".hero__title [data-i18n]"), {
+  // Split into letters only for the entrance. Meanwhile the heading carries
+  // its words as a label and the letters are hidden from screen readers, which
+  // would otherwise spell them out; all of it is undone once the entrance ends.
+  const heading = hero.querySelector(".hero__title");
+  heading.setAttribute("aria-label", heading.textContent.replace(/\s+/g, " ").trim());
+  const title = SplitText.create(heading.querySelectorAll("[data-i18n]"), {
     type: "lines,chars",
     mask: "lines",
     linesClass: "split-line",
+    aria: "hidden",
   });
+  const endEntrance = () => {
+    title.revert();
+    heading.removeAttribute("aria-label");
+  };
   const items = hero.querySelectorAll("[data-hero-item]");
 
   gsap.set(title.chars, { yPercent: 120, rotate: 7 });
@@ -71,7 +81,7 @@ export function initHero({ reduced, finePointer }) {
   document.documentElement.classList.add("is-ready");
 
   const intro = gsap
-    .timeline({ delay: 0.1, onComplete: () => title.revert() })
+    .timeline({ delay: 0.1, onComplete: endEntrance })
     .to(crabButton, { y: 0, opacity: 1, scale: 1, duration: 1.1, ease: "back.out(2.2)" }, 0)
     .to(title.chars, { yPercent: 0, rotate: 0, duration: 1.3, ease: "expo.out", stagger: 0.018 }, 0.08)
     .to(items, { y: 0, opacity: 1, duration: 1.1, ease: "expo.out", stagger: 0.08 }, 0.42)

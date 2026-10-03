@@ -297,7 +297,7 @@
 .window__address {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--ink-3);
+  color: #a39789;
   padding: 3px 16px;
   border-radius: 8px;
   background: rgb(255 236 220 / 0.045);

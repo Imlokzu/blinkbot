@@ -20,7 +20,9 @@ let statement = null; // { split, tween }
 
 function revealHeading(el) {
   const target = el.querySelector("[data-i18n]") || el;
-  const split = SplitText.create(target, { type: "lines", mask: "lines", linesClass: "split-line" });
+  // aria "none": SplitText's default puts aria-label on the element, which
+  // is not allowed on a plain span or p. Split lines and words read fine as is.
+  const split = SplitText.create(target, { type: "lines", mask: "lines", linesClass: "split-line", aria: "none" });
   const tween = gsap.from(split.lines, {
     yPercent: 118,
     rotate: 2.5,
@@ -50,7 +52,7 @@ function markAccents(words) {
 function buildStatement({ scrub }) {
   const el = document.querySelector("[data-statement]");
   if (!el) return;
-  const split = SplitText.create(el, { type: "words", wordsClass: "word" });
+  const split = SplitText.create(el, { type: "words", wordsClass: "word", aria: "none" });
   markAccents(split.words);
   const tween = scrub
     ? gsap.to(split.words, {
