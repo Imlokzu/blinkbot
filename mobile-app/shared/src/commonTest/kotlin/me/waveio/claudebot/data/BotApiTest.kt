@@ -13,12 +13,19 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.headersOf
 import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.readRemaining
+import io.ktor.utils.io.writeFully
+import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withContext
 import kotlinx.io.readByteArray
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -211,6 +218,51 @@ class BotApiTest {
         })
         assertEquals("mobile_unavailable", assertFailsWith<ApiFailure> { api.jobEvents("job_1").toList() }.code)
         assertEquals(1, requests)
+    }
+
+    @Test fun sseDeliversAFlushedFrameWhileTheResponseBodyRemainsOpen() = runTest {
+        val channel = ByteChannel(autoFlush = true)
+        val releaseFinal = CompletableDeferred<Unit>()
+        val firstReceived = CompletableDeferred<BotEvent>()
+        val writer = backgroundScope.launch {
+            try {
+                // Fragment both UTF-8 and the SSE frame; neither is a body boundary.
+                val first = "id: 1\r\nevent: delta\r\ndata: {\"chunk\":\"Early 🌊\"}\r\n\r\n".encodeToByteArray()
+                val split = first.indexOf(0xF0.toByte()) + 2
+                channel.writeFully(first, 0, split)
+                channel.writeFully(first, split, first.size)
+                releaseFinal.await()
+                channel.writeStringUtf8("id: 2\nevent: done\ndata: {\"reply\":\"Early 🌊 complete\"}\n\n")
+            } finally {
+                channel.close()
+            }
+        }
+        val api = api(MockEngine { request ->
+            assertEquals("identity", request.headers[HttpHeaders.AcceptEncoding])
+            respond(channel, headers = headersOf(HttpHeaders.ContentType, "text/event-stream"))
+        })
+        val received = mutableListOf<BotEvent>()
+        val collector = launch {
+            api.jobEvents("live_job").collect { event ->
+                received += event
+                if (event.event == "delta") firstReceived.complete(event)
+            }
+        }
+        try {
+            // MockEngine uses a real dispatcher; a virtual timeout can advance
+            // before its response pipeline gets a turn to read the channel.
+            val first = withContext(Dispatchers.Default) { withTimeout(5000) { firstReceived.await() } }
+            assertEquals("Early 🌊", first.data["chunk"]!!.jsonPrimitive.content)
+            assertFalse(writer.isCompleted)
+            assertFalse(channel.isClosedForRead)
+            assertEquals(listOf("delta"), received.map { it.event })
+            releaseFinal.complete(Unit)
+            withContext(Dispatchers.Default) { withTimeout(5000) { collector.join() } }
+            assertEquals(listOf("delta", "done"), received.map { it.event })
+        } finally {
+            releaseFinal.complete(Unit)
+            collector.cancel()
+        }
     }
 
     @Test fun malformedSseDataIsNotEmittedAsAnEmptySuccess() = runTest {

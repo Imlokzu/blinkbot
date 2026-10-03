@@ -211,12 +211,16 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
         transport.prepareRequest {
             configure(HttpMethod.Get, path, mapOf("after" to after.toString()))
             headers.append(HttpHeaders.Accept, ContentType.Text.EventStream.toString())
+            // Small SSE frames must not wait for a proxy's compression buffer.
+            headers.append(HttpHeaders.AcceptEncoding, "identity")
         }.execute { response ->
             checkResponse(response)
             if (response.contentType()?.withoutParameters() != ContentType.Text.EventStream) {
                 throw ApiFailure(response.status.value, "invalid_event_stream")
             }
             val frames = SseFrames(json)
+            // Keep this inside scoped execute: request()/get() save the whole
+            // response before returning, even if bodyAsChannel is used later.
             val channel = response.bodyAsChannel()
             while (true) {
                 val line = channel.readUTF8Line() ?: break
