@@ -41,6 +41,8 @@ appear in the conversation without claiming that an image was created.
 - Completed PNG/JPEG/WebP images are capped at 10 MiB, published atomically
   with 0600 permissions and owned upload names. Downloads authenticate the
   owner and use `Cache-Control: no-store`; the UI uses revocable blob URLs.
+  Follow-up caption metadata is filtered by that owner's upload prefix, even
+  when a shared session cache contains another user's image references.
 - Provider threads are ephemeral, use the catalog's default model, and disable
   inherited MCP servers and execution/browser tools. Raw process diagnostics,
   account details and credentials are not exposed to the browser.
@@ -57,7 +59,7 @@ allowlisting the tool alone does not grant it image-generation access.
 Backend coverage includes native events and RPC ordering, subscription gating,
 configuration isolation, owner downloads, output bounds, private publication,
 process cleanup, cancellation, streaming/nonstreaming history and operator
-rejection. Full Virtual Bot suite: 1047 passed, 6 skipped, 178 subtests passed.
+rejection. Full Virtual Bot suite: 1049 passed, 6 skipped, 178 subtests passed.
 Dashboard tests, TypeScript and a production build passed.
 
 `dashboard/tests/image-generation.browser.mjs` runs against an isolated backend

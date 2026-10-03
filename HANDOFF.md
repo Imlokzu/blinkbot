@@ -958,7 +958,10 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   model settings, process-group cleanup, bounded saved files and identity checks.
   Architecture review found no remaining blocker. Fable and the configured
   specialist model were unavailable; supported native agents reviewed.
-- Validation: 1047 Python tests passed, 6 skipped, 178 subtests; 117 committed-
+- Follow-up image metadata is filtered by the authenticated upload owner,
+  including two users sharing a cached session ID. Independent architecture
+  review verified the filter and its regression and returned CLEAR.
+- Validation: 1049 Python tests passed, 6 skipped, 178 subtests; 117 committed-
   source dashboard tests, TypeScript and production builds passed. Browser
   checks exercised real SSE/history/private publication with a fixture image,
   both locales, desktop/phone fit, focus, viewer and zero scoped axe violations.
