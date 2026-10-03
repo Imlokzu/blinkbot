@@ -1,0 +1,23 @@
+.chat-source-toggle { min-height: 32px; }
+.chat-source-chevron { transition: transform 200ms var(--e-spring); }
+.chat-source-toggle[aria-expanded="true"] .chat-source-chevron { transform: rotate(90deg); }
+
+/* Height belongs to the shared disclosure hook; the links remain sharp. */
+.chat-source-fold { overflow: hidden; }
+.chat-source-fold[data-phase="closed"] { height: 0; visibility: hidden; }
+.chat-source-list {
+  opacity: 0; transform: translateY(-4px);
+  transition: opacity 160ms, transform 200ms var(--e-spring);
+}
+.chat-source-fold[data-open] > .chat-source-list { opacity: 1; transform: none; }
+.chat-source-list a:focus-visible {
+  outline: 2px solid var(--c-accent); outline-offset: 2px;
+}
+
+@media (max-width: 759px), (pointer: coarse) {
+  .chat-source-toggle, .chat-source-list a { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-source-chevron, .chat-source-list { transition: none; }
+  .chat-source-list { transform: none; }
+}

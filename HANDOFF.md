@@ -1448,3 +1448,35 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
 - Fresh smoke checks returned 200 for status, screen, dashboard and referenced
   assets; memory traversal returned 400. Temporary processes were stopped.
   Approved source is pushed; unrelated owner drafts and staging remain intact.
+
+
+## Smooth disclosures and bottom reply reactions (2026-10-03)
+
+- Sources open and close through an accessible button-led disclosure with
+  linked expanded state, inert hidden links and sharp inner opacity/translation.
+  Explicit measured height also drives activity groups and nested tool logs.
+  Capturing an in-flight height prevents reversal snaps; clipping wrappers do
+  not acquire scroll offsets, and nested logs retain their read position.
+- Reactions now share the bottom Copy/Speech/Retry row. One trigger targets the
+  last visible non-note answer using its original server text-part index.
+  Notes and suppressed image parts do not shift that address; older badges
+  retain per-bubble removal. Persistence, emoji flight and eligibility remain.
+- Independent supported maximum-effort review fixed source intrinsic-width
+  overflow, manual fold focus loss, and touch reaction clipping beside a large
+  Workbench. Touch menus retain four columns and complete 44px targets.
+  Native reduced motion settles height directly, including preference changes;
+  temporary global CSS transitions are distinguished from actual height motion.
+  Fable is unavailable in this runtime; native fallback review is recorded.
+- Validation: 184 clean-source frontend tests, TypeScript and guarded isolated
+  build. Controlled development and production-preview fixtures cover long-log
+  scrolling, reverse/reopen, preserved nested state, attached blur, long source
+  title bounds, keyboard/focus, resize, native reduced motion, both locales,
+  mobile widths, source links, exact reaction POST indices and emoji destination.
+  All browser writes use fixtures; no real chat, reaction or speech writes occur.
+- The shared-tree Python run encounters unrelated backend work in progress.
+  Clean committed backend with a nonsecret synthetic Clerk issuer had 1057
+  passing tests, 8 skipped and 178 subtests; two process-cleanup timing failures
+  both passed their targeted rerun. No Python implementation is changed here.
+- Post-review HTTP smoke checks 7 endpoints and every release resource,
+  including both memory/workspace traversal guards returning 400. Test servers
+  and browser sessions are stopped; unrelated source drafts are preserved.

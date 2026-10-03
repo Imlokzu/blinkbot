@@ -1,0 +1,10 @@
+/* Only the outer height changes; scrollable logs retain their own read position. */
+[data-disclosure-motion] {
+  display: flow-root;
+  overflow: hidden;
+  overflow-anchor: none;
+}
+[data-disclosure-motion] * { overflow-anchor: none; }
+@supports (overflow: clip) {
+  [data-disclosure-motion] { overflow: clip; }
+}

@@ -57,9 +57,11 @@ button.chat-activity-row:hover .chat-activity-tool-name { color: var(--c-text); 
 .chat-activity-row:hover .chat-activity-log-chevron, .chat-activity-row:focus-visible .chat-activity-log-chevron,
 .chat-activity-row[aria-expanded="true"] .chat-activity-log-chevron { opacity: 1; }
 .chat-activity-row[aria-expanded="true"] .chat-activity-log-chevron { transform: rotate(90deg); }
-.chat-activity-fold { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 220ms var(--e-spring), opacity 160ms; }
-.chat-activity-fold[data-open] { grid-template-rows: 1fr; opacity: 1; }
+.chat-activity-fold { opacity: 0; transition: opacity 160ms; }
+.chat-activity-fold[data-open] { opacity: 1; }
+.chat-activity-fold[data-phase="closed"] { height: 0; visibility: hidden; }
 .chat-activity-clip { min-width: 0; min-height: 0; overflow: hidden; }
+@supports (overflow: clip) { .chat-activity-clip { overflow: clip; } }
 .chat-activity-log-panel { display: grid; gap: 8px; padding: 3px 0 10px 21px; }
 .chat-activity-log-panel section { min-width: 0; }
 .chat-activity-log-panel p { margin-bottom: 4px; color: var(--c-text-2); font-size: 11px; }

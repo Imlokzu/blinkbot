@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { Check, ChevronRight, CircleAlert, CircleDashed, CloudSun, Coins, FileText, Folder,
   Image as ImageIcon, ListTodo, MessageCircleQuestion, Music, Play, Search, Terminal,
   Wrench, type LucideIcon } from 'lucide-react';
@@ -7,6 +7,7 @@ import { t, type ChatKey } from '@/locales/chat';
 import type { ToolStep } from './types';
 import { collectSources } from './sources';
 import { SiteIcon } from './SiteIcon';
+import { useDisclosureMotion } from '@/hooks/useDisclosureMotion';
 import './activity-tree.css';
 
 /** The gateway prefixes MCP names; native coding tools use shorter aliases. */
@@ -71,8 +72,15 @@ function ToolState({ step }: { step: ToolStep }) {
 
 /** A row keeps its identity and expanded log through progress and outcome updates. */
 function ToolBranch({ step }: { step: ToolStep }) {
-  const [open, setOpen] = useState(false);
+  const { ref, open, phase, toggle } = useDisclosureMotion();
   const detailsId = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
+  const toggleLog = () => {
+    if (open && ref.current?.contains(document.activeElement)) {
+      trigger.current?.focus({ preventScroll: true });
+    }
+    toggle();
+  };
   const name = bareTool(step.label);
   const Icon = TOOL_ICONS[name] ?? Wrench;
   const title = toolTitle(step.label);
@@ -91,10 +99,10 @@ function ToolBranch({ step }: { step: ToolStep }) {
     {hasLog ? <ChevronRight className="chat-activity-log-chevron" aria-hidden="true" strokeWidth={1.75} /> : null}
   </>;
   return <li className="chat-activity-branch" data-tool-step={step.id} data-tool-status={step.status}>
-    {hasLog ? <button type="button" className="chat-activity-row" data-tool-row
+    {hasLog ? <button ref={trigger} type="button" className="chat-activity-row" data-tool-row
       aria-expanded={open} aria-controls={detailsId}
       aria-label={activityT('activity.logs', { tool: title, detail: step.detail, status: activityT(`activity.${step.status}`) })}
-      onClick={() => setOpen(value => !value)}>{content}</button>
+      onClick={toggleLog}>{content}</button>
       : <div className="chat-activity-row" data-tool-row>{content}</div>}
     {sites.length ? <div className="chat-activity-sites" role="group" aria-label={t('sources.label', { count: sites.length })}>
       {sites.map(source => <a key={source.host} href={source.url} target="_blank" rel="noreferrer noopener"
@@ -103,7 +111,7 @@ function ToolBranch({ step }: { step: ToolStep }) {
       </a>)}
     </div> : null}
     {signedOut ? <p className="chat-activity-sign-in">{t('tool.signIn')}</p> : null}
-    {hasLog ? <div id={detailsId} data-tool-details className="chat-activity-fold"
+    {hasLog ? <div ref={ref} id={detailsId} data-tool-details className="chat-activity-fold" data-phase={phase}
       data-open={open ? '' : undefined} inert={!open} aria-hidden={!open}>
       <div className="chat-activity-clip"><ToolDetails step={step} /></div>
     </div> : null}
@@ -112,10 +120,15 @@ function ToolBranch({ step }: { step: ToolStep }) {
 
 /** Adjacent real calls share a trunk; the reply may continue after they finish. */
 export function ActivityLine({ steps, running }: { steps: ToolStep[]; running: boolean }) {
-  const [open, setOpen] = useState(running);
+  const { ref: branches, open, phase, setOpen, toggle: toggleOpen } = useDisclosureMotion(running);
   const branchesId = useId();
   const toggle = useRef<HTMLButtonElement>(null);
-  const branches = useRef<HTMLDivElement>(null);
+  const toggleActivity = () => {
+    if (open && branches.current?.contains(document.activeElement)) {
+      toggle.current?.focus({ preventScroll: true });
+    }
+    toggleOpen();
+  };
   useEffect(() => {
     // The complete reply, rather than a gap between calls, ends an activity tree.
     // Manual reopening after settlement is retained through later rerenders.
@@ -131,11 +144,11 @@ export function ActivityLine({ steps, running }: { steps: ToolStep[]; running: b
     <button ref={toggle} type="button" className="chat-activity-toggle" data-activity-toggle
       aria-expanded={open} aria-controls={branchesId}
       aria-label={`${activityT(open ? 'activity.collapse' : 'activity.expand')} · ${summary}`}
-      onClick={() => setOpen(value => !value)}>
+      onClick={toggleActivity}>
       <ChevronRight aria-hidden="true" strokeWidth={1.75} /><span>{summary}</span>
       {active ? <span className="chat-activity-pulse" aria-hidden="true" /> : null}
     </button>
-    <div ref={branches} id={branchesId} data-activity-branches className="chat-activity-fold"
+    <div ref={branches} id={branchesId} data-activity-branches className="chat-activity-fold" data-phase={phase}
       data-open={open ? '' : undefined} inert={!open} aria-hidden={!open}>
       <div className="chat-activity-clip">
         <ol className="chat-activity-list">{steps.map(step => <ToolBranch key={step.id} step={step} />)}</ol>

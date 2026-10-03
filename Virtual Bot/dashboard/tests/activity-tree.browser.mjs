@@ -21,6 +21,21 @@ const settleTree = (id, expanded) => browser('wait', '--fn', `(() => {
     && fold.getAnimations().every(animation => animation.playState !== 'running')
     && ${expanded ? 'fold.getBoundingClientRect().height > 0' : 'fold.getBoundingClientRect().height === 0'};
 })()`);
+const settleSources = expanded => browser('wait', '--fn', `(() => {
+  const root = document.querySelector('.chat-source-strip');
+  const fold = root?.querySelector('[data-sources-fold]');
+  return root?.querySelector('[data-sources-toggle]')?.getAttribute('aria-expanded') === '${expanded}'
+    && fold?.dataset.phase === '${expanded ? 'open' : 'closed'}'
+    && fold.inert === ${!expanded} && fold.getAttribute('aria-hidden') === '${!expanded}'
+    && fold.getAnimations({ subtree:true }).every(animation => animation.playState !== 'running')
+    && ${expanded ? 'fold.getBoundingClientRect().height > 0' : 'fold.getBoundingClientRect().height === 0'};
+})()`);
+const sourceBounds = () => {
+  const outside = evaluate(`[...document.querySelectorAll('.chat-source-strip, [data-sources-toggle], [data-sources-fold]')]
+    .map(node => { const bounds = node.getBoundingClientRect(); return { className:node.className, left:bounds.left, right:bounds.right }; })
+    .filter(bounds => bounds.left < -1 || bounds.right > innerWidth + 1)`);
+  assert.deepEqual(outside, [], 'sources must fit the viewport even when the app shell clips document overflow');
+};
 const finish = reply => emit('done', { reply, session_id:'activity-fixture', emotion:'idle', mode:'test', model:'activity-model', tool_results:[] });
 const send = message => {
   evaluate('window.__activityStream = null; true');
@@ -379,9 +394,11 @@ try {
   assert.equal(evaluate('document.activeElement.isConnected'), true, 'settling never leaves focus on a detached control');
   assert.equal(evaluate(`document.activeElement.matches(${JSON.stringify(`${tree('read-a')} [data-activity-toggle]`)})`), true, 'automatic folding returns focused logs to their own tree header');
   shot('activity-completed-collapsed');
-  await browserAsync('wait', '--fn', 'document.querySelector(".chat-source-strip summary [data-site-icon=\\"docs.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-source-strip summary [data-site-icon=\\"lookup.example.org\\"]")?.dataset.iconState === "ready"');
-  assert.equal(evaluate('document.querySelectorAll(".chat-source-strip summary [data-site-icon=\\"docs.example.org\\"]").length'), 1);
-  assert.equal(evaluate('document.querySelector(".chat-source-strip").open'), false);
+  await browserAsync('wait', '--fn', 'document.querySelector(".chat-source-strip [data-sources-toggle] [data-site-icon=\\"docs.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-source-strip [data-sources-toggle] [data-site-icon=\\"lookup.example.org\\"]")?.dataset.iconState === "ready"');
+  assert.equal(evaluate('document.querySelectorAll(".chat-source-strip [data-sources-toggle] [data-site-icon=\\"docs.example.org\\"]").length'), 1);
+  settleSources(false);
+  assert.equal(controls('.chat-source-strip [data-sources-toggle]').linked, true);
+  sourceBounds();
   for (let hop = 0; hop < 3; hop++) {
     evaluate('window.__fireAllIconDeadlines()');
     await browserAsync('--json', 'eval', '(async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); return true; })()');
@@ -389,16 +406,17 @@ try {
   assert.equal(evaluate('[...document.querySelectorAll(".chat-source-strip ol [data-site-icon=\\"docs.example.org\\"], .chat-source-strip ol [data-site-icon=\\"lookup.example.org\\"]")].every(icon => icon.dataset.iconState !== "fallback")'), true,
     'closed source rows must not exhaust recoverable candidates before an image load opportunity');
   restoreIconDeadlines();
-  browser('focus', '.chat-source-strip summary');
+  browser('focus', '.chat-source-strip [data-sources-toggle]');
   browser('press', 'Enter');
-  browser('wait', '.chat-source-strip[open]');
+  settleSources(true);
+  sourceBounds();
   await browserAsync('wait', '--fn', '[...document.querySelectorAll(".chat-source-strip ol [data-site-icon=\\"docs.example.org\\"]")].every(icon => icon.dataset.iconState === "ready") && document.querySelector(".chat-source-strip ol [data-site-icon=\\"lookup.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-source-strip ol [data-site-icon=\\"failed.example.org\\"]")?.dataset.iconState === "fallback"');
   assert.deepEqual(evaluate('[...document.querySelectorAll(".chat-source-strip ol a")].map(link => link.href)'), searchResult.results.map(source => source.url), 'distinct original source pages remain separate links');
   assert.equal(evaluate('document.querySelectorAll(".chat-source-strip ol [data-site-icon=\\"docs.example.org\\"]").length'), 2);
   assert.equal(evaluate('document.querySelector(".chat-source-strip ol [data-site-icon=\\"127.0.0.1\\"]").dataset.iconState'), 'fallback');
   assert.equal(evaluate('document.querySelector(".chat-source-strip ol [data-site-icon=\\"127.0.0.1\\"] img")'), null);
   assert.equal(evaluate('document.querySelector(".chat-source-strip ol [data-site-icon=\\"failed.example.org\\"]").getBoundingClientRect().width'), 18);
-  assert.equal(evaluate('document.activeElement.matches(".chat-source-strip summary")'), true);
+  assert.equal(evaluate('document.activeElement.matches(".chat-source-strip [data-sources-toggle]")'), true);
   browser('focus', `${tree('read-a')} [data-activity-toggle]`);
   browser('press', 'Enter');
   settleTree('read-a', true);
@@ -522,8 +540,10 @@ try {
   browser('wait', '--text', 'Saved activity fixture.');
   assert.equal(controls('[data-activity-toggle]').expanded, 'false', 'saved history starts collapsed');
   settleTree('saved-ok', false);
-  await browserAsync('wait', '--fn', 'document.querySelector(".chat-source-strip summary [data-site-icon=\\"docs.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-source-strip summary [data-site-icon=\\"lookup.example.org\\"]")?.dataset.iconState === "ready"');
-  assert.equal(evaluate('document.querySelector(".chat-source-strip summary [data-site-icon=\\"hidden.example.org\\"]")'), null, 'the third phone site has no visible summary icon to warm its cache');
+  settleSources(false);
+  sourceBounds();
+  await browserAsync('wait', '--fn', 'document.querySelector(".chat-source-strip [data-sources-toggle] [data-site-icon=\\"docs.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-source-strip [data-sources-toggle] [data-site-icon=\\"lookup.example.org\\"]")?.dataset.iconState === "ready"');
+  assert.equal(evaluate('document.querySelector(".chat-source-strip [data-sources-toggle] [data-site-icon=\\"hidden.example.org\\"]")'), null, 'the third phone site has no visible summary icon to warm its cache');
   for (let hop = 0; hop < 3; hop++) {
     evaluate('window.__fireAllIconDeadlines()');
     await browserAsync('--json', 'eval', '(async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); return true; })()');
@@ -531,9 +551,10 @@ try {
   assert.equal(evaluate('document.querySelector(".chat-source-strip ol [data-site-icon=\\"hidden.example.org\\"]").dataset.iconState !== "fallback"'), true,
     'an unseen hidden history icon cannot exhaust before becoming visible');
   restoreIconDeadlines();
-  browser('focus', '.chat-source-strip summary');
+  browser('focus', '.chat-source-strip [data-sources-toggle]');
   browser('press', 'Enter');
-  browser('wait', '.chat-source-strip[open]');
+  settleSources(true);
+  sourceBounds();
   await browserAsync('wait', '--fn', 'document.querySelector(".chat-source-strip ol [data-site-icon=\\"hidden.example.org\\"]")?.dataset.iconState === "ready"');
   browser('focus', '[data-activity-toggle]');
   browser('press', 'Enter');

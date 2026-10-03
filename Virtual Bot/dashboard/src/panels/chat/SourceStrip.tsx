@@ -1,10 +1,12 @@
-import { useMemo } from 'react';
+import { useId, useMemo, useRef } from 'react';
 import { ChevronRight, ExternalLink } from 'lucide-react';
 import { collectSources } from './sources';
 import { SiteIcon } from './SiteIcon';
 import { useIsPhone } from '@/hooks/useMediaQuery';
+import { useDisclosureMotion } from '@/hooks/useDisclosureMotion';
 import { t } from '@/locales/chat';
 import type { ToolStep } from './types';
+import './source-strip.css';
 
 /*
  * The strip of pages a reply was built from.
@@ -21,6 +23,9 @@ import type { ToolStep } from './types';
 export function SourceStrip({ steps }: { steps: ToolStep[] }) {
   const sources = useMemo(() => collectSources(steps), [steps]);
   const isPhone = useIsPhone();
+  const { ref, open, phase, toggle } = useDisclosureMotion();
+  const sourcesId = useId();
+  const trigger = useRef<HTMLButtonElement>(null);
   if (!sources.length) return null;
 
   // Hosts, not links: the same site found five times is still one name here.
@@ -29,10 +34,24 @@ export function SourceStrip({ steps }: { steps: ToolStep[] }) {
   // Four names fit a desktop column; on a phone they shrink to "e…", which
   // names nothing. Two readable names beat four unreadable ones.
   const shown = isPhone ? 2 : 4;
+  const toggleSources = () => {
+    if (open && ref.current?.contains(document.activeElement)) {
+      trigger.current?.focus({ preventScroll: true });
+    }
+    toggle();
+  };
 
   return (
-    <details className="chat-source-strip group mt-3 min-w-0">
-      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-sm py-1 outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-accent [&::-webkit-details-marker]:hidden">
+    <div className="chat-source-strip mt-3 min-w-0 max-w-full" data-state={phase}>
+      <button
+        ref={trigger}
+        type="button"
+        data-sources-toggle
+        aria-expanded={open}
+        aria-controls={sourcesId}
+        onClick={toggleSources}
+        className="chat-source-toggle flex w-full cursor-pointer items-center gap-2 rounded-sm py-1 text-left outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-accent"
+      >
         <span className="u-label shrink-0 text-ink-3">
           {t('sources.label', { count: sources.length })}
         </span>
@@ -47,31 +66,42 @@ export function SourceStrip({ steps }: { steps: ToolStep[] }) {
             <span className="shrink-0 font-mono text-[11px] text-ink-3">+{sites.length - shown}</span>
           ) : null}
         </span>
-        <ChevronRight className="size-3.5 shrink-0 text-ink-3 transition-transform group-open:rotate-90 motion-reduce:transition-none" />
-      </summary>
+        <ChevronRight aria-hidden="true" className="chat-source-chevron size-3.5 shrink-0 text-ink-3" />
+      </button>
 
-      <ol className="mt-1.5 space-y-0.5 border-l border-line pl-3">
-        {sources.map((source, index) => (
-          <li key={source.url}>
-            <a
-              href={source.url}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="group/src flex items-start gap-2 rounded-sm px-1.5 py-1.5 transition-colors hover:bg-surface"
-            >
-              <span className="mt-px shrink-0 font-mono text-[10px] text-ink-3">{index + 1}</span>
-              <SiteIcon url={source.url} host={source.host} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] text-ink">{source.title || source.host}</span>
-                <span className="mt-0.5 block truncate font-mono text-[10.5px] text-ink-3">
-                  {source.host} · {source.tool}
+      <div
+        ref={ref}
+        id={sourcesId}
+        data-sources-fold
+        data-phase={phase}
+        data-open={open ? '' : undefined}
+        inert={!open}
+        aria-hidden={!open}
+        className="chat-source-fold"
+      >
+        <ol className="chat-source-list mt-1.5 space-y-0.5 border-l border-line pl-3">
+          {sources.map((source, index) => (
+            <li key={source.url}>
+              <a
+                href={source.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="group/src flex items-start gap-2 rounded-sm px-1.5 py-1.5 transition-colors hover:bg-surface"
+              >
+                <span className="mt-px shrink-0 font-mono text-[10px] text-ink-3">{index + 1}</span>
+                <SiteIcon url={source.url} host={source.host} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] text-ink">{source.title || source.host}</span>
+                  <span className="mt-0.5 block truncate font-mono text-[10.5px] text-ink-3">
+                    {source.host} · {source.tool}
+                  </span>
                 </span>
-              </span>
-              <ExternalLink className="mt-0.5 size-3 shrink-0 text-ink-3 opacity-0 transition-opacity group-hover/src:opacity-100 motion-reduce:transition-none" />
-            </a>
-          </li>
-        ))}
-      </ol>
-    </details>
+                <ExternalLink className="mt-0.5 size-3 shrink-0 text-ink-3 opacity-0 transition-opacity group-hover/src:opacity-100 motion-reduce:transition-none" />
+              </a>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </div>
   );
 }

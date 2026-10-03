@@ -638,6 +638,27 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   Duplicate sites share one summary mark; distinct source pages keep their links.
 - Regression checks: tests/activity-tree.browser.mjs and tests/siteIcons.test.mjs.
 
+## Disclosure motion and reply reactions (2026-10-03)
+
+- Sources use a button-led disclosure with linked expanded state. Opening and
+  closing animate explicit measured height with sharp inner opacity/translation;
+  hidden links are inert, keyboard focus returns to the header when needed,
+  and coarse-pointer controls remain 44px.
+- Activity groups and nested logs share that height motion. Capture the current
+  in-flight height before reversing; keep scrollable logs mounted and preserve
+  their read position. The clipping wrapper cannot acquire its own scroll
+  offset or act as a browser scroll anchor. One stationary backdrop follows
+  the resulting tree bounds. Reduced motion settles directly.
+- Reactions live with Copy, Speech and Retry below the finished answer. One
+  trigger addresses its last visible non-note text part, using the original
+  server text-part index even when notes or image-only parts precede it.
+  Existing badges on other bubbles keep their own removal action. Preserve
+  actual reaction persistence and emoji flight rather than inventing new state.
+- The reaction menu supports keyboard arrows, Home/End and Escape, restores
+  trigger focus and fits short replies and phone widths with 44px targets.
+- Regression coverage: tests/disclosure-motion.browser.mjs,
+  tests/reaction-actions.browser.mjs and the existing activity/source fixtures.
+
 
 ## Expressive welcome typography (2026-10-03)
 
