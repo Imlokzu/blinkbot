@@ -157,15 +157,21 @@ def runner(chat_request_type, chat_turn):
         request.message = job["message"]
         response = await chat_turn(request, job["user_id"], "chat")
         effective_model = ""
-        async for name, data in mobile_api.iter_chat_events(response):
-            if name == "model":
-                provider = str(data.get("provider") or "")
-                model = str(data.get("model") or "")
-                effective_model = model if model.startswith(provider + "/") else f"{provider}/{model}"
-            if name == "done" and effective_model:
-                data = {**data, "model": effective_model}
-            if name == "error":
-                # Only the host diagnostics retain provider exception detail.
-                data = {"error": "mobile_turn_failed", "steps": data.get("steps", [])}
-            yield name, data
+        chat_events = mobile_api.iter_chat_events(response)
+        try:
+            async for name, data in chat_events:
+                if name == "model":
+                    provider = str(data.get("provider") or "")
+                    model = str(data.get("model") or "")
+                    effective_model = model if model.startswith(provider + "/") else f"{provider}/{model}"
+                if name == "done" and effective_model:
+                    data = {**data, "model": effective_model}
+                if name == "error":
+                    # Only the host diagnostics retain provider exception detail.
+                    data = {"error": "mobile_turn_failed", "steps": data.get("steps", [])}
+                yield name, data
+        finally:
+            # Closing an outer async generator does not close its async-for
+            # iterator. Await cleanup before releasing the conversation queue.
+            await chat_events.aclose()
     return run

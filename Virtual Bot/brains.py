@@ -847,7 +847,7 @@ async def chat_openclaw(
                     observed_model["value"] = f"{provider}/{model}"
                 await emit(event)
                 return
-            if event.get("type") == "delta" or str(event.get("type", "")).startswith("tool_"):
+            if event.get("type") in {"delta", "note"} or str(event.get("type", "")).startswith("tool_"):
                 observed_work = True
             await emit(event)
 
@@ -860,9 +860,12 @@ async def chat_openclaw(
                 )
             return text, [], observed_model["value"] or routed_model
         except _NeedsTools:
+            if observed_work:
+                raise
             log.info("OpenClaw потребує тулзів — переходжу на нестрімовий виклик")
         except Exception as exc:  # noqa: BLE001
-            # Replaying a request after an observed tool could repeat a write.
+            # Preambles also prove a run started. Retrying after visible text
+            # or tool work could replay a write or charge for the turn twice.
             if observed_work:
                 raise
             log.warning("Стрімінг OpenClaw не вдався (%s) — звичайний виклик", type(exc).__name__)
