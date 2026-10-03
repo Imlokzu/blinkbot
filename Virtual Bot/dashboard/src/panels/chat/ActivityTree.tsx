@@ -1,10 +1,12 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Check, ChevronRight, CircleAlert, CircleDashed, CloudSun, Coins, FileText, Folder,
   Image as ImageIcon, ListTodo, MessageCircleQuestion, Music, Play, Search, Terminal,
   Wrench, type LucideIcon } from 'lucide-react';
 import { t as activityT } from '@/lib/i18n';
 import { t, type ChatKey } from '@/locales/chat';
 import type { ToolStep } from './types';
+import { collectSources } from './sources';
+import { SiteIcon } from './SiteIcon';
 import './activity-tree.css';
 
 /** The gateway prefixes MCP names; native coding tools use shorter aliases. */
@@ -75,6 +77,8 @@ function ToolBranch({ step }: { step: ToolStep }) {
   const Icon = TOOL_ICONS[name] ?? Wrench;
   const title = toolTitle(step.label);
   const hasLog = step.input !== undefined || step.result !== undefined;
+  // A source belongs to the completed call that actually returned it.
+  const sites = [...new Map(collectSources([step]).map(source => [source.host, source])).values()];
   const signedOut = step.status === 'failed'
     && /clerk|sign-?in|потрібен вхід|нужен вход|unauthorized/i.test(
       typeof step.result === 'string' ? step.result : JSON.stringify(step.result ?? ''),
@@ -92,6 +96,12 @@ function ToolBranch({ step }: { step: ToolStep }) {
       aria-label={activityT('activity.logs', { tool: title, detail: step.detail, status: activityT(`activity.${step.status}`) })}
       onClick={() => setOpen(value => !value)}>{content}</button>
       : <div className="chat-activity-row" data-tool-row>{content}</div>}
+    {sites.length ? <div className="chat-activity-sites" role="group" aria-label={t('sources.label', { count: sites.length })}>
+      {sites.map(source => <a key={source.host} href={source.url} target="_blank" rel="noreferrer noopener"
+        className="chat-activity-site" title={source.title || source.host}>
+        <SiteIcon url={source.url} host={source.host} /><span>{source.host}</span>
+      </a>)}
+    </div> : null}
     {signedOut ? <p className="chat-activity-sign-in">{t('tool.signIn')}</p> : null}
     {hasLog ? <div id={detailsId} data-tool-details className="chat-activity-fold"
       data-open={open ? '' : undefined} inert={!open} aria-hidden={!open}>
@@ -101,21 +111,31 @@ function ToolBranch({ step }: { step: ToolStep }) {
 }
 
 /** Adjacent real calls share a trunk; the reply may continue after they finish. */
-export function ActivityLine({ steps }: { steps: ToolStep[]; running: boolean }) {
-  const [open, setOpen] = useState(true);
+export function ActivityLine({ steps, running }: { steps: ToolStep[]; running: boolean }) {
+  const [open, setOpen] = useState(running);
   const branchesId = useId();
+  const toggle = useRef<HTMLButtonElement>(null);
+  const branches = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // The complete reply, rather than a gap between calls, ends an activity tree.
+    // Manual reopening after settlement is retained through later rerenders.
+    if (!running && branches.current?.contains(document.activeElement)) {
+      toggle.current?.focus({ preventScroll: true });
+    }
+    setOpen(running);
+  }, [running]);
   if (!steps.length) return null;
   const active = steps.some(step => step.status === 'active');
   const summary = activityT(active ? 'activity.runningCount' : 'activity.summary', { count: steps.length });
   return <div className="chat-activity-tree" data-agent-activity data-running={active ? '' : undefined}>
-    <button type="button" className="chat-activity-toggle" data-activity-toggle
+    <button ref={toggle} type="button" className="chat-activity-toggle" data-activity-toggle
       aria-expanded={open} aria-controls={branchesId}
       aria-label={`${activityT(open ? 'activity.collapse' : 'activity.expand')} · ${summary}`}
       onClick={() => setOpen(value => !value)}>
       <ChevronRight aria-hidden="true" strokeWidth={1.75} /><span>{summary}</span>
       {active ? <span className="chat-activity-pulse" aria-hidden="true" /> : null}
     </button>
-    <div id={branchesId} data-activity-branches className="chat-activity-fold"
+    <div ref={branches} id={branchesId} data-activity-branches className="chat-activity-fold"
       data-open={open ? '' : undefined} inert={!open} aria-hidden={!open}>
       <div className="chat-activity-clip">
         <ol className="chat-activity-list">{steps.map(step => <ToolBranch key={step.id} step={step} />)}</ol>

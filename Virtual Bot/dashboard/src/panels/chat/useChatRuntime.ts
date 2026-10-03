@@ -15,7 +15,6 @@ import { useToast } from '@/components/ui/Toaster';
 import { estimateTokens } from './tokens';
 import type { ChatMessage, SessionDetail, SessionSummary, ToolStep } from './types';
 import { readChatSelection, rememberChatSelection } from './chatNavigation';
-import { isImageGeneration } from './imageGenerationState';
 
 /*
  * Зшивання нашого бекенда з assistant-ui.
@@ -30,7 +29,7 @@ let localId = 0;
 const nextId = () => `local-${++localId}`;
 
 export function useChatRuntime(project = '') {
-  const imageReplyId = useRef('');
+  const activityReplyId = useRef('');
   const replySettled = useRef(true);
   const client = useQueryClient();
   const toast = useToast();
@@ -231,7 +230,7 @@ export function useChatRuntime(project = '') {
         (item): item is ChatAttachment => Boolean(item && typeof item === 'object' && 'url' in item),
       );
       const userId = nextId();
-      imageReplyId.current = '';
+      activityReplyId.current = '';
       replySettled.current = false;
       setMessages((current) => [...current, {
         id: userId, role: 'user', content: trimmed, attachments: safeAttachments,
@@ -265,7 +264,7 @@ export function useChatRuntime(project = '') {
         const finished = finishActivity(stepsRef.current);
         const parts = toParts(timelineRef.current);
         if (parts.length || finished.length) {
-          const replyId = finished.some(isImageGeneration) ? (imageReplyId.current ||= nextId()) : nextId();
+          const replyId = finished.length ? (activityReplyId.current ||= nextId()) : nextId();
           setMessages((current) => [...current, {
             id: replyId, role: 'assistant', content: draftRef.current, steps: finished, parts,
           }]);
@@ -305,7 +304,7 @@ export function useChatRuntime(project = '') {
           onTool: (event) => {
             if (!isCurrent() || terminal) return;
             stepsRef.current = updateActivity(stepsRef.current, event);
-            if (stepsRef.current.some(isImageGeneration)) imageReplyId.current ||= nextId();
+            if (stepsRef.current.length) activityReplyId.current ||= nextId();
             setSteps(stepsRef.current);
             const id = event.step?.id ?? event.call_id;
             if (id) updateTimeline(applyStep(timelineRef.current, id));
@@ -328,7 +327,7 @@ export function useChatRuntime(project = '') {
             const textBubbles = parts.filter((part) => part.type === 'text').length;
             const fromTyping = pillOnScreen.current && textBubbles > 0 ? textBubbles - 1 : undefined;
             pillOnScreen.current = false;
-            const replyId = finished.some(isImageGeneration) ? (imageReplyId.current ||= nextId()) : nextId();
+            const replyId = finished.length ? (activityReplyId.current ||= nextId()) : nextId();
             setMessages((current) => [
               ...current.map((item) => (item.id === userId ? {
                 ...item,
@@ -413,7 +412,7 @@ export function useChatRuntime(project = '') {
     const content = draftRef.current;
     const parts = toParts(timelineRef.current);
     if (parts.length || finished.length) {
-      const replyId = finished.some(isImageGeneration) ? (imageReplyId.current ||= nextId()) : nextId();
+      const replyId = finished.length ? (activityReplyId.current ||= nextId()) : nextId();
       setMessages((list) => [...list, { id: replyId, role: 'assistant', content, steps: finished, parts }]);
     }
     setDraft(null);
@@ -456,9 +455,9 @@ export function useChatRuntime(project = '') {
     [messages, draft],
   );
 
-  // A generated-media surface must remain mounted when the draft becomes
-  // the saved answer; otherwise its private download and reveal restart.
-  const liveReplyId = steps.some(isImageGeneration) ? imageReplyId.current : 'draft';
+  // Tool replies retain their disclosures and focus when the draft settles.
+  // Generated-media surfaces also keep their private download and reveal.
+  const liveReplyId = steps.length ? activityReplyId.current : 'draft';
   const visible = useMemo<ChatMessage[]>(
     () => (draft !== null
       ? [...messages, { id: liveReplyId, role: 'assistant', content: draft, steps, parts: toParts(timeline) }]

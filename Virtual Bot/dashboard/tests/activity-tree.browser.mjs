@@ -1,17 +1,26 @@
 /** Browser-only SSE fixtures exercise the real chat adapter without server writes. */
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 
 const session = `activity-tree-${process.pid}`;
 const origin = process.env.DASHBOARD_TEST_URL || 'http://127.0.0.1:8100';
 const path = process.env.DASHBOARD_TEST_PATH || '/dash/';
 const browser = (...args) => execFileSync('agent-browser', ['--session', session, ...args], { encoding:'utf8' });
+const browserAsync = (...args) => new Promise((resolve, reject) => execFile('agent-browser', ['--session', session, ...args], { encoding:'utf8' }, (error, stdout) => error ? reject(error) : resolve(stdout)));
 const evaluate = code => JSON.parse(browser('--json', 'eval', `(() => eval(${JSON.stringify(code)}))()`)).data.result;
 const route = (url, body) => browser('network', 'route', url, '--body', JSON.stringify(body));
 const emit = (type, data) => evaluate(`window.__emit(${JSON.stringify(type)}, ${JSON.stringify(data)}); true`);
 const row = id => `[data-tool-step=${JSON.stringify(id)}]`;
+const tree = id => `.chat-activity-tree:has(${row(id)})`;
 const state = id => evaluate(`document.querySelector(${JSON.stringify(row(id))})?.dataset.toolStatus`);
+const settleTree = (id, expanded) => browser('wait', '--fn', `(() => {
+  const root = document.querySelector(${JSON.stringify(tree(id))});
+  const fold = root?.querySelector('[data-activity-branches]');
+  return root?.querySelector('[data-activity-toggle]')?.getAttribute('aria-expanded') === '${expanded}'
+    && fold.getAnimations().every(animation => animation.playState !== 'running')
+    && ${expanded ? 'fold.getBoundingClientRect().height > 0' : 'fold.getBoundingClientRect().height === 0'};
+})()`);
 const finish = reply => emit('done', { reply, session_id:'activity-fixture', emotion:'idle', mode:'test', model:'activity-model', tool_results:[] });
 const send = message => {
   evaluate('window.__activityStream = null; true');
@@ -48,6 +57,10 @@ let socket;
 let cdpSession;
 let nextId = 0;
 const pending = new Map();
+const faviconRequests = [];
+const unexpectedExternal = [];
+// Generated locally: a deterministic blue 16px PNG, never a real site fetch.
+const faviconPng = 'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGPQq73znxLMMGrAqAGjBgwXAwAX4YYf8tQajgAAAABJRU5ErkJggg==';
 const cdp = (method, params = {}, sessionId = cdpSession) => new Promise((resolve, reject) => {
   const id = ++nextId;
   const timeout = setTimeout(() => { pending.delete(id); reject(new Error(`CDP timed out: ${method}`)); }, 10000);
@@ -67,12 +80,16 @@ const init = `(() => {
   };
   const original = window.fetch.bind(window);
   const frame = (type, data) => 'event: ' + type + '\\ndata: ' + JSON.stringify(data) + '\\n\\n';
-  window.__activitySends = []; window.__activityAborts = 0;
+  window.__activitySends = []; window.__activityAborts = 0; window.__fixtureImageReads = 0;
   window.__blockedWrites = JSON.parse(sessionStorage.getItem('activity-fixture-blocked-writes') || '[]');
   window.__emit = (type, data) => window.__activityStream.enqueue(new TextEncoder().encode(frame(type, data)));
   window.fetch = async (url, options) => {
     const pathname = new URL(url instanceof Request ? url.url : String(url), location.href).pathname;
     const method = String(options?.method || (url instanceof Request ? url.method : 'GET')).toUpperCase();
+    if (pathname === '/uploads/activity-fixture.png' && method === 'GET') {
+      window.__fixtureImageReads++;
+      return new Response(Uint8Array.from(atob('${faviconPng}'), byte => byte.charCodeAt(0)), { headers:{ 'Content-Type':'image/png' } });
+    }
     if (pathname === '/api/chat' && method === 'POST') {
       window.__activitySends.push(JSON.parse(options.body));
       return new Response(new ReadableStream({ start(controller) {
@@ -96,6 +113,12 @@ const longPath = `session/research/${'a-very-long-directory-name/'.repeat(12)}re
 const first = { call_id:'read-a', tool:'workspace__workspace_read', detail:longPath, input:{ path:longPath } };
 const second = { call_id:'read-b', tool:'workspace__workspace_read', detail:'session/second.md', input:{ path:'session/second.md' } };
 const search = { call_id:'search', tool:'web_search', detail:'reference animation', input:{ query:'reference animation' } };
+const searchResult = { results:[
+  { title:'Fixture guide', url:'https://docs.example.org/guide' },
+  { title:'Fixture reference', url:'https://docs.example.org/reference?mode=compact' },
+  { title:'Fixture unavailable icon', url:'https://failed.example.org/reading' },
+  { title:'Fixture private address', url:'https://127.0.0.1/private' },
+] };
 const untrusted = '<img src=x onerror="window.__activityInjected=true">';
 const saved = { id:'activity-history', messages:[{ role:'assistant', content:'Saved activity fixture.', steps:[
   { id:'saved-ok', label:'workspace_read', detail:longPath, status:'done', input:{ path:longPath }, result:{ content:untrusted } },
@@ -128,8 +151,26 @@ try {
     socket.addEventListener('open', resolve, { once:true });
     socket.addEventListener('error', reject, { once:true });
   });
-  socket.addEventListener('message', event => {
+  socket.addEventListener('message', async event => {
     const message = JSON.parse(event.data);
+    if (message.method === 'Fetch.requestPaused') {
+      const request = message.params;
+      const url = new URL(request.request.url);
+      if (url.origin === origin) {
+        await cdp('Fetch.continueRequest', { requestId:request.requestId }, message.sessionId);
+      } else if (url.pathname === '/favicon.ico' && ['docs.example.org','failed.example.org'].includes(url.hostname)) {
+        faviconRequests.push({ url:url.href, headers:request.request.headers });
+        await cdp('Fetch.fulfillRequest', { requestId:request.requestId,
+          responseCode:url.hostname === 'failed.example.org' ? 404 : 200,
+          responseHeaders:[{ name:'Content-Type', value:'image/png' }, { name:'Cache-Control', value:'no-store' }],
+          body:url.hostname === 'failed.example.org' ? '' : faviconPng,
+        }, message.sessionId);
+      } else {
+        unexpectedExternal.push(url.href);
+        await cdp('Fetch.failRequest', { requestId:request.requestId, errorReason:'BlockedByClient' }, message.sessionId);
+      }
+      return;
+    }
     const request = pending.get(message.id);
     if (!request) return;
     pending.delete(message.id);
@@ -140,6 +181,7 @@ try {
   assert.ok(target, 'the isolated dashboard target must exist');
   cdpSession = (await cdp('Target.attachToTarget', { targetId:target.targetId, flatten:true })).sessionId;
   await cdp('Page.enable');
+  await cdp('Fetch.enable', { patterns:[{ urlPattern:'https://*', requestStage:'Request' }] });
   await cdp('Page.addScriptToEvaluateOnNewDocument', { source:init });
   evaluate("localStorage.setItem('claudeBotLang','en'); localStorage.setItem('claudeBotTheme','light'); localStorage.setItem('claudeBotConversationList','open'); true");
   browser('reload');
@@ -176,6 +218,18 @@ try {
   assert.equal(evaluate('document.querySelectorAll("[data-tool-step]").length'), 3);
   assert.equal(controls(readToggle).expanded, 'true', 'progress replacement preserves an open row');
 
+  evaluate(`window.__activityFoldSamples = []; window.__activityFoldRoot = document.querySelector('.chat-activity-tree');
+    const started = performance.now(); window.__activityFoldStop = false;
+    const sample = () => {
+      const root = window.__activityFoldRoot, rect = root.getBoundingClientRect(), backing = getComputedStyle(root, '::before');
+      window.__activityFoldSamples.push({ width:rect.width, height:rect.height,
+        backingWidth:parseFloat(backing.width), backingHeight:parseFloat(backing.height),
+        position:backing.position, animation:backing.animationName, transition:backing.transitionDuration,
+        blur:backing.backdropFilter || backing.getPropertyValue('-webkit-backdrop-filter'),
+        rowFilter:getComputedStyle(root.querySelector('.chat-activity-row')).filter,
+        textFilter:getComputedStyle(root.querySelector('.chat-activity-tool-name')).filter });
+      if (!window.__activityFoldStop && performance.now() - started < 12000) requestAnimationFrame(sample); else window.__activityFoldSampled = true;
+    }; window.__activityFoldSampled = false; requestAnimationFrame(sample); true`);
   browser('focus', '[data-activity-toggle]');
   browser('press', 'Space');
   browser('wait', '--fn', 'document.querySelector("[data-activity-toggle]")?.getAttribute("aria-expanded") === "false"');
@@ -186,13 +240,37 @@ try {
   browser('wait', '--fn', 'document.querySelector("[data-activity-toggle]")?.getAttribute("aria-expanded") === "true"');
   assert.equal(controls(readToggle).expanded, 'true', 'reopening the group preserves row logs');
   assert.equal(evaluate('document.activeElement.matches("[data-activity-toggle]")'), true, 'group toggling retains keyboard focus');
+  settleTree('read-a', true);
+  evaluate('window.__activityFoldStop = true; true');
+  browser('wait', '--fn', 'window.__activityFoldSampled');
+  const backingSamples = evaluate('window.__activityFoldSamples');
+  assert.ok(new Set(backingSamples.map(sample => sample.height)).size > 2, 'observe real intermediate fold geometry');
+  for (const sample of backingSamples) {
+    assert.equal(sample.position, 'absolute', 'backing belongs to the tree instead of a detached viewport rectangle');
+    assert.equal(sample.animation, 'none', 'the backing has no independent animation');
+    assert.ok(sample.transition.split(',').every(value => parseFloat(value) === 0), 'the backing has no independent transition');
+    assert.match(sample.blur, /blur\([\d.]+px\)/, 'only the backing softens the wallpaper');
+    assert.equal(sample.rowFilter, 'none');
+    assert.equal(sample.textFilter, 'none', 'row text stays sharp');
+    assert.ok(Math.abs((sample.backingWidth - sample.width) - (backingSamples[0].backingWidth - backingSamples[0].width)) <= 1);
+    assert.ok(Math.abs((sample.backingHeight - sample.height) - (backingSamples[0].backingHeight - backingSamples[0].height)) <= 1,
+      'the backing follows every intermediate tree height without a residual rectangle');
+  }
 
   emit('tool_done', { ...first, result:{ content:'Confirmed read' } });
   emit('tool_error', { ...second, result:{ error:'Fixture read failed' } });
-  emit('tool_done', { ...search, result:{ hits:2 } });
+  emit('tool_done', { ...search, result:searchResult });
   browser('wait', '--fn', 'document.querySelectorAll("[data-tool-status=active]").length === 0');
   assert.deepEqual(['read-a','read-b','search'].map(state), ['done','failed','done']);
   assert.equal(evaluate('document.querySelector(".chat-activity-tree").hasAttribute("data-running")'), false, 'reply streaming alone must not mark completed tools as running');
+  assert.equal(controls('[data-activity-toggle]').expanded, 'true', 'completed calls remain open until the assistant reply settles');
+  await browserAsync('wait', '--fn', 'document.querySelector(".chat-activity-sites [data-site-icon=\\"docs.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-activity-sites [data-site-icon=\\"failed.example.org\\"]")?.dataset.iconState === "fallback"');
+  assert.equal(evaluate('document.querySelectorAll(".chat-activity-sites [data-site-icon=\\"docs.example.org\\"]").length'), 1, 'two completed links from one site share one summary icon');
+  const decoded = evaluate('document.querySelector(".chat-activity-sites [data-site-icon=\\"docs.example.org\\"] img")?.naturalWidth');
+  assert.equal(decoded, 16, 'the fixture icon actually decodes');
+  assert.equal(evaluate('document.querySelector(".chat-activity-sites [data-site-icon=\\"failed.example.org\\"]").getBoundingClientRect().width'), 18, 'an error keeps the reserved icon size');
+  assert.equal(evaluate('document.querySelector(".chat-activity-sites [data-site-icon=\\"failed.example.org\\"] img")'), null);
+  assert.equal(evaluate('document.querySelector(".chat-activity-sites [data-site-icon=\\"127.0.0.1\\"]")?.dataset.iconState'), 'fallback', 'a private source gets a local fallback');
   assert.match(evaluate(`document.querySelector(${JSON.stringify(`${row('read-a')} [data-tool-details]`)}).textContent`), /Result.*Confirmed read/s);
   assert.equal(evaluate(`document.querySelector(${JSON.stringify(`${row('read-b')} [data-tool-state]`)}).textContent`), 'Failed');
   const connector = evaluate(`(() => {
@@ -227,11 +305,34 @@ try {
     readLabelFits();
     shot(`activity-${width}`);
   }
+  browser('focus', readToggle);
   finish('The controlled calls finished.');
   browser('wait', '--text', 'The controlled calls finished.');
   assert.deepEqual(['read-a','read-b','search'].map(state), ['done','failed','done']);
+  settleTree('read-a', false);
+  assert.equal(evaluate('document.activeElement.isConnected'), true, 'settling never leaves focus on a detached control');
+  assert.equal(evaluate(`document.activeElement.matches(${JSON.stringify(`${tree('read-a')} [data-activity-toggle]`)})`), true, 'automatic folding returns focused logs to their own tree header');
+  shot('activity-completed-collapsed');
+  await browserAsync('wait', '--fn', 'document.querySelector(".chat-source-strip summary [data-site-icon=\\"docs.example.org\\"]")?.dataset.iconState === "ready"');
+  assert.equal(evaluate('document.querySelectorAll(".chat-source-strip summary [data-site-icon=\\"docs.example.org\\"]").length'), 1);
+  browser('focus', '.chat-source-strip summary');
+  browser('press', 'Enter');
+  browser('wait', '.chat-source-strip[open]');
+  await browserAsync('wait', '--fn', '[...document.querySelectorAll(".chat-source-strip ol [data-site-icon=\\"docs.example.org\\"]")].every(icon => icon.dataset.iconState === "ready") && document.querySelector(".chat-source-strip ol [data-site-icon=\\"failed.example.org\\"]")?.dataset.iconState === "fallback"');
+  assert.deepEqual(evaluate('[...document.querySelectorAll(".chat-source-strip ol a")].map(link => link.href)'), searchResult.results.map(source => source.url), 'distinct original source pages remain separate links');
+  assert.equal(evaluate('document.querySelectorAll(".chat-source-strip ol [data-site-icon=\\"docs.example.org\\"]").length'), 2);
+  assert.equal(evaluate('document.querySelector(".chat-source-strip ol [data-site-icon=\\"127.0.0.1\\"]").dataset.iconState'), 'fallback');
+  assert.equal(evaluate('document.querySelector(".chat-source-strip ol [data-site-icon=\\"127.0.0.1\\"] img")'), null);
+  assert.equal(evaluate('document.querySelector(".chat-source-strip ol [data-site-icon=\\"failed.example.org\\"]").getBoundingClientRect().width'), 18);
+  assert.equal(evaluate('document.activeElement.matches(".chat-source-strip summary")'), true);
+  browser('focus', `${tree('read-a')} [data-activity-toggle]`);
+  browser('press', 'Enter');
+  settleTree('read-a', true);
+  overflow();
+  shot('activity-reopened-sources');
 
   send('A controlled interruption.');
+  assert.equal(controls(`${tree('read-a')} [data-activity-toggle]`).expanded, 'true', 'a manually reopened settled tree stays open during later turns');
   const pendingRead = { call_id:'stop-active', tool:'workspace_read', detail:longPath, input:{ path:longPath } };
   const completedRead = { call_id:'stop-done', tool:'workspace_read', detail:'session/complete.md', input:{ path:'session/complete.md' } };
   emit('tool_start', pendingRead);
@@ -244,6 +345,7 @@ try {
   assert.equal(evaluate('document.querySelectorAll("[data-tool-step=stop-active]").length'), 1, 'repeated Stop cannot duplicate activity');
   assert.equal(evaluate('document.querySelectorAll("[data-agent-activity][data-running]").length'), 0);
   assert.equal(evaluate('window.__activityAborts'), 1);
+  settleTree('stop-active', false);
 
   // Image generation keeps its own honest pending surface, alongside ordinary
   // activity, rather than gaining a duplicate generic branch row.
@@ -257,8 +359,31 @@ try {
   browser('click', '.prompt-bar__send');
   browser('wait', '[data-image-generation][data-state=interrupted]');
   browser('wait', `${row('mixed-search')}[data-tool-status=interrupted]`);
+  settleTree('mixed-search', false);
   assert.equal(evaluate('window.__activitySends.length'), 3);
+  // The runtime now preserves every tool reply ID. Keep the specialized image
+  // surface mounted through its own completion and the final reply snapshot.
+  send('A completed generation fixture.');
+  const imageStep = { id:'paint-complete', label:'image_generate', status:'active', detail:'', input:{ prompt:'A deterministic fixture image' } };
+  emit('tool_start', { step:imageStep });
+  browser('wait', '[data-image-generation][data-state=generating]');
+  evaluate('window.__completedImageCard = document.querySelector("[data-image-generation][data-state=generating]"); true');
+  const completedImageStep = { ...imageStep, status:'done', result:{ provider:'codex', images:[{ url:'/uploads/activity-fixture.png', type:'image/png' }] } };
+  emit('tool_done', { step:completedImageStep });
+  browser('wait', '[data-image-generation][data-state=complete]');
+  assert.equal(evaluate('document.querySelector("[data-image-generation][data-state=complete]") === window.__completedImageCard'), true);
+  const imageReply = '![A deterministic fixture image](/uploads/activity-fixture.png)';
+  emit('done', { reply:imageReply, session_id:'activity-fixture', emotion:'idle', mode:'test', model:'activity-model', tool_results:[],
+    steps:[completedImageStep], parts:[{ type:'steps', ids:['paint-complete'] }, { type:'text', text:imageReply }] });
+  browser('wait', '--fn', 'document.querySelector(".prompt-bar__send").disabled');
+  assert.equal(evaluate('document.querySelector("[data-image-generation][data-state=complete]") === window.__completedImageCard'), true, 'settling preserves the existing generated image node');
+  assert.equal(evaluate('window.__completedImageCard.querySelector("img").naturalWidth'), 16);
+  assert.equal(evaluate('window.__fixtureImageReads'), 1, 'settling must not download the same private result again');
+  assert.equal(evaluate('window.__activitySends.length'), 4);
   assert.deepEqual(evaluate('window.__blockedWrites'), []);
+  assert.deepEqual(unexpectedExternal, [], 'no private source or unexpected external request leaves the browser fixture');
+  assert.ok(faviconRequests.some(request => request.url === 'https://docs.example.org/favicon.ico'));
+  assert.ok(faviconRequests.every(request => !('Referer' in request.headers) && !('referer' in request.headers)), 'favicons omit the conversation referrer');
 
   // Reloaded legacy activity cannot turn unknown or unfinished outcomes into
   // success. Native reduced-motion emulation also checks the live tree path.
@@ -271,8 +396,22 @@ try {
   assert.equal(evaluate('matchMedia("(prefers-reduced-motion: reduce)").matches'), true);
   browser('click', '.chat-narrow-toolbar button[aria-label="Розмови"]');
   browser('wait', '[data-session-id="activity-history"]');
-  evaluate('document.querySelector("[data-session-id=activity-history] .truncate").click(); true');
+  browser('wait', '--fn', `(() => {
+    const entry = document.querySelector('[data-session-id="activity-history"]');
+    const title = [...entry.querySelectorAll('*')].find(node => !node.children.length && node.textContent.trim() === 'Saved activity fixture');
+    if (!title) return false;
+    for (let owner = title; owner; owner = owner.parentElement)
+      if (owner.getAnimations().some(animation => animation.playState === 'running')) return false;
+    const bounds = title.getBoundingClientRect();
+    return entry.contains(document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2));
+  })()`);
+  browser('find', 'text', 'Saved activity fixture', 'click', '--exact');
   browser('wait', '--text', 'Saved activity fixture.');
+  assert.equal(controls('[data-activity-toggle]').expanded, 'false', 'saved history starts collapsed');
+  settleTree('saved-ok', false);
+  browser('focus', '[data-activity-toggle]');
+  browser('press', 'Enter');
+  settleTree('saved-ok', true);
   browser('wait', row('saved-legacy'));
   assert.deepEqual(['saved-ok','saved-error','saved-stop','saved-legacy','saved-active'].map(state), ['done','failed','interrupted','interrupted','interrupted']);
   assert.equal(evaluate('document.querySelectorAll("[data-tool-step]").length'), 5);
@@ -299,8 +438,44 @@ try {
   overflow();
   browser('click', '.prompt-bar__send');
   browser('wait', `${row('reduced-read')}[data-tool-status=interrupted]`);
+  settleTree('reduced-read', false);
+  await cdp('Emulation.setEmulatedMedia', { features:[
+    { name:'prefers-color-scheme', value:'dark' }, { name:'prefers-reduced-motion', value:'reduce' },
+    { name:'prefers-reduced-transparency', value:'reduce' },
+  ] });
+  assert.equal(evaluate('matchMedia("(prefers-reduced-transparency: reduce)").matches'), true);
+  await browserAsync('--json', 'eval', '(async () => { await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); return true; })()');
+  const transparencyRules = evaluate(`(() => {
+    const found = [];
+    const visit = rule => {
+      if (rule.conditionText?.includes('prefers-reduced-transparency') && rule.cssText.includes('.chat-activity-tree'))
+        found.push({ condition:rule.conditionText, matches:matchMedia(rule.conditionText).matches, css:rule.cssText });
+      if (rule.cssRules) [...rule.cssRules].forEach(visit);
+    };
+    for (const sheet of document.styleSheets) { try { [...sheet.cssRules].forEach(visit); } catch {} }
+    return found;
+  })()`);
+  assert.ok(transparencyRules.some(rule => rule.matches), 'the loaded tree transparency media rule matches the native emulation');
+  browser('wait', '--fn', `getComputedStyle(document.querySelector(${JSON.stringify(tree('reduced-read'))}), '::before').backdropFilter === 'none'`);
+  const reducedBacking = evaluate(`(() => {
+    const backing = getComputedStyle(document.querySelector(${JSON.stringify(tree('reduced-read'))}), '::before');
+    return { blur:backing.backdropFilter || backing.getPropertyValue('-webkit-backdrop-filter'), color:backing.backgroundColor };
+  })()`);
+  assert.equal(reducedBacking.blur, 'none', 'reduced transparency uses a stationary solid backing');
+  assert.notEqual(reducedBacking.color, 'rgba(0, 0, 0, 0)');
+  send('A composer focus fixture.');
+  emit('tool_start', { call_id:'composer-read', tool:'workspace_read', detail:'session/focus.md', input:{ path:'session/focus.md' } });
+  browser('wait', row('composer-read'));
+  assert.equal(evaluate('document.activeElement.matches(".prompt-bar textarea")'), true);
+  emit('tool_done', { call_id:'composer-read', tool:'workspace_read', result:{ content:'Confirmed focus fixture' } });
+  finish('The composer kept its focus.');
+  browser('wait', '--text', 'The composer kept its focus.');
+  settleTree('composer-read', false);
+  assert.equal(evaluate('document.activeElement.matches(".prompt-bar textarea") && document.activeElement.isConnected'), true, 'automatic folding preserves focus owned by the composer');
+  assert.equal(controls(`${tree('saved-ok')} [data-activity-toggle]`).expanded, 'true', 'manually reopened history survives later settled replies');
   assert.deepEqual(evaluate('window.__blockedWrites'), []);
-  console.log('PASS: real SSE concurrency/progress/snapshots/outcomes, keyboard toggles/log state, no fabricated activity, Stop, separate images, saved legacy outcomes, inert payloads, en/uk, desktop/390/320px and native reduced motion; no server mutations');
+  assert.deepEqual(unexpectedExternal, []);
+  console.log('PASS: real SSE concurrency/progress/snapshots/outcomes, settle/Stop/history folding and manual reopen, keyboard/log state, stationary backing, decoded/fallback favicons and distinct source links, no fabricated activity, separate images, inert payloads, en/uk, desktop/390/320px, native reduced motion/transparency; no server mutations or external network');
 } catch (error) {
   try {
     console.error(evaluate('({ text:document.body.innerText.slice(-2200), states:[...document.querySelectorAll("[data-tool-step]")].map(node => ({ id:node.dataset.toolStep, status:node.dataset.toolStatus })), blockedWrites:window.__blockedWrites })'));

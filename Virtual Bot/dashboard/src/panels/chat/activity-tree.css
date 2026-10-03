@@ -1,5 +1,14 @@
 /* The tree belongs to the reply's typography, rather than a stack of cards. */
-.chat-activity-tree { width: 100%; min-width: 0; color: var(--c-text-2); font-size: 12px; }
+.chat-activity-tree {
+  position: relative; isolation: isolate; width: 100%; min-width: 0;
+  padding: 5px 8px; border-radius: 10px; color: var(--c-text-2); font-size: 12px;
+}
+/* One stationary backdrop follows the tree's layout, including disclosure motion. */
+.chat-activity-tree::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  border-radius: inherit; background: color-mix(in srgb, var(--c-surface) 62%, transparent);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
 .chat-activity-toggle {
   display: flex; align-items: center; gap: 7px; min-height: 32px; max-width: 100%;
   padding: 0 3px; color: var(--c-text-2); font-size: 12px; text-align: left;
@@ -60,10 +69,26 @@ button.chat-activity-row:hover .chat-activity-tool-name { color: var(--c-text); 
   font-size: 11px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .chat-activity-sign-in { padding: 0 0 5px 21px; color: var(--c-err); font-size: 11px; }
+.chat-activity-sites { display: flex; flex-wrap: wrap; gap: 4px 8px; padding: 0 0 5px 21px; }
+.chat-activity-site {
+  display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%; min-height: 28px;
+  color: var(--c-text-2); font-family: var(--font-mono); font-size: 11px;
+}
+.chat-activity-site > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-activity-site:hover { color: var(--c-accent); }
+.chat-activity-site:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; border-radius: 4px; }
+html[data-chat-material="solid"] .chat-activity-tree::before { background: var(--c-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .chat-activity-tree::before { background: var(--c-surface); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .chat-activity-tree::before { background: var(--c-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
 @keyframes chat-activity-arrive { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @keyframes chat-activity-pulse { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
 @media (pointer: coarse) {
   .chat-activity-toggle, .chat-activity-row { min-height: 44px; }
+  .chat-activity-site { min-height: 44px; }
   .chat-activity-branch::after { top: 13px; }
   .chat-activity-branch:last-child::before { height: 13px; }
   .chat-activity-log-chevron { opacity: 1; }

@@ -1275,3 +1275,35 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   native project, backend migration, or tunnel configuration was changed.
   Architecture must verify the backend gaps; remaining visual choices need
   the compact preview described in the screen plan, not another questionnaire.
+
+
+## Automatic activity folding and website icons (2026-10-03)
+
+- Tool activity opens while a reply runs and folds once that reply finishes
+  or stops. Saved history starts folded; manual reopening stays open. A gap
+  between calls does not close a live reply. Focus returns from an inner row
+  to its own header before folding, while composer-owned focus is preserved.
+- All tool-bearing replies now retain the existing stable reply ID through
+  settlement, extending the generated-image mechanism to ordinary activity.
+  This fixes remounting that skipped close animation and lost focused logs.
+- One stationary CSS pseudo-element blurs the background behind the tree,
+  following its layout during disclosure without blurring row text. Solid
+  material, reduced transparency and unsupported filters use an opaque fill.
+- Completed tool sources show real website favicons in the tree and source
+  strip. Only public HTTPS origins are requested, without article paths,
+  query strings, credentials, referrers or a third-party icon service. Missing
+  icons and local/IP sources keep an 18px initial fallback. Website summaries
+  deduplicate hosts while original source pages remain separate links.
+- Independent supported maximum-effort review fixed the ordinary-reply ID
+  remount bug and verified icon loading/fallback, focus, backing and native
+  coarse-pointer 44px targets. Fable remains unavailable in this runtime.
+- Validation: 156 frontend tests, TypeScript and clean-source production build;
+  1049 Python tests with 6 skipped and 178 subtests. Controlled SSE browser
+  checks pass on development and the production preview at 320/390/desktop
+  widths, both languages and reduced preferences, with no external requests or
+  server mutations. They verify folding, retained reopening, focus, stationary
+  blur, icons, history and completed-image DOM identity with one download.
+- Post-review smoke passes 7 endpoints and all 300 release resources. Memory
+  and workspace traversal return 400; the exact local wallpaper is precached.
+  The final PWA contains 104 entries. Task-owned servers and browsers are
+  stopped; the existing live dashboard and other agents' preview are preserved.

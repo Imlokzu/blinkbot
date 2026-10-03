@@ -24,7 +24,8 @@ pixelated, but it must share its bloodline: warm, handcrafted, slightly technica
    "to latest") and, separately, popups: their glass is disabled until "Glass"
    is selected in "Appearance". The standard fill remains. The recipe and the ban
    on spreading it further until the owner says the look is fine, reside
-   in `LIQUID-GLASS.md`.
+   in `LIQUID-GLASS.md`. The owner also approved a stationary CSS blur wash
+   behind the tool-activity tree; its content stays sharp.
 2. **Monospaced = data.** Numbers, statuses, paths, IDs, logs, model names,
    hotkeys — `--font-mono`. Prose, labels, and buttons — `--font-sans`.
    This is not taste, this is navigation: the font shows where the fact is and where the interface is.
@@ -612,6 +613,25 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   hidden-tab pause, stable accessible name and reduced-motion fallback.
 - Regression coverage: tests/settings-surfaces.browser.mjs,
   tests/chat-welcome.browser.mjs and tests/model-effort.browser.mjs.
+
+## Activity disclosure and website marks (2026-10-03)
+
+- Live activity groups start open and fold once the complete reply finishes
+  or stops. Restored history starts folded. Manual reopening after settlement
+  remains open; gaps between calls do not fold a live reply. A focused inner
+  control returns to its own header before folding; composer focus stays put.
+- All tool-bearing replies retain a stable message ID through settlement,
+  preserving log state, close motion and the existing generated-image surface.
+- One stationary pseudo-element behind each tree blurs the actual wallpaper.
+  It follows the tree's layout during disclosure, with no independent transform,
+  animation or blurred text. Solid material, reduced transparency and unsupported
+  backdrop filters use an opaque themed surface.
+- Website marks come from completed tool results, beside their activity and in
+  the source strip. Fetch only a public HTTPS source origin's favicon, without
+  article paths, query data, credentials, referrers or an icon-directory service.
+  Local/IP sources and missing/offline icons retain a fixed-size local initial.
+  Duplicate sites share one summary mark; distinct source pages keep their links.
+- Regression checks: tests/activity-tree.browser.mjs and tests/siteIcons.test.mjs.
 
 
 ## Expressive welcome typography (2026-10-03)
