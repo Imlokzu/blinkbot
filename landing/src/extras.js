@@ -66,8 +66,22 @@ export function initMagnetic() {
   }
 }
 
+/*
+ * The cards' little loops are CSS animations; off screen they would keep
+ * ticking for nobody. Pause whatever is out of view.
+ */
+function pauseOffscreen(selector) {
+  if (!("IntersectionObserver" in window)) return;
+  const observer = new IntersectionObserver(
+    (entries) => entries.forEach((entry) => entry.target.classList.toggle("is-paused", !entry.isIntersecting)),
+    { rootMargin: "80px" },
+  );
+  document.querySelectorAll(selector).forEach((el) => observer.observe(el));
+}
+
 export function initCards({ finePointer }) {
   document.querySelectorAll(".viz-voice__bars i").forEach((bar, i) => bar.style.setProperty("--i", String(i)));
+  pauseOffscreen("[data-card], [data-tiers], .hero__scroll");
   if (!finePointer) return;
   for (const card of document.querySelectorAll("[data-card]")) {
     card.addEventListener("pointermove", (event) => {
@@ -98,7 +112,7 @@ export function initMarquee({ reduced }) {
 
   // Scrolling pushes the marquee: faster, and leaning into the motion.
   const skew = gsap.quickTo(rows, "skewX", { duration: 0.6, ease: "power3.out" });
-  ScrollTrigger.create({
+  const st = ScrollTrigger.create({
     trigger: "[data-marquee]",
     start: "top bottom",
     end: "bottom top",
@@ -111,9 +125,11 @@ export function initMarquee({ reduced }) {
       });
       skew(gsap.utils.clamp(-9, 9, velocity / -260));
     },
+    onToggle: (self) => loops.forEach((loop) => (self.isActive ? loop.resume() : loop.pause())),
     onLeave: () => skew(0),
     onLeaveBack: () => skew(0),
   });
+  if (!st.isActive) loops.forEach((loop) => loop.pause());
 }
 
 export function initTerminal({ reduced }) {

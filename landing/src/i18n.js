@@ -51,6 +51,7 @@ const DICT = {
     "callout.faceTitle": "Обличчя завжди поруч",
     "callout.faceText": "Живий краб у кутку показує, чим бот зайнятий.",
 
+    "statement.accent": "обличчя|пам’ять|теку",
     "statement.text": "Більшість асистентів живуть у вкладці браузера. Цей має обличчя на твоєму столі, пам’ять, яку можна відкрити й прочитати, і власну теку. А ще він каже, що саме робить, поки працює.",
 
     "tour.eyebrow": "Панель",
@@ -182,6 +183,7 @@ const DICT = {
     "callout.faceTitle": "Its face, pinned",
     "callout.faceText": "A live crab in the corner shows what the bot is busy with.",
 
+    "statement.accent": "face|memory|folder",
     "statement.text": "Most assistants live in a browser tab. This one has a face on your desk, a memory you can open and read, and a folder of its own. And it tells you what it is doing while it works.",
 
     "tour.eyebrow": "The dashboard",

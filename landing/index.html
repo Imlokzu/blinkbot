@@ -242,8 +242,13 @@
                   <div class="bot__screen" data-bot-screen>
                     <div class="bot__view bot__view--face is-active" data-bot-view="face">
                       <span class="bot__status" aria-hidden="true"></span>
+                      <canvas class="bot__clock" width="17" height="5" aria-hidden="true" data-pixel-clock></canvas>
                       <canvas width="320" height="150" data-crab="device"></canvas>
                       <span class="bot__mood" data-bot-mood data-i18n="device.faceLabel"></span>
+                      <span class="bot__talk" aria-hidden="true">
+                        <svg viewBox="0 0 7 9" shape-rendering="crispEdges"><path fill="currentColor" d="M2 0h3v5H2zM0 3h1v2h1v1h3V5h1V3h1v2H6v1H5v1H4v2H3V7H2V6H1V5H0z" /></svg>
+                      </span>
+                      <span class="bot__pages" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
                     </div>
                     <img class="bot__view" data-bot-view="clock" data-shot="screen-clock" data-ratio="320x240" data-i18n-attr="alt:device.clockAlt" loading="lazy" width="320" height="240" />
                     <img class="bot__view" data-bot-view="weather" data-shot="screen-weather" data-ratio="320x240" data-i18n-attr="alt:device.weatherAlt" loading="lazy" width="320" height="240" />

@@ -13,6 +13,41 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { mountCrab } from "./crab.js";
 import { t } from "./i18n.js";
 
+// A 3x5 pixel font for the clock in the face's corner, like the real screen's.
+const DIGITS = {
+  0: "111101101101111",
+  1: "010110010010111",
+  2: "111001111100111",
+  3: "111001111001111",
+  4: "101101111001001",
+  5: "111100111001111",
+  6: "111100111101111",
+  7: "111001001001001",
+  8: "111101111101111",
+  9: "111101111001111",
+};
+
+function drawClock(canvas) {
+  const ctx = canvas.getContext("2d");
+  const now = new Date();
+  const text = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = getComputedStyle(canvas).getPropertyValue("--crab").trim() || "#d98263";
+  let x = 0;
+  for (const ch of text) {
+    if (ch === ":") {
+      ctx.fillRect(x, 1, 1, 1);
+      ctx.fillRect(x, 3, 1, 1);
+      x += 2;
+      continue;
+    }
+    [...DIGITS[ch]].forEach((bit, i) => {
+      if (bit === "1") ctx.fillRect(x + (i % 3), Math.floor(i / 3), 1, 1);
+    });
+    x += 4;
+  }
+}
+
 const CYCLE = [
   ["face", "happy"],
   ["clock"],
@@ -148,6 +183,12 @@ export function initDevice({ reduced, finePointer }) {
         },
       });
     }
+  }
+
+  const clock = section.querySelector("[data-pixel-clock]");
+  if (clock) {
+    drawClock(clock);
+    window.setInterval(() => drawClock(clock), 15000);
   }
 
   showLabel();
