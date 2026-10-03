@@ -162,10 +162,11 @@ private fun ActivityTree(steps: List<ActivityRow>, live: Boolean) {
     val p = LocalPalette.current
     val failed = steps.any { it.status in setOf("error", "failed") }
     val interrupted = !live && steps.any { it.status in setOf("running", "started", "stopped", "interrupted", "cancelled") }
+    val summary = steps.map { it.label }.filter { it.isNotBlank() }.distinct().take(2).joinToString(" · ")
     Column(Modifier.fillMaxWidth().padding(start = 5.dp)) {
         Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
             Glyph(when { failed -> "close"; interrupted -> "stop"; live -> "time"; else -> "check" }, modifier = Modifier.size(16.dp), tint = if (failed) MaterialTheme.colorScheme.error else p.muted)
-            Spacer(Modifier.width(8.dp)); Text(tr(when { failed -> "chat.toolsFailed"; interrupted -> "chat.toolsInterrupted"; else -> "chat.tools" }, "count" to steps.size), fontSize = 12.sp, color = p.muted, modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(8.dp)); Text(if (!expanded && !live && !failed && !interrupted && summary.isNotBlank()) summary else tr(when { failed -> "chat.toolsFailed"; interrupted -> "chat.toolsInterrupted"; else -> "chat.tools" }, "count" to steps.size), fontSize = 12.sp, color = p.muted, modifier = Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(if (expanded) tr("chat.hide") else tr("chat.details"), color = p.accent, fontSize = 12.sp)
         }
         AnimatedVisibility(expanded, enter = if (LocalReducedMotion.current) EnterTransition.None else expandVertically() + fadeIn(), exit = if (LocalReducedMotion.current) ExitTransition.None else shrinkVertically() + fadeOut()) {
