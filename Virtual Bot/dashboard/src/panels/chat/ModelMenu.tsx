@@ -117,7 +117,7 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
     const observer = new ResizeObserver(scrollActiveRow);
     observer.observe(list);
     return () => observer.disconnect();
-  }, [open, cursor, base, flat]);
+  }, [open, cursor, base, flat, brain.failed, brain.unavailable]);
 
   const changeOpen = (next: boolean) => {
     setOpen(next);
@@ -203,44 +203,46 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
                 </div>
               </div>
             </div>
-            {brain.failed || brain.unavailable || (!brain.loading && !brain.models.length) ? (
-              <div className="brain-picker-status" role="status">
-                <p>{brain.failed ? pickerText(brain.models.length ? 'stale' : 'failed')
-                  : brain.unavailable ? pickerText('unavailable') : pickerText('empty')}</p>
-                <button type="button" disabled={brain.refreshing || brain.saving} onClick={() => { void brain.retry(); }}>
-                  {pickerText(brain.refreshing ? 'retrying' : 'retry')}
-                </button>
+            <div className="brain-picker-list model-picker-list">
+              {brain.failed || brain.unavailable || (!brain.loading && !brain.models.length) ? (
+                <div className="brain-picker-status" role="status">
+                  <p>{brain.failed ? pickerText(brain.models.length ? 'stale' : 'failed')
+                    : brain.unavailable ? pickerText('unavailable') : pickerText('empty')}</p>
+                  <button type="button" disabled={brain.refreshing || brain.saving} onClick={() => { void brain.retry(); }}>
+                    {pickerText(brain.refreshing ? 'retrying' : 'retry')}
+                  </button>
+                </div>
+              ) : null}
+              <div id={`${base}-list`} role="radiogroup" aria-label={t('composer.models')}
+                aria-disabled={disabled} aria-busy={brain.loading || brain.saving} onKeyDown={onKey}>
+                {groups.map((group) => (
+                  <GroupBlock key={group.key}>
+                    <GroupHead brand={group.brand} />
+                    {group.models.map((model) => {
+                      const index = ++row;
+                      const current = model.id === brain.current;
+                      const unavailable = disabled || model.available === false;
+                      return (
+                        <button key={`${group.key}-${model.id}`} id={`${base}-${index}`} type="button" role="radio"
+                          data-model={model.id} data-index={index} aria-checked={current} aria-disabled={unavailable}
+                          tabIndex={index === cursor ? 0 : -1} title={model.label} onFocus={() => setActive(index)}
+                          onPointerEnter={() => { if (document.activeElement === input.current) setActive(index); }}
+                          onClick={() => { void pick(model); }}
+                          className={cn('brain-picker-row model-picker-row', unavailable && 'is-disabled', index === cursor && query && 'is-search-active')}>
+                          <BrandLogo model={model} />
+                          <span className="min-w-0 flex-1">
+                            <span className="brain-picker-name block">{model.label}</span>
+                            {model.available === false ? <span className="brain-picker-feedback">{t('models.unavailable')}</span> : null}
+                          </span>
+                          {current ? <Check aria-hidden="true" className="brain-picker-check" strokeWidth={1.75} /> : null}
+                        </button>
+                      );
+                    })}
+                  </GroupBlock>
+                ))}
+                {!flat.length ? <p className="brain-picker-note">{brain.loading ? t('composer.loading')
+                  : brain.models.length ? t('models.none', { query }) : null}</p> : null}
               </div>
-            ) : null}
-            <div id={`${base}-list`} role="radiogroup" aria-label={t('composer.models')}
-              aria-disabled={disabled} aria-busy={brain.loading || brain.saving} onKeyDown={onKey} className="brain-picker-list model-picker-list">
-              {groups.map((group) => (
-                <GroupBlock key={group.key}>
-                  <GroupHead brand={group.brand} />
-                  {group.models.map((model) => {
-                    const index = ++row;
-                    const current = model.id === brain.current;
-                    const unavailable = disabled || model.available === false;
-                    return (
-                      <button key={`${group.key}-${model.id}`} id={`${base}-${index}`} type="button" role="radio"
-                        data-model={model.id} data-index={index} aria-checked={current} aria-disabled={unavailable}
-                        tabIndex={index === cursor ? 0 : -1} title={model.label} onFocus={() => setActive(index)}
-                        onPointerEnter={() => { if (document.activeElement === input.current) setActive(index); }}
-                        onClick={() => { void pick(model); }}
-                        className={cn('brain-picker-row model-picker-row', unavailable && 'is-disabled', index === cursor && query && 'is-search-active')}>
-                        <BrandLogo model={model} />
-                        <span className="min-w-0 flex-1">
-                          <span className="brain-picker-name block">{model.label}</span>
-                          {model.available === false ? <span className="brain-picker-feedback">{t('models.unavailable')}</span> : null}
-                        </span>
-                        {current ? <Check aria-hidden="true" className="brain-picker-check" strokeWidth={1.75} /> : null}
-                      </button>
-                    );
-                  })}
-                </GroupBlock>
-              ))}
-              {!flat.length ? <p className="brain-picker-note">{brain.loading ? t('composer.loading')
-                : brain.models.length ? t('models.none', { query }) : null}</p> : null}
             </div>
           </section>
           <EffortOptions brain={brain} />

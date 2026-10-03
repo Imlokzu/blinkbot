@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { t } from '@/locales/chat';
@@ -13,6 +13,24 @@ export function EffortOptions({ brain }: { brain: ReturnType<typeof useBrainChoi
   const levels = ['', ...new Set(brain.levels.filter(Boolean))];
   const supported = levels.includes(brain.thinking);
   const focusableLevel = supported ? brain.thinking : '';
+
+  useEffect(() => {
+    const list = group.current;
+    if (!list) return;
+    // Keep the selected level visible when a phone or its keyboard reduces this column.
+    const scrollCurrentRow = () => {
+      const row = list.querySelector<HTMLButtonElement>('[role=radio][aria-checked=true]');
+      if (!row) return;
+      const top = row.offsetTop;
+      const bottom = top + row.offsetHeight;
+      if (top < list.scrollTop) list.scrollTop = top;
+      else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+    };
+    scrollCurrentRow();
+    const observer = new ResizeObserver(scrollCurrentRow);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [brain.thinking, brain.levels]);
 
   const pick = (level: string) => {
     if (!disabled) void brain.pickThinking(level);
