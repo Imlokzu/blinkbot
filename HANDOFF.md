@@ -1585,3 +1585,14 @@ Operational details and verification boundaries: `docs/mobile-app/TUNNEL.md`.
   second apart; its isolated rerun passed. No Python change was made.
   Follow-up: freeze time in that prompt-join test in a separate task.
 - Unrelated owner drafts and staging are preserved.
+
+
+## Verified file-drop release (2026-10-03)
+
+- Published source 7bb73b0 through the guarded publisher. The complete
+  file-drop fixture passed against /dash/ on actual port 8100, including
+  multipart bytes, previews, validation feedback, cap, ordering, cancellation,
+  concurrent rejection and late-upload session isolation. All writes were mocks.
+- Status, screen, dashboard and referenced assets returned 200; memory
+  traversal returned 400. Temporary preview/smoke processes were stopped.
+  Source and generated release are pushed; owner drafts/staging remain intact.
