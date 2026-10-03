@@ -873,3 +873,13 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   full Virtual Bot suite: 995 passed, 6 skipped, 150 subtests. Dashboard tests
   (99), typecheck and live HTTP smoke passed. Traversal guards returned 400 and
   the server was stopped. Details: `reports/night-agent-tool-bridge-2026-10-02.md`.
+
+
+## 2026-10-03 — Repository audit and recovery proposals
+
+- New audit: `reports/repository-audit-2026-10-03/REPORT.md`, with eight
+  findings, proposed solutions, and five additions focused on durable work.
+- Companion probes reproduce cache, persistence, publishing, and coding-worker
+  behavior with synthetic temporary data and mocked external services.
+- Findings are proposals; product code and other agents' pending edits remain
+  unchanged. Check `VALIDATION.md` for evidence, scope, and review limits.
