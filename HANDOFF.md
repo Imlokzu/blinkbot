@@ -1435,3 +1435,16 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   native390/320 touch sequences, keyboard Pin/Unpin and hover/focus timing.
   Validation:180 frontend tests, TypeScript/guarded build;1,100 Python tests
   passed with6 skipped and178 subtests. Unrelated owner work is preserved.
+
+
+## Verified conversation-menu release (2026-10-03)
+
+- Published current committed source ca91cb3 through the guarded publisher,
+  including the popup and menu-only pin fixes from 64dde96 plus parallel picker
+  work. Actual port 8100 serves portaled cards and no row star/pin controls.
+- The complete popup browser fixture passed against /dash/ on the actual
+  server: real reply overlap and action hit-testing, both materials/locales,
+  pin/project/delete, keyboard focus and native phone gestures.
+- Fresh smoke checks returned 200 for status, screen, dashboard and referenced
+  assets; memory traversal returned 400. Temporary processes were stopped.
+  Approved source is pushed; unrelated owner drafts and staging remain intact.
