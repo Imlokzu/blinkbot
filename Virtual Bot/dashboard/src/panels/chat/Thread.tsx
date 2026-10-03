@@ -1,10 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { MessagePrimitive, ThreadPrimitive, useAuiState } from '@assistant-ui/react';
 import { ArrowDown } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
 import { AttachmentCards } from './AttachmentCards';
 import { GalleryScope } from './Gallery';
 import { cn } from '@/lib/cn';
-import { TextType } from '@/vendor/reactbits';
 import {
   ActivityLine, BotBubble, EmojiFlights, ReactionChip, TypingBubble,
   flyEmoji, reactionTarget, typingLeaveMs, useEmojiFlight,
@@ -225,15 +225,17 @@ export function Thread({
   onRetry,
   onReact,
 }: {
-  /** Скільки реплік сховано за переказом; 0 — розмову не стискали. */
+  /** Messages hidden by a summary; zero means the chat has not been compacted. */
   compactedFrom: number;
-  /* Поле вводу приходить готовим: воно знає про моделі й контекст, а стрічка — ні. */
+  /** The composer owns models and context independently of the thread. */
   composer: ReactNode;
   /** Id of the reply that may be retried, or '' while none may be. */
   retryId: string;
   onRetry: () => void;
   onReact: OnReact;
 }) {
+  const empty = useAuiState((state) => state.thread.messages.length === 0 && !state.thread.isLoading);
+  const reducedMotion = useReducedMotion();
   const retry = useMemo(
     () => (retryId ? { id: retryId, run: onRetry } : null),
     [retryId, onRetry],
@@ -242,44 +244,10 @@ export function Thread({
     <EmojiFlights>
     <ReactContext value={onReact}>
     <RetryContext value={retry}>
-    <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
-      <ThreadPrimitive.Viewport className="relative flex min-h-0 flex-1 touch-pan-y flex-col overflow-y-auto overscroll-contain px-4 pt-5 sm:px-6">
+    <ThreadPrimitive.Root data-empty={empty ? '' : undefined} className="chat-thread relative flex min-h-0 flex-1 flex-col">
+      <ThreadPrimitive.Viewport className="chat-thread-viewport relative flex min-h-0 flex-1 touch-pan-y flex-col overflow-y-auto overscroll-contain px-4 pt-5 sm:px-6">
         <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col">
-          <ThreadPrimitive.Empty>
-            <div className="flex flex-1 flex-col items-center justify-center gap-7 py-16 text-center">
-              <div>
-                <p className="u-label mb-2">{t('thread.new')}</p>
-                {/* Питання друкується саме — порожній екран чату інакше
-                    виглядає як екран, що не завантажився. */}
-                <TextType
-                  as="h2"
-                  text={[t('thread.prompt1'), t('thread.prompt2'), t('thread.prompt3')]}
-                  typingSpeed={55}
-                  deletingSpeed={28}
-                  pauseDuration={3200}
-                  cursorCharacter="█"
-                  className="text-[24px] font-semibold tracking-[-0.02em] text-ink"
-                  cursorClassName="text-accent"
-                />
-              </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                {SUGGESTIONS.map((key) => (
-                  <ThreadPrimitive.Suggestion key={key} prompt={t(key)} method="replace" autoSend asChild>
-                    <button
-                      type="button"
-                      className="rounded-full border border-line px-3.5 py-1.5 text-[13px] text-ink-2 transition-colors hover:border-accent hover:text-ink"
-                    >
-                      {glue(t(key))}
-                    </button>
-                  </ThreadPrimitive.Suggestion>
-                ))}
-              </div>
-            </div>
-          </ThreadPrimitive.Empty>
-
-          {/* Переказ стиснутої розмови виглядає як звичайна відповідь бота,
-              хоча бот такого не казав — це підсумок, зроблений на прохання.
-              Без цього рядка виходила б підробка чужої репліки. */}
+          {/* Distinguish a requested summary from the bot's own messages. */}
           {compactedFrom > 0 ? (
             <p className="u-label mb-4 flex items-center gap-2 text-ink-3">
               <span className="h-px flex-1 bg-line" />
@@ -309,7 +277,30 @@ export function Thread({
         </Button>
       </ThreadPrimitive.ScrollToBottom>
 
-      {composer}
+      {/* Keep one mounted composer: moving it must preserve drafts, uploads and recording. */}
+      <motion.div
+        layout="position"
+        data-chat-composer-position
+        className="chat-composer-position"
+        transition={{ layout: reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 210, damping: 28 } }}
+      >
+        {empty ? (
+          <div className="chat-landing-heading">
+            <p className="u-label">{t('thread.new')}</p>
+            <h2>{t('thread.prompt1')}</h2>
+          </div>
+        ) : null}
+        {composer}
+        {empty ? (
+          <div className="chat-landing-suggestions">
+            {SUGGESTIONS.map((key) => (
+              <ThreadPrimitive.Suggestion key={key} prompt={t(key)} method="replace" autoSend asChild>
+                <button type="button">{glue(t(key))}</button>
+              </ThreadPrimitive.Suggestion>
+            ))}
+          </div>
+        ) : null}
+      </motion.div>
     </ThreadPrimitive.Root>
     </RetryContext>
     </ReactContext>

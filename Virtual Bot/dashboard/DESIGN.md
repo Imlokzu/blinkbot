@@ -40,7 +40,8 @@ pixelated, but it must share its bloodline: warm, handcrafted, slightly technica
 ## Forbidden
 
 - Gradient fills as backgrounds for panels and buttons (accent gradient — only in the
-  brand mark and the progress indicator).
+  brand mark and the progress indicator). Owner-approved chat wallpapers are a
+  stationary background layer, separate from panels and controls.
 - Emojis as icons. Icons — Lucide, 1.75 stroke width.
 - Shadows deeper than `--shadow-pop`.
 - More than two radius sizes in a single composite element.
@@ -198,9 +199,10 @@ often listed under three hosts, and a plain dropdown in catalog order meant
 scrolling past all of it.
 
 - **Maker logos** from lobe-icons (`src/vendor/lobe-icons/`, MIT), copied
-  rather than installed: ~15 of the package's 950 icons. Monochrome, filled
-  with `currentColor` — they take the text colour and follow both themes; a
-  column of brand colours would break rule 3. The maker comes from the model
+  rather than installed: ~15 of the package's 950 icons. Owner-approved maker
+  colours distinguish chat models in both themes; optional monochrome remains
+  available to other surfaces. Brand identity is separate from the action accent.
+  The maker comes from the model
   part of the id, never the host (`regolo/gpt-oss-120b` is OpenAI's). Unknown
   makers get a neutral mark rather than a guessed logo.
 - **Search** matches the start of any word, in any order, ignoring the
@@ -211,6 +213,27 @@ scrolling past all of it.
 - The host is shown under each name, so the copies of one model can be told
   apart.
 
+
+## Chat personalization (2026-10-03)
+
+- New conversations place one mounted composer in the centre, with a quiet
+  heading and suggested prompts. The first accepted message moves it to the
+  bottom using a position-only spring; drafts, attachments and microphone
+  state survive. Restored history uses the normal conversation layout.
+- The chat palette button and Settings → Appearance share local preferences:
+  sky, dusk, forest, plain or an uploaded raster background; chat accent;
+  composer fill and blur. No account or server upload is involved.
+- Uploaded PNG, JPEG and WebP images are resized and re-encoded locally.
+  Unsupported files, oversized images and unavailable storage leave the
+  previous saved choice intact with localized feedback.
+- The wallpaper stays stationary and fades into the theme background.
+  Composer transparency is bounded for readable controls. Reduced motion
+  skips the position spring; reduced transparency restores solid controls.
+- Compact desktop controls retain 44px targets on touch screens. Microphone
+  colour indicates its purpose and recording state; maker logos use their own
+  theme-aware colours without changing the actual selected provider/model.
+- Regression coverage: `tests/chatAppearance.test.mjs`,
+  `tests/brandColors.test.mjs` and `tests/chat-appearance.browser.mjs`.
 
 ## Clock, chat usage and model accounts pins (2026-09-26)
 

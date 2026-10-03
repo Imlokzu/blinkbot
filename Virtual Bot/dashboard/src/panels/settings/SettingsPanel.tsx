@@ -15,6 +15,7 @@ import { glue } from '@/lib/glue';
 import { t as lookT } from '@/lib/i18n';
 import { t } from '@/locales/settings';
 import { ACCENTS, THEMES, useTheme } from '@/hooks/useTheme';
+import { ChatAppearanceSettings } from '@/panels/chat/ChatAppearance';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useSendBubblePreference } from '@/hooks/useSendBubblePreference';
 import { t as effectsT } from '@/locales/effects';
@@ -415,6 +416,7 @@ function LookSection() {
           <Switch checked={sendBubble} onChange={setSendBubble} label={effectsT('effects.sendBubble')} />
         </SettingRow>
       </SettingGroup>
+      <ChatAppearanceSettings />
     </div>
   );
 }

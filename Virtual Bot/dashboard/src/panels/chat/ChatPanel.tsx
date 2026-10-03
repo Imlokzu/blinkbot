@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AssistantRuntimeProvider } from '@assistant-ui/react';
 import { createPortal } from 'react-dom';
 import { List, PanelLeft, PanelRight, Plus, X } from 'lucide-react';
@@ -11,6 +11,9 @@ import { collectFiles, workspaceWrites, workspaceWriteId, workbenchHost } from '
 import { WorkspaceLinksProvider } from './WorkspaceFileLink';
 import { ModelMenu } from './ModelMenu';
 import { SelectionActions } from './SelectionActions';
+import { ChatAppearanceButton } from './ChatAppearance';
+import { useChatAppearance } from './useChatAppearance';
+import './chat-appearance.css';
 import { useChatRuntime } from './useChatRuntime';
 import { useLiquidGlass } from './useLiquidGlass';
 import { useIsDesk, useIsPhone } from '@/hooks/useMediaQuery';
@@ -27,11 +30,8 @@ import { t } from '@/lib/i18n';
 import { t as chatT } from '@/locales/chat';
 
 /*
- * Чат. Три колонки на столі: розмови | стрічка | обличчя.
- *
- * На вужчих екранах колонки згортаються, а не стискаються: список розмов
- * їде в шухляду, обличчя стає маленьким у шапці. Стиснута до 120 px колонка
- * не економить місце — вона просто перестає працювати.
+ * Desktop chat keeps conversations, the thread and optional panels separate.
+ * Narrow layouts use drawers so controls retain usable touch targets.
  */
 /** Плашка «зараз показані розмови проєкту» з виходом назад до всіх. */
 function ProjectChip({ name }: { name: string }) {
@@ -105,6 +105,7 @@ function useBenchWidth() {
 }
 
 export default function ChatPanel() {
+  const { appearance } = useChatAppearance();
   const isPhone = useIsPhone();
   const isDesk = useIsDesk();
   const project = useRouteParam('project');
@@ -254,6 +255,7 @@ export default function ChatPanel() {
             <span className="min-w-0 flex-1 truncate text-[13px] text-ink-2">
               {chat.sessions.find((session) => session.id === chat.sessionId)?.title || chatT('chat.newSession')}
             </span>
+            <ChatAppearanceButton />
             <Button variant="ghost" size="icon-sm" onClick={chat.newSession}
               aria-label={chatT('chat.newSession')} title={chatT('chat.newSession')}><Plus /></Button>
             <Button variant={bench ? 'quiet' : 'ghost'} size="sm" onClick={toggleBench}
@@ -276,8 +278,16 @@ export default function ChatPanel() {
          * список розмов — та сама ліва шухляда, що й на телефоні.
          */}
 
-        <div ref={glassRoot} className="chat-conversation relative flex min-h-0 min-w-0 flex-1 flex-col"
-          style={isDesk ? { gridColumn: sessionsOpen ? 2 : 1, gridRow: 2 } : undefined}>
+        <div ref={glassRoot} data-wallpaper={appearance.background} data-chat-color={appearance.color}
+          className="chat-conversation relative flex min-h-0 min-w-0 flex-1 flex-col"
+          style={{
+            ...(isDesk ? { gridColumn: sessionsOpen ? 2 : 1, gridRow: 2 } : {}),
+            '--chat-opacity': `${appearance.opacity}%`,
+            '--chat-blur': `${appearance.blur}px`,
+            ...(appearance.background === 'custom' && appearance.image
+              ? { '--chat-wallpaper': `url("${appearance.image}")` } : {}),
+          } as CSSProperties}>
+          <div aria-hidden="true" className="chat-wallpaper" />
           {/*
            * Narrow header: conversations | model | new conversation.
            *
@@ -288,7 +298,7 @@ export default function ChatPanel() {
            * was a 64 px ornament competing with the model name.
            */}
           {!isDesk ? (
-            <div className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1 border-b border-line px-2 py-1.5">
+            <div className="chat-narrow-toolbar relative grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto_auto_auto] items-center gap-1 border-b border-line px-2 py-1.5">
               <Button
                 variant="ghost"
                 size="icon"
@@ -301,6 +311,7 @@ export default function ChatPanel() {
               <div className="flex min-w-0 justify-center">
                 <ModelMenu />
               </div>
+              <ChatAppearanceButton />
               <Button
                 variant="ghost"
                 size="icon"

@@ -911,3 +911,31 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   1.03-1.43 seconds. Status/tools/screen/static assets returned 200 and memory
   traversal returned 400. The isolated smoke server was stopped. Only the live
   web backend was restarted; its search and browser search both returned results.
+
+
+## Dashboard chat personalization (2026-10-03)
+
+- New chats center the same mounted composer; the first message moves it to
+  the bottom with a position-only spring. Drafts, attachments and recording
+  state survive. Restored history uses the conversation layout.
+- Chat's palette button and Settings > Appearance share browser-local
+  wallpaper, accent, composer opacity and blur settings. Built-in sky, dusk,
+  forest and plain backgrounds are available; custom PNG/JPEG/WebP images
+  are validated, resized and re-encoded locally, without a server upload.
+  Invalid files and storage errors preserve the prior saved appearance.
+- Maker icons use theme-aware colours from the existing local SVG set. The
+  maker is identified independently of the serving host; unknowns stay neutral.
+- Independent adversarial review fixed keyboard crowding of tall drafts and
+  attachments, and improved appearance helper-text contrast in both themes.
+  Reduced motion skips the composer spring; reduced transparency uses solid
+  controls. Touch controls retain 44px targets. Fable was unavailable; a
+  separate supported native reviewer performed the maximum-effort review.
+- Validation: 1,027 Python tests passed, 6 skipped, 178 subtests; 117 frontend
+  tests in the isolated committed-source build (116 in the working tree);
+  TypeScript and production build passed. Appearance, chat-navigation and
+  model-picker browser checks passed with browser-only fixtures. Checks cover
+  image upload/reload/rejection/reset, quota failures, draft identity, first
+  send, saved history, phone layouts, software keyboard and reduced motion.
+- Production assets are built from committed source plus this task's changes,
+  preserving unrelated drafts. HTTP status, screen and dashboard returned
+  200; a memory path-traversal attempt returned 400.

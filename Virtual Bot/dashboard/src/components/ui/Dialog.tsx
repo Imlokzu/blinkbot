@@ -2,6 +2,7 @@ import * as RadixDialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { Button } from './Button';
+import { t } from '@/lib/i18n';
 
 /*
  * Модальне вікно й нижня шухляда — один компонент із двома розкладками.
@@ -53,7 +54,7 @@ export function DialogContent({
         {side === 'bottom' ? (
           <div aria-hidden="true" className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-line-strong" />
         ) : null}
-        <header className="flex items-start justify-between gap-4 border-b border-line px-4 py-3 sm:px-5 sm:py-4">
+        <header role="presentation" className="flex items-start justify-between gap-4 border-b border-line px-4 py-3 sm:px-5 sm:py-4">
           <div className="min-w-0">
             <RadixDialog.Title className="text-[15px] font-semibold text-ink">
               {title}
@@ -65,7 +66,7 @@ export function DialogContent({
             ) : null}
           </div>
           <RadixDialog.Close asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Закрити">
+            <Button variant="ghost" size="icon-sm" aria-label={t('chat.close')}>
               <X />
             </Button>
           </RadixDialog.Close>

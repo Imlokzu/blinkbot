@@ -1,0 +1,128 @@
+/* Wallpapers stay behind the conversation; text and controls retain solid contrast. */
+.chat-wallpaper {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center top;
+}
+.chat-conversation[data-wallpaper="sky"] .chat-wallpaper { background-image: url('./assets/chat-sky.svg'); }
+.chat-conversation[data-wallpaper="dusk"] .chat-wallpaper {
+  background-image: radial-gradient(ellipse at 15% 10%, #e5b5a3, transparent 55%), radial-gradient(ellipse at 85% 5%, #b6a3c8, transparent 65%), linear-gradient(#b9b6d4, #eee1d5);
+}
+.chat-conversation[data-wallpaper="forest"] .chat-wallpaper {
+  background-image: radial-gradient(ellipse at 10% 0, #bccfb0, transparent 55%), radial-gradient(ellipse at 90% 20%, #73918b, transparent 60%), linear-gradient(#bdcbbb, #e4e8db);
+}
+.chat-conversation[data-wallpaper="custom"] .chat-wallpaper { background-image: var(--chat-wallpaper); }
+.chat-wallpaper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c-bg) 18%, transparent), color-mix(in srgb, var(--c-bg) 64%, transparent) 46%, var(--c-bg) 95%);
+}
+[data-theme="dark"] .chat-wallpaper::after {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c-bg) 55%, transparent), color-mix(in srgb, var(--c-bg) 78%, transparent) 50%, var(--c-bg) 95%);
+}
+.chat-conversation[data-wallpaper="none"] .chat-wallpaper { display: none; }
+.chat-conversation[data-chat-color="rose"] { --c-accent: light-dark(#a54962, #e8a4b4); }
+.chat-conversation[data-chat-color="sage"] { --c-accent: light-dark(#507245, #a8c598); }
+.chat-conversation[data-chat-color="ocean"] { --c-accent: light-dark(#346d87, #91c7dc); }
+.chat-conversation[data-chat-color="lavender"] { --c-accent: light-dark(#7755a0, #c5afe1); }
+.chat-conversation:not([data-chat-color="theme"]) { --c-accent-soft: color-mix(in srgb, var(--c-accent) 13%, transparent); }
+.chat-thread { z-index: 1; container: chat-thread / size; }
+.chat-thread[data-empty] .chat-thread-viewport { flex: 0; height: 0; padding: 0; visibility: hidden; }
+.chat-composer-position { position: relative; flex-shrink: 0; min-width: 0; }
+.chat-thread[data-empty] .chat-composer-position { margin-block: auto; }
+.chat-landing-heading {
+  position: absolute;
+  inset-inline: 24px;
+  bottom: calc(100% + 20px);
+  text-align: center;
+  pointer-events: none;
+}
+.chat-landing-heading p { margin-bottom: 10px; color: var(--c-text-2); }
+.chat-landing-heading h2 { font-size: clamp(24px, 3vw, 34px); font-weight: 500; letter-spacing: -.035em; text-wrap: balance; }
+.chat-landing-suggestions {
+  position: absolute;
+  top: calc(100% + 12px);
+  inset-inline: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.chat-landing-suggestions button {
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--c-surface) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c-border) 60%, transparent);
+  color: var(--c-text-2);
+  font-size: 12px;
+  transition: background-color 180ms, transform 180ms var(--e-spring);
+}
+.chat-landing-suggestions button:hover { background: var(--c-surface); color: var(--c-text); }
+.chat-landing-suggestions button:active { transform: scale(.98); }
+.chat-conversation .chat-composer { margin-top: 0; }
+.chat-conversation .chat-composer > div { max-width: 720px; }
+.chat-conversation .liquid-glass-plate {
+  background: color-mix(in srgb, var(--c-surface) var(--chat-opacity), transparent);
+  border: 1px solid color-mix(in srgb, var(--c-border) 65%, transparent);
+  -webkit-backdrop-filter: blur(var(--chat-blur));
+  backdrop-filter: blur(var(--chat-blur));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--c-surface) 75%, transparent);
+}
+.chat-conversation .prompt-bar__field { padding: 14px; }
+.chat-thread[data-empty] .prompt-bar__input { min-height: 54px; }
+.chat-conversation .prompt-bar__tool,
+.chat-conversation .prompt-bar__send { width: 34px; height: 34px; border-radius: 999px; }
+.chat-conversation .prompt-bar__bar { gap: 6px; }
+.chat-conversation .prompt-bar__bar > .prompt-bar__spacer { order: 1; }
+.chat-conversation .prompt-bar__bar > .group { order: 2; max-width: 62%; }
+.chat-conversation .prompt-bar__tool[aria-pressed] { order: 3; color: var(--c-accent); background: var(--c-accent-soft); }
+.chat-conversation .prompt-bar__send { order: 4; }
+.chat-conversation .prompt-bar__tool[aria-pressed="true"] { background: var(--c-accent); color: var(--c-bg); }
+.chat-conversation .prompt-bar__tool svg { stroke-width: 1.75; }
+.chat-narrow-toolbar { z-index: 2; background: color-mix(in srgb, var(--c-surface) 88%, transparent); }
+.chat-landing-suggestions button:focus-visible,
+.chat-conversation .prompt-bar__tool:focus-visible,
+.chat-conversation .prompt-bar__send:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 3px; }
+@media (pointer: coarse), (max-width: 759px) {
+  .chat-narrow-toolbar > button { min-width: 44px; min-height: 44px; }
+  .chat-conversation .prompt-bar__tool,
+  .chat-conversation .prompt-bar__send,
+  .chat-landing-suggestions button { min-width: 44px; min-height: 44px; }
+  .chat-landing-suggestions { inset-inline: 16px; gap: 8px; }
+  .chat-landing-suggestions button { font-size: 11px; padding-inline: 10px; }
+  .chat-conversation .prompt-bar__field { padding: 12px; }
+}
+/* Keep tall drafts and a software keyboard reachable in a short viewport. */
+@media (max-height: 560px) {
+  .chat-thread[data-empty] .chat-composer-position { margin-top: auto; margin-bottom: 0; }
+  .chat-landing-heading { bottom: calc(100% + 10px); }
+  .chat-landing-heading h2 { font-size: 22px; }
+  .chat-landing-suggestions { display: none; }
+}
+/* The software keyboard reduces the app, even when the layout viewport stays tall. */
+html[data-kb] .app-shell:has(main[data-section="chat"]) { height: calc(100dvh - var(--kb, 0px)); }
+/* Fit the actual chat column: attachments and drafts can outgrow a phone's usable area. */
+@container chat-thread (max-height: 560px) {
+  .chat-thread[data-empty] .chat-composer-position { margin-top: auto; margin-bottom: 0; }
+  .chat-landing-heading, .chat-landing-suggestions { display: none; }
+  /* Reserve padding and the status/context row outside the field; its contents can scroll. */
+  .chat-conversation .prompt-bar__field { max-height: max(112px, calc(100cqh - 52px)); }
+  .chat-conversation .prompt-bar__input,
+  .chat-conversation .attachment-cards { min-height: 0; }
+  .chat-conversation .attachment-cards { align-items: flex-start; }
+  /* PromptBar's inline overflow reflects its eight-row cap, not this smaller area. */
+  .chat-conversation .prompt-bar__input { overflow-y: auto !important; }
+  .chat-conversation .prompt-bar__bar { flex-shrink: 0; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .chat-conversation .liquid-glass-plate { background: var(--c-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .chat-narrow-toolbar, .chat-landing-suggestions button { background: var(--c-surface); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-landing-suggestions button { transition: none; }
+  .chat-landing-suggestions button:active { transform: none; }
+}
