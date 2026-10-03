@@ -83,13 +83,9 @@ export function initHero({ reduced, finePointer }) {
   const mm = gsap.matchMedia();
 
   mm.add("(min-width: 961px)", () => {
-    // Where the window starts: just under the copy, but always showing a
-    // good slice of itself, whatever the screen height.
-    const peek = () => {
-      const natural = win.offsetTop;
-      const below = content.offsetTop + content.offsetHeight + 36;
-      return Math.min(below, window.innerHeight - 170) - natural;
-    };
+    // Where the window starts: right under the copy. On a short screen
+    // that leaves only a sliver of it, but it must never cover the buttons.
+    const peek = () => content.offsetTop + content.offsetHeight + 36 - win.offsetTop;
     // fromTo, not to: on a resize the starting poses are measured again
     // (invalidateOnRefresh) instead of being re-read mid-scroll.
     const tl = gsap.timeline({

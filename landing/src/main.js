@@ -61,11 +61,11 @@ const smoother = reduced
 // Line splitting and every trigger position measure text, so they wait for
 // the real fonts. fonts.ready alone is not enough: it can resolve before the
 // stylesheet has asked for any font at all. Asking for them by name does
-// wait — but never longer than a moment, a missing font must not hold the page.
+// wait — but only briefly: on a slow line the hero must not sit empty.
 const FONTS = ['600 1em "IBM Plex Sans Variable"', 'italic 500 1em "Cormorant Garamond"', '500 1em "IBM Plex Mono"'];
 const fontsLoaded = Promise.race([
   Promise.all(FONTS.map((font) => document.fonts.load(font))).then(() => document.fonts.ready),
-  new Promise((resolve) => setTimeout(resolve, 2500)),
+  new Promise((resolve) => setTimeout(resolve, 1200)),
 ]);
 
 // Anything that still changes the page height later (a late font, an image

@@ -149,7 +149,9 @@
 
 .hero__title {
   margin-top: 16px;
-  font-size: clamp(2.9rem, 7.2vw, 7.6rem);
+  /* Bound by height too: on a short laptop screen the copy has to leave
+     room for the dashboard peeking underneath. */
+  font-size: clamp(2.9rem, min(7.2vw, 11.5vh), 7.6rem);
   font-weight: 600;
   line-height: 0.95;
   letter-spacing: -0.052em;
@@ -168,7 +170,7 @@
 }
 
 .hero__lead {
-  margin-top: 24px;
+  margin-top: min(24px, 2.6vh);
   max-width: 35em;
   color: var(--ink-2);
   font-size: clamp(1.02rem, 1.35vw, 1.22rem);
@@ -176,7 +178,7 @@
 }
 
 .hero__actions {
-  margin-top: 30px;
+  margin-top: min(30px, 3.4vh);
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -184,7 +186,7 @@
 }
 
 .hero__meta {
-  margin-top: 22px;
+  margin-top: min(22px, 2.4vh);
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
