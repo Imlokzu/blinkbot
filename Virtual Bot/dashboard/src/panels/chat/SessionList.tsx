@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { MessageCircle, Plus } from 'lucide-react';
 import { PulseHeart, SwipeRow } from '@/vendor/reactbits';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +11,7 @@ import { SessionCard } from './SessionCard';
 import type { SessionSummary } from './types';
 import { t } from '@/lib/i18n';
 import { t as chatT } from '@/locales/chat';
+import './session-sidebar.css';
 
 /*
  * Список розмов.
@@ -50,9 +51,10 @@ function when(ts?: number): string {
   if (!ts) return '';
   const date = new Date(ts * 1000);
   const days = ageInDays(ts);
-  if (days === 0) return date.toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' });
+  const locale = document.documentElement.lang.startsWith('en') ? 'en' : 'uk';
+  if (days === 0) return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
   if (days <= 7) return t('sessions.daysAgo', { count: days });
-  return date.toLocaleDateString('uk', { day: '2-digit', month: '2-digit' });
+  return date.toLocaleDateString(locale, { day: '2-digit', month: '2-digit' });
 }
 
 export function SessionList({
@@ -75,7 +77,6 @@ export function SessionList({
   const accent = useCssVar('--c-accent', '#b95f3d');
   const ink = useCssVar('--c-text', '#231e19');
   const faint = useCssVar('--c-text-3', '#958979');
-  const surface = useCssVar('--c-surface', '#fffdf8');
   const surface3 = useCssVar('--c-surface-3', '#e5ddd0');
   const danger = useCssVar('--c-err', '#b2412e');
 
@@ -108,23 +109,31 @@ export function SessionList({
 
   const item = (session: SessionSummary) => {
     const row = (
-      <div
-        className={cn(
-          'flex size-full items-center gap-1.5 rounded-sm px-2.5 py-1 transition-colors',
-          session.id === current ? 'bg-accent-soft text-ink' : 'text-ink-2 hover:bg-surface-2',
-        )}
-      >
-        <span className="min-w-0 flex-1 truncate text-[13px]">{session.title || chatT('sessions.untitled')}</span>
-        <span className="u-data shrink-0 text-[10px] text-ink-3">{when(session.updated)}</span>
-        {/* Закріплення — окрема дія всередині рядка, тож клік по ній не має
-            відкривати розмову. */}
+      <div className="conversation-row">
+        <button type="button" className="conversation-row__main"
+          aria-label={chatT('sessions.openConversation', { title: session.title || chatT('sessions.untitled') })}
+          aria-current={session.id === current ? 'true' : undefined}
+          onClick={() => onOpen(session.id)}>
+          <span className="conversation-row__title">{session.title || chatT('sessions.untitled')}</span>
+          {session.updated || session.count ? <span className="conversation-row__meta">
+            {session.updated ? <span>{when(session.updated)}</span> : null}
+            {session.count ? <span className="conversation-row__count"
+              title={chatT('sessions.messageCount', { count: session.count })}>
+              <MessageCircle size={11} aria-hidden="true" />
+              <span>{session.count}</span>
+            </span> : null}
+          </span> : null}
+        </button>
+        {/* Pinning is a separate action and must not open the conversation. */}
         <span
+          onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation();
           }}
           className="shrink-0"
         >
           <PulseHeart
+            className="conversation-row__pin"
             icon="star"
             size={18}
             showCount={false}
@@ -134,7 +143,7 @@ export function SessionList({
             idleColor={faint}
             pillColor="transparent"
             textColor={ink}
-            label={chatT('sessions.pin')}
+            label={chatT(session.pinned ? 'sessions.unpin' : 'sessions.pin')}
           />
         </span>
       </div>
@@ -150,13 +159,12 @@ export function SessionList({
       >
         <SwipeRow
           className="session-swipe"
-          height={44}
+          height={60}
           radius={8}
           actionWidth={96}
-          // Повний змах не видаляє: надто легко зробити випадково, а
-          // повернути розмову нема звідки.
+          // A full swipe never deletes: an accidental gesture cannot be undone.
           fullSwipe={false}
-          rowColor={surface}
+          rowColor="transparent"
           textColor={ink}
           drawerColor={surface3}
           actionColor={danger}
@@ -182,8 +190,8 @@ export function SessionList({
   })).filter(({ sessions: items }) => items.length > 0);
 
   return (
-    <div data-swipe-ignore className={cn('flex min-h-0 flex-col', className)}>
-      <div className="flex items-center justify-between gap-2 px-3 py-3">
+    <div data-swipe-ignore className={cn('conversation-list flex min-h-0 flex-1 flex-col', className)}>
+      <div className="conversation-list__header flex items-center justify-between">
         <span className="u-label min-w-0 flex-1">{chatT('sessions.title')}</span>
         <Button variant="ghost" size="icon-sm" onClick={onNew} aria-label={chatT('chat.newSession')}>
           <Plus />
@@ -196,15 +204,15 @@ export function SessionList({
         ) : sessions.length === 0 ? (
           <Empty title={chatT('sessions.empty')} hint={chatT('sessions.emptyHint')} />
         ) : (
-          <div className="h-full overflow-y-auto px-2 pb-3 [scrollbar-width:thin]">
+          <div className="conversation-list__scroll h-full overflow-y-auto">
             {grouped.map(({ group, sessions: groupSessions }) => (
-              <section key={group} className="mb-3 last:mb-0">
-                <h2 className="u-label sticky top-0 z-10 bg-surface/95 px-2 py-1.5 backdrop-blur">
+              <section key={group} className="conversation-list__group">
+                <h2 className="conversation-list__group-title u-label">
                   {t(`sessions.${group}`)}
                 </h2>
                 <div className="space-y-1">
                   {groupSessions.map((session) => (
-                    <div key={session.id} data-session-id={session.id}>
+                    <div key={session.id} data-session-id={session.id} data-session-active={session.id === current ? '' : undefined}>
                       {item(session)}
                     </div>
                   ))}

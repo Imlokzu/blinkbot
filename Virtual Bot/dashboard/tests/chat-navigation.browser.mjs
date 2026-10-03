@@ -46,17 +46,24 @@ try {
   assert.equal(current(), '', 'fresh visits must start a new conversation');
   assert.doesNotMatch(browser('network', 'requests', '--method', 'GET', '--filter', '/api/sessions/'), /old-pinned|latest|chosen/);
 
-  // One stationary button opens and closes the Workbench in either state.
+  // The shared right-panel trigger stays stationary while the column changes.
   assert.equal(evaluate(`document.querySelectorAll('button[aria-label="Hide conversations"]').length`), 1, 'only the toolbar closes the conversations list');
-  const benchRight = () => evaluate(`document.querySelector('[data-chat-toolbar] button[aria-label="Show the workbench"], [data-chat-toolbar] button[aria-label="Hide the workbench"]').getBoundingClientRect().right`);
+  const benchRight = () => evaluate('document.querySelector("[data-right-panel-trigger]").getBoundingClientRect().right');
+  const choosePanel = (mode) => {
+    browser('click', '[data-right-panel-trigger]');
+    browser('wait', '[data-right-panel-menu]');
+    evaluate('Promise.all(document.querySelector("[data-right-panel-menu]").getAnimations({subtree:true}).map(animation => animation.finished.catch(() => {})))');
+    browser('click', `[data-panel-choice="${mode}"]`);
+    browser('wait', '--fn', 'document.querySelector("[data-right-panel-menu]") === null');
+  };
   const closedRight = benchRight();
   for (let attempt = 0; attempt < 2; attempt++) {
-    browser('click', toolbarButton('Show the workbench'));
+    choosePanel('workbench');
     browser('wait', '.workbench');
-    assert.equal(evaluate(`document.querySelector(${JSON.stringify(toolbarButton('Hide the workbench'))}).ariaExpanded`), 'true');
+    assert.equal(evaluate('document.querySelector("[data-right-panel-trigger]").dataset.panelMode'), 'workbench');
     assert.ok(Math.abs(benchRight() - closedRight) <= 1, 'the Workbench toggle must stay at the far right when the panel opens');
     assert.ok(evaluate('document.querySelector(".chat-layout").getBoundingClientRect().right') - benchRight() <= 14);
-    browser('click', toolbarButton('Hide the workbench'));
+    choosePanel('panels');
     browser('wait', '--fn', 'document.querySelector(".workbench") === null');
   }
 

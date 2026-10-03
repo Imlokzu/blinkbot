@@ -1307,3 +1307,26 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   and workspace traversal return 400; the exact local wallpaper is precached.
   The final PWA contains 104 entries. Task-owned servers and browsers are
   stopped; the existing live dashboard and other agents' preview are preserved.
+
+
+## Frosted conversation sidebar (2026-10-03)
+
+- Desktop conversations and the narrow drawer share one frosted reading layer
+  when wallpaper is selected for conversations. Rows and date groups remain
+  transparent; opaque fallback applies with no wallpaper, excluded placement,
+  reduced transparency or unsupported backdrop filters.
+- Conversation titles have a clear second line for date and message count,
+  with a soft selected plate and an accent edge. Main row buttons support
+  keyboard activation and identify the current conversation accessibly.
+  Pin controls stay independent of opening a conversation; pointer events
+  no longer enter the swipe surface's capture. Existing swipe actions remain.
+- The phone/tablet drawer has one title with New and Close in its header.
+  The desktop header remains; duplicate narrow labels no longer consume space.
+- Independent maximum-effort review verified actual blur pixels, long lists,
+  hover cards, keyboard/pointer selection, pinning, revealed swipe actions,
+  full-swipe safety and opaque fallbacks. Fable remains unavailable.
+- Validation: 156 frontend tests, TypeScript and isolated production build;
+  1,049 Python tests with 6 skipped and 178 subtests; dedicated sidebar and
+  existing navigation browser fixtures across both themes/locales and
+  320/390/1100/1200/1440px layouts. HTTP smoke verifies static assets and
+  memory traversal rejection. Unrelated owner drafts/staged work remain intact.

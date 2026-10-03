@@ -120,7 +120,7 @@ const uk = {
   'role.default': 'типова модель OpenClaw',
   'role.fallback': 'запасна модель OpenClaw',
 
-  // Сесії
+  // Conversations
   'sessions.pin': 'Закріпити',
   'sessions.unpin': 'Відкріпити',
   'sessions.delete': 'Видалити',
@@ -141,6 +141,8 @@ const uk = {
   'sessions.checking': 'дивлюсь…',
   'sessions.untitled': 'Без назви',
   'sessions.conversation': 'Розмова',
+  'sessions.openConversation': 'Відкрити розмову: {title}',
+  'sessions.messageCount': 'Повідомлень: {count}',
 
   // Контекст
   'context.aria': 'Контекст розмови',
@@ -371,6 +373,8 @@ const en: Record<keyof typeof uk, string> = {
   'sessions.checking': 'checking…',
   'sessions.untitled': 'Untitled',
   'sessions.conversation': 'Conversation',
+  'sessions.openConversation': 'Open conversation: {title}',
+  'sessions.messageCount': 'Messages: {count}',
 
   'context.aria': 'Conversation context',
   'context.tokens': ' tokens',

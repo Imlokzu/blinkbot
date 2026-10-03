@@ -271,7 +271,7 @@ export default function ChatPanel() {
           </header>
         ) : null}
         {isDesk && sessionsOpen ? (
-          <aside className="chat-sessions flex min-h-0 w-[220px] shrink-0 flex-col border-r border-line bg-surface"
+          <aside className="chat-sessions chat-session-glass flex min-h-0 w-[220px] shrink-0 flex-col border-r border-line bg-surface"
             style={{ gridColumn: 1, gridRow: '1 / -1' }}>
             {project ? <ProjectChip name={projectName} /> : null}
             {list}
@@ -341,11 +341,16 @@ export default function ChatPanel() {
                       <div
                         {...listDrawer.panelProps}
                         aria-label={t('chat.sessions')}
-                        className="u-sheet-l u-safe-t u-safe-b fixed inset-y-0 left-0 flex w-[300px] max-w-[85vw] flex-col border-r border-line bg-surface"
+                        className="chat-session-drawer chat-session-glass u-sheet-l u-safe-t u-safe-b fixed inset-y-0 left-0 flex w-[300px] max-w-[85vw] flex-col border-r border-line bg-surface"
                         style={{ zIndex: 'var(--z-drawer)' }}
                       >
                         <header className="flex items-center justify-between border-b border-line px-4 py-3">
                           <span className="text-[15px] font-semibold text-ink">{t('chat.sessions')}</span>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" aria-label={chatT('chat.newSession')} onClick={() => {
+                              chat.newSession();
+                              listDrawer.setOpen(false);
+                            }}><Plus /></Button>
                           <button
                             type="button"
                             aria-label={t('chat.close')}
@@ -354,6 +359,7 @@ export default function ChatPanel() {
                           >
                             <X size={18} />
                           </button>
+                          </div>
                         </header>
                         {project ? <ProjectChip name={projectName} /> : null}
                         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{list}</div>

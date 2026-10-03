@@ -643,3 +643,19 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
 - Apply identical mixed styles to hidden phrase measurements and the visible
   phrase. Keep the existing two-second motion, stable accessible heading,
   reduced-motion mode, hidden-tab pause and unchanged composer position.
+
+
+## Frosted conversation sidebar (2026-10-03)
+
+- Owner-approved conversation glass belongs to one pane layer. It follows
+  the selected wallpaper placement and uses a 60% surface wash with stationary
+  18px blur; reduced transparency, unsupported filters and no wallpaper use
+  solid readable surfaces. Rows and flowing date labels add no second filter.
+- Use 60px rows, a single-line title, quiet date/message-count metadata and
+  a separate pin target. The current row has a soft plate and a thin accent
+  edge, plus accessible current state on its keyboard-operable main button.
+  Hidden swipe actions must remain inert and visually absent until revealed.
+- Desktop retains Conversations and New in the sidebar header. Narrow drawers
+  use one header with title, New and Close; all existing pin/selection/dismissal
+  behavior and saved visibility remain. Regression coverage lives in
+  tests/session-sidebar.browser.mjs and tests/chat-navigation.browser.mjs.

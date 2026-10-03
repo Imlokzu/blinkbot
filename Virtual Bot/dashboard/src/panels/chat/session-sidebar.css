@@ -1,0 +1,272 @@
+/* One pane owns the glass; titles, date groups and moving rows stay clear. */
+:root :is(.chat-sessions, .chat-session-drawer).chat-session-glass {
+  position: relative;
+  background: var(--c-surface);
+}
+
+:root .chat-session-drawer.chat-session-glass {
+  position: fixed;
+}
+
+.chat-session-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.chat-session-glass > * {
+  position: relative;
+  z-index: 1;
+}
+
+html[data-wallpaper]:not([data-wallpaper="none"])[data-background-targets~="sessions"]
+  :is(.chat-sessions, .chat-session-drawer).chat-session-glass {
+  background: transparent;
+  border-right-color: color-mix(in srgb, var(--c-border) 78%, transparent);
+}
+
+html[data-wallpaper]:not([data-wallpaper="none"])[data-background-targets~="sessions"]
+  .chat-session-glass::before {
+  background: color-mix(in srgb, var(--c-surface) 60%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--c-surface) 55%, transparent);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+  backdrop-filter: blur(18px) saturate(1.25);
+}
+
+.conversation-list {
+  min-width: 0;
+  height: 100%;
+}
+
+.conversation-list__header {
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--c-border) 65%, transparent);
+}
+
+.conversation-list__header > .u-label {
+  color: var(--c-text-2);
+}
+
+/* The drawer header already owns its title and New conversation action. */
+.chat-session-drawer .conversation-list__header { display: none; }
+
+.conversation-list__scroll {
+  padding: 10px 10px 18px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-border-strong) transparent;
+  overscroll-behavior: contain;
+}
+
+.conversation-list__group {
+  margin-bottom: 16px;
+}
+
+.conversation-list__group:last-child {
+  margin-bottom: 0;
+}
+
+/* A shared lens needs no opaque sticky plate or second blur for each label. */
+.conversation-list__group-title {
+  position: static;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--c-text-2);
+  font-size: 10px;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.conversation-list .session-swipe .swipe-row__clip {
+  border-radius: var(--r-md);
+  background: transparent;
+}
+
+.conversation-list .session-swipe .swipe-row__surface {
+  background: transparent;
+}
+
+/* The vendor rail normally depends on an opaque row to hide its full-width
+   fill. Its buttons keep their own fills when an intentional swipe opens it. */
+.conversation-list .session-swipe .swipe-row__rail {
+  background: transparent;
+  opacity: 0;
+  transition: opacity var(--t-fast) var(--e-out);
+}
+
+.conversation-list .session-swipe:is([data-open], [data-dragging]) .swipe-row__rail {
+  opacity: 1;
+}
+
+.conversation-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  gap: 6px;
+  padding: 9px 8px 9px 12px;
+  border-radius: var(--r-md);
+  color: var(--c-text);
+}
+
+.conversation-row::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid transparent;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--c-surface) 38%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--t-fast) var(--e-out);
+}
+
+.conversation-row > * {
+  position: relative;
+}
+
+[data-session-active] .conversation-row::before {
+  border-color: color-mix(in srgb, var(--c-accent) 22%, transparent);
+  background: color-mix(in srgb, var(--c-accent) 9%, var(--c-surface) 76%);
+  opacity: 1;
+}
+
+[data-session-active] .conversation-row::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 16px;
+  bottom: 16px;
+  width: 2px;
+  border-radius: var(--r-full);
+  background: var(--c-accent);
+  pointer-events: none;
+}
+
+.conversation-row__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.35;
+}
+
+.conversation-row__main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  flex-direction: column;
+  justify-content: center;
+  text-align: left;
+  border-radius: var(--r-sm);
+  outline: none;
+}
+
+.conversation-row__main:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+[data-session-active] .conversation-row__title {
+  font-weight: 550;
+}
+
+.conversation-row__meta {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--c-text-2);
+  font-family: var(--f-mono);
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.conversation-row__count { display: inline-flex; align-items: center; gap: 4px; }
+
+.conversation-row__pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--c-text-2);
+  cursor: pointer;
+}
+
+.conversation-row__pin[aria-pressed="true"] {
+  color: var(--c-accent);
+}
+
+.conversation-row__pin:focus-visible,
+.conversation-list__header button:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 1px;
+}
+
+.conversation-list .swipe-row__toggle:focus-visible {
+  z-index: 2;
+  max-width: calc(100% - 24px);
+  background: var(--c-surface);
+  outline: 2px solid var(--c-accent);
+  outline-offset: 1px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-session-id]:not([data-session-active]):hover .conversation-row::before {
+    opacity: 1;
+  }
+
+  .conversation-row__pin:hover {
+    color: var(--c-accent);
+  }
+}
+
+@media (pointer: coarse) {
+  .conversation-row { padding-block: 8px; }
+  .conversation-row__pin,
+  .conversation-list__header button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html[data-wallpaper]:not([data-wallpaper="none"])[data-background-targets~="sessions"]
+    .chat-session-glass::before {
+    background: var(--c-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-wallpaper]:not([data-wallpaper="none"])[data-background-targets~="sessions"]
+    .chat-session-glass::before {
+    background: var(--c-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conversation-row::before,
+  .conversation-list .session-swipe .swipe-row__rail {
+    transition: none;
+  }
+}
