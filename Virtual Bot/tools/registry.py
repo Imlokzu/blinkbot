@@ -10,6 +10,8 @@ from typing import Awaitable, Callable
 from tools.currency import get_common_rates, get_rate
 from tools.facts import get_fact
 from tools.images import search_images
+from image_generation import image_generate
+from image_generation_schema import SCHEMA as IMAGE_GENERATION_SCHEMA
 from tools import email_tools, fs_tools, integration_tools, music_tools, screen_tools, share_tools, timer_tools, ui_tools, video_tools, workspace_tools
 from tools.search import search_web
 from tools.weather import get_weather
@@ -21,6 +23,8 @@ log = logging.getLogger("virtual_bot.tools.registry")
 ToolHandler = Callable[..., Awaitable[dict]]
 
 _TOOL_SCHEMAS: list[dict] = [
+    {'type': 'function', 'function': {**{key: value for key, value in IMAGE_GENERATION_SCHEMA.items() if key != 'inputSchema'},
+        'parameters': IMAGE_GENERATION_SCHEMA['inputSchema']}},
     {
         "type": "function",
         "function": {
@@ -273,6 +277,7 @@ _HANDLERS: dict[str, ToolHandler] = {
     "memory_search": _memory_search,
     "web_search": search_web,
     "image_search": search_images,
+    "image_generate": image_generate,
     "create_brain_directory": _create_brain_directory,
     "create_brain_file": _create_brain_file,
     "list_brain_navigation": _list_brain_navigation,

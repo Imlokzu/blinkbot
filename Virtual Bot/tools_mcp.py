@@ -23,6 +23,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from image_generation_schema import SCHEMA as IMAGE_GENERATION_SCHEMA
 
 VBOT_URL = os.environ.get("VBOT_URL", "http://127.0.0.1:8100").rstrip("/")
 VBOT_SESSION = os.environ.get("VBOT_SESSION", "")
@@ -360,12 +361,13 @@ TOOLS.append(
     }
 )
 
+TOOLS.append(IMAGE_GENERATION_SCHEMA)
 _TOOL_NAMES = {t["name"] for t in TOOLS}
 
 
 # Fetching subtitles for a long video is a download, not a lookup: the default
 # 30s budget cut it off and the agent saw a timeout instead of the transcript.
-SLOW_TOOLS = {"listen_to_video": 120, "play_music": 60}
+SLOW_TOOLS = {"listen_to_video": 120, "play_music": 60, "image_generate": 270}
 DEFAULT_TIMEOUT_S = 30
 
 

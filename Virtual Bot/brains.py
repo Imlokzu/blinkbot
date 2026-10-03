@@ -1890,6 +1890,7 @@ async def chat(
     spoken: bool = False,
     session_key: str | None = None,
     channel: str | None = None,
+    image_request: dict | None = None,
 ) -> tuple[str, str, str, list[dict]]:
     """
     Обробляє повідомлення користувача. Повертає (reply, emotion, mode, tool_results).
@@ -1907,6 +1908,25 @@ async def chat(
     image block.
     """
     history = history or []
+    # Explicit creation bypasses text inference and remains an ordinary saved
+    # chat turn, including tool progress, cancellation and streaming history.
+    import image_generation_locales
+    from image_generation_schema import parse_command
+    image_command = image_request or parse_command(message)
+    if image_command:
+        language = image_command['language']
+        prompt = image_command['prompt']
+        if image_command.get('has_references') or images:
+            result = {'error': 'image_reference_unsupported'}
+        else:
+            result = await _run_tool(emit, 'image_generate', {'prompt': prompt})
+        _remember_brain('codex', 'codex/image-generation')
+        if result.get('error'):
+            reply = image_generation_locales.error_message(result['error'], language)
+        else:
+            caption = re.sub(r'[\[\]\\\r\n]', ' ', prompt)[:160]
+            reply = f"![{caption}]({result['images'][0]['url']})"
+        return reply, 'idle', 'codex', [{'tool': 'image_generate', 'input': {'prompt': prompt}, 'result': result}]
     system_prompt = build_system_prompt(message, voice=voice, spoken=spoken, channel=channel)
 
     # OpenClaw gateway — єдиний шлях для тексту й vision. Gateway вибирає

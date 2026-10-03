@@ -444,6 +444,10 @@ async def _require_openclaw_operator(request: Request) -> None:
 app.include_router(openclaw_control.router(_require_openclaw_operator))
 app.include_router(connector_api.router(_require_openclaw_operator, _require_user))
 
+import image_generation_api
+from image_generation_schema import parse_command as _image_command, history_context as _image_history_context
+app.include_router(image_generation_api.router(_require_openclaw_operator))
+
 
 async def _tool_caller(request: Request) -> str:
     """Who is calling a tool.
@@ -2164,6 +2168,8 @@ def _typewriter(text: str) -> list[str]:
 async def api_chat(request: Request, req: ChatRequest):
     """Повідомлення користувача → відповідь бота + емоція (мозок за пріоритетом)."""
     clerk_uid = await _require_user(request)
+    if _image_command(req.message) is not None:
+        await _require_openclaw_operator(request)
     # Хід для окремої консолі (/console): звідки прийшла репліка видно за
     # Referer — з екрана пристрою чи з панелі.
     turn_source = "screen" if "/screen" in (request.headers.get("referer") or "") else "chat"
@@ -2186,6 +2192,10 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat",
     holding it back until the whole turn is over.
     """
     message = req.message.strip()
+    image_request = _image_command(message)
+    if image_request is not None and req.attachments:
+        image_request['has_references'] = True
+    image_kwargs = {'image_request': image_request} if image_request is not None else {}
     req.attachments = [{key: value for key, value in item.items()
         if key in {'url', 'name', 'type', 'size', 'truncated', 'connector', 'notebook_id', 'source_id'}
         and isinstance(value, (str, int, bool))} for item in req.attachments]
@@ -2229,6 +2239,8 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat",
 
     with _brain_context(sid, clerk_uid):
         history = _get_history(sid, req.history)
+        if image_request is None:
+            agent_message += _image_history_context(history)
         openclaw_session_key = _openclaw_session_key(sid, clerk_uid)
         # Зберігаємо факти з цього повідомлення ДО відповіді (незалежно від мозку)
         await asyncio.to_thread(_extract_and_save_facts, message)
@@ -2258,6 +2270,7 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat",
                 try:
                     reply, emotion, mode, tool_results = await brains.chat(
                         agent_message, history, **_chat_image_kwargs(images),
+                        **image_kwargs,
                         **({"emit": note_emit} if on_note else {}),
                         **_chat_reasoning_kwargs(req.reasoning_effort),
                         **_chat_voice_kwargs(req.voice, req.spoken),
@@ -2431,6 +2444,7 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat",
 
             chat_task = asyncio.create_task(brains.chat(
                 agent_message, history, emit=emit, **_chat_image_kwargs(images),
+                **image_kwargs,
                 **_chat_reasoning_kwargs(req.reasoning_effort),
                 **_chat_voice_kwargs(req.voice, req.spoken),
                 **_chat_channel_kwargs(turn_source),
@@ -3390,6 +3404,9 @@ async def api_tools_call(request: Request, req: ToolCallRequest) -> dict:
     в панелі не було б видно, що бот саме зараз щось шукає чи пише у файл.
     """
     clerk_uid = await _tool_caller(request)
+    if req.name.strip().lower() == 'image_generate':
+        # A shared tokenless MCP runtime has no authenticated upload owner.
+        await _require_openclaw_operator(request)
     detail = _tool_detail(req.args)
     # ask_question/todo_list/show_choice малюють себе самі карткою (подія
     # "ui" — публікує сам тул), тому дублювати їх згорнутим рядком не треба.
