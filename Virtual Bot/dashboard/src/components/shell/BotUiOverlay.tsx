@@ -9,7 +9,6 @@ interface UiPayload {
   title?: string;
   options?: (string | { label?: string; description?: string })[];
   allow_custom?: boolean;
-  items?: { text?: string; done?: boolean }[];
 }
 
 type BotUi = { kind: string; data: UiPayload };
@@ -30,7 +29,7 @@ export function BotUiOverlay() {
   const [custom, setCustom] = useState('');
 
   useBotEvents((event) => {
-    if (event.type !== 'ui') return;
+    if (event.type !== 'ui' || event.kind === 'todo') return;
     const data = event.data && typeof event.data === 'object' ? event.data as UiPayload : {};
     setCard({ kind: String(event.kind || ''), data });
     setCustom('');
@@ -77,10 +76,6 @@ export function BotUiOverlay() {
               </form>
             ) : null}
           </div>
-        ) : card.kind === 'todo' ? (
-          <ul className="space-y-1.5 text-[13px] text-ink-2">
-            {(data.items ?? []).map((item, index) => <li key={`${item.text}-${index}`} className="flex items-center gap-2"><span className="grid size-4 place-items-center rounded border border-line"><Check size={11} className={item.done ? 'text-ok' : 'text-ink-3'} /></span>{item.text}</li>)}
-          </ul>
         ) : null}
       </section>
     </aside>
