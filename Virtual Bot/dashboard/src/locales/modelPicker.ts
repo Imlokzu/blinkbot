@@ -19,6 +19,20 @@ const uk = {
   intelSource: 'Індекс із {count} бенчмарків · {source}, {license}',
   intelLoading: 'Завантажую бенчмарки…',
   intelFailed: 'Не вдалося завантажити бенчмарки.',
+  intelTier0: 'Базовий',
+  intelTier1: 'Середній',
+  intelTier2: 'Сильний',
+  intelTier3: 'Флагман',
+  intelCoverage: '{count} з {total} бенчмарків',
+  intelByArea: 'По галузях',
+  intelNotTaken: 'немає',
+  intelBarHint: 'Смужка — частка від найкращого результату на цьому бенчмарку.',
+  areaGpqa: 'Наука',
+  areaAime: 'Математика',
+  areaScicode: 'Код',
+  areaArc: 'Головоломки',
+  areaSimpleqa: 'Факти',
+  areaCritpt: 'Фізика',
 };
 
 const en: Record<keyof typeof uk, string> = {
@@ -41,6 +55,20 @@ const en: Record<keyof typeof uk, string> = {
   intelSource: 'Index from {count} benchmarks · {source}, {license}',
   intelLoading: 'Loading benchmarks…',
   intelFailed: 'Could not load benchmarks.',
+  intelTier0: 'Basic',
+  intelTier1: 'Capable',
+  intelTier2: 'Strong',
+  intelTier3: 'Frontier',
+  intelCoverage: '{count} of {total} benchmarks',
+  intelByArea: 'By area',
+  intelNotTaken: 'none',
+  intelBarHint: 'The bar is the share of the best score on that benchmark.',
+  areaGpqa: 'Science',
+  areaAime: 'Maths',
+  areaScicode: 'Code',
+  areaArc: 'Puzzles',
+  areaSimpleqa: 'Facts',
+  areaCritpt: 'Physics',
 };
 
 export function t(key: keyof typeof uk, values: Record<string, string | number> = {}): string {

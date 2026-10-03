@@ -258,10 +258,17 @@ def for_catalog(data: dict | None, model_ids: list[str]) -> dict:
         entry = table.get(model_key(model_id))
         if entry:
             found[model_id] = entry
+    # The best score any model reached on each benchmark. A raw 32 % means
+    # nothing on its own — on CritPt it is the top of the field — so the
+    # picker shows each score against this leader.
+    top = {
+        key: max((row["scores"][key] for row in table.values() if key in row.get("scores", {})), default=0.0)
+        for key, *_rest in BENCHMARKS
+    }
     return {
         "available": bool(table),
         "updated": (data or {}).get("updated") or 0,
         "source": {"name": SOURCE_NAME, "url": SOURCE_PAGE, "license": LICENSE},
-        "benchmarks": [{"key": key, "name": title} for key, title, *_rest in BENCHMARKS],
+        "benchmarks": [{"key": key, "name": title, "top": top[key]} for key, title, *_rest in BENCHMARKS],
         "models": found,
     }

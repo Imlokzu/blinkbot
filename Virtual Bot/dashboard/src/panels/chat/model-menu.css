@@ -72,20 +72,65 @@ html[data-popup="glass"] .model-effort-menu.popup-lens .brain-picker-group {
 .model-picker-search:focus-within { outline: 2px solid var(--c-accent); outline-offset: -2px; }
 .model-picker-clear { width: 32px; }
 
-/* Intelligence index: data, so mono; neutral ink, so the accent stays the
-   selection's alone. The bar is a reading aid for scanning a column of
-   numbers, not decoration — it never animates. */
+/* Intelligence index: data, so mono. The dial is the one place with colour —
+   four discrete zones, red to green like any speedometer, built from the
+   state scale so both themes stay legible. No gradients, no animation.
+   The dial is its own button laid over the row's right end (a button inside
+   the radio would be invalid); the row keeps an empty slot under it and a
+   fixed check slot, so a selected row no longer shifts its number. */
 .model-picker-intel-toggle { display: grid; width: 36px; height: 36px; flex-shrink: 0; place-items: center; border-radius: 6px; color: var(--c-text-3); outline: none; }
 .model-picker-intel-toggle:hover, .model-picker-intel-toggle[aria-pressed="true"] { color: var(--c-text); }
 .model-picker-intel-toggle[aria-pressed="true"] { background: var(--c-surface-2); }
 .model-picker-intel-toggle:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -2px; }
 .model-picker-heading[data-search-open] .model-picker-intel-toggle { display: none; }
-.model-intel { display: flex; flex-shrink: 0; align-items: center; gap: 5px; color: var(--c-text-2); font-family: var(--f-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
-.model-intel-bar { position: relative; width: 22px; height: 3px; overflow: hidden; border-radius: 2px; background: var(--c-border); }
-.model-intel-bar::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--intel, 0%); border-radius: inherit; background: var(--c-text-3); }
+
+.model-picker-line { --line-pad: 7px; --line-gap: 8px; --intel-slot: 46px; position: relative; }
+.model-picker-line:hover > .brain-picker-row { background: var(--c-surface-2); }
+.brain-picker-check-slot { display: grid; width: 14px; flex-shrink: 0; place-items: center; }
+.model-intel-slot { width: var(--intel-slot, 46px); flex-shrink: 0; }
+.model-intel { position: absolute; top: 0; bottom: 0; right: calc(var(--line-pad) + 14px + var(--line-gap)); display: flex; width: var(--intel-slot); align-items: center; justify-content: flex-end; gap: 5px; color: var(--c-text-2); font-family: var(--f-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+.model-intel-button { border-radius: 6px; outline: none; cursor: help; }
+.model-intel-button:hover .model-intel-value, .model-intel-button[aria-expanded="true"] .model-intel-value { color: var(--c-text); }
+.model-intel-missing { pointer-events: none; color: var(--c-text-3); }
 .model-intel-value { min-width: 2ch; text-align: right; }
-.model-intel.is-partial { opacity: .6; }
-.model-intel.is-missing { color: var(--c-text-3); }
+
+.intel-gauge { display: block; flex-shrink: 0; overflow: visible; }
+.intel-gauge [data-tone="err"] { stroke: var(--c-err); }
+.intel-gauge [data-tone="warn"] { stroke: var(--c-warn); }
+.intel-gauge [data-tone="ok-soft"] { stroke: color-mix(in oklab, var(--c-ok) 60%, var(--c-warn)); }
+.intel-gauge [data-tone="ok"] { stroke: var(--c-ok); }
+.intel-zone-track { opacity: .22; }
+.intel-needle line { stroke: var(--c-text); }
+.intel-needle circle { fill: var(--c-text); }
+
+/* Hover card. Unpinned it lets the pointer through, so sliding down the list
+   is never blocked by the card of the row above. */
+.intel-card-pop { width: 248px; padding: 12px 12px 10px; }
+.intel-card-pop:not([data-pinned]) { pointer-events: none; }
+.intel-card-model { margin: 0; overflow: hidden; color: var(--c-text); font-family: var(--f-mono); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.intel-card-dial { display: grid; justify-items: center; margin-top: 8px; }
+.intel-card-readout { display: flex; align-items: baseline; gap: 2px; margin: 2px 0 0; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.intel-card-value { color: var(--c-text); font-size: 24px; font-weight: 500; line-height: 1; }
+.intel-card-of { color: var(--c-text-3); font-size: 11px; }
+.intel-card-tier { margin: 4px 0 0; color: var(--c-text-3); font-size: 11.5px; text-align: center; }
+.intel-card-tier [data-tone] { font-weight: 600; }
+.intel-card-tier [data-tone="err"] { color: var(--c-err); }
+.intel-card-tier [data-tone="warn"] { color: var(--c-warn); }
+.intel-card-tier [data-tone="ok-soft"] { color: color-mix(in oklab, var(--c-ok) 60%, var(--c-warn)); }
+.intel-card-tier [data-tone="ok"] { color: var(--c-ok); }
+.intel-card-note { margin: 4px 0 0; color: var(--c-text-3); font-size: 10.5px; text-align: center; }
+.intel-card-head { margin: 12px 0 6px; padding-top: 10px; border-top: 1px solid var(--c-border); color: var(--c-text-2); }
+.intel-card-areas { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.intel-card-areas li { display: grid; grid-template-columns: minmax(0, 1fr) 52px 5ch; align-items: center; gap: 8px; }
+.intel-area { display: grid; min-width: 0; }
+.intel-area-name { color: var(--c-text); font-size: 12px; line-height: 1.25; }
+.intel-area-bench { overflow: hidden; color: var(--c-text-3); font-family: var(--f-mono); font-size: 9.5px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.intel-area-bar { position: relative; height: 4px; overflow: hidden; border-radius: 2px; background: var(--c-border); }
+.intel-area-bar::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--share, 0%); border-radius: inherit; background: var(--c-text-2); }
+.intel-area-value { color: var(--c-text-2); font-family: var(--f-mono); font-size: 11px; font-variant-numeric: tabular-nums; text-align: right; }
+.intel-card-areas li.is-missing .intel-area-name, .intel-card-areas li.is-missing .intel-area-value { color: var(--c-text-3); }
+.intel-card-hint { margin: 10px 0 0; color: var(--c-text-3); font-size: 10px; line-height: 1.35; }
+
 .model-intel-source { flex-shrink: 0; margin: 0; padding: 6px 10px; border-top: 1px solid var(--c-border); color: var(--c-text-3); font-size: 10.5px; line-height: 1.35; overflow-wrap: anywhere; }
 .model-intel-source a { color: inherit; text-decoration: underline; text-decoration-color: var(--c-border); text-underline-offset: 2px; }
 .model-intel-source a:hover { color: var(--c-text-2); }
@@ -104,6 +149,7 @@ html[data-popup="glass"] .model-effort-menu.popup-lens .brain-picker-group {
   .model-picker-list .brain-picker-status { margin-left: -3px; margin-right: -3px; }
   .brain-picker-group { padding-top: 9px; padding-bottom: 4px; }
   .brain-picker-row { min-height: 44px; gap: 6px; padding: 7px 6px; }
+  .model-picker-line { --line-pad: 6px; --line-gap: 6px; }
   .brain-picker-name { font-size: 12px; }
   .model-picker-row svg:not(.brain-picker-check) { width: 14px; height: 14px; }
   .brain-picker-status button { min-height: 44px; }

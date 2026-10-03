@@ -17,6 +17,8 @@ export interface IntelBenchmark {
   key: string;
   /** A proper name ("GPQA Diamond"), the same in every language. */
   name: string;
+  /** Best score any model reached here, 0–1; 0 when unknown. */
+  top: number;
 }
 
 export interface IntelligenceResponse {
@@ -51,7 +53,7 @@ export function parseIntelligence(raw: unknown): IntelligenceResponse {
   const url = typeof source.url === 'string' && /^https?:\/\//.test(source.url) ? source.url : '';
   const benchmarks = Array.isArray(raw.benchmarks)
     ? raw.benchmarks.filter((b): b is IntelBenchmark => isRecord(b) && typeof b.key === 'string' && typeof b.name === 'string')
-      .map(({ key, name }) => ({ key, name }))
+      .map(({ key, name, top }) => ({ key, name, top: finite(top) && top > 0 ? top : 0 }))
     : [];
   const models: Record<string, IntelEntry> = {};
   if (isRecord(raw.models)) {
@@ -88,4 +90,46 @@ export function scoreLine(entry: IntelEntry, benchmarks: IntelBenchmark[]): stri
     .filter(({ key }) => key in entry.scores)
     .map(({ key, name }) => `${name} ${Math.round(entry.scores[key] * 100)}%`)
     .join(' · ');
+}
+
+/*
+ * Speedometer zones. The cut points follow where today's models actually
+ * sit, not round numbers: small open models land around 30, last year's
+ * flagships around 60, the current frontier from 65 up. Four zones are
+ * enough to read at a glance; a fifth would be a distinction the ± of a
+ * six-benchmark index cannot carry.
+ */
+export const ZONES = [
+  { from: 0, to: 30, tone: 'err' },
+  { from: 30, to: 50, tone: 'warn' },
+  { from: 50, to: 65, tone: 'ok-soft' },
+  { from: 65, to: 100, tone: 'ok' },
+] as const;
+
+export type ZoneTone = (typeof ZONES)[number]['tone'];
+
+/** 0 basic, 1 capable, 2 strong, 3 frontier — the zone an index falls in. */
+export function tierOf(index: number): 0 | 1 | 2 | 3 {
+  const at = ZONES.findIndex(({ to }) => index < to);
+  return (at === -1 ? ZONES.length - 1 : at) as 0 | 1 | 2 | 3;
+}
+
+/** Point on the gauge's upper half-circle: 0 is the left end, 100 the right. */
+export function gaugePoint(value: number, cx: number, cy: number, r: number): { x: number; y: number } {
+  const angle = Math.PI * (1 - Math.min(100, Math.max(0, value)) / 100);
+  return { x: cx + r * Math.cos(angle), y: cy - r * Math.sin(angle) };
+}
+
+/** SVG path of the gauge arc between two values. */
+export function gaugeArc(from: number, to: number, cx: number, cy: number, r: number): string {
+  const start = gaugePoint(from, cx, cy, r);
+  const end = gaugePoint(to, cx, cy, r);
+  const f = (n: number) => n.toFixed(2);
+  // Any span of a half-circle is under 180°, so the small-arc flag stays 0.
+  return `M ${f(start.x)} ${f(start.y)} A ${r} ${r} 0 0 1 ${f(end.x)} ${f(end.y)}`;
+}
+
+/** A raw score as a share of the benchmark leader's, 0–1. */
+export function againstLeader(score: number, top: number): number {
+  return top > 0 ? Math.min(1, Math.max(0, score / top)) : 0;
 }

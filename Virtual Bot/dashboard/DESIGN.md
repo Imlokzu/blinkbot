@@ -681,21 +681,30 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
 ## Model intelligence index (2026-10-03)
 
 - A brain toggle in the models heading shows a benchmark index (0–100) on
-  every scored row: a mono number and a 22px neutral bar. It is off by
+  every scored row: a 24px speedometer dial and a mono number. It is off by
   default and remembered in `localStorage.claudeBotModelIntel`; the request
   runs only while it is on. Jev has no score; an unscored model shows "—".
+- The dial has four discrete zones from the state scale — err < 30, warn
+  < 50, ok/warn mix < 65, ok — dim where the model does not reach, full
+  where it does. Separate arcs, not a gradient; nothing animates. This is
+  the one coloured element of the index; the accent stays with selection.
+- Hovering a row (after ~220ms) or keyboard-focusing it shows a card beside
+  it on the desk, below it on phones: the full dial with needle, the number,
+  the level in words, coverage, and a "by area" list (science, maths, code,
+  puzzles, facts, physics) with each raw score and a bar against the
+  benchmark leader — a raw 32 % on CritPt is the top of the field. A click
+  or tap on the dial pins the card; an unpinned card lets the pointer through.
+- The dial is its own button laid over the row's right end (never nested in
+  the radio). With the index on, every row reserves a fixed check slot, so
+  the selected row's number stays in the column.
 - The number comes from `/api/brain/intelligence` (`model_intelligence.py`):
-  six Epoch AI benchmarks (GPQA Diamond, OTIS Mock AIME, SciCode, ARC-AGI-2,
-  SimpleQA Verified, CritPt) folded with a Rasch fit, so missing hard
-  benchmarks do not inflate a model. The row tooltip lists the raw scores;
-  fewer than four benchmarks dims the number and says it is approximate.
-- Neutral ink only: the accent stays with the selection. The bar never
-  animates. The list order does not change — sorting stays removed.
-- Epoch's data is CC BY 4.0, so a footer credits it with a link whenever
-  the index is shown. Benchmark names are proper names, not locale keys.
+  six Epoch AI benchmarks folded with a Rasch fit, so missing hard
+  benchmarks do not inflate a model; fewer than four benchmarks are called
+  approximate. Epoch's data is CC BY 4.0, so a footer credits it with a link.
+  Benchmark names are proper names, not locale keys; area names are keys.
+- The list order does not change — sorting stays removed.
 - Regression coverage: `tests/modelIntelligence.test.mjs`,
   `tests/model-effort.browser.mjs` (off by default, no row badges).
-
 
 ## Conversation action cards (2026-10-03)
 

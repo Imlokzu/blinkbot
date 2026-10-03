@@ -8,7 +8,8 @@ import { useBrainIntelligence, type BrainModel } from '@/lib/queries';
 import { BrandLogo } from './BrandLogo';
 import { EffortOptions } from './EffortMenu';
 import { BRAND_NAMES, arrange, parseRecent, remember } from './modelCatalog';
-import { SOLID_COVERAGE, coverage, scoreLine, type IntelBenchmark, type IntelEntry } from './modelIntelligence';
+import { coverage, scoreLine, type IntelBenchmark, type IntelEntry, type IntelligenceResponse } from './modelIntelligence';
+import { IntelCard, IntelGauge } from './IntelGauge';
 import { thinkingLabel, useBrainChoice } from './useBrainChoice';
 import './model-menu.css';
 
@@ -27,23 +28,25 @@ function loadShowIntel(): boolean {
   try { return localStorage.getItem(INTEL_KEY) === '1'; } catch { return false; }
 }
 
-/** The index as a number and a thin bar; the breakdown lives in its tooltip. */
-function IntelScore({ entry, benchmarks }: { entry?: IntelEntry; benchmarks: IntelBenchmark[] }) {
-  if (!entry) {
-    return <span className="model-intel is-missing" title={pickerText('intelMissing')}>—</span>;
-  }
-  const count = coverage(entry, benchmarks);
-  const partial = count < SOLID_COVERAGE;
-  const index = Math.round(entry.index);
-  const detail = pickerText('intelDetail', { index, count, total: benchmarks.length, scores: scoreLine(entry, benchmarks) })
-    + (partial ? ` ${pickerText('intelPartial')}` : '');
+/** Hover-card state: which row's card is open, and whether a click pinned it. */
+type Detail = { id: string; pinned: boolean } | null;
+
+/** The dial and number shown in a row; the breakdown lives in the hover card. */
+function IntelScore({ entry }: { entry: IntelEntry }) {
   return (
-    <span className={cn('model-intel', partial && 'is-partial')} title={detail}
-      style={{ '--intel': `${index}%` } as React.CSSProperties}>
-      <span aria-hidden="true" className="model-intel-bar" />
-      <span className="model-intel-value">{index}</span>
-    </span>
+    <>
+      <IntelGauge value={entry.index} />
+      <span className="model-intel-value">{Math.round(entry.index)}</span>
+    </>
   );
+}
+
+/** Screen readers get the card's facts on the dial button itself. */
+function intelSummary(entry: IntelEntry, benchmarks: IntelBenchmark[]): string {
+  const count = coverage(entry, benchmarks);
+  return pickerText('intelDetail', {
+    index: Math.round(entry.index), count, total: benchmarks.length, scores: scoreLine(entry, benchmarks),
+  });
 }
 
 function GroupHead({ brand }: { brand: string | null }) {
@@ -64,6 +67,17 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
   const [active, setActive] = useState(0);
   const [showIntel, setShowIntel] = useState(loadShowIntel);
   const intel = useBrainIntelligence(open && showIntel);
+  const [detail, setDetail] = useState<Detail>(null);
+  const detailTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(detailTimer.current), []);
+  // Hover opens a card after a short rest and swaps quickly between rows; a
+  // click on the dial pins it, so it survives the pointer leaving.
+  const hoverDetail = (id: string | null) => {
+    window.clearTimeout(detailTimer.current);
+    detailTimer.current = window.setTimeout(() => {
+      setDetail(current => current?.pinned ? current : id ? { id, pinned: false } : null);
+    }, id ? (detail ? 60 : 220) : 120);
+  };
   const input = useRef<HTMLInputElement>(null);
   const search = useRef<HTMLDivElement>(null);
   const modelsPane = useRef<HTMLElement>(null);
@@ -148,6 +162,8 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
 
   const changeOpen = (next: boolean) => {
     setOpen(next);
+    window.clearTimeout(detailTimer.current);
+    setDetail(null);
     if (next) {
       setQuery('');
       setSearchOpen(false);
@@ -157,9 +173,14 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
   const toggleIntel = () => {
     const next = !showIntel;
     setShowIntel(next);
+    setDetail(null);
     try { localStorage.setItem(INTEL_KEY, next ? '1' : '0'); } catch { /* Optional storage. */ }
   };
   const intelData = intel.data;
+  const intelShown = Boolean(showIntel && intelData?.available);
+  // Beside the row on the desk (over the thinking column); below it on a
+  // phone, where the side has no room.
+  const narrow = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 759px)').matches;
   const label = brain.currentModel?.label || brain.current || (brain.loading ? t('composer.loading') : 'OpenClaw');
   const effort = brain.thinking ? thinkingLabel(brain.thinking) : t('composer.asConfigured');
   const accessibleLabel = t('composer.chooseModelEffort', { model: label, level: effort });
@@ -259,10 +280,17 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
                       const index = ++row;
                       const current = model.id === brain.current;
                       const unavailable = disabled || model.available === false;
-                      return (
+                      const radio = (
                         <button key={`${group.key}-${model.id}`} id={`${base}-${index}`} type="button" role="radio"
                           data-model={model.id} data-index={index} aria-checked={current} aria-disabled={unavailable}
-                          tabIndex={index === cursor ? 0 : -1} title={model.label} onFocus={() => setActive(index)}
+                          tabIndex={index === cursor ? 0 : -1} title={model.label}
+                          onFocus={(event) => {
+                            setActive(index);
+                            if (intelShown && event.currentTarget.matches(':focus-visible')) {
+                              setDetail(shown => shown?.pinned ? shown : { id: model.id, pinned: false });
+                            }
+                          }}
+                          onBlur={() => setDetail(shown => shown && !shown.pinned && shown.id === model.id ? null : shown)}
                           onPointerEnter={() => { if (document.activeElement === input.current) setActive(index); }}
                           onClick={() => { void pick(model); }}
                           className={cn('brain-picker-row model-picker-row', unavailable && 'is-disabled', index === cursor && query && 'is-search-active')}>
@@ -271,10 +299,25 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
                             <span className="brain-picker-name block">{model.label}</span>
                             {model.available === false ? <span className="brain-picker-feedback">{t('models.unavailable')}</span> : null}
                           </span>
-                          {showIntel && intelData?.available && !model.auto
-                            ? <IntelScore entry={intelData.models[model.id]} benchmarks={intelData.benchmarks} /> : null}
-                          {current ? <Check aria-hidden="true" className="brain-picker-check" strokeWidth={1.75} /> : null}
+                          {intelShown && !model.auto ? <span aria-hidden="true" className="model-intel-slot" /> : null}
+                          {intelShown ? (
+                            // A fixed slot: the check no longer pushes the dial out of its column.
+                            <span className="brain-picker-check-slot">
+                              {current ? <Check aria-hidden="true" className="brain-picker-check" strokeWidth={1.75} /> : null}
+                            </span>
+                          ) : current ? <Check aria-hidden="true" className="brain-picker-check" strokeWidth={1.75} /> : null}
                         </button>
+                      );
+                      if (!intelShown || model.auto || !intelData) return radio;
+                      const entry = intelData.models[model.id];
+                      return (
+                        <IntelLine key={`${group.key}-${model.id}`} model={model} entry={entry} data={intelData}
+                          open={detail?.id === model.id} pinned={Boolean(detail?.pinned)} narrow={narrow}
+                          onHover={hoverDetail} onToggle={() => setDetail(shown =>
+                            shown?.id === model.id && shown.pinned ? null : { id: model.id, pinned: true })}
+                          onClose={() => setDetail(null)}>
+                          {radio}
+                        </IntelLine>
                       );
                     })}
                   </GroupBlock>
@@ -295,6 +338,53 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
           </section>
           <EffortOptions brain={brain} />
           {brain.saving ? <p className="sr-only" role="status">{pickerText('saving')}</p> : null}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+/**
+ * A picker row with its index: the radio row plus, laid over its right end,
+ * the dial as a separate button — a button inside the radio would be invalid
+ * nesting, and on a phone the dial is the only way to open the card.
+ */
+function IntelLine({ model, entry, data, open, pinned, narrow, onHover, onToggle, onClose, children }: {
+  model: BrainModel; entry?: IntelEntry; data: IntelligenceResponse; open: boolean; pinned: boolean; narrow: boolean;
+  onHover: (id: string | null) => void; onToggle: () => void; onClose: () => void; children: React.ReactNode;
+}) {
+  if (!entry) {
+    return (
+      <div className="model-picker-line">
+        {children}
+        <span className="model-intel model-intel-missing" title={pickerText('intelMissing')}>—</span>
+      </div>
+    );
+  }
+  return (
+    <Popover.Root open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <Popover.Anchor asChild>
+        <div className="model-picker-line" data-intel-line={model.id}
+          onPointerEnter={(event) => { if (event.pointerType === 'mouse') onHover(model.id); }}
+          onPointerLeave={(event) => { if (event.pointerType === 'mouse') onHover(null); }}>
+          {children}
+          <button type="button" tabIndex={-1} className="model-intel model-intel-button"
+            aria-label={intelSummary(entry, data.benchmarks)} aria-expanded={open} onClick={onToggle}>
+            <IntelScore entry={entry} />
+          </button>
+        </div>
+      </Popover.Anchor>
+      <Popover.Portal>
+        <Popover.Content side={narrow ? 'bottom' : 'right'} align={narrow ? 'end' : 'center'} sideOffset={8}
+          collisionPadding={12} style={{ zIndex: 'var(--z-pop)' }} data-pinned={pinned ? '' : undefined}
+          className="intel-card-pop popup-shell u-pop rounded-lg border border-line bg-surface shadow-pop"
+          onOpenAutoFocus={(event) => event.preventDefault()} onCloseAutoFocus={(event) => event.preventDefault()}
+          onInteractOutside={(event) => {
+            // The dial's own click toggles the card; do not close it first.
+            const line = (event.target as Element | null)?.closest?.('[data-intel-line]');
+            if (line?.getAttribute('data-intel-line') === model.id) event.preventDefault();
+          }}>
+          <IntelCard label={model.label} entry={entry} benchmarks={data.benchmarks} />
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

@@ -122,6 +122,10 @@ class ScoreTests(unittest.TestCase):
         self.assertEqual(list(reply["models"]), ["openai/ladder-3"])
         self.assertEqual(len(reply["models"]["openai/ladder-3"]["scores"]), 6)
         self.assertEqual([b["key"] for b in reply["benchmarks"]], [b[0] for b in mi.BENCHMARKS])
+        # Each benchmark carries the field's best score: the top ladder rung's.
+        top = mi.read_scores(archive(ladder()))["ladder-11"]
+        self.assertEqual({b["key"]: b["top"] for b in reply["benchmarks"]},
+                         {key: round(value, 4) for key, value in top.items()})
         # CC BY: the reply carries what the picker needs to credit Epoch.
         self.assertEqual(reply["source"]["name"], "Epoch AI")
 
