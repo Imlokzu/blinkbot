@@ -1410,3 +1410,9 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   build metadata and the exact wallpaper. Both traversal guards return 400.
   Task-owned test browsers and servers are stopped; unrelated drafts and staged
   changes remain intact. Final artifacts use the guarded publication workflow.
+
+- The current-revision guarded publisher installed the final favicon recovery
+  build. Live /dash browser checks pass both cached-provider hops, exhaustion,
+  stale callbacks, retained marks and existing chat/image/motion behavior.
+  The final175 frontend tests, TypeScript/build and all301 release resources
+  pass; original staged changes and unrelated drafts remain preserved.
