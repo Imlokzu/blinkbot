@@ -52,6 +52,12 @@ git commit -m "fix(virtual-bot): ..."
 код, тестуєш через `curl` на запущений сервер — а він працює на коді
 двотижневої давнини, і тест нічого не показує.
 
+**Secrets always go through the agents' vault.** Every password, API key, and
+login lives in the agents' Bitwarden (`vault@ag.waveio.me`, CLI profile
+`~/.config/bw-agents`). Need one: look there first. Got a new one: save it
+there in the same step. Never print a secret in chat or notes. Commands and
+rules are in `AGENTS.md`, section 3.
+
 ## 3. Пастки цього репо
 
 **У шляхах є пробіли.** Завжди лапки: `cd "Virtual Bot"`.

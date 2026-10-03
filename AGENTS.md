@@ -76,6 +76,41 @@ explicitly told you to. If unsure, ask — do not guess an identity.
 - If you discover a committed secret, stop and flag it — do not just delete it in
   a new commit (it stays in history).
 
+### The agents' vault — always go through it
+
+Agents have their own Bitwarden account, `vault@ag.waveio.me` on
+vault.bitwarden.com (free plan). It is separate from the owner's personal
+account. It is the single place for every password, API key, and login that
+an agent uses or creates.
+
+- **Need a secret?** Look in the vault first, before asking the owner or
+  digging through `.env` files.
+- **Got a new one** (signed up somewhere, created an API key, generated a
+  password)? Save it to the vault **right away**, in the same step. Generate
+  passwords with `bw generate`, not by hand.
+- **Never** paste a secret into chat, notes, Obsidian, a commit, or a log.
+  Refer to it by the vault item name.
+- Services that read `.env` keep doing so. When you put a key in `.env`, save
+  it to the vault too: the vault is the source of truth.
+
+How to use it from the Mac (the master password is in the macOS Keychain):
+
+```bash
+export BITWARDENCLI_APPDATA_DIR=~/.config/bw-agents   # agents' profile
+export BW_SESSION="$(BW_PW="$(security find-generic-password \
+  -a vault@ag.waveio.me -s bitwarden-agents -w)" bw unlock --passwordenv BW_PW --raw)"
+bw sync
+bw get password "<item name>"
+bw lock                                                # when done
+```
+
+- **Never** use the default `bw` profile: it is the owner's personal account.
+  Do not log it out either.
+- The free plan has no TOTP codes and no attachments. If you need either, ask
+  the owner.
+- Cloud agents (Jules, Hoplite) cannot reach the Keychain, so they have no
+  vault access. If they need a secret, the owner decides how to pass it.
+
 ---
 
 ## 4. Code-change etiquette
