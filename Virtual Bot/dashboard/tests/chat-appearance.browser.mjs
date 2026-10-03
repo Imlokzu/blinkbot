@@ -102,6 +102,7 @@ try {
   writeFileSync(imageFile, Buffer.from(png.split(',')[1], 'base64'));
   writeFileSync(rejectedFile, '<svg xmlns="http://www.w3.org/2000/svg"/>');
   openAppearance();
+  clickText('My files');
   evaluate(`(() => {
     const zone = document.querySelector('[data-wallpaper-drop="image"]');
     const raw = atob(${JSON.stringify(png.split(',')[1])});
@@ -162,6 +163,7 @@ try {
       if (key === 'claudeBotChatAppearance') throw new DOMException('Full', 'QuotaExceededError');
       return window.__appearanceSetItem.call(this, key, value);
     }; true`);
+  clickText('Ready backgrounds');
   clickText('Forest');
   browser('wait', '--text', 'Could not save chat appearance');
   assert.deepEqual(saved(), beforeQuota, 'quota errors must retain the previous saved appearance');
@@ -217,6 +219,7 @@ try {
   })()`);
   writeFileSync(videoFile, Buffer.from(webm, 'base64'));
   openAppearance();
+  clickText('My files');
   browser('upload', '.chat-appearance-settings input[type="file"][accept^="video/"]', videoFile);
   browser('wait', '--fn', 'document.documentElement.dataset.wallpaper === "video"');
   assert.match(saved().videoId, /^wallpaper-/);

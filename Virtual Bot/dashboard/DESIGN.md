@@ -251,6 +251,16 @@ scrolling past all of it.
   button. Options include an original generated cloud wallpaper, dusk,
   forest, plain, an uploaded image or a muted looping video; chat accent;
   glass or solid material, opacity and blur. No server upload is involved.
+- Wallpaper sources are Ready backgrounds, My files and Link. Browsing a
+  source does not change the active background. Ready backgrounds add coast
+  and misty forest photos plus clouds and night-sky videos, with still
+  previews and localized selection/type labels. Local asset provenance lives
+  in `src/panels/chat/assets/wallpapers/README.md`.
+- Link accepts explicit HTTP(S) image or video URLs. Apply checks decoding
+  without playback, with a ten-second timeout; failures leave the previous
+  wallpaper intact. Checks cancel when settings unmount or the saved source
+  changes. Remote media loads directly in the browser. A remote video uses
+  the bundled sky still when motion or data saving pauses playback.
 - Uploaded PNG, JPEG and WebP images are resized and re-encoded locally.
   Unsupported files, oversized images and unavailable storage leave the
   previous saved choice intact with localized feedback.
@@ -279,8 +289,10 @@ scrolling past all of it.
   keyboard focus. The right rail can close and reopen without changing pins;
   its visibility persists independently of the conversations list.
 - Regression coverage: `tests/chatAppearance.test.mjs`,
+  `tests/wallpaperSources.test.mjs`, `tests/remoteWallpaperSource.test.mjs`,
   `tests/brandColors.test.mjs`, `tests/popupGlass.test.mjs`,
-  `tests/chat-appearance.browser.mjs`, `tests/model-effort.browser.mjs` and
+  `tests/chat-appearance.browser.mjs`, `tests/wallpaper-sources.browser.mjs`,
+  `tests/model-effort.browser.mjs` and
   `tests/glass-popup.browser.mjs`. Old model/effort browser entrypoints route
   to the combined fixture suite.
 - `tests/popup-glass-motion.browser.mjs` samples intermediate opening and

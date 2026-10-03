@@ -1,4 +1,6 @@
-export type ChatBackground = 'none' | 'sky' | 'dusk' | 'forest' | 'custom' | 'video';
+import { getWallpaperPreset, type WallpaperPresetId } from './wallpaperPresets.ts';
+
+export type ChatBackground = 'none' | 'sky' | 'dusk' | 'forest' | 'custom' | 'video' | 'preset' | 'remote';
 export type ChatColor = 'theme' | 'rose' | 'sage' | 'ocean' | 'lavender';
 export type BackgroundTarget = 'chat' | 'navigation' | 'sessions' | 'panels' | 'pages';
 export type ChatMaterial = 'glass' | 'solid';
@@ -6,6 +8,9 @@ export interface ChatAppearance {
   background: ChatBackground;
   image: string | null;
   videoId: string | null;
+  presetId: WallpaperPresetId | null;
+  sourceUrl: string | null;
+  sourceType: 'image' | 'video';
   targets: readonly BackgroundTarget[];
   sidebarVisible: boolean;
   material: ChatMaterial;
@@ -20,10 +25,11 @@ export const MAX_BACKGROUND_FILE_BYTES = 8 * 1024 * 1024;
 export const MAX_BACKGROUND_IMAGE_LENGTH = 1024 * 1024;
 export const BACKGROUND_TARGETS: readonly BackgroundTarget[] = Object.freeze(['chat', 'navigation', 'sessions', 'panels', 'pages']);
 export const DEFAULT_CHAT_APPEARANCE: Readonly<ChatAppearance> = Object.freeze({
-  background: 'sky', image: null, videoId: null, targets: Object.freeze(['chat'] as BackgroundTarget[]),
+  background: 'sky', image: null, videoId: null, presetId: null, sourceUrl: null, sourceType: 'image',
+  targets: Object.freeze(['chat'] as BackgroundTarget[]),
   sidebarVisible: true, material: 'glass', glassRecipe: 2, opacity: 0, blur: 0, color: 'theme',
 });
-const BACKGROUNDS = new Set<ChatBackground>(['none', 'sky', 'dusk', 'forest', 'custom', 'video']);
+const BACKGROUNDS = new Set<ChatBackground>(['none', 'sky', 'dusk', 'forest', 'custom', 'video', 'preset', 'remote']);
 const COLORS = new Set<ChatColor>(['theme', 'rose', 'sage', 'ocean', 'lavender']);
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
@@ -62,15 +68,31 @@ export function hasFullAppBackground(appearance: Pick<ChatAppearance, 'targets'>
   return BACKGROUND_TARGETS.every(target => appearance.targets.includes(target));
 }
 
+/** Direct user-selected media stays client-side; never accept executable URL schemes. */
+export function normalizeWallpaperSourceURL(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 2000 || /[\u0000-\u001f\u007f]/.test(value)) return null;
+  const raw = value.trim();
+  if (!/^https?:\/\//i.test(raw)) return null;
+  try {
+    const url = new URL(raw);
+    if (!url.hostname || url.username || url.password || !['http:', 'https:'].includes(url.protocol)) return null;
+    return url.href.length <= 2000 ? url.href : null;
+  } catch { return null; }
+}
+
 export function normalizeChatAppearance(value: unknown): ChatAppearance {
   const input = value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown> : {};
   const image = isBackgroundImage(input.image) ? input.image : null;
   const videoId = isWallpaperVideoId(input.videoId) ? input.videoId : null;
+  const presetId = getWallpaperPreset(input.presetId)?.id ?? null;
+  const sourceUrl = normalizeWallpaperSourceURL(input.sourceUrl);
   let background = BACKGROUNDS.has(input.background as ChatBackground)
     ? input.background as ChatBackground : DEFAULT_CHAT_APPEARANCE.background;
   if (background === 'custom' && !image) background = DEFAULT_CHAT_APPEARANCE.background;
   if (background === 'video' && !videoId) background = DEFAULT_CHAT_APPEARANCE.background;
+  if (background === 'preset' && !presetId) background = DEFAULT_CHAT_APPEARANCE.background;
+  if (background === 'remote' && !sourceUrl) background = DEFAULT_CHAT_APPEARANCE.background;
   const requestedTargets = input.targets;
   const targets = Array.isArray(requestedTargets)
     ? BACKGROUND_TARGETS.filter(target => requestedTargets.includes(target))
@@ -82,6 +104,9 @@ export function normalizeChatAppearance(value: unknown): ChatAppearance {
     background,
     image,
     videoId,
+    presetId,
+    sourceUrl,
+    sourceType: input.sourceType === 'video' ? 'video' : 'image',
     targets: Object.freeze(targets),
     sidebarVisible: typeof input.sidebarVisible === 'boolean' ? input.sidebarVisible : DEFAULT_CHAT_APPEARANCE.sidebarVisible,
     material: input.material === 'solid' ? 'solid' : 'glass',
@@ -102,6 +127,7 @@ function equalAppearance(a: ChatAppearance, b: ChatAppearance): boolean {
   return a.background === b.background && a.image === b.image && a.opacity === b.opacity
     && a.blur === b.blur && a.color === b.color && a.videoId === b.videoId
     && a.material === b.material && a.sidebarVisible === b.sidebarVisible
+    && a.presetId === b.presetId && a.sourceUrl === b.sourceUrl && a.sourceType === b.sourceType
     && a.targets.length === b.targets.length && a.targets.every((target, index) => target === b.targets[index]);
 }
 

@@ -1,14 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChatAppearance } from '@/panels/chat/useChatAppearance';
 import { useWallpaperMedia } from '@/panels/chat/wallpaperMedia';
+import { getWallpaperPreset } from '@/panels/chat/wallpaperPresets';
 import './app-wallpaper.css';
 
-/** One local background video serves every opted-in surface. */
+const remoteVideoPoster = new URL('../../panels/chat/assets/chat-reference-sky.jpg', import.meta.url).href;
+
+/** One muted background player serves every opted-in surface and source. */
 export function AppWallpaper() {
   const { appearance } = useChatAppearance();
   const media = useWallpaperMedia(appearance.background === 'video' ? appearance.videoId : null);
   const video = useRef<HTMLVideoElement>(null);
   const [paused, setPaused] = useState(true);
+  const preset = appearance.background === 'preset' ? getWallpaperPreset(appearance.presetId) : null;
+  const videoURL = appearance.background === 'video' ? media.videoURL
+    : preset?.kind === 'video' ? preset.src
+    : appearance.background === 'remote' && appearance.sourceType === 'video' ? appearance.sourceUrl : null;
+  const poster = appearance.background === 'video' ? media.posterURL : preset?.thumbnail
+    ?? (appearance.background === 'remote' && appearance.sourceType === 'video' ? remoteVideoPoster : null);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -56,14 +65,16 @@ export function AppWallpaper() {
     if (paused) player.pause();
     else void player.play().catch(() => { /* A blocked autoplay retains the local poster. */ });
     return () => player.pause();
-  }, [paused, media.videoURL]);
+  }, [paused, videoURL]);
 
   const image = appearance.background === 'custom' ? appearance.image
-    : appearance.background === 'video' ? media.posterURL : null;
+    : appearance.background === 'video' ? media.posterURL
+    : preset ? preset.thumbnail
+    : appearance.background === 'remote' ? appearance.sourceType === 'image' ? appearance.sourceUrl : remoteVideoPoster : null;
   return <div aria-hidden="true" className="app-wallpaper" data-video-paused={paused ? '' : undefined}
-    style={image ? { backgroundImage: `url("${image}")` } : undefined}>
-    {appearance.background === 'video' && media.videoURL ? (
-      <video ref={video} src={media.videoURL} poster={media.posterURL || undefined} muted loop playsInline
+    style={image ? { backgroundImage: `url(${JSON.stringify(image)})` } : undefined}>
+    {videoURL ? (
+      <video ref={video} src={videoURL} poster={poster || undefined} muted loop playsInline
         preload="metadata" tabIndex={-1} />
     ) : null}
   </div>;

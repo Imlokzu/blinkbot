@@ -1,16 +1,22 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type DragEvent } from 'react';
-import { ImagePlus, RotateCcw, ShieldCheck, Trash2, Video } from 'lucide-react';
+import { Check, ImagePlus, Link2, RotateCcw, ShieldCheck, Trash2, Video } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Switch, SwitchRow } from '@/components/ui/Switch';
 import { t } from '@/locales/chatAppearance';
-import { BACKGROUND_TARGETS, BackgroundImageError, hasFullAppBackground, prepareBackgroundImage,
+import { BACKGROUND_TARGETS, BackgroundImageError, hasFullAppBackground, normalizeWallpaperSourceURL, prepareBackgroundImage,
   type BackgroundImageErrorCode, type ChatBackground, type ChatColor } from './appearancePreferences';
 import { useChatAppearance } from './useChatAppearance';
 import { deleteWallpaperVideo, prepareWallpaperVideo, saveWallpaperVideo, useWallpaperMedia,
   WallpaperMediaError, type WallpaperMediaErrorCode } from './wallpaperMedia';
+import { WALLPAPER_PRESETS } from './wallpaperPresets';
+import { probeWallpaperSource } from './remoteWallpaperSource';
 import './chat-appearance-controls.css';
 
-const BACKGROUNDS: ChatBackground[] = ['none', 'sky', 'dusk', 'forest', 'custom', 'video'];
+const BACKGROUNDS = ['none', 'sky', 'dusk', 'forest'] as const satisfies readonly ChatBackground[];
+const LOCAL_BACKGROUNDS = ['custom', 'video'] as const satisfies readonly ChatBackground[];
+type WallpaperSource = 'ready' | 'files' | 'link';
+const wallpaperSource = (background: ChatBackground): WallpaperSource =>
+  background === 'remote' ? 'link' : background === 'custom' || background === 'video' ? 'files' : 'ready';
 const COLORS: ChatColor[] = ['theme', 'rose', 'sage', 'ocean', 'lavender'];
 const SWATCHES: Record<ChatColor, string> = {
   theme: 'var(--c-accent)', rose: '#b25473', sage: '#668367', ocean: '#407aa2', lavender: '#8563ae',
@@ -23,12 +29,65 @@ function ChatAppearanceControls() {
   const input = useRef<HTMLInputElement>(null);
   const videoInput = useRef<HTMLInputElement>(null);
   const uploadGeneration = useRef(0);
-  const [uploading, setUploading] = useState<'image' | 'video' | null>(null);
+  const sourceProbe = useRef<AbortController | null>(null);
+  const [uploading, setUploading] = useState<'image' | 'video' | 'link' | null>(null);
   const [dragging, setDragging] = useState<'image' | 'video' | null>(null);
   const [error, setError] = useState<BackgroundImageErrorCode | WallpaperMediaErrorCode | null>(null);
+  const [source, setSource] = useState<WallpaperSource>(() => wallpaperSource(appearance.background));
+  const [sourceUrl, setSourceUrl] = useState(appearance.sourceUrl ?? '');
+  const [sourceType, setSourceType] = useState<'image' | 'video'>(appearance.sourceType);
+  const [invalidUrl, setInvalidUrl] = useState(false);
+  const [sourceUnavailable, setSourceUnavailable] = useState(false);
   const media = useWallpaperMedia(appearance.videoId);
   const fullApp = hasFullAppBackground(appearance);
-  useEffect(() => () => { uploadGeneration.current++; }, []);
+  useEffect(() => () => {
+    uploadGeneration.current++;
+    sourceProbe.current?.abort();
+  }, []);
+  useEffect(() => {
+    if (!sourceProbe.current) return;
+    uploadGeneration.current++;
+    sourceProbe.current.abort();
+    sourceProbe.current = null;
+    setUploading(null);
+  }, [appearance.background, appearance.sourceUrl, appearance.sourceType]);
+  useEffect(() => { setSource(wallpaperSource(appearance.background)); }, [appearance.background]);
+  useEffect(() => {
+    setSourceUrl(appearance.sourceUrl ?? '');
+    setSourceType(appearance.sourceType);
+    setInvalidUrl(false);
+    setSourceUnavailable(false);
+  }, [appearance.sourceUrl, appearance.sourceType]);
+
+  const cancelSourceProbe = () => {
+    if (!sourceProbe.current) return;
+    uploadGeneration.current++;
+    sourceProbe.current.abort();
+    sourceProbe.current = null;
+    setUploading(null);
+  };
+
+  const applySource = async () => {
+    if (uploading || sourceProbe.current) return;
+    const normalized = normalizeWallpaperSourceURL(sourceUrl);
+    if (!normalized) { setInvalidUrl(true); setSourceUnavailable(false); return; }
+    const generation = ++uploadGeneration.current;
+    const controller = new AbortController();
+    sourceProbe.current = controller;
+    setUploading('link');
+    setInvalidUrl(false);
+    setSourceUnavailable(false);
+    try {
+      await probeWallpaperSource(normalized, sourceType, controller.signal);
+      if (generation !== uploadGeneration.current) return;
+      if (setAppearance({ background: 'remote', sourceUrl: normalized, sourceType })) setSourceUrl(normalized);
+    } catch {
+      if (generation === uploadGeneration.current && !controller.signal.aborted) setSourceUnavailable(true);
+    } finally {
+      if (sourceProbe.current === controller) sourceProbe.current = null;
+      if (generation === uploadGeneration.current) setUploading(null);
+    }
+  };
 
   const upload = async (file: File) => {
     const generation = ++uploadGeneration.current;
@@ -112,19 +171,65 @@ function ChatAppearanceControls() {
   return <div className="chat-appearance-controls">
     <fieldset className="chat-appearance-fieldset">
       <legend>{t('background')}</legend>
-      <div className="chat-appearance-backgrounds">
+      <div className="chat-appearance-segments chat-appearance-source" role="group" aria-label={t('source')}>
+        {(['ready', 'files', 'link'] as const).map(choice => <button key={choice} type="button"
+          aria-pressed={source === choice} aria-controls={`${id}-source-${choice}`} disabled={Boolean(uploading)}
+          onClick={() => setSource(choice)}>{t(`source.${choice}`)}</button>)}
+      </div>
+      <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" disabled={Boolean(uploading)} hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file) void upload(file);
+        }} />
+      <input ref={videoInput} type="file" accept="video/mp4,video/webm" disabled={Boolean(uploading)} hidden
+        onChange={event => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file) void uploadVideo(file);
+        }} />
+      <div id={`${id}-source-ready`} className="chat-appearance-source-content" hidden={source !== 'ready'}>
+      <div className="chat-appearance-backgrounds chat-appearance-backgrounds--classic">
         {BACKGROUNDS.map((background) => <button
           key={background}
           type="button"
           className="chat-appearance-background"
           aria-pressed={appearance.background === background}
           disabled={Boolean(uploading)}
-          onClick={() => {
+          onClick={() => setAppearance({ background })}
+        >
+          <span className={`chat-appearance-preview chat-appearance-preview--${background}`} aria-hidden="true">
+            <span className="chat-appearance-preview-composer" />
+          </span>
+          <span>{t(`background.${background}`)}</span>
+        </button>)}
+      </div>
+      <div className="chat-appearance-presets">
+        {WALLPAPER_PRESETS.map(preset => <button key={preset.id} type="button"
+          className="chat-appearance-background chat-appearance-preset" data-wallpaper-preset={preset.id}
+          aria-pressed={appearance.background === 'preset' && appearance.presetId === preset.id}
+          disabled={Boolean(uploading)} onClick={() => setAppearance({ background: 'preset', presetId: preset.id })}>
+          <span className="chat-appearance-preview" aria-hidden="true">
+            <img src={preset.thumbnail} alt="" loading="lazy" />
+            {preset.kind === 'video' ? <span className="chat-appearance-preset-video"><Video /></span> : null}
+            {appearance.background === 'preset' && appearance.presetId === preset.id
+              ? <span className="chat-appearance-preset-check"><Check /></span> : null}
+          </span>
+          <span className="chat-appearance-preset-caption"><span>{t(preset.labelKey)}</span>
+            <span>{t(`sourceType.${preset.kind}`)}</span></span>
+        </button>)}
+      </div>
+      <p className="chat-appearance-hint chat-appearance-presets-hint">{t('videoPlaybackHint')}</p>
+      </div>
+      <div id={`${id}-source-files`} className="chat-appearance-source-content" hidden={source !== 'files'}>
+      <div className="chat-appearance-backgrounds chat-appearance-backgrounds--files">
+        {LOCAL_BACKGROUNDS.map(background => <button key={background} type="button"
+          className="chat-appearance-background" aria-pressed={appearance.background === background}
+          disabled={Boolean(uploading)} onClick={() => {
             if (background === 'custom' && !appearance.image) input.current?.click();
             else if (background === 'video' && !appearance.videoId) videoInput.current?.click();
             else setAppearance({ background });
-          }}
-        >
+          }}>
           <span className={`chat-appearance-preview chat-appearance-preview--${background}`} aria-hidden="true"
             style={background === 'custom' && appearance.image ? { backgroundImage: `url("${appearance.image}")` }
               : background === 'video' && media.posterURL ? { backgroundImage: `url("${media.posterURL}")` } : undefined}>
@@ -142,12 +247,6 @@ function ChatAppearanceControls() {
         onDragOver={event => handleDragOver('image', event)}
         onDragLeave={event => handleDragLeave('image', event)}
         onDrop={event => handleDrop('image', event)}>
-        <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" disabled={Boolean(uploading)} hidden
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = '';
-            if (file) void upload(file);
-          }} />
         <Button size="sm" variant="outline" disabled={Boolean(uploading)} aria-describedby={`${id}-file-hint`}
           onClick={() => input.current?.click()}>
           <ImagePlus aria-hidden="true" />{t(uploading === 'image' ? 'uploading' : 'upload')}
@@ -166,12 +265,6 @@ function ChatAppearanceControls() {
         onDragOver={event => handleDragOver('video', event)}
         onDragLeave={event => handleDragLeave('video', event)}
         onDrop={event => handleDrop('video', event)}>
-        <input ref={videoInput} type="file" accept="video/mp4,video/webm" disabled={Boolean(uploading)} hidden
-          onChange={event => {
-            const file = event.target.files?.[0];
-            event.target.value = '';
-            if (file) void uploadVideo(file);
-          }} />
         <Button size="sm" variant="outline" disabled={Boolean(uploading)} aria-describedby={`${id}-video-hint`}
           onClick={() => videoInput.current?.click()}>
           <Video aria-hidden="true" />{t(uploading === 'video' ? 'uploadingVideo' : appearance.videoId ? 'replaceVideo' : 'uploadVideo')}
@@ -188,6 +281,39 @@ function ChatAppearanceControls() {
         <p className="chat-appearance-hint">{t('videoPlaybackHint')}</p>
       </div> : null}
       {error ? <p className="chat-appearance-error" role="alert">{t(error)}</p> : null}
+      </div>
+      <form id={`${id}-source-link`} className="chat-appearance-source-content chat-appearance-link"
+        hidden={source !== 'link'} aria-busy={uploading === 'link'}
+        onSubmit={event => { event.preventDefault(); void applySource(); }}>
+        <label htmlFor={`${id}-source-url`}>{t('sourceUrl')}</label>
+        <input id={`${id}-source-url`} type="text" inputMode="url" autoComplete="off" spellCheck={false}
+          placeholder={t('sourceUrlPlaceholder')} value={sourceUrl} maxLength={2000} disabled={Boolean(uploading)}
+          aria-invalid={invalidUrl || sourceUnavailable}
+          aria-describedby={`${id}-source-url-hint${invalidUrl || sourceUnavailable ? ` ${id}-source-url-error` : ''}`}
+          onChange={event => {
+            cancelSourceProbe();
+            setSourceUrl(event.target.value);
+            setInvalidUrl(false);
+            setSourceUnavailable(false);
+          }} />
+        <div className="chat-appearance-link-actions">
+          <div className="chat-appearance-segments" role="group" aria-label={t('sourceType')}>
+            {(['image', 'video'] as const).map(kind => <button key={kind} type="button" aria-pressed={sourceType === kind}
+              disabled={Boolean(uploading)} onClick={() => {
+                cancelSourceProbe();
+                setSourceType(kind);
+                setSourceUnavailable(false);
+              }}>{t(`sourceType.${kind}`)}</button>)}
+          </div>
+          <Button type="submit" size="sm" variant="outline" disabled={Boolean(uploading)}>
+            <Link2 aria-hidden="true" />{t('applySource')}
+          </Button>
+        </div>
+        <p id={`${id}-source-url-hint`} className="chat-appearance-hint">{t('sourceUrlHint')}</p>
+        {uploading === 'link' ? <p className="chat-appearance-hint" role="status">{t('checkingSource')}</p> : null}
+        {invalidUrl ? <p id={`${id}-source-url-error`} className="chat-appearance-error" role="alert">{t('invalidSourceURL')}</p> : null}
+        {sourceUnavailable ? <p id={`${id}-source-url-error`} className="chat-appearance-error" role="alert">{t('sourceUnavailable')}</p> : null}
+      </form>
     </fieldset>
 
     <fieldset className="chat-appearance-fieldset">

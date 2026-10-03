@@ -1535,3 +1535,30 @@ verified public HTTPS reaches the required-device-token 401 response. Existing
 web routing and authentication gates are unchanged. Negative DNS caches may
 outlast the record creation; use a fresh PC Settings / Devices pairing QR.
 Operational details and verification boundaries: `docs/mobile-app/TUNNEL.md`.
+
+
+## Wallpaper sources and ready media (2026-10-03)
+
+- Settings > Appearance now separates Ready backgrounds, My files and Link.
+  Browsing a source does not change the active wallpaper. Existing local
+  images, IndexedDB videos, placements and glass preferences remain saved.
+- Four bundled choices add coast and misty-forest photos plus muted looping
+  clouds and starry-sky videos. Gallery previews are still JPEGs; the app
+  retains one shared video player. Source/license records and dimensions
+  live in dashboard/src/panels/chat/assets/wallpapers/README.md. Videos have
+  no audio; matching first/last frames and offline MP4 caching are not claimed.
+- Direct HTTP(S) photo/video links are checked in the browser before Apply.
+  Unsupported schemes, credentials, invalid content and ten-second timeouts
+  preserve the prior wallpaper with localized feedback. Checks cancel on
+  unmount or saved-source changes. There is no backend proxy or upload.
+  Paused remote videos use the bundled sky still; CSS URLs are escaped.
+- Validation: isolated production build and 198 frontend tests passed;
+  TypeScript passed; the full Python suite passed 1,130 tests, with 6 skipped
+  and 178 subtests. New source and existing appearance browser fixtures
+  passed, including real media decoding, failed links, persistence, keyboard
+  access, both locales, 320/390px layouts and no backend writes. Smoke checked
+  seven endpoints, all 307 release resources and both traversal guards (400).
+- An independent native reviewer at maximum effort fixed source-check
+  lifecycle, still fallback and URL escaping, then repeated the browser suite.
+  Fable was unavailable; no Fable review is claimed. External media may change
+  after a successful check; physical phones and Raspberry Pi were not tested.
