@@ -1596,3 +1596,19 @@ Operational details and verification boundaries: `docs/mobile-app/TUNNEL.md`.
 - Status, screen, dashboard and referenced assets returned 200; memory
   traversal returned 400. Temporary preview/smoke processes were stopped.
   Source and generated release are pushed; owner drafts/staging remain intact.
+
+## 2026-10-03 — Workspace editor draft safety
+
+- Files panel refreshes now preserve dirty drafts and show a localized external-change notice when the server version changes. Delayed saves only clear dirty state when the selected path and current text still match the submitted snapshot; A→B→A switching remains visibly dirty. Reload is disabled while saving, and successful saves cancel stale reads and update the file cache.
+- Validation: 5 focused file-draft tests, 206 dashboard tests, TypeScript, isolated Vite build, and `VBOT_OFFLINE=1` Python suite (1,129 passed, 7 skipped, 178 subtests). Independent adversarial review approved the fix. Details: `reports/night-agent-files-editor-2026-10-03.md`.
+
+
+## Verified file-drop release (2026-10-03)
+
+- Published source 7bb73b0 through the guarded publisher. The complete
+  file-drop fixture passed against /dash/ on actual port 8100, including
+  multipart bytes, previews, validation feedback, cap, ordering, cancellation,
+  concurrent rejection and late-upload session isolation. All writes were mocks.
+- Status, screen, dashboard and referenced assets returned 200; memory
+  traversal returned 400. Temporary preview/smoke processes were stopped.
+  Source and generated release are pushed; owner drafts/staging remain intact.
