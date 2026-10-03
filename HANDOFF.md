@@ -939,3 +939,33 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
 - Production assets are built from committed source plus this task's changes,
   preserving unrelated drafts. HTTP status, screen and dashboard returned
   200; a memory path-traversal attempt returned 400.
+
+
+## 2026-10-03 — Codex image generation
+
+- Codex is the first image provider, using the official local app-server and
+  ChatGPT sign-in. API-key billing is never selected as an automatic fallback.
+- Chat's + menu opens a localized Create image dialog with passive readiness
+  and retry. Explicit creation requests also route directly to the provider,
+  preserving operator authorization, upload ownership and the image deadline.
+- Completed images remain in chat history as private uploads, with authenticated
+  blob previews, the existing viewer and download. Bounded image references
+  accompany follow-up text turns without presenting captions as pixel analysis.
+- Shared tokenless MCP calls cannot establish a caller's ownership and are
+  rejected when authentication is enabled. Allowlisting image_generate alone
+  does not bypass this. Reference-image editing is outside this first provider.
+- Independent native maximum-effort review fixed RPC ordering, inherited tool/
+  model settings, process-group cleanup, bounded saved files and identity checks.
+  Architecture review found no remaining blocker; real paid generation remains
+  unverified because the local CLI still needs ChatGPT sign-in. Fable and the
+  configured specialist model were unavailable; supported native agents reviewed.
+- Validation: 1047 Python tests passed, 6 skipped, 178 subtests; 117 committed-
+  source dashboard tests, TypeScript and production builds passed. Browser
+  checks exercised real SSE/history/private publication with a fixture image,
+  both locales, desktop/phone fit, focus, viewer and zero scoped axe violations.
+  HTTP smoke covered 300 checks, including traversal rejection (400), operator
+  proxy rejection, private uploads/history and every release resource.
+- Backend and UI commits passed Gitleaks/TruffleHog and were pushed on main as
+  the required owner identity. Release assets match committed sources; the live
+  local build preserves other agents' pending UI edits. Test servers and browsers
+  are stopped after verification. Setup: Virtual Bot/docs/IMAGE-GENERATION.md.
