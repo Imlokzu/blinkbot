@@ -883,3 +883,31 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   behavior with synthetic temporary data and mocked external services.
 - Findings are proposals; product code and other agents' pending edits remain
   unchanged. Check `VALIDATION.md` for evidence, scope, and review limits.
+
+
+## 2026-10-03 — Resilient web search
+
+- Replaced DuckDuckGo HTML scraping as the primary `web_search` provider with
+  Exa's official hosted MCP. It works without a key within Exa's free limits;
+  an optional `EXA_API_KEY` uses the owner's account quota via an `x-api-key`
+  header. Secrets are never added to URLs, fallback requests, or error logs.
+- Preserved `query`/`results` and added provider metadata. JSON and SSE MCP
+  responses normalize to title, URL and snippet. DuckDuckGo remains a fallback,
+  including its Lite endpoint after an ordinary HTML endpoint failure.
+- DuckDuckGo HTTP 202/challenge forms and provider rate limits get temporary
+  cooldowns instead of false empty results. Each provider has a 10-second
+  deadline and the complete fallback chain is bounded to 25 seconds. Exa
+  redirects are disabled so an API key cannot follow a cross-host redirect.
+- Input errors and service failures use tool locale keys in Ukrainian/English.
+  The hosted Exa schema was checked live: query/objective are required, with
+  optional numResults. The keyless quota is rate-limited, not unlimited.
+- Separate adversarial reviewers fixed count validation, challenge false
+  positives, RPC rate-limit classification, stalled-stream fallback, clock
+  isolation in tests, and redirect header leakage. Fable was unavailable in
+  this runtime; supported native reviewers completed the independent checks.
+- Validation: full working-tree Python suite 1,027 passed, 6 skipped and 178
+  subtests; final focused search suite 19 passed and 28 subtests. Secret scans
+  passed. Six consecutive HTTP searches returned three Exa results each in
+  1.03-1.43 seconds. Status/tools/screen/static assets returned 200 and memory
+  traversal returned 400. The isolated smoke server was stopped. Only the live
+  web backend was restarted; its search and browser search both returned results.
