@@ -1612,3 +1612,19 @@ Operational details and verification boundaries: `docs/mobile-app/TUNNEL.md`.
 - Status, screen, dashboard and referenced assets returned 200; memory
   traversal returned 400. Temporary preview/smoke processes were stopped.
   Source and generated release are pushed; owner drafts/staging remain intact.
+
+## 2026-10-03 — Benchmark index parser hardening
+
+- Model-picker benchmark leaders and scores are now bounded to their documented 0–1 range before percentages or comparisons are rendered. The parser keeps malformed non-finite values unknown.
+- Validation: 10 intelligence tests, 207 dashboard tests and TypeScript passed; an independent adversarial review approved the fix. Details: `reports/night-agent-model-intelligence-2026-10-03.md`.
+
+
+## Verified file-drop release (2026-10-03)
+
+- Published source 7bb73b0 through the guarded publisher. The complete
+  file-drop fixture passed against /dash/ on actual port 8100, including
+  multipart bytes, previews, validation feedback, cap, ordering, cancellation,
+  concurrent rejection and late-upload session isolation. All writes were mocks.
+- Status, screen, dashboard and referenced assets returned 200; memory
+  traversal returned 400. Temporary preview/smoke processes were stopped.
+  Source and generated release are pushed; owner drafts/staging remain intact.
