@@ -1330,3 +1330,9 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   existing navigation browser fixtures across both themes/locales and
   320/390/1100/1200/1440px layouts. HTTP smoke verifies static assets and
   memory traversal rejection. Unrelated owner drafts/staged work remain intact.
+
+- Published the final integrated build with the preceding committed conversation
+  sidebar improvements. Live /dash browser checks pass all activity folding,
+  focus, blur and favicon cases; 156 frontend tests, TypeScript/build and all
+  300 smoke resources pass. Temporary test servers and browser sessions are
+  stopped. Original staged changes and unrelated source drafts are preserved.
