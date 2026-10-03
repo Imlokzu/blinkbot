@@ -20,7 +20,6 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.ui)
             implementation(compose.components.resources)
-            implementation("dev.chrisbanes.haze:haze:1.7.2")
             implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.38.1")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")

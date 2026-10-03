@@ -43,3 +43,7 @@ italic (Lora), with Ukrainian character coverage checked before bundling.
 License copies: `licenses/manrope-OFL.txt` and `licenses/lora-OFL.txt`.
 Sources: https://github.com/google/fonts/tree/main/ofl/manrope and
 https://github.com/google/fonts/tree/main/ofl/lora .
+
+The instantiated Lora-derived font uses the internal family name **Claude Greeting**
+to respect Lora's reserved font name. Original author, copyright and license
+metadata remain in the font; its outlines are from the upstream Lora source.

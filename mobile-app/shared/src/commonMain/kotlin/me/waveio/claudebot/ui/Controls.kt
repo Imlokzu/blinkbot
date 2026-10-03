@@ -1,0 +1,178 @@
+package me.waveio.claudebot.ui
+
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.*
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+
+val LocalReducedMotion = staticCompositionLocalOf { false }
+
+/** Short lived blur only: idle surfaces are opaque and need no backdrop rendering. */
+@Composable
+fun MotionPopup(
+    open: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier,
+    alignment: Alignment = Alignment.TopCenter, offset: IntOffset = IntOffset.Zero,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val target = remember { MutableTransitionState(false) }
+    target.targetState = open
+    val reduced = LocalReducedMotion.current
+    val blurSteps = remember { (1..5).map { BlurEffect(it.toFloat(), it.toFloat()) } }
+    val motion = updateTransition(target, label = "panel")
+    val progress = motion.animateFloat(transitionSpec = { tween(if (reduced) 0 else 190, easing = FastOutSlowInEasing) }, label = "panelReveal") { if (it) 1f else 0f }
+    if (target.currentState || target.targetState) {
+        Popup(alignment = alignment, offset = offset, onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
+            val palette = LocalPalette.current
+            Column(modifier.graphicsLayer {
+                val value = progress.value
+                alpha = value
+                scaleX = 0.96f + value * 0.04f; scaleY = scaleX
+                translationY = (1f - value) * -5.dp.toPx()
+                transformOrigin = TransformOrigin(0.5f, 0f)
+                val blur = ((1f - value) * 5f).toInt()
+                renderEffect = if (!reduced && value in 0.02f..0.97f && blur > 0) blurSteps[blur - 1] else null
+            }.clip(RoundedCornerShape(24.dp)).background(palette.surface).border(1.dp, palette.line, RoundedCornerShape(24.dp)).padding(12.dp), content = content)
+        }
+    }
+}
+
+@Composable
+fun BotDialog(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val p = LocalPalette.current
+        var entered by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { entered = true }
+        val progress by animateFloatAsState(if (entered) 1f else 0f, tween(if (LocalReducedMotion.current) 0 else 190), label = "dialog")
+        Column(Modifier.padding(22.dp).widthIn(max = 480.dp).fillMaxWidth().graphicsLayer { alpha = progress; scaleX = .97f + progress * .03f; scaleY = scaleX }.clip(RoundedCornerShape(26.dp)).background(p.surface).border(1.dp, p.line, RoundedCornerShape(26.dp)).padding(20.dp), content = content)
+    }
+}
+
+@Composable
+fun ActionButton(
+    text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
+    primary: Boolean = false, enabled: Boolean = true, icon: String? = null,
+) {
+    val p = LocalPalette.current
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed && !LocalReducedMotion.current) .975f else 1f, spring(stiffness = 700f), label = "press")
+    Row(modifier.heightIn(min = 46.dp).graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (enabled) 1f else .4f }
+        .clip(RoundedCornerShape(15.dp)).background(if (primary) p.ink else p.secondary)
+        .clickable(interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
+        .padding(horizontal = 16.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+        val ink = if (primary) p.background else p.ink
+        if (icon != null) { Glyph(icon, modifier = Modifier.size(18.dp), tint = ink); Spacer(Modifier.width(8.dp)) }
+        Text(text, color = ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+    }
+}
+
+@Composable
+fun QuietAction(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    Box(modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(12.dp)).clickable(enabled = enabled, role = Role.Button, onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
+        Text(text, color = LocalPalette.current.ink.copy(alpha = if (enabled) 1f else .4f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+fun ChoicePill(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    Box(modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(14.dp)).background(if (selected) p.ink else p.secondary)
+        .semantics { this.selected = selected }.clickable(role = Role.RadioButton, onClick = onClick)
+        .padding(horizontal = 14.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
+        Text(text, color = if (selected) p.background else p.ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+fun BotField(
+    value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier,
+    placeholder: String = "", label: String? = null, singleLine: Boolean = true, icon: String? = null,
+) {
+    val p = LocalPalette.current
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (label != null) Text(label, fontSize = 12.sp, color = p.muted)
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(p.secondary).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) { Glyph(icon, modifier = Modifier.size(18.dp), tint = p.muted); Spacer(Modifier.width(9.dp)) }
+            BasicTextField(value, onChange, Modifier.weight(1f).heightIn(min = 46.dp).padding(vertical = 13.dp)
+                .semantics { contentDescription = label ?: placeholder },
+                singleLine = singleLine, textStyle = MaterialTheme.typography.bodyMedium.copy(color = p.ink, fontSize = 15.sp), cursorBrush = SolidColor(p.accent),
+                decorationBox = { field -> Box { if (value.isEmpty()) Text(placeholder, color = p.muted, fontSize = 15.sp); field() } })
+        }
+    }
+}
+
+@Composable
+fun MenuRow(icon: String, title: String, onClick: () -> Unit, subtitle: String? = null, enabled: Boolean = true, trailing: @Composable (() -> Unit)? = null) {
+    val p = LocalPalette.current
+    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(14.dp)).clickable(enabled = enabled, role = Role.Button, onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Glyph(icon, modifier = Modifier.size(21.dp), tint = p.ink.copy(alpha = if (enabled) 1f else .4f))
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = p.ink.copy(alpha = if (enabled) 1f else .4f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            if (subtitle != null) Text(subtitle, color = p.muted, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        trailing?.invoke()
+    }
+}
+
+@Composable
+fun Hairline(modifier: Modifier = Modifier) = Box(modifier.fillMaxWidth().height(1.dp).background(LocalPalette.current.line))
+
+@Composable
+fun BotToggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    val p = LocalPalette.current
+    val position by animateFloatAsState(if (checked) 1f else 0f, tween(if (LocalReducedMotion.current) 0 else 140), label = "toggle")
+    Row(Modifier.fillMaxWidth().heightIn(min = 54.dp).semantics { toggleableState = if (checked) androidx.compose.ui.state.ToggleableState.On else androidx.compose.ui.state.ToggleableState.Off }
+        .clickable(role = Role.Switch) { onChange(!checked) }, verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = p.ink, fontSize = 14.sp, modifier = Modifier.weight(1f).padding(end = 12.dp))
+        Canvas(Modifier.size(46.dp, 28.dp)) {
+            drawRoundRect(if (checked) p.ink else p.line, cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2))
+            drawCircle(if (checked) p.background else p.surface, radius = 10.dp.toPx(), center = Offset(14.dp.toPx() + position * 18.dp.toPx(), size.height / 2))
+        }
+    }
+}
+
+@Composable
+fun BotSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
+    val p = LocalPalette.current
+    var width by remember { mutableFloatStateOf(1f) }
+    val change by rememberUpdatedState(onChange)
+    val fraction = ((value - range.start) / (range.endInclusive - range.start)).coerceIn(0f, 1f)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, color = p.ink, fontSize = 14.sp)
+        Canvas(Modifier.fillMaxWidth().height(44.dp).onSizeChanged { width = it.width.toFloat().coerceAtLeast(1f) }.semantics {
+            contentDescription = label; progressBarRangeInfo = ProgressBarRangeInfo(value, range)
+            setProgress { change(it.coerceIn(range)); true }
+        }.pointerInput(range) { detectTapGestures { offset -> change(range.start + (offset.x / width).coerceIn(0f, 1f) * (range.endInclusive - range.start)) } }
+            .pointerInput(range) { detectHorizontalDragGestures { event, _ -> event.consume(); change(range.start + (event.position.x / width).coerceIn(0f, 1f) * (range.endInclusive - range.start)) } }) {
+            val y = size.height / 2; val edge = 10.dp.toPx(); val x = edge + (size.width - edge * 2) * fraction
+            drawLine(p.line, Offset(edge, y), Offset(size.width - edge, y), 4.dp.toPx(), StrokeCap.Round)
+            drawLine(p.ink, Offset(edge, y), Offset(x, y), 4.dp.toPx(), StrokeCap.Round)
+            drawCircle(p.ink, 9.dp.toPx(), Offset(x, y))
+        }
+    }
+}

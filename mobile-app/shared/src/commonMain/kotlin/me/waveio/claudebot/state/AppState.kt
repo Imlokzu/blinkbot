@@ -1,8 +1,9 @@
 package me.waveio.claudebot.state
 
 import kotlinx.serialization.Serializable
+import me.waveio.claudebot.data.MobileSkill
 
-enum class Screen { Chat, Search, Files, Agents, Profile, Appearance, Models, Notifications, Personalization, Queue }
+enum class Screen { Chat, Search, Files, Agents, Profile, Appearance, Models, Notifications, Personalization, Queue, Skills }
 
 @Serializable
 data class Preferences(
@@ -58,6 +59,9 @@ data class AppState(
     val screen: Screen = Screen.Chat,
     val menuOpen: Boolean = false,
     val modelPickerOpen: Boolean = false,
+    val skills: List<MobileSkill> = emptyList(),
+    val skillsLoading: Boolean = false,
+    val skillsError: Boolean = false,
     val attachmentPickerOpen: Boolean = false,
     val sendModeOpen: Boolean = false,
     val scheduling: Boolean = false,

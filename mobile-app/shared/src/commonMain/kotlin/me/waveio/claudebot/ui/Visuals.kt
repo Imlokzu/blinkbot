@@ -3,12 +3,23 @@ package me.waveio.claudebot.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import org.jetbrains.compose.resources.Font
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -16,26 +27,41 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import dev.chrisbanes.haze.*
 import me.waveio.claudebot.resources.*
 import me.waveio.claudebot.state.*
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
-data class Palette(val background: Color, val surface: Color, val ink: Color, val muted: Color, val line: Color, val accent: Color, val dark: Boolean)
-val LocalPalette = staticCompositionLocalOf { Palette(Color(0xFFF7F5F2), Color.White, Color(0xFF232326), Color(0xFF77757C), Color(0xFFE6E2DD), Color(0xFFC06C4E), false) }
+@Immutable
+data class Palette(val background: Color, val surface: Color, val secondary: Color, val ink: Color, val muted: Color, val line: Color, val accent: Color, val dark: Boolean) {
+    val userBubble: Color get() = if (dark) Color(0xFF40362E) else Color(0xFF29241F)
+    val userInk: Color get() = Color(0xFFFFFDF8)
+    val botBubble: Color get() = if (dark) Color(0xFF25211D) else Color(0xFFFFFDF8)
+}
+private val DayPalette = Palette(Color(0xFFF5F1EA), Color(0xFFFFFDF8), Color(0xFFEFE9DF), Color(0xFF231E19), Color(0xFF797066), Color(0xFFE1D7CA), Color(0xFFB95F3D), false)
+private val NightPalette = Palette(Color(0xFF13110F), Color(0xFF1A1715), Color(0xFF221E1B), Color(0xFFF2ECE5), Color(0xFFABA096), Color(0xFF3A332C), Color(0xFFDA956E), true)
+val LocalPalette = staticCompositionLocalOf { DayPalette }
 
 @Composable
 fun MobileTheme(dark: Boolean, content: @Composable () -> Unit) {
-    val colors = if (dark) Palette(Color(0xFF171720), Color(0xFF24242F), Color(0xFFF4F0EB), Color(0xFFAAA6B0), Color(0xFF383743), Color(0xFFE39879), true) else LocalPalette.current
-    val scheme = (if (dark) darkColorScheme() else lightColorScheme()).copy(
+    val colors = if (dark) NightPalette else DayPalette
+    val regular = Font(Res.font.manrope_regular)
+    val semibold = Font(Res.font.manrope_semibold, FontWeight.SemiBold)
+    val body = remember(regular, semibold) { FontFamily(regular, semibold) }
+    val typography = remember(body) { val type = Typography(); type.copy(
+        bodyLarge = type.bodyLarge.copy(fontFamily = body), bodyMedium = type.bodyMedium.copy(fontFamily = body), bodySmall = type.bodySmall.copy(fontFamily = body),
+        titleLarge = type.titleLarge.copy(fontFamily = body), titleMedium = type.titleMedium.copy(fontFamily = body), titleSmall = type.titleSmall.copy(fontFamily = body),
+        labelLarge = type.labelLarge.copy(fontFamily = body), labelMedium = type.labelMedium.copy(fontFamily = body), labelSmall = type.labelSmall.copy(fontFamily = body),
+        headlineSmall = type.headlineSmall.copy(fontFamily = body), headlineMedium = type.headlineMedium.copy(fontFamily = body), headlineLarge = type.headlineLarge.copy(fontFamily = body),
+    ) }
+    val scheme = remember(colors) { (if (dark) darkColorScheme() else lightColorScheme()).copy(
         primary = colors.accent, onPrimary = Color.White,
-        secondary = colors.accent, secondaryContainer = lerp(colors.surface, colors.accent, 0.16f),
+        secondary = colors.accent, secondaryContainer = colors.secondary,
         onSecondaryContainer = colors.ink, background = colors.background,
         surface = colors.surface, onSurface = colors.ink, onBackground = colors.ink,
         outline = colors.muted, outlineVariant = colors.line,
-    )
-    CompositionLocalProvider(LocalPalette provides colors) { MaterialTheme(colorScheme = scheme, content = content) }
+    ) }
+    CompositionLocalProvider(LocalPalette provides colors, LocalContentColor provides colors.ink) { MaterialTheme(colorScheme = scheme, typography = typography, content = content) }
 }
 
 @Composable
@@ -44,6 +70,10 @@ fun Glyph(name: String, label: String? = null, modifier: Modifier = Modifier.siz
         "menu" -> Res.drawable.ic_sidebar_minimalistic_left
         "new" -> Res.drawable.ic_pen_new_square
         "attach" -> Res.drawable.ic_paperclip
+        "camera" -> Res.drawable.ic_camera
+        "photo" -> Res.drawable.ic_gallery
+        "skills" -> Res.drawable.ic_magic_stick
+        "effort" -> Res.drawable.ic_tuning
         "mic" -> Res.drawable.ic_microphone
         "send" -> Res.drawable.ic_arrow_up
         "back" -> Res.drawable.ic_arrow_left
@@ -56,6 +86,8 @@ fun Glyph(name: String, label: String? = null, modifier: Modifier = Modifier.siz
         "stop" -> Res.drawable.ic_stop
         "time" -> Res.drawable.ic_clock_circle
         "check" -> Res.drawable.ic_check
+        "share" -> Res.drawable.ic_share
+        "select" -> Res.drawable.ic_select_text
         "copy" -> Res.drawable.ic_copy
         "retry" -> Res.drawable.ic_refresh
         "phone" -> Res.drawable.ic_smartphone
@@ -71,7 +103,11 @@ fun Glyph(name: String, label: String? = null, modifier: Modifier = Modifier.siz
 
 @Composable
 fun IconAction(name: String, label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = modifier.size(48.dp)) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed && !LocalReducedMotion.current) .9f else 1f, spring(stiffness = 850f), label = "iconPress")
+    Box(modifier.size(48.dp).graphicsLayer { scaleX = scale; scaleY = scale }.clip(RoundedCornerShape(15.dp))
+        .clickable(interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
         Glyph(name, label, tint = LocalPalette.current.ink.copy(alpha = if (enabled) 1f else 0.35f))
     }
 }
@@ -120,30 +156,40 @@ fun BrandMark(brand: String, modifier: Modifier = Modifier.size(20.dp)) {
 }
 
 @Composable
-fun Wallpaper(state: AppState, modifier: Modifier = Modifier) {
+fun Wallpaper(preferences: Preferences, wallpaper: ByteArray?, screen: Screen, connected: Boolean, modifier: Modifier = Modifier) {
     val palette = LocalPalette.current
-    val preferences = state.preferences
-    val visible = preferences.wallpaper && (state.screen.name in preferences.wallpaperScreens || "all" in preferences.wallpaperScreens || !state.connected)
+    val visible = preferences.wallpaper && (screen.name in preferences.wallpaperScreens || "all" in preferences.wallpaperScreens || !connected)
     BoxWithConstraints(modifier.fillMaxSize().background(palette.background)) {
         if (visible) {
             val height = if (preferences.fullWallpaper) maxHeight else maxHeight * 0.56f
-            val source = rememberHazeState()
-            val custom = remember(state.customWallpaper) { state.customWallpaper?.let(::decodeImage) }
-            Box(Modifier.fillMaxWidth().height(height).hazeSource(source)) {
-                if (custom == null) Image(painterResource(Res.drawable.wallpaper), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                else Image(custom, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            val custom = remember(wallpaper) { wallpaper?.let(::decodeImage) }
+            Box(Modifier.fillMaxWidth().height(height)) {
+                WallpaperImage(custom, Modifier.fillMaxSize())
+                if (preferences.wallpaperBlur > 0f) {
+                    // Local cached layers do not track window coordinates while the
+                    // foreground chat moves. Blend increasing radii down the image.
+                    WallpaperImage(custom, Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .drawWithCache {
+                            val mask = Brush.verticalGradient(listOf(Color.Transparent, Color.White), startY = size.height * .08f, endY = size.height * .57f)
+                            onDrawWithContent { drawContent(); drawRect(mask, blendMode = BlendMode.DstIn) }
+                        }.blur((preferences.wallpaperBlur * .45f).dp))
+                    WallpaperImage(custom, Modifier.fillMaxSize().graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                        .drawWithCache {
+                            val mask = Brush.verticalGradient(listOf(Color.Transparent, Color.White), startY = size.height * .44f, endY = size.height * .9f)
+                            onDrawWithContent { drawContent(); drawRect(mask, blendMode = BlendMode.DstIn) }
+                        }.blur(preferences.wallpaperBlur.dp))
+                }
                 Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = (preferences.wallpaperDim + if (palette.dark) 0.2f else 0f).coerceIn(0f, 0.85f))))
             }
-            Box(Modifier.fillMaxWidth().height(height).hazeEffect(source) {
-                blurRadius = preferences.wallpaperBlur.dp
-                progressive = HazeProgressive.verticalGradient(startIntensity = 0f, endIntensity = 1f)
-                backgroundColor = palette.background
-                tints = emptyList()
-                noiseFactor = 0f
-            })
             Box(Modifier.fillMaxWidth().height(height).background(Brush.verticalGradient(listOf(Color.Transparent, palette.background.copy(alpha = 0.2f), palette.background), startY = 0f)))
         }
     }
+}
+
+@Composable
+private fun WallpaperImage(custom: ImageBitmap?, modifier: Modifier) {
+    if (custom == null) Image(painterResource(Res.drawable.wallpaper), null, modifier, contentScale = ContentScale.Crop)
+    else Image(custom, null, modifier, contentScale = ContentScale.Crop)
 }
 
 expect fun decodeImage(bytes: ByteArray): ImageBitmap?

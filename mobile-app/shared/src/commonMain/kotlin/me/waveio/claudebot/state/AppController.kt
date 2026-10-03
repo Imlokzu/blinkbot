@@ -23,6 +23,8 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     private var text: LocaleText? = null
     private val watchers = mutableMapOf<String, Job>()
     private val cursors = mutableMapOf<String, Long>()
+    private val sessionStreamVersions = mutableMapOf<String, Long>()
+    private val observedJobStates = mutableMapOf<String, Pair<Long, String>>()
     private var navigationVersion = 0L
     private var connectionVersion = 0L
     private var previewVersion = 0L
@@ -170,7 +172,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val version = connectionVersion
         val catalog = requireApi().models()
         if (version != connectionVersion) return
-        val models = catalog.models.map { model -> ModelRow(model.id, model.label ?: model.id.substringAfterLast('/'), model.provider.orEmpty(), model.brand ?: brand(model.id), model.available != false, model.efforts.ifEmpty { catalog.efforts }.map { if (it == "off") "none" else it }.distinct()) }
+        val models = catalog.models.map { model -> ModelRow(model.id, model.label ?: model.id.substringAfterLast('/'), model.provider.orEmpty(), model.brand ?: brand(model.id), model.available != false, (listOf("none") + model.efforts.ifEmpty { catalog.efforts }).distinct()) }
         update { it.copy(models = models, selectedModel = it.selectedModel.ifBlank { catalog.selected ?: models.firstOrNull()?.id.orEmpty() }) }
         val current = state.value
         val normalized = supportedEffort(current.selectedModel, current.effort)
@@ -202,12 +204,30 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         if (edits == profileEditVersion) update { it.copy(profileName = profile.name.orEmpty(), profilePersona = profile.personaCustom.orEmpty()) }
     }
 
-    override fun refresh() = run { loadSessions(); loadCatalog(); loadAllJobs(); state.value.sessionId.takeIf { it.isNotBlank() }?.let { loadJobs(it) } }
+    override fun refresh() = run { if (state.value.screen == Screen.Skills) loadSkills() else { loadSessions(); loadCatalog(); loadAllJobs(); state.value.sessionId.takeIf { it.isNotBlank() }?.let { loadJobs(it) } } }
     override fun navigate(screen: Screen) {
+        if (screen != Screen.Chat && state.value.dictationOpen) cancelDictation()
         feedback(); update { it.copy(screen = screen, menuOpen = false) }
         if (screen == Screen.Files) openDirectory(state.value.directory)
         if (screen == Screen.Personalization) run { loadProfile() }
         if (screen == Screen.Queue) run { loadAllJobs() }
+        if (screen == Screen.Skills) run { loadSkills() }
+    }
+    private suspend fun loadSkills() {
+        val version = connectionVersion
+        update { it.copy(skillsLoading = true, skillsError = false) }
+        try {
+            val skills = requireApi().fetchMobileSkills().sortedWith(compareByDescending<MobileSkill> { it.selectable }.thenBy { it.name })
+            if (version == connectionVersion) update { it.copy(skills = skills, skillsLoading = false) }
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { if (version == connectionVersion) update { it.copy(skillsLoading = false, skillsError = true) } }
+    }
+    override fun useSkill(name: String) {
+        val skill = state.value.skills.firstOrNull { it.name == name && it.selectable && it.invocation.isNotBlank() } ?: return
+        val existing = state.value.draft
+        if (skill.invocation !in existing.split(Regex("\\s+"))) draft(listOf(skill.invocation, existing).filter { it.isNotBlank() }.joinToString(" "))
+        update { it.copy(screen = Screen.Chat, attachmentPickerOpen = false) }
+        feedback()
     }
     override fun newChat() {
         if (state.value.editingMessageId != null) cancelEdit()
@@ -236,7 +256,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                 catch (failure: ApiFailure) { if (failure.status == 404 && local.isNotEmpty()) local.map { MessageRow("u-${it.clientId}", "user", it.message) } else throw failure }
             if (epoch != connectionVersion) return@run
             if (navigationVersion == version) update { it.copy(messages = messages, loading = false) }
-            loadJobs(id)
+            loadJobs(id, reconcileTerminal = true)
         }
     }
     private fun messageRow(message: ChatMessage, index: Int) = MessageRow(message.id ?: "history-$index", message.role, message.text, message.bubbles, message.steps.map { ActivityRow(it.id, it.label.orEmpty(), it.detail.orEmpty(), it.status ?: "done") }, message.model.orEmpty(), parts = message.parts.map { ContentPart(it.type, it.text.orEmpty(), it.ids) }, attachments = message.attachments.map { DraftAttachment(it.path, it.name.orEmpty(), it.mimeType.orEmpty(), it.size ?: 0) })
@@ -255,7 +275,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         update { it.copy(effort = effort) }; feedback()
     }
     private fun supportedEffort(model: String, value: String): String {
-        val normalized = if (value == "off") "none" else value
+        val normalized = value
         val supported = state.value.models.firstOrNull { it.id == model }?.efforts.orEmpty()
         return normalized.takeIf { it == "none" || it in supported } ?: "none"
     }
@@ -314,7 +334,9 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             if (state.value.sessionId == item.sessionId) {
                 if (item.forkAction != null) {
                     update { it.copy(sessionId = job.sessionId, messages = emptyList(), busy = true, activeJobId = job.id) }
-                } else update { it.copy(messages = if (item.scheduledAt == null) it.messages + MessageRow("u-${item.clientId}", "user", item.message) else it.messages, pending = it.pending + PendingRow(job.id, item.message, job.state, item.scheduledAt)) }
+                } else update { it.copy(messages = if (item.scheduledAt == null) it.messages + MessageRow("u-${item.clientId}", "user", item.message, attachments = item.attachments) else it.messages,
+                    busy = it.busy || job.state in setOf("running", "stopping"), activeJobId = if (job.state in setOf("running", "stopping")) job.id else it.activeJobId,
+                    pending = if (job.state in setOf("queued", "scheduled")) it.pending + PendingRow(job.id, item.message, job.state, item.scheduledAt) else it.pending) }
             }
             if (job.state in terminalStates) {
                 if (state.value.sessionId == job.sessionId) {
@@ -367,15 +389,29 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         update { it.copy(offlineQuestion = false) }
     }
 
-    private suspend fun loadJobs(session: String) {
+    private suspend fun loadJobs(session: String, reconcileTerminal: Boolean = false) {
         val version = connectionVersion
-        val jobs = requireApi().listMessages(session)
+        val navigation = navigationVersion
+        val connection = requireApi()
+        val streamVersion = sessionStreamVersions[session] ?: 0L
+        val jobs = connection.listMessages(session).map { job ->
+            val observed = observedJobStates[job.id]
+            if (observed != null && observed.first > streamVersion) job.copy(state = observed.second) else job
+        }
         if (version != connectionVersion) return
         if (state.value.sessionId == session) {
             val active = jobs.firstOrNull { it.state in listOf("running", "stopping") }
-            update { it.copy(pending = jobs.filter { it.state in listOf("queued", "scheduled") }.map { job -> PendingRow(job.id, job.message.orEmpty(), job.state, job.scheduledAt?.let { Instant.fromEpochMilliseconds((it * 1000).toLong()).toString() }) }, busy = active != null, activeJobId = active?.id, queuePaused = jobs.any { it.conversationPaused == true }) }
+            val currentSnapshot = (sessionStreamVersions[session] ?: 0L) == streamVersion
+            update { it.copy(pending = jobs.filter { it.state in listOf("queued", "scheduled") }.map { job -> PendingRow(job.id, job.message.orEmpty(), job.state, job.scheduledAt?.let { Instant.fromEpochMilliseconds((it * 1000).toLong()).toString() }) },
+                busy = if (currentSnapshot) active != null else it.busy, activeJobId = if (currentSnapshot) active?.id else it.activeJobId,
+                queuePaused = if (currentSnapshot) jobs.any { it.conversationPaused == true } else it.queuePaused) }
         }
         jobs.filter { it.state !in terminalStates }.forEach(::watch)
+        if (reconcileTerminal && jobs.any { it.state in terminalStates } && state.value.sessionId == session) {
+            val before = sessionStreamVersions[session] ?: 0L
+            val history = connection.sessionHistory(session).mapIndexed { index, message -> messageRow(message, index) }
+            if (version == connectionVersion && navigation == navigationVersion && before == (sessionStreamVersions[session] ?: 0L) && state.value.sessionId == session) update { it.copy(messages = history) }
+        }
     }
     private suspend fun loadAllJobs() {
         val version = connectionVersion
@@ -397,14 +433,18 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                         if (version != connectionVersion) return@collect
                         if (event.id != null && event.id <= (cursors[job.id] ?: 0L)) return@collect
                         event.id?.let { cursors[job.id] = it }
+                        val streamVersion = (sessionStreamVersions[job.sessionId] ?: 0L) + 1
+                        sessionStreamVersions[job.sessionId] = streamVersion
                         if (event.event == "mobile_state") {
                             val status = event.data["state"]?.jsonPrimitive?.content.orEmpty()
+                            observedJobStates[job.id] = streamVersion to status
                             terminal = status in terminalStates
                             if (state.value.sessionId == job.sessionId) update { current ->
                                 val starts = status in listOf("running", "stopping")
                                 val endsActive = terminal && current.activeJobId == job.id
                                 current.copy(busy = if (starts) true else if (endsActive) false else current.busy,
                                     activeJobId = if (starts) job.id else if (endsActive) null else current.activeJobId,
+                                    pending = if (starts || terminal) current.pending.filterNot { it.id == job.id } else current.pending,
                                     queuePaused = current.queuePaused || status in listOf("stopped", "failed", "interrupted"),
                                     messages = if (terminal) current.messages.map { row -> if (row.id == "a-${job.id}") row.copy(live = false) else row } else current.messages)
                             }
@@ -428,7 +468,13 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         }
     }
     private fun applyEvent(job: MobileJob, event: BotEvent) {
+        if (event.event !in setOf("delta", "reply_snapshot", "break", "note", "model", "tool_start", "tool_progress", "tool_done", "tool_result", "tool_error", "done", "error")) return
         val data = event.data
+        if (event.event in setOf("delta", "reply_snapshot", "note", "tool_start", "tool_progress")) {
+            val revision = sessionStreamVersions[job.sessionId] ?: 0L
+            observedJobStates[job.id] = revision to "running"
+            update { it.copy(busy = true, activeJobId = job.id, pending = it.pending.filterNot { pending -> pending.id == job.id }) }
+        }
         val id = "a-${job.id}"
         val old = state.value.messages.firstOrNull { it.id == id } ?: MessageRow(id, "assistant", "", live = true)
         var row = old
@@ -440,14 +486,24 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                 row = old.copy(text = old.text + chunk, parts = parts, live = true); feedback(true)
             }
             "break" -> row = old.copy(text = old.text + "\n\n", parts = old.parts + ContentPart("text"))
+            "reply_snapshot" -> {
+                val snapshot = data["text"]?.jsonPrimitive?.content
+                    ?: data["bubbles"]?.jsonArray?.joinToString("\n\n") { it.jsonPrimitive.content }.orEmpty()
+                if (snapshot.isBlank()) return
+                val insertAt = old.parts.indexOfFirst { it.type == "text" && it.noteId == null }.let { if (it < 0) old.parts.size else it }
+                val prefix = old.parts.take(insertAt)
+                val preserved = old.parts.drop(insertAt).filterNot { it.type == "text" && it.noteId == null }
+                row = old.copy(text = snapshot, parts = prefix + ContentPart("text", snapshot) + preserved, live = true)
+                feedback(true)
+            }
             "note" -> {
                 val noteId = data["id"]?.jsonPrimitive?.content ?: return
                 val note = ContentPart("text", data["bubbles"]?.jsonArray?.map { it.jsonPrimitive.content }?.joinToString("\n\n").orEmpty(), noteId = noteId)
                 row = old.copy(parts = if (old.parts.any { it.noteId == noteId }) old.parts.map { if (it.noteId == noteId) note else it } else old.parts + note)
+                feedback(true)
             }
             "model" -> {
                 val model = data["model"]?.jsonPrimitive?.content.orEmpty(); row = old.copy(model = model)
-                if (data["fallback"]?.jsonPrimitive?.booleanOrNull == true) update { it.copy(notice = "model.fallback", noticeDetail = model) }
             }
             "tool_start", "tool_progress", "tool_done", "tool_result", "tool_error" -> {
                 val step = data["step"] as? JsonObject ?: data
@@ -561,7 +617,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         platform.startRecording(onAmplitude = { amplitude -> if (recordingVersion == version) update { it.copy(amplitude = amplitude) } }, onResult = { file ->
             if (recordingVersion != version) return@startRecording
             if (file == null) { update { it.copy(recording = false, transcribing = false, dictationOpen = false, error = "error.recording") }; return@startRecording }
-            run {
+            run(isCurrent = { recordingVersion == version }) {
                 update { it.copy(recording = false, transcribing = true, amplitude = 0f) }
                 try {
                     val result = connection.transcribe(file.name, file.bytes, file.mimeType)
@@ -569,7 +625,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                         if (result.text.isBlank()) update { it.copy(transcribing = false, error = "error.emptyAudio") }
                         else { update { it.copy(transcript = result.text, transcribing = false) }; useTranscript() }
                     }
-                } catch (failure: Exception) { update { it.copy(transcribing = false) }; throw failure }
+                } catch (failure: Exception) { if (recordingVersion == version) update { it.copy(transcribing = false) }; throw failure }
             }
         }, onPartial = { file ->
             if (recordingVersion == version && state.value.recording && partialAsr?.isActive != true) {
@@ -590,6 +646,8 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         update { it.copy(dictationOpen = false, transcript = "") }
     }
 
+    override fun copyContent(text: String) { platform.copyText(text); feedback(); update { it.copy(notice = "chat.copied") } }
+    override fun shareContent(text: String) { platform.shareText(text) }
     override fun copyMessage(id: String) { state.value.messages.firstOrNull { it.id == id }?.let { platform.copyText(it.text); update { current -> current.copy(notice = "chat.copied") } } }
     override fun shareMessage(id: String) { state.value.messages.firstOrNull { it.id == id }?.let { platform.shareText(it.text) } }
     override fun editMessage(id: String) {
@@ -697,7 +755,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         connectionVersion++; navigationVersion++; recordingVersion++; previewVersion++; fileReadVersion++; directoryVersion++; pairingVersion++
         partialAsr?.cancel(); fileDebounce?.cancel(); platform.cancelRecording()
         watchers.values.forEach { it.cancel() }; watchers.clear(); api?.close(); api = null
-        outbox.clear(); permitted.clear(); outboxSnapshot = emptyList(); allowedSnapshot = emptySet(); fileDrafts.clear(); fileBaselines.clear(); fileRevisions.clear(); cursors.clear(); cachedProfile = null; beforeEdit = null
+        outbox.clear(); permitted.clear(); outboxSnapshot = emptyList(); allowedSnapshot = emptySet(); fileDrafts.clear(); fileBaselines.clear(); fileRevisions.clear(); cursors.clear(); sessionStreamVersions.clear(); observedJobStates.clear(); cachedProfile = null; beforeEdit = null
         platform.writeSecret("device_token", null); update { AppState(preferences = it.preferences, baseUrl = it.baseUrl, customWallpaper = it.customWallpaper) }
     }
     override fun dismissNotice() { update { it.copy(error = null, notice = null, noticeDetail = null) } }

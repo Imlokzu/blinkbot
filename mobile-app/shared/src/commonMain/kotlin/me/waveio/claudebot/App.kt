@@ -21,7 +21,7 @@ fun App(platform: PlatformBridge, createController: (PlatformBridge) -> AppContr
     val dark = when (state.preferences.theme) { "dark" -> true; "light" -> false; else -> isSystemInDarkTheme() }
     MobileTheme(dark) {
         val local = strings
-        if (local == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        if (local == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingDots() }
         else CompositionLocalProvider(LocalText provides local) {
             SideEffect { controller.strings(local) }
             MobileShell(state, controller, platform.reducedMotion)

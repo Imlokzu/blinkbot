@@ -284,3 +284,28 @@ These are visual review items, not another broad questionnaire.
 - [Reference icon source](https://github.com/zeronsh/zeron/blob/main/crates/ui/src/icons.rs)
 - [Apple background execution limits](https://developer.apple.com/forums/thread/685525)
 - [Android background scheduling guidance](https://developer.android.com/develop/background-work/background-tasks/persistent)
+
+## Owner refinement, 2026-10-04
+
+The owner authorized replacing stock Material controls with a custom interface.
+Keep Solar Linear and manufacturer logos. Use the web client's warm surface and
+ink colors, solid dark user bubbles and distinct opaque bot bubbles. Bundle
+Manrope for UI/body text and retain an italic Lora greeting. Picker panels are
+solid themed surfaces; motion blur is transient rather than persistent frosting.
+
+Prioritize the centered model popup. A selected model has a separate effort
+page/control with only its actual supported levels. Keep selection/change easy.
+Attachments use three large Camera / Photos / Files tiles, then genuine Skills
+and workspace/scheduling actions. Long-press actions use the same custom panels.
+Dictation lives inside the composer, with a voice-reactive edge glow, live
+transcript and explicit stop/cancel; its result remains an editable draft.
+
+The menu is behind the foreground chat: opening it moves the chat right,
+revealing approximately 65% of the menu. Gestures, direct controls, keyboard
+focus, safe areas and reduced motion must remain usable. Use short spring/reveal
+motion and brief blur on opening surfaces; do not run expensive idle effects.
+
+Remove stock snackbars and reply-time banners. Model fallback remains disclosed
+inline with the actual answering model. Typing uses a compact white dot bubble
+without a repeated writing label. Replies must stream as backend events arrive;
+an animation of a fully completed response does not count as streaming.

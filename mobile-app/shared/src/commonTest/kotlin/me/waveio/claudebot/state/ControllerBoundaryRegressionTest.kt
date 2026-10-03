@@ -595,11 +595,13 @@ class ControllerBoundaryRegressionTest {
         assertEquals("none", fixture.controller.state.value.effort)
     }
 
-    @Test fun backendOffEffortIsCanonicalizedToTheSupportedNoneValue() = controllerTest {
+    @Test fun explicitOffRemainsDistinctFromInheritingTheGatewayDefault() = controllerTest {
         val fixture = fixture()
         runCurrent()
-        assertEquals(listOf("none", "low"), fixture.controller.state.value.models.single().efforts)
+        assertEquals(listOf("none", "off", "low"), fixture.controller.state.value.models.single().efforts)
         fixture.controller.selectEffort("off")
+        assertEquals("off", fixture.controller.state.value.effort)
+        fixture.controller.selectEffort("none")
         assertEquals("none", fixture.controller.state.value.effort)
     }
 

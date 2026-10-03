@@ -24,6 +24,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import me.waveio.claudebot.resources.Res
+import me.waveio.claudebot.resources.lora_italic
+import org.jetbrains.compose.resources.Font
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,12 +44,15 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean) {
     val palette = LocalPalette.current
     var following by remember(state.sessionId) { mutableStateOf(true) }
     LaunchedEffect(list) {
-        snapshotFlow { list.isScrollInProgress to list.canScrollForward }.collect { (scrolling, canForward) ->
-            if (scrolling) following = !canForward
+        var previous = list.firstVisibleItemIndex to list.firstVisibleItemScrollOffset
+        snapshotFlow { Triple(list.firstVisibleItemIndex, list.firstVisibleItemScrollOffset, list.canScrollForward) }.collect { (index, offset, canForward) ->
+            if (!canForward) following = true
+            else if (list.isScrollInProgress && (index < previous.first || index == previous.first && offset < previous.second)) following = false
+            previous = index to offset
         }
     }
     LaunchedEffect(state.sessionId) { if (state.messages.isNotEmpty()) list.scrollToItem(state.messages.lastIndex) }
-    LaunchedEffect(state.messages.lastOrNull()?.text, state.messages.size, state.messages.lastOrNull()?.steps) {
+    LaunchedEffect(state.messages.lastOrNull()?.text, state.messages.size, state.messages.lastOrNull()?.steps, state.messages.lastOrNull()?.parts) {
         if (following && list.layoutInfo.totalItemsCount > 0) list.scrollToItem(list.layoutInfo.totalItemsCount - 1)
     }
     Column(Modifier.fillMaxSize()) {
@@ -55,25 +62,22 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             } else {
                 LazyColumn(state = list, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp, 20.dp, 18.dp, 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     items(state.messages, key = { it.id }) { message ->
-                        MessageContent(message, actions, reducedMotion)
+                        MessageContent(message, actions, reducedMotion, state.busy)
                     }
-                    if (state.busy && state.messages.lastOrNull()?.text.isNullOrBlank()) item { TypingIndicator(reducedMotion) }
+                    if (state.busy || state.pending.any { it.state == "queued" } && state.messages.lastOrNull()?.role == "user") item { TypingIndicator() }
                 }
             }
-            if (state.loading) CircularProgressIndicator(Modifier.align(Alignment.Center).size(24.dp), strokeWidth = 2.dp)
+            if (state.loading) LoadingDots(Modifier.align(Alignment.Center))
             if (!following && state.messages.isNotEmpty()) {
-                FilledTonalButton(onClick = { following = true; scope.launch { list.animateScrollToItem((list.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)) } }, modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp)) {
-                    Glyph("down", modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp)); Text(tr("chat.latest"), fontSize = 12.sp)
-                }
+                ActionButton(tr("chat.latest"), { following = true; scope.launch { list.animateScrollToItem((list.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)) } }, Modifier.align(Alignment.BottomCenter).padding(12.dp), icon = "down")
             }
         }
-        if (state.pending.isNotEmpty() || state.queuePaused) {
+        if (state.pending.size > 1 || state.pending.isNotEmpty() && state.busy || state.queuePaused) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Glyph("time", modifier = Modifier.size(15.dp), tint = palette.muted)
                 Spacer(Modifier.width(6.dp))
                 Text(if (state.queuePaused) tr("queue.paused") else tr("queue.title") + " · " + state.pending.size, fontSize = 12.sp, color = palette.muted, modifier = Modifier.weight(1f))
-                if (state.queuePaused) TextButton(onClick = actions::resumeQueue) { Text(tr("queue.resume"), fontSize = 12.sp) }
+                if (state.queuePaused) QuietAction(tr("queue.resume"), actions::resumeQueue)
             }
         }
         Composer(state, actions)
@@ -87,17 +91,17 @@ private fun Welcome(modifier: Modifier, reducedMotion: Boolean) {
         if (!reducedMotion) while (true) { delay(2000); index = (index + 1) % 4 }
     }
     AnimatedContent(index, modifier = modifier.heightIn(min = 105.dp), transitionSpec = { fadeIn(tween(if (reducedMotion) 0 else 320)) togetherWith fadeOut(tween(if (reducedMotion) 0 else 180)) }, label = "welcome") { current ->
-        Text(tr("welcome.$current"), fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, fontSize = 33.sp, lineHeight = 39.sp, color = LocalPalette.current.ink)
+        Text(tr("welcome.$current"), fontFamily = FontFamily(Font(Res.font.lora_italic, FontWeight.Medium, FontStyle.Italic)), fontStyle = FontStyle.Italic, fontSize = 33.sp, lineHeight = 39.sp, color = LocalPalette.current.ink)
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MessageContent(message: MessageRow, actions: AppActions, reducedMotion: Boolean) {
+private fun MessageContent(message: MessageRow, actions: AppActions, reducedMotion: Boolean, busy: Boolean) {
     val palette = LocalPalette.current
     val user = message.role == "user"
-    var menuPart by remember(message.id) { mutableStateOf<Int?>(null) }
-    var selection by remember(message.id) { mutableStateOf(false) }
+    var menuText by remember(message.id) { mutableStateOf<String?>(null) }
+    var selection by remember(message.id) { mutableStateOf<String?>(null) }
     var visible by remember(message.id) { mutableStateOf(!message.live || reducedMotion) }
     LaunchedEffect(message.id) { visible = true }
     val opacity by animateFloatAsState(if (visible) 1f else 0f, tween(if (reducedMotion) 0 else 220), label = "messageReveal")
@@ -117,37 +121,37 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
             if (line.isBlank()) continue
             Box {
                 Surface(
-                    modifier = Modifier.widthIn(max = if (user) 320.dp else 600.dp).combinedClickable(onClick = {}, onLongClick = { menuPart = partIndex }),
+                    modifier = Modifier.widthIn(max = if (user) 320.dp else 600.dp).combinedClickable(onClick = {}, onLongClick = { menuText = line }),
                     shape = RoundedCornerShape(21.dp, 21.dp, if (user) 6.dp else 21.dp, if (user) 21.dp else 6.dp),
-                    color = if (user) palette.surface else palette.surface.copy(alpha = if (palette.dark) 0.7f else 0.78f),
+                    color = if (user) palette.userBubble else palette.botBubble,
                 ) {
                     Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                        if (user) Text(line, color = palette.ink, fontSize = 16.sp, lineHeight = 23.sp)
+                        if (user) Text(line, color = palette.userInk, fontSize = 16.sp, lineHeight = 23.sp)
                         else Markdown(line, modifier = Modifier.fillMaxWidth())
                     }
                 }
-                DropdownMenu(expanded = menuPart == partIndex, onDismissRequest = { menuPart = null }) {
-                    DropdownMenuItem(text = { Text(tr("chat.copy")) }, onClick = { menuPart = null; actions.copyMessage(message.id) })
-                    DropdownMenuItem(text = { Text(tr("chat.select")) }, onClick = { menuPart = null; selection = true })
-                    DropdownMenuItem(text = { Text(tr("chat.share")) }, onClick = { menuPart = null; actions.shareMessage(message.id) })
-                    if (user) DropdownMenuItem(text = { Text(tr("chat.edit")) }, onClick = { menuPart = null; actions.editMessage(message.id) })
-                    else DropdownMenuItem(text = { Text(tr("chat.regenerate")) }, onClick = { menuPart = null; actions.regenerate(message.id) })
-                }
+
             }
         }
         if (message.steps.isNotEmpty() && parts.none { it.type == "steps" }) ActivityTree(message.steps, message.live)
         message.attachments.forEach { attachment ->
-            OutlinedButton(onClick = { actions.previewAttachment(attachment.path) }, shape = RoundedCornerShape(14.dp)) {
-                Glyph("file", modifier = Modifier.size(17.dp)); Spacer(Modifier.width(7.dp)); Text(attachment.name, fontSize = 13.sp, maxLines = 1)
-            }
+            ActionButton(attachment.name, { actions.previewAttachment(attachment.path) }, icon = if (attachment.mimeType.startsWith("image/")) "photo" else "file")
         }
-        if (message.live && message.text.isNotBlank()) TypingIndicator(reducedMotion)
+        if (!user && message.model.isNotBlank() && !message.live) Text(message.model.substringAfterLast('/'), color = palette.muted, fontSize = 10.sp, modifier = Modifier.padding(start = 6.dp, top = 2.dp))
     }
-    if (selection) Dialog(onDismissRequest = { selection = false }) {
-        GlassCard { Column(Modifier.padding(20.dp).heightIn(max = 600.dp)) {
-            SelectionContainer(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) { Text(message.text, color = palette.ink) }
-            TextButton(onClick = { selection = false }, modifier = Modifier.align(Alignment.End)) { Text(tr("action.done")) }
-        } }
+    if (menuText != null) BotDialog({ menuText = null }) {
+        Text(menuText.orEmpty(), color = palette.muted, fontSize = 13.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(8.dp, 10.dp))
+        Hairline(Modifier.padding(vertical = 7.dp))
+        MenuRow("copy", tr("chat.copy"), { actions.copyContent(menuText.orEmpty()); menuText = null })
+        MenuRow("select", tr("chat.select"), { selection = menuText; menuText = null })
+        MenuRow("share", tr("chat.share"), { actions.shareContent(menuText.orEmpty()); menuText = null })
+        if (user) MenuRow("edit", tr("chat.edit"), { menuText = null; actions.editMessage(message.id) }, enabled = !busy)
+        else MenuRow("retry", tr("chat.regenerate"), { menuText = null; actions.regenerate(message.id) }, enabled = !busy)
+        QuietAction(tr("action.close"), { menuText = null }, Modifier.fillMaxWidth())
+    }
+    if (selection != null) BotDialog({ selection = null }) {
+        SelectionContainer(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) { Text(selection.orEmpty(), color = palette.ink) }
+        QuietAction(tr("action.done"), { selection = null }, Modifier.align(Alignment.End))
     }
 }
 
@@ -164,7 +168,7 @@ private fun ActivityTree(steps: List<ActivityRow>, live: Boolean) {
             Spacer(Modifier.width(8.dp)); Text(tr(when { failed -> "chat.toolsFailed"; interrupted -> "chat.toolsInterrupted"; else -> "chat.tools" }, "count" to steps.size), fontSize = 12.sp, color = p.muted, modifier = Modifier.weight(1f))
             Text(if (expanded) tr("chat.hide") else tr("chat.details"), color = p.accent, fontSize = 12.sp)
         }
-        AnimatedVisibility(expanded) {
+        AnimatedVisibility(expanded, enter = if (LocalReducedMotion.current) EnterTransition.None else expandVertically() + fadeIn(), exit = if (LocalReducedMotion.current) ExitTransition.None else shrinkVertically() + fadeOut()) {
             Column {
                 steps.forEachIndexed { index, step ->
                     Row(Modifier.fillMaxWidth().heightIn(min = 42.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -179,7 +183,7 @@ private fun ActivityTree(steps: List<ActivityRow>, live: Boolean) {
                             Text(step.label, fontSize = 12.sp, color = p.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             if (step.detail.isNotBlank()) Text(step.detail, fontSize = 11.sp, color = p.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
-                        if (live && step.status in listOf("running", "started")) CircularProgressIndicator(Modifier.padding(8.dp).size(12.dp), strokeWidth = 1.dp)
+                        if (live && step.status in listOf("running", "started")) LoadingDots(Modifier.padding(8.dp))
                     }
                 }
             }
@@ -188,58 +192,8 @@ private fun ActivityTree(steps: List<ActivityRow>, live: Boolean) {
 }
 
 @Composable
-private fun TypingIndicator(reducedMotion: Boolean) {
-    val transition = rememberInfiniteTransition(label = "typing")
-    val phase by transition.animateFloat(0.3f, 1f, infiniteRepeatable(tween(600), RepeatMode.Reverse), label = "typingPulse")
-    val p = LocalPalette.current
-    Surface(shape = RoundedCornerShape(18.dp), color = p.surface.copy(alpha = 0.8f)) {
-        Row(Modifier.padding(13.dp, 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            repeat(3) { Box(Modifier.size(4.dp).background(p.muted.copy(alpha = if (reducedMotion) 0.8f else phase), CircleShape)) }
-            Spacer(Modifier.width(4.dp)); Text(tr("chat.writing"), color = p.muted, fontSize = 11.sp)
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun Composer(state: AppState, actions: AppActions) {
-    val p = LocalPalette.current
-    GlassCard(Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth()) {
-        Column(Modifier.padding(8.dp)) {
-            if (state.editingMessageId != null) Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(tr("chat.edit"), color = p.muted, fontSize = 12.sp, modifier = Modifier.weight(1f).padding(start = 10.dp))
-                IconAction("close", tr("input.cancel"), actions::cancelEdit)
-            }
-            if (state.attachments.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                state.attachments.forEach { item -> InputChip(selected = false, onClick = { actions.removeAttachment(item.path) }, label = { Text(item.name, maxLines = 1, modifier = Modifier.widthIn(max = 160.dp)) }, trailingIcon = { Glyph("close", tr("input.removeAttachment"), Modifier.size(13.dp)) }) }
-            }
-            BasicTextField(value = state.draft, onValueChange = actions::draft, modifier = Modifier.fillMaxWidth().heightIn(min = 46.dp, max = 170.dp).padding(10.dp, 10.dp), textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.ink, fontSize = 16.sp), cursorBrush = SolidColor(p.accent), decorationBox = { field ->
-                Box { if (state.draft.isEmpty()) Text(tr("chat.placeholder"), color = p.muted, fontSize = 16.sp); field() }
-            })
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Box {
-                    IconAction("attach", tr("input.attach"), { actions.attachments(!state.attachmentPickerOpen) }, enabled = !state.uploading)
-                    DropdownMenu(state.attachmentPickerOpen, { actions.attachments(false) }) {
-                        listOf("photo", "camera", "document").forEach { kind -> DropdownMenuItem(text = { Text(tr("input.$kind")) }, onClick = { actions.attachments(false); actions.pickFile(kind) }) }
-                    }
-                }
-                if (state.uploading) CircularProgressIndicator(Modifier.size(17.dp), strokeWidth = 2.dp)
-                Spacer(Modifier.weight(1f))
-                IconAction("mic", tr("input.microphone"), actions::startDictation)
-                if (state.draft.isNotBlank() || state.attachments.isNotEmpty() || !state.busy) {
-                    Box {
-                        Box(Modifier.size(44.dp).clip(CircleShape).background(p.ink).combinedClickable(onClick = { actions.send() }, onLongClick = { actions.sendModes(true) }), contentAlignment = Alignment.Center) {
-                            Glyph("send", tr("chat.send"), Modifier.size(21.dp), p.background)
-                        }
-                        DropdownMenu(state.sendModeOpen, { actions.sendModes(false) }) {
-                            DropdownMenuItem(text = { Text(tr("queue.title")) }, onClick = { actions.sendModes(false); actions.send("queue") })
-                            DropdownMenuItem(text = { Text(tr("queue.steer")) }, enabled = state.busy && state.steerAvailable, onClick = { actions.sendModes(false); actions.send("steer") })
-                            DropdownMenuItem(text = { Text(tr("queue.later")) }, onClick = { actions.sendModes(false); actions.schedule(true) })
-                        }
-                    }
-                }
-                if (state.busy) IconAction("stop", tr("chat.stop"), actions::stop)
-            }
-        }
+private fun TypingIndicator() {
+    Box(Modifier.padding(start = 2.dp).clip(RoundedCornerShape(19.dp, 19.dp, 19.dp, 6.dp)).background(Color(0xFFFFFDF8)).padding(horizontal = 16.dp, vertical = 13.dp)) {
+        LoadingDots(color = Color(0xFF6C645D))
     }
 }
