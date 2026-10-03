@@ -1,0 +1,278 @@
+{
+  "uk": {
+    "sessions": [
+      {
+        "id": "demosaturday01",
+        "title": "Субота з друзями",
+        "agoMinutes": 2,
+        "messages": [
+          { "role": "user", "content": "Яка погода в Києві на суботу? Хочемо з друзями кудись вибратися" },
+          {
+            "role": "assistant",
+            "parts": [
+              { "type": "text", "note": true, "text": "Секунду — гляну прогноз і що цікавого в місті." },
+              { "type": "steps", "ids": ["demo-weather-1", "demo-search-1"] },
+              { "type": "text", "text": "У суботу сухо й сонячно: вдень до +17°, вітер слабкий. Хмари підтягнуться лише після 20:00 — гуляти можна до вечора." },
+              { "type": "text", "text": "Що можна:\n\n1. **Ботсад імені Гришка** — зараз саме золоте листя, вхід до 18:00\n2. **Пейзажна алея → Андріївський узвіз** — кава й краєвид на Поділ\n3. Якщо ввечері збереться дощ — **кіно або настолки**" },
+              { "type": "text", "text": "Нагадати всім о 10:00, щоб ніхто не проспав?" }
+            ],
+            "steps": [
+              {
+                "id": "demo-weather-1",
+                "label": "weather",
+                "detail": "Київ · субота",
+                "input": { "city": "Київ", "day": "saturday" },
+                "result": { "city": "Київ", "day": "субота", "temp_max": 17, "temp_min": 9, "wind_ms": 3, "conditions": "сонячно, хмарність після 20:00" },
+                "seconds": 1.4
+              },
+              {
+                "id": "demo-search-1",
+                "label": "web_search",
+                "detail": "куди піти в Києві восени",
+                "input": { "query": "куди піти в Києві восени на вихідних" },
+                "result": {
+                  "results": [
+                    { "title": "Національний ботанічний сад імені М. М. Гришка — Вікіпедія", "url": "https://uk.wikipedia.org/wiki/Національний_ботанічний_сад_імені_М._М._Гришка" },
+                    { "title": "Андріївський узвіз — Вікіпедія", "url": "https://uk.wikipedia.org/wiki/Андріївський_узвіз" },
+                    { "title": "Прогноз погоди — Український гідрометеорологічний центр", "url": "https://meteo.gov.ua/" },
+                    { "title": "Київ: події та афіша на вихідні", "url": "https://kyivcity.gov.ua/" }
+                  ]
+                },
+                "seconds": 2.1
+              }
+            ]
+          },
+          { "role": "user", "content": "Давай. І запам'ятай, що Оля не їсть горіхів" },
+          {
+            "role": "assistant",
+            "parts": [
+              { "type": "steps", "ids": ["demo-memory-1", "demo-todo-1"] },
+              { "type": "text", "text": "Запам'ятав: Оля не їсть горіхів — враховуватиму, коли радитиму, де поїсти." },
+              { "type": "text", "text": "Нагадування на суботу, 10:00 — поставив." }
+            ],
+            "steps": [
+              {
+                "id": "demo-memory-1",
+                "label": "memory_search",
+                "detail": "people/Оля.md · без горіхів",
+                "input": { "note": "people/Оля.md", "fact": "не їсть горіхів" },
+                "result": { "ok": true },
+                "seconds": 0.6
+              },
+              {
+                "id": "demo-todo-1",
+                "label": "todo_list",
+                "detail": "субота 10:00 · нагадування",
+                "input": { "when": "субота 10:00", "text": "Збір: ботсад → Андріївський" },
+                "result": { "ok": true },
+                "seconds": 0.4
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "demodigest0001",
+        "title": "Ранковий дайджест",
+        "channel": "telegram",
+        "agoMinutes": 190,
+        "messages": [
+          { "role": "user", "content": "Що в мене сьогодні?" },
+          { "role": "assistant", "content": "О 12:00 дзвінок, о 18:30 тренування. Погода +15°, парасолька не потрібна." }
+        ]
+      },
+      {
+        "id": "demophysics001",
+        "title": "Конспект лекції з фізики",
+        "agoMinutes": 1500,
+        "messages": [
+          { "role": "user", "content": "Зроби конспект лекції про хвилі з цього відео" },
+          { "role": "assistant", "content": "Готово: шість розділів, формули окремим блоком. Поклав у notes/хвилі.md." }
+        ]
+      },
+      {
+        "id": "democrabs00001",
+        "title": "Три піксельні краби",
+        "agoMinutes": 2900,
+        "messages": [
+          { "role": "user", "content": "Знайди і покажи піксельних крабів" },
+          { "role": "assistant", "content": "Знайшов трьох — дивись у каруселі." }
+        ]
+      },
+      {
+        "id": "democoffee0001",
+        "title": "Порівняти кавомолки",
+        "agoMinutes": 4400,
+        "messages": [
+          { "role": "user", "content": "Порівняй три ручні кавомолки до 3000 грн" },
+          { "role": "assistant", "content": "Зібрав таблицю: помол, ціна й відгуки. Найкращий баланс — у середньої." }
+        ]
+      },
+      {
+        "id": "demorunsong001",
+        "title": "Пісня для пробіжки",
+        "agoMinutes": 5800,
+        "messages": [
+          { "role": "user", "content": "Увімкни щось бадьоре на 170 bpm" },
+          { "role": "assistant", "content": "Ставлю плейлист на екрані бота." }
+        ]
+      },
+      {
+        "id": "democamera0001",
+        "title": "Як підключити камеру до Pi",
+        "agoMinutes": 8600,
+        "messages": [
+          { "role": "user", "content": "Як підключити камеру OV5647 до Raspberry Pi 3?" },
+          { "role": "assistant", "content": "Шлейф у роз'єм CSI контактами до HDMI, потім libcamera-hello для перевірки." }
+        ]
+      }
+    ],
+    "notes": {
+      "Про мене.md": "# Про мене\n\n- Прокидаюся о 7:30, перша кава — фільтр без цукру\n- Вчу японську: 15 хвилин щодня, зараз хірагана\n- Працюю з дому, найпродуктивніше з 10 до 13\n- Не люблю, коли нагадують більше двох разів\n",
+      "people/Оля.md": "# Оля\n\nПодруга з універу.\n\n- Не їсть горіхів\n- Любить настолки, особливо «Каркасон»\n- День народження — 14 березня\n- Восени завжди кличе в ботсад\n\n## Що обговорювали\n\n- 3 жовтня — плани на суботу: ботсад і Андріївський узвіз\n",
+      "people/Макс.md": "# Макс\n\nСусід по гуртожитку, збирає дронів.\n\n- Позичив паяльник — повернути до пʼятниці\n- Каву пʼє тільки еспресо\n",
+      "topics/Кава.md": "# Кава\n\n- Улюблене зерно — Ефіопія, мита обробка\n- Помол для пуровера — середньо-дрібний\n- Вода 92–94°, пропорція 1:16\n",
+      "logs/2026-10-03.md": "# 3 жовтня\n\n- Планували суботу з друзями: ботсад, Андріївський, кіно запасним варіантом\n- Оля не їсть горіхів — записано в people/Оля\n- Нагадування на суботу о 10:00\n"
+    },
+    "openNote": "people/Оля.md",
+    "composer": "Склади план на суботу для чотирьох"
+  },
+  "en": {
+    "sessions": [
+      {
+        "id": "demosaturday01",
+        "title": "Saturday with friends",
+        "agoMinutes": 2,
+        "messages": [
+          { "role": "user", "content": "What's the weather in Kyiv on Saturday? We want to go out with friends" },
+          {
+            "role": "assistant",
+            "parts": [
+              { "type": "text", "note": true, "text": "One sec — checking the forecast and what's on in town." },
+              { "type": "steps", "ids": ["demo-weather-1", "demo-search-1"] },
+              { "type": "text", "text": "Saturday looks dry and sunny: up to 17°C in the afternoon, light wind. Clouds roll in only after 8 pm, so you can stay out until evening." },
+              { "type": "text", "text": "A few ideas:\n\n1. **Hryshko Botanical Garden** — peak autumn leaves right now, open until 6 pm\n2. **Peizazhna Alley → Andriivskyi Descent** — coffee and a view over Podil\n3. If it rains in the evening — **a movie or board games**" },
+              { "type": "text", "text": "Want me to remind everyone at 10 am so nobody oversleeps?" }
+            ],
+            "steps": [
+              {
+                "id": "demo-weather-1",
+                "label": "weather",
+                "detail": "Kyiv · Saturday",
+                "input": { "city": "Kyiv", "day": "saturday" },
+                "result": { "city": "Kyiv", "day": "Saturday", "temp_max": 17, "temp_min": 9, "wind_ms": 3, "conditions": "sunny, clouds after 8 pm" },
+                "seconds": 1.4
+              },
+              {
+                "id": "demo-search-1",
+                "label": "web_search",
+                "detail": "things to do in Kyiv in autumn",
+                "input": { "query": "things to do in Kyiv this autumn weekend" },
+                "result": {
+                  "results": [
+                    { "title": "M. M. Gryshko National Botanical Garden — Wikipedia", "url": "https://en.wikipedia.org/wiki/M._M._Gryshko_National_Botanical_Garden" },
+                    { "title": "Andriyivskyy Descent — Wikipedia", "url": "https://en.wikipedia.org/wiki/Andriyivskyy_Descent" },
+                    { "title": "Weather forecast — Ukrainian Hydrometeorological Center", "url": "https://meteo.gov.ua/" },
+                    { "title": "Kyiv: events this weekend", "url": "https://kyivcity.gov.ua/" }
+                  ]
+                },
+                "seconds": 2.1
+              }
+            ]
+          },
+          { "role": "user", "content": "Sure. And remember that Olya doesn't eat nuts" },
+          {
+            "role": "assistant",
+            "parts": [
+              { "type": "steps", "ids": ["demo-memory-1", "demo-todo-1"] },
+              { "type": "text", "text": "Got it: Olya doesn't eat nuts — I'll keep that in mind when suggesting places to eat." },
+              { "type": "text", "text": "Reminder for Saturday, 10:00 — set." }
+            ],
+            "steps": [
+              {
+                "id": "demo-memory-1",
+                "label": "memory_search",
+                "detail": "people/Olya.md · no nuts",
+                "input": { "note": "people/Olya.md", "fact": "doesn't eat nuts" },
+                "result": { "ok": true },
+                "seconds": 0.6
+              },
+              {
+                "id": "demo-todo-1",
+                "label": "todo_list",
+                "detail": "Saturday 10:00 · reminder",
+                "input": { "when": "Saturday 10:00", "text": "Meet up: botanical garden → Andriivskyi" },
+                "result": { "ok": true },
+                "seconds": 0.4
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "demodigest0001",
+        "title": "Morning digest",
+        "channel": "telegram",
+        "agoMinutes": 190,
+        "messages": [
+          { "role": "user", "content": "What's on today?" },
+          { "role": "assistant", "content": "A call at 12:00 and a workout at 18:30. It's 15°C, no umbrella needed." }
+        ]
+      },
+      {
+        "id": "demophysics001",
+        "title": "Physics lecture notes",
+        "agoMinutes": 1500,
+        "messages": [
+          { "role": "user", "content": "Make notes from this lecture video about waves" },
+          { "role": "assistant", "content": "Done: six sections, formulas in a separate block. Saved to notes/waves.md." }
+        ]
+      },
+      {
+        "id": "democrabs00001",
+        "title": "Three pixel crabs",
+        "agoMinutes": 2900,
+        "messages": [
+          { "role": "user", "content": "Find and show me some pixel crabs" },
+          { "role": "assistant", "content": "Found three — have a look in the carousel." }
+        ]
+      },
+      {
+        "id": "democoffee0001",
+        "title": "Compare coffee grinders",
+        "agoMinutes": 4400,
+        "messages": [
+          { "role": "user", "content": "Compare three hand grinders under $80" },
+          { "role": "assistant", "content": "Built a table: grind, price and reviews. The middle one is the best balance." }
+        ]
+      },
+      {
+        "id": "demorunsong001",
+        "title": "A song for my run",
+        "agoMinutes": 5800,
+        "messages": [
+          { "role": "user", "content": "Play something upbeat at 170 bpm" },
+          { "role": "assistant", "content": "Starting a playlist on the bot's screen." }
+        ]
+      },
+      {
+        "id": "democamera0001",
+        "title": "Connecting a camera to the Pi",
+        "agoMinutes": 8600,
+        "messages": [
+          { "role": "user", "content": "How do I connect an OV5647 camera to a Raspberry Pi 3?" },
+          { "role": "assistant", "content": "Ribbon into the CSI port, contacts facing HDMI, then run libcamera-hello to check it." }
+        ]
+      }
+    ],
+    "notes": {
+      "About me.md": "# About me\n\n- Up at 7:30, first coffee is a filter brew, no sugar\n- Learning Japanese: 15 minutes a day, on hiragana now\n- Work from home, most focused between 10 and 1\n- Don't remind me more than twice\n",
+      "people/Olya.md": "# Olya\n\nFriend from uni.\n\n- Doesn't eat nuts\n- Loves board games, especially Carcassonne\n- Birthday — March 14\n- Always suggests the botanical garden in autumn\n\n## What we talked about\n\n- October 3 — Saturday plans: botanical garden and Andriivskyi Descent\n",
+      "people/Max.md": "# Max\n\nDorm neighbour, builds drones.\n\n- Borrowed my soldering iron — give it back by Friday\n- Drinks espresso only\n",
+      "topics/Coffee.md": "# Coffee\n\n- Favourite beans: Ethiopia, washed process\n- Pour-over grind: medium-fine\n- Water 92–94°C, ratio 1:16\n",
+      "logs/2026-10-03.md": "# October 3\n\n- Planned Saturday with friends: botanical garden, Andriivskyi, a movie as plan B\n- Olya doesn't eat nuts — saved to people/Olya\n- Reminder for Saturday at 10:00\n"
+    },
+    "openNote": "people/Olya.md",
+    "composer": "Make a Saturday plan for four"
+  }
+}

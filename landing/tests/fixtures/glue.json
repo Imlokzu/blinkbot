@@ -1,0 +1,5 @@
+[
+  { "lang": "uk", "input": "живе у вкладці й на столі", "expected": "живе у вкладці й на столі" },
+  { "lang": "uk", "input": "А це — його обличчя.", "expected": "А це — його обличчя." },
+  { "lang": "en", "input": "a tab on a desk", "expected": "a tab on a desk" }
+]

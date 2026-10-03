@@ -1,0 +1,406 @@
+/*
+ * Tokens and base type.
+ *
+ * The page is black, but a warm black: the dashboard's dark theme is
+ * brown-graphite (#13110f), and its screenshots have to sit on this page
+ * as lifted panels rather than as holes cut into a blue-black. The accent is
+ * the dashboard's dark terracotta, the colour of the crab itself.
+ *
+ * Gradients stay inside one hue (light terracotta to deep terracotta), the
+ * way the screen's app icons are drawn: the owner turned down multi-hue
+ * glows as a generic "AI" look.
+ */
+
+:root {
+  --bg: #070605;
+  --bg-raise: #0d0b0a;
+  --surface: #13110f;
+  --surface-2: #1a1715;
+  --surface-3: #221e1b;
+  --line: rgb(255 236 220 / 0.08);
+  --line-strong: rgb(255 236 220 / 0.15);
+  --ink: #f4ede5;
+  --ink-2: #b9aea3;
+  --ink-3: #7f746a;
+  --accent: #e08a67;
+  --accent-hi: #f4b294;
+  --accent-deep: #b95f3d;
+  --accent-rgb: 224 138 103;
+  --crab: #d98263;
+  --crab-shadow: #c4734f;
+  --screen: #18191b;
+
+  --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-serif: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
+
+  --gutter: clamp(16px, 4vw, 48px);
+  --wide: 1240px;
+  --radius: 14px;
+  --radius-lg: 22px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --nav-h: 64px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-padding-top: var(--nav-h);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.6;
+  font-feature-settings: "ss01", "kern";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: clip;
+}
+
+img,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+img {
+  height: auto;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+h1,
+h2,
+h3,
+p,
+ol,
+ul,
+dl,
+dd,
+figure {
+  margin: 0;
+  padding: 0;
+}
+
+ol,
+ul {
+  list-style: none;
+}
+
+::selection {
+  background: rgb(var(--accent-rgb) / 0.32);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.sprites {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.skip {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #2a1510;
+  font-weight: 600;
+  transform: translateY(-160%);
+  transition: transform 0.2s var(--ease-out);
+}
+
+.skip:focus-visible {
+  transform: none;
+}
+
+/* Static film grain. It never moves, so it costs one paint, not a frame budget. */
+.grain {
+  position: fixed;
+  inset: -50%;
+  z-index: 90;
+  pointer-events: none;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+.progress {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 80;
+  height: 2px;
+  pointer-events: none;
+}
+
+.progress__bar {
+  display: block;
+  height: 100%;
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent-deep));
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+
+/* ── Shared type ─────────────────────────────────────────── */
+
+/* The dashboard's signature: a section label in small monospaced capitals. */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.eyebrow::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgb(var(--accent-rgb) / 0.7);
+}
+
+.section-title {
+  margin-top: 18px;
+  font-size: clamp(2.4rem, 5.6vw, 5.4rem);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.042em;
+  text-wrap: balance;
+}
+
+.section-title > span {
+  display: block;
+}
+
+.serif,
+.serif em,
+em {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.section-title .serif {
+  font-size: 1.12em;
+  line-height: 0.9;
+  color: var(--ink);
+}
+
+.section-lead {
+  margin-top: 22px;
+  max-width: 34em;
+  color: var(--ink-2);
+  font-size: clamp(1.05rem, 1.35vw, 1.2rem);
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.section-head {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.section-head--center {
+  text-align: center;
+}
+
+/* SplitText wraps each line in a clip so it can rise from below its own baseline. */
+.split-line {
+  display: block;
+  overflow: clip;
+  overflow-clip-margin: 0.12em;
+  padding-bottom: 0.06em;
+  margin-bottom: -0.06em;
+}
+
+.icon {
+  width: 1.1em;
+  height: 1.1em;
+  flex: none;
+}
+
+/* ── Buttons and chips ───────────────────────────────────── */
+
+.button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 22px;
+  border-radius: 999px;
+  font-size: 15.5px;
+  font-weight: 550;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  transition: background-color 0.25s, border-color 0.25s, color 0.25s, box-shadow 0.35s;
+  will-change: transform;
+}
+
+.button--primary {
+  color: #2a1510;
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent) 55%, var(--accent-deep));
+  box-shadow:
+    0 0 0 1px rgb(255 214 196 / 0.25) inset,
+    0 10px 40px -10px rgb(var(--accent-rgb) / 0.75);
+}
+
+.button--primary:hover {
+  box-shadow:
+    0 0 0 1px rgb(255 214 196 / 0.4) inset,
+    0 14px 60px -8px rgb(var(--accent-rgb) / 0.9);
+}
+
+.button--ghost {
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  background: rgb(255 236 220 / 0.03);
+}
+
+.button--ghost:hover {
+  border-color: rgb(255 236 220 / 0.3);
+  background: rgb(255 236 220 / 0.07);
+}
+
+.button--small {
+  height: 36px;
+  padding: 0 14px;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.button--large {
+  height: 58px;
+  padding: 0 30px;
+  font-size: 17px;
+}
+
+.icon--arrow {
+  transition: transform 0.3s var(--ease-out);
+}
+
+.button:hover .icon--arrow {
+  transform: translateX(3px);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 15px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: rgb(255 236 220 / 0.03);
+  color: var(--ink-2);
+  font-size: 14px;
+  transition: color 0.2s, border-color 0.2s, background-color 0.2s, transform 0.2s var(--ease-out);
+}
+
+.chip:hover {
+  color: var(--ink);
+  border-color: rgb(255 236 220 / 0.3);
+}
+
+.chip:active {
+  transform: scale(0.96);
+}
+
+.chip.is-active {
+  color: #2a1510;
+  border-color: transparent;
+  background: linear-gradient(180deg, var(--accent-hi), var(--accent));
+}
+
+.chip--quiet {
+  height: 32px;
+  padding: 0 13px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.window__dots {
+  display: inline-flex;
+  gap: 7px;
+}
+
+.window__dots i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: rgb(255 236 220 / 0.14);
+}
+
+.window__dots--ghost {
+  visibility: hidden;
+}
+
+/*
+ * The hero waits hidden for its entrance until main.js sets its starting
+ * poses and adds .is-ready. If the module never runs, the fallback shows it
+ * anyway after a beat: nothing is held back for an entrance that never comes.
+ */
+.js:not(.is-ready) .hero__content,
+.js:not(.is-ready) .hero__stage {
+  opacity: 0;
+  animation: no-js-fallback 0.01s 2.5s both;
+}
+
+@keyframes no-js-fallback {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
