@@ -9,6 +9,7 @@ export interface ChatAppearance {
   targets: readonly BackgroundTarget[];
   sidebarVisible: boolean;
   material: ChatMaterial;
+  glassRecipe: 2;
   opacity: number;
   blur: number;
   color: ChatColor;
@@ -20,7 +21,7 @@ export const MAX_BACKGROUND_IMAGE_LENGTH = 1024 * 1024;
 export const BACKGROUND_TARGETS: readonly BackgroundTarget[] = Object.freeze(['chat', 'navigation', 'sessions', 'panels', 'pages']);
 export const DEFAULT_CHAT_APPEARANCE: Readonly<ChatAppearance> = Object.freeze({
   background: 'sky', image: null, videoId: null, targets: Object.freeze(['chat'] as BackgroundTarget[]),
-  sidebarVisible: true, material: 'glass', opacity: 35, blur: 12, color: 'theme',
+  sidebarVisible: true, material: 'glass', glassRecipe: 2, opacity: 0, blur: 0, color: 'theme',
 });
 const BACKGROUNDS = new Set<ChatBackground>(['none', 'sky', 'dusk', 'forest', 'custom', 'video']);
 const COLORS = new Set<ChatColor>(['theme', 'rose', 'sage', 'ocean', 'lavender']);
@@ -74,8 +75,9 @@ export function normalizeChatAppearance(value: unknown): ChatAppearance {
   const targets = Array.isArray(requestedTargets)
     ? BACKGROUND_TARGETS.filter(target => requestedTargets.includes(target))
     : [...DEFAULT_CHAT_APPEARANCE.targets];
-  // The previous stock fill obscured the restored lens; deliberate custom values survive.
-  const legacyStockGlass = !('material' in input) && input.opacity === 88 && input.blur === 8;
+  // Migrate former stock frosting once; later edits retain their exact chosen values.
+  const legacyStockGlass = input.glassRecipe !== 2 && input.material !== 'solid'
+    && ((input.opacity === 88 && input.blur === 8) || (input.opacity === 35 && input.blur === 12));
   return {
     background,
     image,
@@ -83,7 +85,8 @@ export function normalizeChatAppearance(value: unknown): ChatAppearance {
     targets: Object.freeze(targets),
     sidebarVisible: typeof input.sidebarVisible === 'boolean' ? input.sidebarVisible : DEFAULT_CHAT_APPEARANCE.sidebarVisible,
     material: input.material === 'solid' ? 'solid' : 'glass',
-    opacity: legacyStockGlass ? DEFAULT_CHAT_APPEARANCE.opacity : boundedNumber(input.opacity, DEFAULT_CHAT_APPEARANCE.opacity, 15, 100),
+    glassRecipe: 2,
+    opacity: legacyStockGlass ? DEFAULT_CHAT_APPEARANCE.opacity : boundedNumber(input.opacity, DEFAULT_CHAT_APPEARANCE.opacity, 0, 100),
     blur: legacyStockGlass ? DEFAULT_CHAT_APPEARANCE.blur : boundedNumber(input.blur, DEFAULT_CHAT_APPEARANCE.blur, 0, 16),
     color: COLORS.has(input.color as ChatColor) ? input.color as ChatColor : DEFAULT_CHAT_APPEARANCE.color,
   };

@@ -188,7 +188,7 @@ function ChatAppearanceControls() {
       <div className="chat-appearance-slider">
         <div><label htmlFor={`${id}-opacity`}>{t('opacity')}</label>
           <output htmlFor={`${id}-opacity`}>{t('opacityValue', { value: appearance.opacity })}</output></div>
-        <input id={`${id}-opacity`} type="range" min={15} max={100} step={1} value={appearance.opacity} disabled={appearance.material === 'solid'}
+        <input id={`${id}-opacity`} type="range" min={0} max={100} step={1} value={appearance.opacity} disabled={appearance.material === 'solid'}
           aria-valuetext={t('opacityValue', { value: appearance.opacity })}
           onChange={(event) => setAppearance({ opacity: Number(event.target.value) })} />
       </div>

@@ -49,6 +49,9 @@
 }
 html[data-chat-material="solid"] .chat-conversation .liquid-glass-plate { background: var(--c-surface); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
 .chat-conversation .prompt-bar__field { padding: 14px; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .chat-conversation .liquid-glass-plate { background: color-mix(in srgb, var(--c-surface) 92%, transparent); }
+}
 .chat-thread[data-empty] .prompt-bar__input { min-height: 54px; }
 .chat-conversation .prompt-bar__tool,
 .chat-conversation .prompt-bar__send { width: 34px; height: 34px; border-radius: 999px; }

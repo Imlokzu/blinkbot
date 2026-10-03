@@ -59,7 +59,7 @@ test('appearance values are bounded without discarding a valid saved image', () 
     ...DEFAULT_CHAT_APPEARANCE, background: 'forest', image: png, opacity: 67, blur: 4, color: 'ocean',
   });
   const low = normalizeChatAppearance({ opacity: -10, blur: -10 });
-  assert.equal(low.opacity, 15);
+  assert.equal(low.opacity, 0);
   assert.equal(low.blur, 0);
   const high = normalizeChatAppearance({ opacity: 200, blur: 200 });
   assert.equal(high.opacity, 100);
@@ -153,12 +153,13 @@ test('saved settings round trip and snapshots stay stable until a change', () =>
   assert.deepEqual(createChatAppearanceStore(() => storage).getSnapshot(), store.getSnapshot());
 });
 
-test('only the old stock glass defaults migrate; deliberate settings survive', () => {
+test('former stock frosting migrates once to a clear lens; deliberate settings survive', () => {
   const stock = normalizeChatAppearance({ background: 'sky', opacity: 88, blur: 8, color: 'theme' });
-  assert.equal(stock.opacity, 35);
-  assert.equal(stock.blur, 12);
+  assert.equal(stock.opacity, 0);
+  assert.equal(stock.blur, 0);
   assert.equal(stock.material, 'glass');
-  for (const saved of [{ opacity: 88, blur: 7 }, { opacity: 80, blur: 8 }, { opacity: 88, blur: 8, material: 'glass' }]) {
+  for (const saved of [{ opacity: 88, blur: 7 }, { opacity: 80, blur: 8 }, { opacity: 88, blur: 8, material: 'solid' },
+    { opacity: 35, blur: 12, material: 'glass', glassRecipe: 2 }]) {
     const normalized = normalizeChatAppearance(saved);
     assert.equal(normalized.opacity, saved.opacity);
     assert.equal(normalized.blur, saved.blur);
@@ -168,6 +169,17 @@ test('only the old stock glass defaults migrate; deliberate settings survive', (
   assert.equal(migratedImage.image, png);
   assert.equal(migratedImage.background, 'custom');
   assert.equal(migratedImage.color, 'rose');
+  const formerGlass = normalizeChatAppearance({ material: 'glass', opacity: 35, blur: 12 });
+  assert.equal(formerGlass.opacity, 0);
+  assert.equal(formerGlass.blur, 0);
+  assert.equal(formerGlass.glassRecipe, 2);
+  const storage = memoryStorage(JSON.stringify(formerGlass));
+  const store = createChatAppearanceStore(() => storage);
+  assert.equal(store.setAppearance({ opacity: 35, blur: 12 }), true);
+  assert.equal(store.getSnapshot().opacity, 35, 'new custom choices must not be migrated repeatedly');
+  assert.equal(store.getSnapshot().blur, 12);
+  assert.equal(createChatAppearanceStore(() => storage).getSnapshot().opacity, 35);
+  assert.equal(createChatAppearanceStore(() => storage).getSnapshot().blur, 12);
 });
 
 test('wallpaper placement deduplicates allowed targets in a stable order', () => {
