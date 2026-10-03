@@ -24,11 +24,23 @@
           r.dataset.theme = dark ? 'dark' : 'light';
           r.dataset.accent = a;
           r.lang = localStorage.getItem('claudeBotLang') === 'uk' ? 'uk' : 'en';
-          if (localStorage.getItem('claudeBotPopup') === 'glass') r.dataset.popup = 'glass';
+          var kinds = ['models', 'attachments', 'context', 'menus'];
+          var storedPopups = localStorage.getItem('claudeBotPopupGlassTargets');
+          var popupTargets = [];
+          if (storedPopups === null) {
+            if (localStorage.getItem('claudeBotPopup') === 'glass') popupTargets = kinds;
+          } else {
+            try {
+              var parsedPopups = JSON.parse(storedPopups);
+              if (Array.isArray(parsedPopups)) popupTargets = kinds.filter(function (kind) { return parsedPopups.indexOf(kind) !== -1; });
+            } catch (e) {}
+          }
+          r.dataset.popupGlassTargets = popupTargets.join(' ');
+          if (popupTargets.length) r.dataset.popup = 'glass';
         } catch (e) {}
       })();
     </script>
-    <script type="module" crossorigin src="/static/dash/assets/index-Qv-1Vtcs.js"></script>
+    <script type="module" crossorigin src="/static/dash/assets/index-DDj1nWkk.js"></script>
     <link rel="modulepreload" crossorigin href="/static/dash/assets/rolldown-runtime-Dqfqb5bO.js">
     <link rel="modulepreload" crossorigin href="/static/dash/assets/jsx-runtime-Cc3nFHAr.js">
     <link rel="modulepreload" crossorigin href="/static/dash/assets/cn-PFXJ9h-O.js">
@@ -36,7 +48,7 @@
     <link rel="modulepreload" crossorigin href="/static/dash/assets/reactbits-7MfroOEz.js">
     <link rel="modulepreload" crossorigin href="/static/dash/assets/createLucideIcon-CkNelyUM.js">
     <link rel="stylesheet" crossorigin href="/static/dash/assets/reactbits-CtnYK9m-.css">
-    <link rel="stylesheet" crossorigin href="/static/dash/assets/index-fWtnqZnq.css">
+    <link rel="stylesheet" crossorigin href="/static/dash/assets/index-LuUn96ig.css">
   <link rel="manifest" href="/static/dash/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/static/dash/registerSW.js"></script></head>
   <body>
     <div id="root"></div>
