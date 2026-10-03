@@ -28,6 +28,8 @@ def is_catalog_or_ignored(path_str):
         return True
     if path_str == "Virtual Bot/integrations/locales.py":
         return True
+    if path_str == "landing/src/i18n.js":
+        return True
 
     # The checker and its tests hold Cyrillic on purpose: the character class
     # it matches and the fixtures it is tested on.
@@ -414,9 +416,62 @@ def check_catalogs(args):
                     print(f"[Screen] Unknown keys used in HTML/JS: {', '.join(missing_from_dict)}")
                     rc[0] = 1
 
+    # 4. Landing catalog (same DICT shape as the screen's)
+    check_landing_catalog(rc)
+
     if rc[0] == 0:
         print("Catalogs OK")
     return rc[0]
+
+
+# Keys the landing builds at runtime from a prefix, e.g. t(`device.mood.${mood}`).
+LANDING_DYNAMIC_PREFIXES = ("device.mood.",)
+
+
+def check_landing_catalog(rc):
+    """Parity of landing/src/i18n.js, plus every key the page uses must exist.
+
+    index.html carries keys only (data-i18n, and data-i18n-attr="attr:key;...");
+    the build fills them in from this catalogue, so an unknown key there would
+    otherwise surface only as a failed build.
+    """
+    catalog = Path("landing/src/i18n.js")
+    if not catalog.exists():
+        return
+    content = catalog.read_text(encoding="utf-8")
+    m = re.search(r'const\s+DICT\s*=\s*\{', content)
+    if not m:
+        return
+    dict_text = content[m.end()-1:]
+    uk_m = re.search(r'uk\s*:\s*\{', dict_text)
+    en_m = re.search(r'en\s*:\s*\{', dict_text)
+    if not (uk_m and en_m):
+        print(f"[{catalog}] Expected uk and en objects inside DICT")
+        rc[0] = 1
+        return
+    uk_pairs, uk_dups = extract_js_object_pairs(dict_text[uk_m.end()-1:])
+    en_pairs, en_dups = extract_js_object_pairs(dict_text[en_m.end()-1:])
+    check_catalog_file(str(catalog), uk_pairs, en_pairs, {"uk": uk_dups, "en": en_dups}, rc)
+
+    keys = set(dict(uk_pairs).keys())
+    used = set()
+    page = Path("landing/index.html")
+    if page.exists():
+        html = page.read_text(encoding="utf-8")
+        used.update(re.findall(r'data-i18n="([^"]+)"', html))
+        for spec in re.findall(r'data-i18n-attr="([^"]+)"', html):
+            for pair in spec.split(";"):
+                if ":" in pair:
+                    used.add(pair.split(":", 1)[1].strip())
+    for script in Path("landing/src").glob("*.js"):
+        source = script.read_text(encoding="utf-8")
+        for match in re.finditer(r'(?:^|[^a-zA-Z0-9_.])t\(\s*[\'"]([a-zA-Z0-9.-]+)[\'"]\s*(?:,|\))', source):
+            used.add(match.group(1))
+
+    unknown = {k for k in used - keys if not k.startswith(LANDING_DYNAMIC_PREFIXES)}
+    if unknown:
+        print(f"[Landing] Unknown keys used in index.html/src: {', '.join(sorted(unknown))}")
+        rc[0] = 1
 
 def check_ratchet(args):
     baseline_path = Path("scripts/i18n-debt-baseline.json")

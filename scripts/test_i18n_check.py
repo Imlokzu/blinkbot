@@ -242,5 +242,56 @@ class TestRatchet(unittest.TestCase):
             update = False
         self.assertEqual(i18n_check.check_ratchet(Args()), 1)
 
+class TestLandingCatalog(unittest.TestCase):
+    """The landing keeps its strings in landing/src/i18n.js, keyed from index.html."""
+
+    CATALOG = (
+        'const DICT = {\n'
+        '  uk: { "hero.title": "Привіт", "device.faceLabel": "очікування" },\n'
+        '  en: { "hero.title": "Hello", "device.faceLabel": "idle" },\n'
+        '};\n'
+    )
+
+    def run_in(self, files):
+        cwd = os.getcwd()
+        with tempfile.TemporaryDirectory() as tmp:
+            for name, text in files.items():
+                path = Path(tmp) / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text, encoding="utf-8")
+            os.chdir(tmp)
+            try:
+                rc = [0]
+                with patch('builtins.print'):
+                    i18n_check.check_landing_catalog(rc)
+                return rc[0]
+            finally:
+                os.chdir(cwd)
+
+    def test_known_keys_pass(self):
+        rc = self.run_in({
+            "landing/src/i18n.js": self.CATALOG,
+            "landing/index.html": '<h1 data-i18n="hero.title"></h1><img data-i18n-attr="alt:hero.title">',
+            "landing/src/device.js": 't("device.faceLabel"); t(`device.mood.${mood}`);',
+        })
+        self.assertEqual(rc, 0)
+
+    def test_unknown_key_in_attribute_fails(self):
+        rc = self.run_in({
+            "landing/src/i18n.js": self.CATALOG,
+            "landing/index.html": '<img data-i18n-attr="alt:hero.missing">',
+        })
+        self.assertEqual(rc, 1)
+
+    def test_key_missing_from_one_language_fails(self):
+        rc = self.run_in({
+            "landing/src/i18n.js": 'const DICT = {\n  uk: { "a": "б" },\n  en: {},\n};\n',
+        })
+        self.assertEqual(rc, 1)
+
+    def test_catalog_is_not_counted_as_debt(self):
+        self.assertTrue(i18n_check.is_catalog_or_ignored("landing/src/i18n.js"))
+
+
 if __name__ == '__main__':
     unittest.main()
