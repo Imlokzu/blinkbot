@@ -1,0 +1,47 @@
+@property --popup-glass-scale {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+@property --popup-glass-shift {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* The wrapper paints the lens and moves the whole surface. Its inline
+   positioning transform remains Radix's and is composed before motion. */
+html[data-popup='glass'] [data-radix-popper-content-wrapper].popup-lens[data-popup-glass-motion] {
+  transform: var(--popup-glass-position) scale(var(--popup-glass-scale)) translateY(var(--popup-glass-shift)) !important;
+  will-change: transform, opacity;
+}
+html[data-popup='glass'] [data-radix-popper-content-wrapper].popup-lens[data-popup-glass-motion='open'] {
+  animation: popup-glass-in 300ms var(--e-spring) both;
+}
+html[data-popup='glass'] [data-radix-popper-content-wrapper].popup-lens[data-popup-glass-motion='closed'] {
+  animation: popup-glass-out 180ms var(--e-out) both;
+}
+
+/* Radix Presence listens to this animation's name and end event. Keep
+   that clock running while the parent supplies the only visible motion. */
+html[data-popup='glass'] [data-radix-popper-content-wrapper].popup-lens[data-popup-glass-motion] > .u-pop {
+  transform: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+@keyframes popup-glass-in {
+  from { opacity: 0; --popup-glass-scale: 0.88; --popup-glass-shift: 10px; }
+  55% { opacity: 1; }
+  to { opacity: 1; --popup-glass-scale: 1; --popup-glass-shift: 0px; }
+}
+@keyframes popup-glass-out {
+  from { opacity: 1; --popup-glass-scale: 1; --popup-glass-shift: 0px; }
+  to { opacity: 0; --popup-glass-scale: 0.9; --popup-glass-shift: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-popup='glass'] [data-radix-popper-content-wrapper].popup-lens[data-popup-glass-motion] {
+    animation: none !important;
+  }
+}

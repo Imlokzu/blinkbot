@@ -1088,3 +1088,32 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   return, separate Workbench/Panels, body-lock/focus cleanup, and desktop
   resize/dock restoration. Existing chat navigation and Workbench checks pass.
   Unrelated Settings/API/backend/security drafts and staged changes remain.
+
+
+## Popup glass follows animation (2026-10-03)
+
+- Fixed a reproduced popup ghost: Radix animated its inner content while
+  the glass on the positioning wrapper remained full-size and fully visible.
+  This left an empty lens during exit and separated the rim during entry.
+- Selected wrapped popups now share one scale, offset and opacity fade with
+  their lens. Motion composes after the unchanged inline Radix positioning
+  transform, keeping the trigger anchor correct. The inner CSS animation
+  remains as Radix Presence's exit clock without a second visual animation.
+- Only wrapped u-pop glass surfaces use this path. Non-glass and unwrapped
+  surfaces retain their existing motion. Filters are not animated or rebuilt
+  every frame. Preference changes and unmount restore hook-owned attributes,
+  custom positioning values, origin and priorities.
+- Read-only composer first-send/resize probes did not reproduce a separate
+  lens in Chromium 152, so composer motion and vendor Hyalite remain unchanged.
+- Independent maximum-effort review approved the fix with no source changes.
+  Actual screencast frames show content and lens fading together with no
+  residual plate; rapid open/close/reopen, focus and body locks also pass.
+  Idle wrapper attribute mutations are zero. Fable remains unavailable in
+  this runtime; the supported reviewer supplied independent verification.
+- Validation: 142 frontend tests, TypeScript and isolated production build
+  passed. Dedicated browser frames show zero lens/content rectangle difference
+  during native SVG and CSS fallback open/close, and one effective fade.
+  Tests also cover unchanged/repositioned anchors, blank/none transforms,
+  reduced motion/transparency, preference cleanup and prior style restoration.
+  Read-only HTTP status/screen/dashboard checks returned 200 and memory
+  traversal returned 400. Unrelated drafts and staged changes remain intact.

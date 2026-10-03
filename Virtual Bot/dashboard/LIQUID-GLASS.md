@@ -39,6 +39,15 @@ CSS blur remains available when the SVG lens is unsupported. The controller
 releases filters on close, preference changes and unmount, and follows live
 reduced-transparency changes.
 
+Wrapped popups animate the content and the glass as one surface. The wrapper
+composes its motion after Radix's positioning transform, keeping the popup
+anchored to its trigger. The inner `u-pop` animation still runs as the Radix
+Presence clock, while its visible transform, opacity and blur are supplied
+by the wrapper. This prevents an empty full-size lens from remaining while
+the content shrinks or fades out. Only transform and opacity animate; lens
+filters stay attached. The controller restores its own attributes, origin
+and positioning variable when the selected surface is disarmed.
+
 ## The lens
 
 `src/vendor/hyalite/hyalite.js` is [Hyalite](https://github.com/VII-Cae/hyalite--liquid-glass)

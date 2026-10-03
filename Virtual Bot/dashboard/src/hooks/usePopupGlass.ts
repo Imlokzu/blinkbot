@@ -3,6 +3,7 @@ import '@/vendor/hyalite/hyalite.js';
 import type { HyaliteOptions } from '@/vendor/hyalite/hyalite.js';
 import { applyPopupGlassTargets, POPUP_SURFACE_SELECTOR, popupGlassKind } from './popupGlassPreferences';
 import { usePopupGlassTargets } from './usePopupGlassPreference';
+import './popup-glass-motion.css';
 
 /*
  * Popups keep their solid plate. Only categories selected in Appearance
@@ -30,6 +31,53 @@ const lens: HyaliteOptions = {
   settle: 80,
 };
 
+const motionAttribute = 'data-popup-glass-motion';
+const positionProperty = '--popup-glass-position';
+type InlineStyle = { value: string; priority: string };
+type MotionStyles = { attribute: string | null; position: InlineStyle; origin: InlineStyle };
+type ArmedSurface = { radius: string; priority: string; wrapper: boolean; shell: HTMLElement; motion: MotionStyles | null };
+
+const inlineStyle = (target: HTMLElement, property: string): InlineStyle => ({
+  value: target.style.getPropertyValue(property),
+  priority: target.style.getPropertyPriority(property),
+});
+const restoreStyle = (target: HTMLElement, property: string, previous: InlineStyle) => {
+  if (previous.value) target.style.setProperty(property, previous.value, previous.priority);
+  else target.style.removeProperty(property);
+};
+
+function releaseMotion(target: HTMLElement, previous: ArmedSurface) {
+  if (!previous.motion) return;
+  const { attribute, position, origin } = previous.motion;
+  if (attribute === null) target.removeAttribute(motionAttribute);
+  else target.setAttribute(motionAttribute, attribute);
+  restoreStyle(target, positionProperty, position);
+  restoreStyle(target, 'transform-origin', origin);
+  previous.motion = null;
+}
+
+function syncMotion(target: HTMLElement, previous: ArmedSurface) {
+  const shell = previous.shell;
+  const state = shell.getAttribute('data-state');
+  if (!previous.wrapper || shell.parentElement !== target || !shell.matches('.u-pop') || (state !== 'open' && state !== 'closed')) {
+    releaseMotion(target, previous);
+    return;
+  }
+  previous.motion ??= {
+    attribute: target.getAttribute(motionAttribute),
+    position: inlineStyle(target, positionProperty),
+    origin: inlineStyle(target, 'transform-origin'),
+  };
+  // Radix owns the inline translation. Compose motion after it so scaling
+  // never scales the page coordinates or pulls the popup off its trigger.
+  const position = target.style.transform && target.style.transform !== 'none'
+    ? target.style.transform : 'translate(0px, 0px)';
+  if (target.style.getPropertyValue(positionProperty) !== position) target.style.setProperty(positionProperty, position);
+  const origin = getComputedStyle(shell).transformOrigin;
+  if (target.style.transformOrigin !== origin) target.style.transformOrigin = origin;
+  if (target.getAttribute(motionAttribute) !== state) target.setAttribute(motionAttribute, state);
+}
+
 export function usePopupGlass() {
   const targets = usePopupGlassTargets();
   useEffect(() => {
@@ -37,12 +85,13 @@ export function usePopupGlass() {
     const reducedTransparency = window.matchMedia('(prefers-reduced-transparency: reduce)');
     let watcher: { stop(): void } | null = null;
     let observer: MutationObserver | null = null;
-    const armed = new Map<HTMLElement, { radius: string; priority: string; wrapper: boolean; shell: HTMLElement }>();
+    const armed = new Map<HTMLElement, ArmedSurface>();
     const addedShellClasses = new Set<HTMLElement>();
 
     const release = (target: HTMLElement) => {
       const previous = armed.get(target);
       if (!previous) return;
+      releaseMotion(target, previous);
       target.classList.remove('popup-lens');
       if (previous.wrapper) {
         if (previous.radius) target.style.setProperty('border-radius', previous.radius, previous.priority);
@@ -83,10 +132,12 @@ export function usePopupGlass() {
             priority: target.style.getPropertyPriority('border-radius'),
             wrapper,
             shell,
+            motion: null,
           });
           target.classList.add('popup-lens');
         }
         armed.get(target)!.shell = shell;
+        syncMotion(target, armed.get(target)!);
         if (target !== shell) {
           const radius = getComputedStyle(shell).borderRadius;
           if (radius && target.style.borderRadius !== radius) {
@@ -122,7 +173,7 @@ export function usePopupGlass() {
           : [...record.addedNodes, ...record.removedNodes].some(relevantNode));
         if (relevant) syncSurfaces();
       });
-      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-popup-kind', 'data-kind', 'data-popup-root'] });
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-state', 'style', 'data-popup-kind', 'data-kind', 'data-popup-root'] });
       const Hyalite = window.Hyalite;
       if (Hyalite?.supported()) watcher = Hyalite.watch(document.body, '.popup-lens', lens);
     };

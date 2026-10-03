@@ -263,6 +263,10 @@ scrolling past all of it.
   attachments, context details and other menus. The shared local preference
   overrides the legacy all-or-none flag, including an explicit empty choice.
   Only selected surfaces carry one lens; other surfaces remain solid.
+- Wrapped popup content and its lens share one scale, offset and fade.
+  Positioning remains owned by Radix, and its inner animation clock still
+  retains the popup until exit completes. The lens cannot stay behind as an
+  empty rectangle while the content disappears. Composer motion is unchanged.
 - Compact desktop controls retain 44px targets on touch screens. Microphone
   colour indicates its purpose and recording state; maker logos use their own
   theme-aware colours without changing the actual selected provider/model.
@@ -274,6 +278,9 @@ scrolling past all of it.
   `tests/chat-appearance.browser.mjs`, `tests/model-effort.browser.mjs` and
   `tests/glass-popup.browser.mjs`. Old model/effort browser entrypoints route
   to the combined fixture suite.
+- `tests/popup-glass-motion.browser.mjs` samples intermediate opening and
+  closing frames, positions and effective opacity, including fallback and
+  reduced-preference paths, anchor repositioning and style cleanup.
 
 ## Clock, chat usage and model accounts pins (2026-09-26)
 
