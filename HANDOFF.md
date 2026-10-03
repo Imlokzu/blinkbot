@@ -1480,3 +1480,8 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
 - Post-review HTTP smoke checks 7 endpoints and every release resource,
   including both memory/workspace traversal guards returning 400. Test servers
   and browser sessions are stopped; unrelated source drafts are preserved.
+
+- Final live verification passed disclosure and reaction browser fixtures,
+  7 HTTP endpoints and all 301 release resources. The guarded integrated
+  settings publication includes both feature commits, matches current source
+  and is pushed to origin. No older captured build was republished.
