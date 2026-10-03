@@ -16,6 +16,13 @@ const en = {
   operator_required: 'Image generation is available to the bot operator.',
   login: 'Run on the bot server: codex login',
   unavailable: 'Image generation is unavailable. Try again.',
+  'motion.generating': 'Generating image',
+  'motion.loading': 'Opening your image',
+  'motion.complete': 'Image ready',
+  'motion.failed': 'Generation failed',
+  'motion.interrupted': 'Generation stopped',
+  'motion.unavailable': 'Could not load the image',
+  'motion.retry': 'Try again',
 } as const;
 const uk: Record<keyof typeof en, string> = {
   title: 'Створити зображення',
@@ -35,6 +42,13 @@ const uk: Record<keyof typeof en, string> = {
   operator_required: 'Генерація зображень доступна оператору бота.',
   login: 'Виконай на сервері бота: codex login',
   unavailable: 'Генерація недоступна. Спробуй ще раз.',
+  'motion.generating': 'Генерую зображення',
+  'motion.loading': 'Відкриваю зображення',
+  'motion.complete': 'Зображення готове',
+  'motion.failed': 'Генерація не вдалася',
+  'motion.interrupted': 'Генерацію зупинено',
+  'motion.unavailable': 'Не вдалося завантажити зображення',
+  'motion.retry': 'Спробувати ще раз',
 };
 export function t(key: keyof typeof en): string {
   return (document.documentElement.lang === 'uk' ? uk : en)[key];

@@ -4,6 +4,8 @@ import { ArrowDown } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { AttachmentCards } from './AttachmentCards';
 import { GalleryScope } from './Gallery';
+import { ImageGenerationCard } from './ImageGenerationCard';
+import { generationView, imageOnlyDelivery, isImageGeneration } from './imageGenerationState';
 import { cn } from '@/lib/cn';
 import {
   ActivityLine, BotBubble, EmojiFlights, ReactionChip, TypingBubble,
@@ -159,10 +161,13 @@ function AssistantMessage() {
   const steps = meta.steps ?? [];
   const parts = meta.parts ?? [];
   const last = parts[parts.length - 1];
+  const deliveredSources = useMemo(() => new Set(steps.filter(isImageGeneration)
+    .map((step) => generationView(step).url).filter(Boolean)), [steps]);
+  const hasGeneration = steps.some(isImageGeneration);
   // Dots whenever the bot is working but not visibly typing the answer: before
   // anything arrives, after "one sec…", and between a finished tool and the
   // reply. A live tool already says what is happening.
-  const typing = running && (!last || (last.type === 'text' ? Boolean(last.note)
+  const typing = running && !hasGeneration && (!last || (last.type === 'text' ? Boolean(last.note)
     : !stepsFor(last.ids, steps).some((step) => step.status === 'active')));
   const textCount = parts.reduce((count, part) => count + (part.type === 'text' ? 1 : 0), 0);
   const motion = useBubbleMotion(typing, textCount);
@@ -178,16 +183,24 @@ function AssistantMessage() {
     <MessagePrimitive.Root className="group/reply mb-10 flex gap-3">
       {/* Use the same static character as the header, aligned to the first line. */}
       <BotIcon className="mt-1.5" />
-      {/* Область картинок — на всю репліку: тоді «наступна» в переглядачі
-          доходить і до тих, що лежали в іншому абзаці відповіді. */}
-      <GalleryScope>
+      {/* All rendered images share one viewer, including generated media and
+          images elsewhere in the reply. Deliver each generated result once. */}
+      <GalleryScope deliveredSources={deliveredSources}>
         <div className="u-measure flex min-w-0 flex-1 flex-col items-start gap-4">
           {parts.map((part, index) => {
             if (part.type === 'steps') {
-              return <ActivityLine key={`steps-${part.ids[0] ?? index}`} steps={stepsFor(part.ids, steps)} running={running} />;
+              const group = stepsFor(part.ids, steps);
+              const images = group.filter(isImageGeneration);
+              const ordinary = group.filter((step) => !isImageGeneration(step));
+              return <div key={`steps-${part.ids[0] ?? index}`} className="flex w-full min-w-0 flex-col items-start gap-4">
+                {ordinary.length ? <ActivityLine steps={ordinary} running={running} /> : null}
+                {images.map((step) => <ImageGenerationCard key={step.id} step={step}
+                  onRetry={!running && retry?.id === id ? retry.run : undefined} />)}
+              </div>;
             }
             bubble += 1;
             const at = bubble;
+            if (imageOnlyDelivery(part.text, deliveredSources)) return null;
             return (
               <BotBubble
                 key={`bubble-${at}`}

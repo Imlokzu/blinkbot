@@ -1,0 +1,70 @@
+.image-generation-card {
+  width: min(360px, 100%);
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  background: var(--c-surface);
+}
+
+.image-generation-surface {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--c-surface-2);
+}
+
+.image-generation-open,
+.image-generation-media,
+.image-generation-field,
+.image-generation-dither {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.image-generation-open { cursor: zoom-in; outline-offset: -4px; }
+.image-generation-open:disabled { cursor: default; }
+.image-generation-open:focus-visible { outline: 2px solid var(--c-accent); }
+.image-generation-media { object-fit: contain; }
+.image-generation-field { background: var(--c-surface-2); }
+.image-generation-card[data-state="complete"] .image-generation-field { pointer-events: none; }
+.image-generation-dither { color: var(--c-text-2); }
+
+.image-generation-resolution {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  pointer-events: none;
+  border: 1px solid var(--c-border);
+  border-radius: 5px;
+  padding: 3px 7px;
+  background: var(--c-surface);
+  color: var(--c-text-2);
+  font: 10px var(--font-mono);
+}
+
+.image-generation-terminal {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--c-text-2);
+}
+
+.image-generation-caption { padding: 12px 14px; color: var(--c-text); }
+.image-generation-status { display: flex; gap: 8px; align-items: center; min-height: 22px; font-size: 13px; font-weight: 500; }
+.image-generation-mark { display: grid; grid-template-columns: repeat(2, 4px); gap: 3px; width: 11px; height: 11px; }
+.image-generation-mark > span { border-radius: 1px; background: currentColor; }
+.image-generation-mark > span:nth-child(2), .image-generation-mark > span:nth-child(3) { opacity: .45; }
+.image-generation-prompt { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--c-text-2); }
+.image-generation-card[data-state="failed"] .image-generation-status { color: var(--c-err, var(--c-text)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .image-generation-card *, .image-generation-card *::before, .image-generation-card *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

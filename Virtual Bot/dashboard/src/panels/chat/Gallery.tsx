@@ -50,6 +50,7 @@ interface ScopeApi {
 }
 
 const ScopeContext = createContext<ScopeApi | null>(null);
+const DeliveredImageContext = createContext<ReadonlySet<string>>(new Set());
 
 /**
  * Область однієї репліки.
@@ -59,7 +60,9 @@ const ScopeContext = createContext<ScopeApi | null>(null);
  * розмітки (compareDocumentPosition), а не з порядку монтування: під час
  * стрімінгу абзаци приїжджають як завгодно.
  */
-export function GalleryScope({ children }: { children: React.ReactNode }) {
+export function GalleryScope({ children, deliveredSources = new Set<string>() }: {
+  children: React.ReactNode; deliveredSources?: ReadonlySet<string>;
+}) {
   const groups = useRef(new Map<string, Group>());
   const [viewer, setViewer] = useState<{ images: GalleryImage[]; index: number } | null>(null);
 
@@ -90,7 +93,9 @@ export function GalleryScope({ children }: { children: React.ReactNode }) {
 
   return (
     <ScopeContext.Provider value={api}>
+      <DeliveredImageContext.Provider value={deliveredSources}>
       {children}
+      </DeliveredImageContext.Provider>
       {viewer ? (
         <ImageViewer
           images={viewer.images}
@@ -102,8 +107,8 @@ export function GalleryScope({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Реєструє свої картинки в області репліки й уміє відкрити переглядач. */
-function useGroup(images: GalleryImage[], enabled = true) {
+/** Register a rendered group in the reply and open its shared image viewer. */
+export function useGalleryGroup(images: GalleryImage[], enabled = true) {
   const api = useContext(ScopeContext);
   const id = useId();
   const node = useRef<HTMLDivElement>(null);
@@ -127,9 +132,15 @@ function useGroup(images: GalleryImage[], enabled = true) {
 
 /** Одна картинка: кадр сталої висоти з відблиском по наведенню. */
 export function ChatImage({ src, alt }: GalleryImage) {
+  const delivered = useContext(DeliveredImageContext);
+  if (delivered.has(src)) return null;
+  return <VisibleChatImage src={src} alt={alt} />;
+}
+
+function VisibleChatImage({ src, alt }: GalleryImage) {
   const resolvedSrc = usePrivateImage(src);
   const images = useMemo(() => [{ src: resolvedSrc, alt, originalSrc: src }], [resolvedSrc, src, alt]);
-  const { node, open } = useGroup(images, Boolean(resolvedSrc));
+  const { node, open } = useGalleryGroup(images, Boolean(resolvedSrc));
   const line = useCssVar('--c-border', '#ded5c6');
   const surface = useCssVar('--c-surface-2', '#f7f2e9');
 
@@ -169,7 +180,7 @@ export function ChatImage({ src, alt }: GalleryImage) {
 /** Кілька картинок — гармошка на ту саму смугу. */
 export function ChatGallery({ images }: { images: GalleryImage[] }) {
   const privateGroups = images.some((image) => image.src.startsWith('/uploads/'));
-  const { node, open } = useGroup(images, !privateGroups);
+  const { node, open } = useGalleryGroup(images, !privateGroups);
   const accent = useAccentColor();
 
   const items = useMemo(

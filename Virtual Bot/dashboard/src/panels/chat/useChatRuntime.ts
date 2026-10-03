@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/Toaster';
 import { estimateTokens } from './tokens';
 import type { ChatMessage, SessionDetail, SessionSummary, ToolStep } from './types';
 import { readChatSelection, rememberChatSelection } from './chatNavigation';
+import { isImageGeneration } from './imageGenerationState';
 
 /*
  * Зшивання нашого бекенда з assistant-ui.
@@ -29,6 +30,8 @@ let localId = 0;
 const nextId = () => `local-${++localId}`;
 
 export function useChatRuntime(project = '') {
+  const imageReplyId = useRef('');
+  const replySettled = useRef(true);
   const client = useQueryClient();
   const toast = useToast();
 
@@ -228,6 +231,8 @@ export function useChatRuntime(project = '') {
         (item): item is ChatAttachment => Boolean(item && typeof item === 'object' && 'url' in item),
       );
       const userId = nextId();
+      imageReplyId.current = '';
+      replySettled.current = false;
       setMessages((current) => [...current, {
         id: userId, role: 'user', content: trimmed, attachments: safeAttachments,
       }]);
@@ -256,11 +261,13 @@ export function useChatRuntime(project = '') {
       const preserveInterrupted = () => {
         if (!isCurrent() || terminal) return;
         terminal = true;
+        replySettled.current = true;
         const finished = finishActivity(stepsRef.current);
         const parts = toParts(timelineRef.current);
         if (parts.length || finished.length) {
+          const replyId = finished.some(isImageGeneration) ? (imageReplyId.current ||= nextId()) : nextId();
           setMessages((current) => [...current, {
-            id: nextId(), role: 'assistant', content: draftRef.current, steps: finished, parts,
+            id: replyId, role: 'assistant', content: draftRef.current, steps: finished, parts,
           }]);
         }
         setDraft(null);
@@ -298,6 +305,7 @@ export function useChatRuntime(project = '') {
           onTool: (event) => {
             if (!isCurrent() || terminal) return;
             stepsRef.current = updateActivity(stepsRef.current, event);
+            if (stepsRef.current.some(isImageGeneration)) imageReplyId.current ||= nextId();
             setSteps(stepsRef.current);
             const id = event.step?.id ?? event.call_id;
             if (id) updateTimeline(applyStep(timelineRef.current, id));
@@ -314,18 +322,20 @@ export function useChatRuntime(project = '') {
           onDone: (result) => {
             if (!isCurrent() || terminal) return;
             terminal = true;
+            replySettled.current = true;
             const finished = result.steps ?? finishActivity(stepsRef.current);
             const parts = restoreParts(result.parts, result.reply, finished);
             const textBubbles = parts.filter((part) => part.type === 'text').length;
             const fromTyping = pillOnScreen.current && textBubbles > 0 ? textBubbles - 1 : undefined;
             pillOnScreen.current = false;
+            const replyId = finished.some(isImageGeneration) ? (imageReplyId.current ||= nextId()) : nextId();
             setMessages((current) => [
               ...current.map((item) => (item.id === userId ? {
                 ...item,
                 serverId: result.user_message_id || item.serverId,
                 reaction: result.reaction || item.reaction,
               } : item)),
-              { id: nextId(), role: 'assistant', content: result.reply, steps: finished, parts,
+              { id: replyId, role: 'assistant', content: result.reply, steps: finished, parts,
                 serverId: result.assistant_message_id || undefined,
                 model: result.model || streamModel, fromTyping },
             ]);
@@ -394,6 +404,8 @@ export function useChatRuntime(project = '') {
       setQueuedSend(false);
       return; // Cancel the queued submission, while history continues loading.
     }
+    if (!abortRef.current || replySettled.current) return;
+    replySettled.current = true;
     generation.current += 1;
     abortRef.current?.abort();
     abortRef.current = null;
@@ -401,7 +413,8 @@ export function useChatRuntime(project = '') {
     const content = draftRef.current;
     const parts = toParts(timelineRef.current);
     if (parts.length || finished.length) {
-      setMessages((list) => [...list, { id: nextId(), role: 'assistant', content, steps: finished, parts }]);
+      const replyId = finished.some(isImageGeneration) ? (imageReplyId.current ||= nextId()) : nextId();
+      setMessages((list) => [...list, { id: replyId, role: 'assistant', content, steps: finished, parts }]);
     }
     setDraft(null);
     setSteps(finished);
@@ -443,11 +456,14 @@ export function useChatRuntime(project = '') {
     [messages, draft],
   );
 
+  // A generated-media surface must remain mounted when the draft becomes
+  // the saved answer; otherwise its private download and reveal restart.
+  const liveReplyId = steps.some(isImageGeneration) ? imageReplyId.current : 'draft';
   const visible = useMemo<ChatMessage[]>(
     () => (draft !== null
-      ? [...messages, { id: 'draft', role: 'assistant', content: draft, steps, parts: toParts(timeline) }]
+      ? [...messages, { id: liveReplyId, role: 'assistant', content: draft, steps, parts: toParts(timeline) }]
       : messages),
-    [messages, draft, steps, timeline],
+    [messages, draft, steps, timeline, liveReplyId],
   );
 
   const runtime = useExternalStoreRuntime<ChatMessage>({
@@ -458,9 +474,9 @@ export function useChatRuntime(project = '') {
       id: message.id,
       role: message.role,
       content: [{ type: 'text', text: message.content }],
-      metadata: { custom: { steps: message.steps ?? [], running: message.id === 'draft' && !settling,
-        agentStatus: message.id === 'draft' ? agentStatus : undefined,
-        model: message.model || (message.id === 'draft' ? streamModel : undefined),
+      metadata: { custom: { steps: message.steps ?? [], running: draft !== null && message.id === liveReplyId && !settling,
+        agentStatus: draft !== null && message.id === liveReplyId ? agentStatus : undefined,
+        model: message.model || (draft !== null && message.id === liveReplyId ? streamModel : undefined),
         parts: message.parts, reaction: message.reaction, reactions: message.reactions,
         reactable: Boolean(message.serverId && sessionId),
         fromTyping: message.fromTyping, attachments: message.attachments } },
