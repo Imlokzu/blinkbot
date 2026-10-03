@@ -170,6 +170,7 @@ export function ContextMeter({
 
       <Popover.Portal>
         <Popover.Content
+          data-popup-kind="context"
           side="top"
           sideOffset={8}
           collisionPadding={12}

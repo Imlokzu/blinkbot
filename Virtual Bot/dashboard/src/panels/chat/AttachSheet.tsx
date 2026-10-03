@@ -150,8 +150,9 @@ export function AttachSheet({
           aria-label={t('composer.add')}
           id="chat-attachment-menu"
           data-attachment-menu=""
+          data-popup-kind="attachments"
           data-state="open"
-          className={`attach-sheet u-pop ${compact ? 'is-compact' : ''}`}
+          className={`attach-sheet popup-shell u-pop ${compact ? 'is-compact' : ''}`}
         >
           <header className="attach-sheet-heading"><div><p>{t('composer.add')}</p><span>{t('sheet.hint')}</span></div>
             <button type="button" aria-label={t('sheet.close')} onClick={() => { onClose(); anchor.current?.focus({ preventScroll: true }); }}><X size={16} /></button>

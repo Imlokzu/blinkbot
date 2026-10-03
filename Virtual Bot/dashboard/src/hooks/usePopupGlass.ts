@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
 import '@/vendor/hyalite/hyalite.js';
 import type { HyaliteOptions } from '@/vendor/hyalite/hyalite.js';
+import { applyPopupGlassTargets, POPUP_SURFACE_SELECTOR, popupGlassKind } from './popupGlassPreferences';
+import { usePopupGlassTargets } from './usePopupGlassPreference';
 
 /*
- * Popups keep their solid plate. Glass is a second material, switched in
- * Look, and it only paints while html[data-popup="glass"] is set.
+ * Popups keep their solid plate. Only categories selected in Appearance
+ * carry a lens; unsupported SVG filters still use the existing CSS blur.
  *
  * Radix positions a menu by transforming an outer wrapper. A lens inside
  * that wrapper cannot see the page, so the card stays dark. The lens goes
@@ -28,88 +30,108 @@ const lens: HyaliteOptions = {
   settle: 80,
 };
 
-function glassOn(): boolean {
-  return document.documentElement.dataset.popup === 'glass';
-}
-
-function armShell(shell: Element) {
-  const wrap = shell.closest('[data-radix-popper-content-wrapper]');
-  const target = (wrap ?? shell) as HTMLElement;
-  if (wrap) {
-    const radius = getComputedStyle(shell).borderRadius;
-    if (radius) target.style.borderRadius = radius;
-  }
-  target.classList.add('popup-lens');
-}
-
-function armMenu(menu: Element) {
-  menu.classList.add('popup-shell');
-  menu.setAttribute('data-popup-armed', '');
-  menu.querySelector(':scope > .popup-plate[data-injected]')?.remove();
-  armShell(menu);
-}
-
-function armTree(root: ParentNode) {
-  root.querySelectorAll('.prompt-bar__menu').forEach(armMenu);
-  root.querySelectorAll('.popup-shell').forEach(armShell);
-}
-
-function disarm() {
-  document.querySelectorAll('.popup-lens').forEach((node) => {
-    node.classList.remove('popup-lens');
-    if (node instanceof HTMLElement && node.hasAttribute('data-radix-popper-content-wrapper')) {
-      node.style.borderRadius = '';
-    }
-  });
-  document.querySelectorAll('.prompt-bar__menu[data-popup-armed]').forEach((menu) => {
-    menu.querySelector(':scope > .popup-plate[data-injected]')?.remove();
-    menu.classList.remove('popup-shell');
-    menu.removeAttribute('data-popup-armed');
-  });
-}
-
 export function usePopupGlass() {
+  const targets = usePopupGlassTargets();
   useEffect(() => {
+    applyPopupGlassTargets(document.documentElement, targets);
+    const reducedTransparency = window.matchMedia('(prefers-reduced-transparency: reduce)');
     let watcher: { stop(): void } | null = null;
     let observer: MutationObserver | null = null;
+    const armed = new Map<HTMLElement, { radius: string; priority: string; wrapper: boolean; shell: HTMLElement }>();
+    const addedShellClasses = new Set<HTMLElement>();
+
+    const release = (target: HTMLElement) => {
+      const previous = armed.get(target);
+      if (!previous) return;
+      target.classList.remove('popup-lens');
+      if (previous.wrapper) {
+        if (previous.radius) target.style.setProperty('border-radius', previous.radius, previous.priority);
+        else target.style.removeProperty('border-radius');
+      }
+      armed.delete(target);
+    };
+
+    const syncSurfaces = () => {
+      const desired = new Map<HTMLElement, HTMLElement>();
+      const shellClasses = new Set<HTMLElement>();
+      document.body.querySelectorAll<HTMLElement>(POPUP_SURFACE_SELECTOR).forEach(shell => {
+        const kind = popupGlassKind(shell);
+        if (!kind || !targets.includes(kind)) return;
+        const target = shell.closest<HTMLElement>('[data-radix-popper-content-wrapper]') ?? shell;
+        if (!desired.has(target)) desired.set(target, shell);
+        if (shell.matches('.prompt-bar__menu, [data-popup-root]')) shellClasses.add(shell);
+      });
+      // A nested content shell and its Radix wrapper describe one visual surface.
+      // Nested selected surfaces share the outer lens instead of stacking filters.
+      for (const target of desired.keys()) {
+        for (let ancestor = target.parentElement; ancestor; ancestor = ancestor.parentElement) {
+          if (desired.has(ancestor)) { desired.delete(target); break; }
+        }
+      }
+      for (const target of armed.keys()) if (!desired.has(target)) release(target);
+      for (const shell of addedShellClasses) {
+        if (!shellClasses.has(shell)) { shell.classList.remove('popup-shell'); addedShellClasses.delete(shell); }
+      }
+      for (const shell of shellClasses) {
+        if (!shell.classList.contains('popup-shell')) { shell.classList.add('popup-shell'); addedShellClasses.add(shell); }
+      }
+      for (const [target, shell] of desired) {
+        if (!armed.has(target)) {
+          const wrapper = target !== shell;
+          armed.set(target, {
+            radius: target.style.getPropertyValue('border-radius'),
+            priority: target.style.getPropertyPriority('border-radius'),
+            wrapper,
+            shell,
+          });
+          target.classList.add('popup-lens');
+        }
+        armed.get(target)!.shell = shell;
+        if (target !== shell) {
+          const radius = getComputedStyle(shell).borderRadius;
+          if (radius && target.style.borderRadius !== radius) {
+            target.style.borderRadius = radius;
+            // Hyalite observes size, so a radius-only change needs a rebuilt displacement map.
+            window.Hyalite?.refresh(target);
+          }
+        }
+      }
+    };
 
     const stop = () => {
-      watcher?.stop();
-      watcher = null;
       observer?.disconnect();
       observer = null;
-      disarm();
+      watcher?.stop();
+      watcher = null;
+      for (const target of armed.keys()) release(target);
+      for (const shell of addedShellClasses) shell.classList.remove('popup-shell');
+      addedShellClasses.clear();
     };
 
     const start = () => {
       stop();
-      if (!glassOn()) return;
-      if (window.matchMedia('(prefers-reduced-transparency: reduce)').matches) return;
-      const Hyalite = window.Hyalite;
-      if (!Hyalite?.supported()) return;
-      const armNode = (node: Element) => {
-        if (node.matches('.prompt-bar__menu')) armMenu(node);
-        else if (node.matches('.popup-shell')) armShell(node);
-        node.querySelectorAll('.prompt-bar__menu').forEach(armMenu);
-        node.querySelectorAll('.popup-shell').forEach(armShell);
-      };
-      armTree(document.body);
+      if (!targets.length || reducedTransparency.matches) return;
+      syncSurfaces();
+      const relevantNode = (node: Node): boolean => node instanceof Element && (
+        node.matches(`${POPUP_SURFACE_SELECTOR}, .popup-lens`) || Boolean(node.querySelector(POPUP_SURFACE_SELECTOR))
+      );
       observer = new MutationObserver((records) => {
-        for (const record of records) {
-          record.addedNodes.forEach((node) => {
-            if (node instanceof Element) armNode(node);
-          });
-        }
+        const relevant = records.some(record => record.type === 'attributes'
+          ? relevantNode(record.target) || armed.has(record.target as HTMLElement) || addedShellClasses.has(record.target as HTMLElement)
+            || [...armed.values()].some(previous => previous.shell === record.target)
+          : [...record.addedNodes, ...record.removedNodes].some(relevantNode));
+        if (relevant) syncSurfaces();
       });
-      observer.observe(document.body, { childList: true, subtree: true });
-      watcher = Hyalite.watch(document.body, '.popup-lens', lens);
+      observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-popup-kind', 'data-kind', 'data-popup-root'] });
+      const Hyalite = window.Hyalite;
+      if (Hyalite?.supported()) watcher = Hyalite.watch(document.body, '.popup-lens', lens);
     };
 
     start();
-    window.addEventListener('vbot:popup', start);
+    reducedTransparency.addEventListener('change', start);
     return () => {
-      window.removeEventListener('vbot:popup', start);
+      reducedTransparency.removeEventListener('change', start);
       stop();
     };
-  }, []);
+  }, [targets]);
 }

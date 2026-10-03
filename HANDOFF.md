@@ -1012,3 +1012,44 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   controls, pin-preserving rail closure, keyboard crowding and reduced motion.
   Status, screen and dashboard HTTP checks returned 200; memory traversal
   returned 400. Unrelated drafts and the owner's staged changes are preserved.
+
+
+## Clear composer and combined model controls (2026-10-03)
+
+- Composer glass again has a clear centre and refractive rim: zero fill and
+  zero blur by default. Former stock frosting (88/8 or 35/12) migrates once
+  through glassRecipe=2; deliberate solid/custom settings and later edits
+  survive. The same textarea and lens persist after the first submission.
+- One model button opens a two-column picker: models on the left, thinking
+  on the right. Sorting, capability filters, provider/trait/count badges and
+  the comparison footer are removed. Maker icons, names, unavailable feedback
+  and selection remain. Search is a compact magnifier that expands on hover,
+  focus or tap; Escape clears/collapses it before closing the popup.
+- Choice writes remain serialized. Recent picks move the model row instead
+  of duplicating checked radios. A delayed acknowledgment retains focus in
+  the effort column; a current model deep in a large catalog remains visible
+  as available popup height changes. Both columns have independent scrolling.
+- Appearance offers liquid glass for selected models/thinking, attachments,
+  context details and other menus. claudeBotPopupGlassTargets is shared across
+  mounted consumers and browser tabs; explicit empty/invalid values override
+  the legacy all-or-none flag. Theme consumers no longer reset popup material.
+  Storage failures retain prior choices with localized feedback.
+- The controller uses one lens per selected surface, follows radius changes,
+  releases filters on close/unmount, and supports CSS fallback and live
+  reduced transparency. Standalone rims and no-backdrop readable fills remain.
+- Separate supported maximum-effort code/architecture reviewers approved
+  the final changes. They fixed delayed-focus theft, invisible current models,
+  dark-theme heading contrast and popup fallback/rim overrides. A dedicated
+  popup reviewer verified 12 Chromium lifecycle scenarios. Fable remains
+  unavailable in this runtime; no requested-model certification is claimed.
+- Validation: 1,049 Python tests passed, 6 skipped, 178 subtests; 139 frontend
+  tests in the working tree and 140 in the isolated committed-source build;
+  TypeScript and production build passed. Combined-picker browser fixtures
+  cover keyboard, hover/touch search, both locales, 320/390/768/1440 layouts,
+  large catalogs, pending writes, rollback and focus. Glass fixtures verify
+  transparent fill before/after send, selective popups, fallback, reload and
+  quota rollback. Existing image/video, scope, keyboard and rail checks pass.
+  Scoped accessibility audits report zero violations; wallpaper contrast
+  checks requiring manual inspection were reviewed visually. HTTP status,
+  screen and dashboard returned 200; memory traversal returned 400.
+- Unrelated drafts and existing staged owner changes remain untouched.

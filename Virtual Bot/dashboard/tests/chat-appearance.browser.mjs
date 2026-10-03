@@ -67,15 +67,15 @@ try {
   browser('wait', '.chat-thread[data-empty]');
   assert.ok(centerError() <= 2, 'the new-chat composer must be centered');
   assert.equal(conversation().wallpaper, 'sky');
-  browser('click', 'button[aria-label="Choose model"]');
-  browser('wait', '[role=listbox] [role=option]');
-  evaluate('Promise.all(document.querySelector(".popup-shell:has([role=listbox])").getAnimations({subtree:true}).map(animation => animation.finished.catch(() => {})))');
-  assert.ok(evaluate('document.querySelectorAll("[role=listbox] [role=option]").length') >= 60);
-  assert.equal(evaluate(`(() => { const box = document.querySelector('.popup-shell:has([role=listbox])').getBoundingClientRect();
+  browser('click', '.brain-choice-trigger');
+  browser('wait', '.model-picker-list [role=radio]');
+  evaluate('Promise.all(document.querySelector(".model-effort-menu").getAnimations({subtree:true}).map(animation => animation.finished.catch(() => {})))');
+  assert.ok(evaluate('document.querySelectorAll(".model-picker-list [role=radio]").length') >= 60);
+  assert.equal(evaluate(`(() => { const box = document.querySelector('.model-effort-menu').getBoundingClientRect();
     return box.top >= -1 && box.bottom <= innerHeight + 1; })()`), true,
     'a large model catalog must keep search and controls inside the viewport');
   browser('press', 'Escape');
-  browser('wait', '--fn', 'document.querySelector("[role=listbox]") === null');
+  browser('wait', '--fn', 'document.querySelector(".model-effort-menu") === null');
   assert.equal(evaluate('document.querySelector("button[aria-label=\\"Customize chat appearance\\"]") === null'), true,
     'appearance is configured in Settings, without another chat toolbar button');
   browser('fill', '.prompt-bar textarea', 'Keep this draft.');
@@ -87,9 +87,10 @@ try {
   assert.equal(evaluate('document.querySelector(".prompt-bar textarea") === window.__originalComposer'), true);
   assert.equal(evaluate('document.querySelector(".prompt-bar textarea").value'), 'Keep this draft.');
   openAppearance();
-  browser('focus', '.chat-appearance-settings input[type="range"][min="15"]');
+  browser('focus', '.chat-appearance-settings input[type="range"][max="100"]');
+  browser('press', 'End');
   browser('press', 'Home');
-  assert.equal(saved().opacity, 15);
+  assert.equal(saved().opacity, 0);
   closeAppearance();
 
   // Upload is genuinely local: re-encode a raster and retain it through a reload.

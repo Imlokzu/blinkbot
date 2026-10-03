@@ -12,10 +12,10 @@ import { useToast } from '@/components/ui/Toaster';
 import { get, post } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { glue } from '@/lib/glue';
-import { t as lookT } from '@/lib/i18n';
 import { t } from '@/locales/settings';
 import { ACCENTS, THEMES, useTheme } from '@/hooks/useTheme';
 import { ChatAppearanceSettings } from '@/panels/chat/ChatAppearance';
+import { PopupGlassSettings } from './PopupGlassSettings';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useSendBubblePreference } from '@/hooks/useSendBubblePreference';
 import { t as effectsT } from '@/locales/effects';
@@ -329,7 +329,7 @@ function SaveBar({ saving, onSave }: { saving: boolean; onSave: () => void }) {
  * цілком може хотіти різні теми.
  */
 function LookSection() {
-  const { theme, accent, popup, setTheme, setAccent, setPopup } = useTheme();
+  const { theme, accent, setTheme, setAccent } = useTheme();
   const [lang, setLang] = useLanguage();
   const [sendBubble, setSendBubble] = useSendBubblePreference();
   const accentColor = useCssVar('--c-accent', '#b95f3d');
@@ -354,22 +354,7 @@ function LookSection() {
         />
       </SettingRow>
 
-      <SettingRow label={lookT('look.popups')}>
-        <JellyRadio
-          ariaLabel={lookT('look.popupsAria')}
-          value={popup}
-          onChange={(next) => setPopup(next as typeof popup)}
-          items={[
-            { value: 'solid', label: lookT('look.popupStandard') },
-            { value: 'glass', label: lookT('look.popupGlass') },
-          ]}
-          radius={999}
-          chipColor={surface2}
-          activeColor={accentColor}
-          textColor={ink}
-          activeTextColor={accentInk}
-        />
-      </SettingRow>
+      <PopupGlassSettings language={lang} />
 
       <SettingRow label="Мова">
         <JellyRadio

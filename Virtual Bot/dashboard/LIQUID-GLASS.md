@@ -9,13 +9,13 @@ The sample is on the composer, as a plate behind the field, and on the
 jump-to-latest circle. Bot replies stay a solid surface: nothing sits
 behind them, so a lens there is only a rim around the words.
 
-Popups keep that solid plate. Glass is a second material, off until the
-owner turns it on in Look → Popups (`claudeBotPopup` = `glass` on
-`<html data-popup="glass">`). It covers the model menu, the prompt-bar
-menus, the command palette, the session card, the context meter, the pin
-menu, and the reaction picker. Do not put the lens on more surfaces, and
-do not remove the solid classes from these: standard has to stay one
-switch away. Do not invent a second recipe.
+Popups keep that solid plate. Glass is a second material, chosen by category
+in Settings → Appearance: models and thinking, attachments, context, and
+other menus. `claudeBotPopupGlassTargets` stores the selected categories.
+A missing key inherits the old `claudeBotPopup` all-or-none choice; an
+explicit empty or malformed new choice means no popup glass. The shared
+controller owns `<html data-popup="glass">` while any category is selected.
+Do not remove the solid classes: unselected surfaces must remain solid.
 
 Radix menus are positioned by a transformed wrapper
 (`[data-radix-popper-content-wrapper]`). The lens has to sit on that
@@ -28,7 +28,16 @@ hidden so two filters never stack.
 A menu sits on top of sentences, so its lens is not the composer's clear
 centre. It keeps the same rim and adds a 6px centre blur plus a 64%
 surface wash, or the label and the line behind it become the same words.
-Do not copy that wash onto the composer.
+Do not copy that wash onto the composer. The composer defaults to zero
+opacity and zero blur; former stock frosting migrates once through the
+versioned appearance preference. Custom settings remain available.
+
+`data-popup-kind` marks independently selected surfaces. Radix content uses
+one lens on its positioning wrapper; non-portalled attachment sheets carry
+the lens themselves. Nested excluded surfaces keep their own solid fill.
+CSS blur remains available when the SVG lens is unsupported. The controller
+releases filters on close, preference changes and unmount, and follows live
+reduced-transparency changes.
 
 ## The lens
 

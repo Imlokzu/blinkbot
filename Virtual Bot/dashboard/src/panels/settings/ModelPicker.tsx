@@ -64,7 +64,8 @@ export function ModelPicker({
         </button>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content
+      <Popover.Content
+        data-popup-kind="models"
           side="bottom"
           align="end"
           sideOffset={6}

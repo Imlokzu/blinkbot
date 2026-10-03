@@ -212,10 +212,15 @@ scrolling past all of it.
 - **Recent**: the last three picks lead the list while nothing is typed.
 - The host is shown under each name, so the copies of one model can be told
   apart.
-- Thinking lives in a separate compact icon immediately to the right of the
-  model picker. Its radio choices come from the gateway's reported levels;
-  clearing the setting uses the gateway default, independently of "off".
-  Both menus retain serialized, acknowledged writes and localized errors.
+- One button opens the combined picker: models on the left, thinking on the
+  right. Sorting and capability bars, host/trait badges and the comparison
+  footer are removed. Model rows keep their maker icon, name, selection and
+  unavailable feedback. Search starts as a magnifier and expands on hover,
+  focus or tap; Escape clears/collapses search before closing the popup.
+- Thinking choices come from the gateway's reported levels; clearing the
+  setting uses the gateway default, independently of "off". Both columns
+  retain serialized, acknowledged writes and localized errors. Recents move
+  the chosen row without duplicating checked radios or stealing effort focus.
 
 
 ## Chat personalization (2026-10-03)
@@ -236,10 +241,15 @@ scrolling past all of it.
   and poster frames live in IndexedDB; localStorage retains only a stable
   ID. The sole muted player pauses for a hidden tab, reduced motion, data
   saving or routes outside selected areas. Settings previews use stills.
-- Composer glass uses the existing Hyalite lens and rim again. Chromium
-  follows the blur control; other browsers use a blur fallback. Reduced
-  transparency restores solid controls. Exact old stock defaults migrate
-  to the new glass defaults; custom preferences retain their values.
+- Composer glass uses the existing Hyalite lens and rim with a clear centre:
+  zero fill and zero blur by default. Former stock frosting migrates once,
+  using a recipe version so subsequent custom opacity/blur choices survive.
+  Chromium follows the blur control; other browsers use a blur fallback.
+  Reduced transparency and unsupported backdrop filters use readable fills.
+- Popup glass is selected independently in Settings → Appearance for models,
+  attachments, context details and other menus. The shared local preference
+  overrides the legacy all-or-none flag, including an explicit empty choice.
+  Only selected surfaces carry one lens; other surfaces remain solid.
 - Compact desktop controls retain 44px targets on touch screens. Microphone
   colour indicates its purpose and recording state; maker logos use their own
   theme-aware colours without changing the actual selected provider/model.
@@ -247,8 +257,10 @@ scrolling past all of it.
   keyboard focus. The right rail can close and reopen without changing pins;
   its visibility persists independently of the conversations list.
 - Regression coverage: `tests/chatAppearance.test.mjs`,
-  `tests/brandColors.test.mjs`, `tests/chat-appearance.browser.mjs` and
-  `tests/effort-menu.browser.mjs`.
+  `tests/brandColors.test.mjs`, `tests/popupGlass.test.mjs`,
+  `tests/chat-appearance.browser.mjs`, `tests/model-effort.browser.mjs` and
+  `tests/glass-popup.browser.mjs`. Old model/effort browser entrypoints route
+  to the combined fixture suite.
 
 ## Clock, chat usage and model accounts pins (2026-09-26)
 

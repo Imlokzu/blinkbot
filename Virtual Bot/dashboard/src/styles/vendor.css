@@ -576,15 +576,16 @@ html[data-popup="glass"] .popup-lens {
     inset 0 -1px 0 rgba(255, 255, 255, 0.06),
     inset 0 0 0 1px rgba(255, 255, 255, 0.22));
 }
-html[data-popup="glass"] .popup-lens .popup-shell,
+html[data-popup="glass"] [data-radix-popper-content-wrapper].popup-lens > .popup-shell,
 html[data-popup="glass"] .popup-shell.popup-lens {
   /* A clear centre over a sentence makes the label unreadable. The wash
      stays light enough that the page still shows through the rim. */
   background-color: color-mix(in srgb, var(--c-surface) 64%, transparent);
   border-color: transparent;
-  box-shadow: none;
   will-change: auto;
 }
+/* Only a child card sheds its shadow; an unwrapped lens keeps its own rim. */
+html[data-popup="glass"] [data-radix-popper-content-wrapper].popup-lens > .popup-shell { box-shadow: none; }
 .chat-composer {
   position: relative;
   z-index: 3;
@@ -592,19 +593,19 @@ html[data-popup="glass"] .popup-shell.popup-lens {
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .liquid-glass,
-  .popup-lens {
+  html[data-popup="glass"] .popup-lens,
+  html[data-popup="glass"] .popup-shell.popup-lens {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     background: color-mix(in srgb, var(--c-surface) 92%, transparent);
   }
-  html[data-popup="glass"] .popup-lens .popup-shell,
-  html[data-popup="glass"] .popup-shell.popup-lens {
+  html[data-popup="glass"] [data-radix-popper-content-wrapper].popup-lens > .popup-shell {
     background-color: transparent;
   }
 }
 @media (prefers-reduced-transparency: reduce) {
   .liquid-glass,
-  .popup-lens {
+  html[data-popup="glass"] .popup-lens {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     background: var(--c-surface-2);

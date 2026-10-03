@@ -11,7 +11,6 @@ import { collectFiles, workspaceWrites, workspaceWriteId, workbenchHost } from '
 import { WorkspaceLinksProvider } from './WorkspaceFileLink';
 import { ModelMenu } from './ModelMenu';
 import { SelectionActions } from './SelectionActions';
-import { EffortMenu } from './EffortMenu';
 import { useChatAppearance } from './useChatAppearance';
 import './chat-appearance.css';
 import { useChatRuntime } from './useChatRuntime';
@@ -313,7 +312,6 @@ export default function ChatPanel() {
               </Button>
               <div className="flex min-w-0 items-center justify-center gap-1">
                 <ModelMenu />
-                <EffortMenu variant="header" />
               </div>
               <Button
                 variant="ghost"

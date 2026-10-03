@@ -35,6 +35,8 @@ const uk = {
   'composer.commands': 'Команди',
   'composer.models': 'Моделі',
   'composer.chooseModel': 'Обрати модель',
+  'composer.modelEffort': 'Модель і думання',
+  'composer.chooseModelEffort': 'Модель і думання: {model}, {level}',
   'composer.chooseEffort': 'Рівень думання',
   'composer.chooseEffortCurrent': 'Рівень думання: {level}',
   'composer.effortUnsupported': 'OpenClaw зараз не пропонує цей рівень',
@@ -83,6 +85,7 @@ const uk = {
 
   // Вибір моделі
   'models.search': 'Пошук моделі…',
+  'models.openSearch': 'Пошук моделей',
   'models.clear': 'Очистити пошук',
   'models.sort': 'Сортування моделей',
   'models.sortMaker': 'Виробник',
@@ -264,6 +267,8 @@ const en: Record<keyof typeof uk, string> = {
   'composer.commands': 'Commands',
   'composer.models': 'Models',
   'composer.chooseModel': 'Choose model',
+  'composer.modelEffort': 'Model and thinking',
+  'composer.chooseModelEffort': 'Model and thinking: {model}, {level}',
   'composer.chooseEffort': 'Thinking level',
   'composer.chooseEffortCurrent': 'Thinking level: {level}',
   'composer.effortUnsupported': 'OpenClaw does not currently offer this level',
@@ -310,6 +315,7 @@ const en: Record<keyof typeof uk, string> = {
   'sheet.close': 'Close attachment menu',
 
   'models.search': 'Search models…',
+  'models.openSearch': 'Search models',
   'models.clear': 'Clear search',
   'models.sort': 'Sort models',
   'models.sortMaker': 'Maker',

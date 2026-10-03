@@ -24,7 +24,19 @@
           r.dataset.theme = dark ? 'dark' : 'light';
           r.dataset.accent = a;
           r.lang = localStorage.getItem('claudeBotLang') === 'uk' ? 'uk' : 'en';
-          if (localStorage.getItem('claudeBotPopup') === 'glass') r.dataset.popup = 'glass';
+          var kinds = ['models', 'attachments', 'context', 'menus'];
+          var storedPopups = localStorage.getItem('claudeBotPopupGlassTargets');
+          var popupTargets = [];
+          if (storedPopups === null) {
+            if (localStorage.getItem('claudeBotPopup') === 'glass') popupTargets = kinds;
+          } else {
+            try {
+              var parsedPopups = JSON.parse(storedPopups);
+              if (Array.isArray(parsedPopups)) popupTargets = kinds.filter(function (kind) { return parsedPopups.indexOf(kind) !== -1; });
+            } catch (e) {}
+          }
+          r.dataset.popupGlassTargets = popupTargets.join(' ');
+          if (popupTargets.length) r.dataset.popup = 'glass';
         } catch (e) {}
       })();
     </script>
