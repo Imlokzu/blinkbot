@@ -1,12 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { MessageCircle, Plus } from 'lucide-react';
-import { PulseHeart, SwipeRow } from '@/vendor/reactbits';
+import { SwipeRow } from '@/vendor/reactbits';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/Button';
 import { Empty, SkeletonList } from '@/components/ui/Feedback';
 import { useToast } from '@/components/ui/Toaster';
 import { useCssVar } from '@/hooks/useAccentRgb';
-import { del, post } from '@/lib/api';
+import { del } from '@/lib/api';
 import { SessionCard } from './SessionCard';
 import type { SessionSummary } from './types';
 import { t } from '@/lib/i18n';
@@ -74,22 +74,11 @@ export function SessionList({
 }) {
   const client = useQueryClient();
   const toast = useToast();
-  const accent = useCssVar('--c-accent', '#b95f3d');
   const ink = useCssVar('--c-text', '#231e19');
-  const faint = useCssVar('--c-text-3', '#958979');
   const surface3 = useCssVar('--c-surface-3', '#e5ddd0');
   const danger = useCssVar('--c-err', '#b2412e');
 
   const refresh = () => void client.invalidateQueries({ queryKey: ['sessions'] });
-
-  const togglePin = async (session: SessionSummary, next: boolean) => {
-    try {
-      await post(`/api/sessions/${encodeURIComponent(session.id)}/pin`, { pinned: next });
-      refresh();
-    } catch (error) {
-      toast.error(chatT('sessions.pinFailed'), (error as Error).message);
-    }
-  };
 
   /*
    * Видалення змахом — без перепитування, але з відкотом? Ні: чат_store
@@ -124,28 +113,6 @@ export function SessionList({
             </span> : null}
           </span> : null}
         </button>
-        {/* Pinning is a separate action and must not open the conversation. */}
-        <span
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-          }}
-          className="shrink-0"
-        >
-          <PulseHeart
-            className="conversation-row__pin"
-            icon="star"
-            size={18}
-            showCount={false}
-            liked={!!session.pinned}
-            onChange={(next) => void togglePin(session, next)}
-            likedColor={accent}
-            idleColor={faint}
-            pillColor="transparent"
-            textColor={ink}
-            label={chatT(session.pinned ? 'sessions.unpin' : 'sessions.pin')}
-          />
-        </span>
       </div>
     );
 
@@ -171,11 +138,9 @@ export function SessionList({
           label={session.title || chatT('sessions.conversation')}
           actions={[
             { id: 'delete', label: chatT('sessions.delete') },
-            { id: 'pin', label: session.pinned ? chatT('sessions.unpin') : chatT('sessions.pin') },
           ]}
           onAction={(action) => {
             if (action.id === 'delete') void removeSession(session);
-            if (action.id === 'pin') void togglePin(session, !session.pinned);
           }}
         >
           {row}

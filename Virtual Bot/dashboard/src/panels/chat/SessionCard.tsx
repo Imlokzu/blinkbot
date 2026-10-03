@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useIsPhone } from '@/hooks/useMediaQuery';
 import { t } from '@/locales/chat';
 import * as Popover from '@radix-ui/react-popover';
@@ -70,7 +70,16 @@ export function SessionCard({
   const [open, setOpen] = useState(false);
   const [picking, setPicking] = useState(false);
   const [sure, setSure] = useState(false);
+  const anchor = useRef<HTMLDivElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const keyboardOrigin = useRef<HTMLElement | null>(null);
   const timer = useRef<number | undefined>(undefined);
+  const press = useRef<{ id: number; x: number; y: number; timer: number } | null>(null);
+  const suppressClick = useRef(false);
+  useEffect(() => () => {
+    window.clearTimeout(timer.current);
+    if (press.current) window.clearTimeout(press.current.timer);
+  }, []);
 
   const projects = useQuery({
     queryKey: ['projects'],
@@ -120,9 +129,14 @@ export function SessionCard({
    * картки, не втративши її дорогою.
    */
   const plan = (next: boolean) => {
+    // A keyboard-opened card stays available while focus moves through its actions.
+    if (!next && keyboardOrigin.current) return;
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(
       () => {
+        // A delayed hover must not cover another card's focused keyboard actions.
+        const focusedPopup = document.activeElement?.closest('[data-session-card-popup][data-state="open"]');
+        if (next && focusedPopup && focusedPopup !== popup.current) return;
         setOpen(next);
         if (!next) {
           setPicking(false);
@@ -148,8 +162,6 @@ export function SessionCard({
    * довше — відчувалось би як гальмо. Рух пальцем чи скрол списку
    * скасовує таймер, інакше картка вистрибувала б посеред гортання.
    */
-  const press = useRef<{ id: number; x: number; y: number; timer: number } | null>(null);
-
   const pressCancel = () => {
     if (press.current) window.clearTimeout(press.current.timer);
     press.current = null;
@@ -165,6 +177,7 @@ export function SessionCard({
         y: event.clientY,
         timer: window.setTimeout(() => {
           press.current = null;
+          suppressClick.current = true;
           setOpen(true);
           /* Легкий відгук, як у нативному меню. Де вібрації нема — тихо
              поверне false, і нічого не станеться. */
@@ -191,11 +204,39 @@ export function SessionCard({
     [projects.data, session.project],
   );
 
+  const focusFirstAction = () => popup.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({ preventScroll: true });
+
   return (
     <Popover.Root open={open} onOpenChange={(next) => (next ? setOpen(true) : close())}>
       <Popover.Anchor asChild>
         <div
+          ref={anchor}
           {...(isPhone ? touch : hover)}
+          onKeyDown={(event) => {
+            const contextCommand = event.key === 'ContextMenu'
+              || (event.key === 'F10' && event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey);
+            if (!contextCommand) return;
+            event.preventDefault();
+            event.stopPropagation();
+            window.clearTimeout(timer.current);
+            pressCancel();
+            suppressClick.current = false;
+            keyboardOrigin.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            setOpen(true);
+            // A hover-opened or still-closing card is already mounted.
+            focusFirstAction();
+          }}
+          onPointerDownCapture={() => {
+            // A fresh gesture must survive a previous long press with no release click.
+            suppressClick.current = false;
+          }}
+          onClickCapture={(event) => {
+            // Releasing a long press keeps its menu open instead of selecting the chat.
+            if (!suppressClick.current || event.detail === 0) return;
+            suppressClick.current = false;
+            event.preventDefault();
+            event.stopPropagation();
+          }}
           onClick={(event) => {
             if ((event.target as HTMLElement).closest('button')) return;
             onOpen?.();
@@ -203,15 +244,40 @@ export function SessionCard({
         >{children}</div>
       </Popover.Anchor>
 
+      <Popover.Portal>
       <Popover.Content
+        ref={popup}
+        data-session-card-popup={session.id}
+        data-swipe-ignore
         side={isPhone ? 'bottom' : 'right'}
         align={isPhone ? 'center' : 'start'}
         sideOffset={10}
         collisionPadding={12}
         avoidCollisions
-        // Фокус лишається там, де був: картка — підказка, а не діалог, і
-        // забирати в людини каретку з поля вводу вона не мусить.
-        onOpenAutoFocus={(event) => event.preventDefault()}
+        // Hovering a card must not steal the composer's caret.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          if (keyboardOrigin.current) focusFirstAction();
+        }}
+        onCloseAutoFocus={(event) => {
+          const origin = keyboardOrigin.current;
+          keyboardOrigin.current = null;
+          if (!origin) return;
+          event.preventDefault();
+          // Preserve focus chosen by an outside click; Escape returns to the row.
+          if (origin.isConnected && (document.activeElement === document.body || popup.current?.contains(document.activeElement))) {
+            origin.focus({ preventScroll: true });
+          }
+        }}
+        onFocusOutside={(event) => {
+          // Touch release focuses the row before its suppressed click arrives.
+          if (suppressClick.current && anchor.current?.contains(event.target as Node)) event.preventDefault();
+        }}
+        // Portal events still reach the drawer's React tree; its menu owns touch gestures.
+        onTouchStart={(event) => event.stopPropagation()}
+        onTouchMove={(event) => event.stopPropagation()}
+        onTouchEnd={(event) => event.stopPropagation()}
+        onTouchCancel={(event) => event.stopPropagation()}
         style={{ zIndex: 'var(--z-pop)' }}
         className="popup-shell u-pop w-[min(268px,calc(100vw-24px))] rounded-md border border-line bg-surface p-3 shadow-pop outline-none"
         {...(isPhone ? {} : hover)}
@@ -284,6 +350,7 @@ export function SessionCard({
           </>
         )}
       </Popover.Content>
+      </Popover.Portal>
     </Popover.Root>
   );
 }

@@ -194,26 +194,6 @@ html[data-wallpaper]:not([data-wallpaper="none"])[data-background-targets~="sess
 
 .conversation-row__count { display: inline-flex; align-items: center; gap: 4px; }
 
-.conversation-row__pin {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--r-sm);
-  background: transparent;
-  color: var(--c-text-2);
-  cursor: pointer;
-}
-
-.conversation-row__pin[aria-pressed="true"] {
-  color: var(--c-accent);
-}
-
-.conversation-row__pin:focus-visible,
 .conversation-list__header button:focus-visible {
   outline: 2px solid var(--c-accent);
   outline-offset: 1px;
@@ -232,14 +212,10 @@ html[data-wallpaper]:not([data-wallpaper="none"])[data-background-targets~="sess
     opacity: 1;
   }
 
-  .conversation-row__pin:hover {
-    color: var(--c-accent);
-  }
 }
 
 @media (pointer: coarse) {
   .conversation-row { padding-block: 8px; }
-  .conversation-row__pin,
   .conversation-list__header button {
     min-width: 44px;
     min-height: 44px;

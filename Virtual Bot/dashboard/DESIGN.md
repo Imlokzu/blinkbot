@@ -695,3 +695,17 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   the index is shown. Benchmark names are proper names, not locale keys.
 - Regression coverage: `tests/modelIntelligence.test.mjs`,
   `tests/model-effort.browser.mjs` (off by default, no row badges).
+
+
+## Conversation action cards (2026-10-03)
+
+- Cards portal above message and drawer layers using the shared popup z-index;
+  sidebar stacking and clipping must not cover any card or action. Retain
+  selected glass, row anchoring, hover intent and the composer's caret.
+- Pinning is a rare menu action with Pin/PinOff glyphs; rows have no constant
+  star or pin target. Keyboard users open actions with Shift+F10/ContextMenu,
+  focus the first action and return to their row on Escape.
+- A long press keeps its menu on release, a cancelled press cannot consume the
+  next row tap, and touch gestures inside the portal do not move the drawer.
+  Pending hover must respect another card's active action focus.
+- Regressions:tests/session-popup.browser.mjs and session-sidebar.browser.mjs.

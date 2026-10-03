@@ -1416,3 +1416,22 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   stale callbacks, retained marks and existing chat/image/motion behavior.
   The final175 frontend tests, TypeScript/build and all301 release resources
   pass; original staged changes and unrelated drafts remain preserved.
+
+
+## Conversation menu layers and menu-only pins (2026-10-03)
+
+- Conversation cards now portal into the shared popup layer. This escapes the
+  glass sidebar's stacking context and scroll clipping, so replies cannot
+  paint over their actions. Existing glass, placement and hover caret remain.
+- Removed persistent row stars and swipe Pin; Pin/Unpin lives in the card
+  with actual pin glyphs. Rows gain title space. Shift+F10/ContextMenu opens
+  keyboard actions; Escape returns to the invoking row.
+- Native touch tests found and fixed release-focus dismissal, swallowed taps
+  after cancellation and portal gestures reaching the underlying drawer.
+  Timers clear on unmount. Pending mouse hover cannot open another card over
+  keyboard-focused actions; closed exit layers do not block normal transfer.
+- Separate maximum-effort review and trusted CDP tests passed both materials,
+  locales/themes, real popup/reply hit-testing, actions, viewport collisions,
+  native390/320 touch sequences, keyboard Pin/Unpin and hover/focus timing.
+  Validation:180 frontend tests, TypeScript/guarded build;1,100 Python tests
+  passed with6 skipped and178 subtests. Unrelated owner work is preserved.
