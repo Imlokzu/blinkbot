@@ -4,11 +4,14 @@
 .app-wallpaper video { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
 .app-wallpaper[data-video-paused] video { visibility: hidden; }
 html[data-wallpaper="none"] .app-wallpaper { display: none; }
-html[data-wallpaper="sky"] .app-wallpaper { background-image: url('../../panels/chat/assets/chat-sky-v2.webp'); }
+html[data-wallpaper="sky"] .app-wallpaper { background-image: url('../../panels/chat/assets/chat-reference-sky.jpg'); }
 html[data-wallpaper="dusk"] .app-wallpaper { background-image: radial-gradient(ellipse at 15% 10%, #e5b5a3, transparent 55%), radial-gradient(ellipse at 85% 5%, #b6a3c8, transparent 65%), linear-gradient(#b9b6d4, #eee1d5); }
 html[data-wallpaper="forest"] .app-wallpaper { background-image: radial-gradient(ellipse at 10% 0, #bccfb0, transparent 55%), radial-gradient(ellipse at 90% 20%, #73918b, transparent 60%), linear-gradient(#bdcbbb, #e4e8db); }
 .app-wallpaper::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--c-bg) 10%, transparent), color-mix(in srgb, var(--c-bg) 30%, transparent) 48%, color-mix(in srgb, var(--c-bg) 88%, transparent)); }
 [data-theme="dark"] .app-wallpaper::after { background: linear-gradient(180deg, color-mix(in srgb, var(--c-bg) 32%, transparent), color-mix(in srgb, var(--c-bg) 48%, transparent) 48%, color-mix(in srgb, var(--c-bg) 92%, transparent)); }
+/* The reference sky keeps its original colours beneath a stationary reading wash. */
+html[data-wallpaper="sky"] .app-wallpaper::after { background: linear-gradient(180deg, color-mix(in srgb, var(--c-bg) 60%, transparent), color-mix(in srgb, var(--c-bg) 65%, transparent) 48%, color-mix(in srgb, var(--c-bg) 88%, transparent)); }
+html[data-theme="dark"][data-wallpaper="sky"] .app-wallpaper::after { background: linear-gradient(180deg, color-mix(in srgb, var(--c-bg) 65%, transparent), color-mix(in srgb, var(--c-bg) 70%, transparent) 48%, color-mix(in srgb, var(--c-bg) 92%, transparent)); }
 .app-shell > header, .app-shell > main { position: relative; z-index: 1; }
 .app-shell > main { background: var(--c-bg); }
 .app-shell > main[data-section="chat"] { background: transparent; }

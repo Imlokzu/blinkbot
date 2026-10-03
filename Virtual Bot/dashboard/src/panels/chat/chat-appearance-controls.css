@@ -17,7 +17,7 @@
 }
 .chat-appearance-background[aria-pressed="true"] { color: var(--c-text); }
 .chat-appearance-preview--none { background: var(--c-surface-2); }
-.chat-appearance-preview--sky { background-image: url('./assets/chat-sky-v2.webp'); }
+.chat-appearance-preview--sky { background-image: url('./assets/chat-reference-sky.jpg'); }
 .chat-appearance-preview--dusk { background: radial-gradient(ellipse at 80% 30%, #cb91ad, transparent 55%), linear-gradient(#6b6c96, #efbfaf); }
 .chat-appearance-preview--forest { background: radial-gradient(ellipse at 20% 5%, #95b29a, transparent 50%), linear-gradient(#496f65, #cad3bc); }
 .chat-appearance-preview--custom, .chat-appearance-preview--video { background-color: var(--c-surface-2); }

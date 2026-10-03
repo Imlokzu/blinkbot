@@ -54,7 +54,7 @@ export default defineConfig({
         // Кешуємо лише оболонку. API, стріми й прев'ю файлів кешувати не можна:
         // це стан бота, а не статика — застарілу відповідь показувати гірше,
         // ніж чесну помилку мережі.
-        globPatterns: ['**/*.{js,css,html,svg,webp,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,jpg,jpeg,webp,woff2}'],
         globIgnores: ['assets/drawing/**', 'excalidraw/**'],
         runtimeCaching: [{
           // Hashed file names: a cached copy is never stale, only unused.
