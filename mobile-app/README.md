@@ -46,8 +46,9 @@ Backend contract and deployment assumptions: [MOBILE-API.md](../Virtual%20Bot/do
   submissions retry on the next permitted foreground opportunity.
 - Full Xcode is absent on the development Mac. Swift source checks and portable
   audio/file checks passed; an iOS app or IPA has not been compiled or tested.
-- The public tunnel, real provider calls, real microphone recognition and signed
-  store distribution are not certified by the deterministic test fixtures.
+- Real provider calls, real microphone recognition and signed store distribution
+  are not certified by the deterministic test fixtures. Public hostname routing
+  was checked separately; see [TUNNEL.md](../docs/mobile-app/TUNNEL.md).
 - Re-pairing issues a new device identity. Old device-scoped unsent data is retained
   locally and never silently transferred to a different connection.
 

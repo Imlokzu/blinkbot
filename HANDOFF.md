@@ -1524,3 +1524,14 @@ local server exposes the mobile routes and live QR issuance returns HTTP 200.
 Scoped dashboard typecheck, 188 unit tests and production build passed. A real
 browser verified QR rendering and the Devices destination, plus English/Ukrainian
 search; no authentication gate was relaxed.
+
+## Mobile public API connectivity (2026-10-03)
+
+The phone connection failure was DNS NXDOMAIN for `api-bot.waveio.me`. Added
+its CNAME to the existing `klodbot` Cloudflare Tunnel and an API ingress rule to
+the same backend at `127.0.0.1:8100`, preserving the API Host header. Validated
+rules, rolled the persistent tunnel service through a temporary replica, and
+verified public HTTPS reaches the required-device-token 401 response. Existing
+web routing and authentication gates are unchanged. Negative DNS caches may
+outlast the record creation; use a fresh PC Settings / Devices pairing QR.
+Operational details and verification boundaries: `docs/mobile-app/TUNNEL.md`.
