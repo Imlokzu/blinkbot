@@ -54,6 +54,7 @@ import auth_clerk
 import mobile_api
 import mobile_bridge
 import mobile_content
+import mobile_skills
 import workspace_write_guard
 import brain_context
 import brains
@@ -4457,6 +4458,7 @@ _mobile_routes = mobile_api.router(
     server_origin=os.environ.get("MOBILE_API_ORIGIN", ""),
 )
 app.include_router(_mobile_routes)
+app.include_router(mobile_skills.router(_require_user))
 app.include_router(mobile_content.router(
     _require_user, read_file=api_workspace_file, save_file=api_workspace_save,
     write_guard=workspace_write_guard.mobile_reservation,
