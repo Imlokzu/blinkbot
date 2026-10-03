@@ -157,6 +157,7 @@ function GroupHead({ brand, count }: { brand: string | null; count: number }) {
   return (
     // Sticky, so a long group still says whose models you are scrolling.
     <li role="presentation" className="sticky top-0 z-[1] flex items-center gap-2 bg-surface px-2 pb-1 pt-2.5">
+      {Object.hasOwn(BRAND_NAMES, brand) ? <BrandLogo brand={brand as keyof typeof BRAND_NAMES} className="size-3.5" /> : null}
       <span className="u-label">{title}</span>
       <span className="font-mono text-[10px] text-ink-3">{count}</span>
     </li>
