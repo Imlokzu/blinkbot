@@ -1,0 +1,589 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		02432B2BF61ACBADA35656A0 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A3B11E1C052440C268EC73B7 /* PrivacyInfo.xcprivacy */; };
+		0884F0D42B989BFF7BCADA89 /* QRScanController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E92E9E0195C7579BB9EEAD31 /* QRScanController.swift */; };
+		0A46C44ACE6D1BBF33297777 /* NativeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A7360CB5ACAFC63A9A12465 /* NativeBridge.swift */; };
+		12167956EC57D7F243F20C74 /* NativeStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C49155430C973E73264C166E /* NativeStorage.swift */; };
+		15C0BBCD88F3A439B9D96E56 /* NativeLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F17326D893968C535E6476 /* NativeLifecycleTests.swift */; };
+		2122D9BA94AB05DB3742870A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4E90DD3DBE956C292746B0F2 /* SwiftUI.framework */; };
+		251AFD9E02963BB82A88B77B /* BoundedDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 821DA95C5A07FB22384D2458 /* BoundedDataTests.swift */; };
+		462E6B6C627844F2AD178850 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5FEF59A4AAF027EEBC38DFF9 /* UserNotifications.framework */; };
+		499692F135509E25903729F1 /* BoundedData.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA421D0F439B92B23D2E758E /* BoundedData.swift */; };
+		49DC3F1780B3399E59A149BC /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 733CA6B31DA0039B189FA340 /* UIKit.framework */; };
+		4A52E6D1705BADD3434C232B /* RecordingPCMTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE013BDD868021E735F5C21E /* RecordingPCMTests.swift */; };
+		4EB1CC1A0994096D4B3FCFF0 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = F65E1AAA6099547749F19971 /* InfoPlist.strings */; };
+		603CCF196723ACF4CA29CA1F /* ClaudeBotApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1190CF60F33B43FFA02C170 /* ClaudeBotApp.swift */; };
+		6C1234D79D53744AE084AE81 /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1EF311B13B94C1A60CCD5DEE /* UniformTypeIdentifiers.framework */; };
+		6D8074B553F06EEDE2DF0073 /* NativeRecording.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2803617BEA1D244A2176F128 /* NativeRecording.swift */; };
+		702B70AF8229A9E27E658A7B /* IncomingPairingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA8AC9428BF0F3F1C8D4CE0C /* IncomingPairingTests.swift */; };
+		7CCE172E95B41920ADF32C94 /* NativeStorageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB64046D81366A7E8EF338D /* NativeStorageTests.swift */; };
+		8830CA630939D5949ECEED3F /* NativePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46E7E2234A18ACDCA14FDBCD /* NativePicker.swift */; };
+		90A741A37387D33D9039A043 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EE9870120BFAB086A12E6A0E /* AVFoundation.framework */; };
+		A708A77BFB5EF32367846C29 /* RecordingPCM.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29F4E90722204F4B341E4C88 /* RecordingPCM.swift */; };
+		ADD43F725552D9543FC34E6E /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E6F4CD08B4A990EF1B218058 /* Security.framework */; };
+		CAAFF0196639960324CC9327 /* PhotosUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 924A94E485EB309946337779 /* PhotosUI.framework */; };
+		E2D281B6B5E9187791EDFB31 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 95C7745200398B7A9D38FEF2 /* Assets.xcassets */; };
+		E2F54D018047B05A3660495A /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 16F1EF7A4D5CF1A820C124BF /* Localizable.strings */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2E695267FB2081E5595A8EE3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F5ABED02AE21745528AF4D80 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B0A0AA7A491E979773098DD1;
+			remoteInfo = ClaudeBot;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		1EF311B13B94C1A60CCD5DEE /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
+		2803617BEA1D244A2176F128 /* NativeRecording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeRecording.swift; sourceTree = "<group>"; };
+		29F4E90722204F4B341E4C88 /* RecordingPCM.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingPCM.swift; sourceTree = "<group>"; };
+		3A7360CB5ACAFC63A9A12465 /* NativeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBridge.swift; sourceTree = "<group>"; };
+		46E7E2234A18ACDCA14FDBCD /* NativePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePicker.swift; sourceTree = "<group>"; };
+		4E90DD3DBE956C292746B0F2 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		505148F896B65EB4789B5769 /* ClaudeBot.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeBot.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5C7619111708D724A3A19A3F /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		5FEF59A4AAF027EEBC38DFF9 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
+		733CA6B31DA0039B189FA340 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		821DA95C5A07FB22384D2458 /* BoundedDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoundedDataTests.swift; sourceTree = "<group>"; };
+		924A94E485EB309946337779 /* PhotosUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PhotosUI.framework; path = System/Library/Frameworks/PhotosUI.framework; sourceTree = SDKROOT; };
+		95C7745200398B7A9D38FEF2 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		9A8BC6D1EAF0E9F188C43074 /* uk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = uk; path = uk.lproj/Localizable.strings; sourceTree = "<group>"; };
+		A039A37C0D1B0C458E76FBD7 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		A1190CF60F33B43FFA02C170 /* ClaudeBotApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeBotApp.swift; sourceTree = "<group>"; };
+		A3B11E1C052440C268EC73B7 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		AA421D0F439B92B23D2E758E /* BoundedData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoundedData.swift; sourceTree = "<group>"; };
+		C49155430C973E73264C166E /* NativeStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeStorage.swift; sourceTree = "<group>"; };
+		C7F17326D893968C535E6476 /* NativeLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeLifecycleTests.swift; sourceTree = "<group>"; };
+		DE013BDD868021E735F5C21E /* RecordingPCMTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingPCMTests.swift; sourceTree = "<group>"; };
+		E570E96C23858CD603BC30E2 /* ClaudeBotNativeTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ClaudeBotNativeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E6F4CD08B4A990EF1B218058 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		E92E9E0195C7579BB9EEAD31 /* QRScanController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScanController.swift; sourceTree = "<group>"; };
+		EE9870120BFAB086A12E6A0E /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
+		F549C2C4828F3250E2CF229D /* uk */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = uk; path = uk.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		FA8AC9428BF0F3F1C8D4CE0C /* IncomingPairingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingPairingTests.swift; sourceTree = "<group>"; };
+		FDB64046D81366A7E8EF338D /* NativeStorageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeStorageTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BBA7F49648EC915DFF64AA2A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				49DC3F1780B3399E59A149BC /* UIKit.framework in Frameworks */,
+				2122D9BA94AB05DB3742870A /* SwiftUI.framework in Frameworks */,
+				90A741A37387D33D9039A043 /* AVFoundation.framework in Frameworks */,
+				CAAFF0196639960324CC9327 /* PhotosUI.framework in Frameworks */,
+				ADD43F725552D9543FC34E6E /* Security.framework in Frameworks */,
+				6C1234D79D53744AE084AE81 /* UniformTypeIdentifiers.framework in Frameworks */,
+				462E6B6C627844F2AD178850 /* UserNotifications.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		299D72121A0A4BDB15A6496D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				505148F896B65EB4789B5769 /* ClaudeBot.app */,
+				E570E96C23858CD603BC30E2 /* ClaudeBotNativeTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		360615148690776B991EC289 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				AA421D0F439B92B23D2E758E /* BoundedData.swift */,
+				A1190CF60F33B43FFA02C170 /* ClaudeBotApp.swift */,
+				3A7360CB5ACAFC63A9A12465 /* NativeBridge.swift */,
+				46E7E2234A18ACDCA14FDBCD /* NativePicker.swift */,
+				2803617BEA1D244A2176F128 /* NativeRecording.swift */,
+				C49155430C973E73264C166E /* NativeStorage.swift */,
+				E92E9E0195C7579BB9EEAD31 /* QRScanController.swift */,
+				29F4E90722204F4B341E4C88 /* RecordingPCM.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		6FE14F5C7C8BF0890372CC72 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				95C7745200398B7A9D38FEF2 /* Assets.xcassets */,
+				A3B11E1C052440C268EC73B7 /* PrivacyInfo.xcprivacy */,
+				F65E1AAA6099547749F19971 /* InfoPlist.strings */,
+				16F1EF7A4D5CF1A820C124BF /* Localizable.strings */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		7B3BE21A9ACCDA9FCB4ED9BD /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				821DA95C5A07FB22384D2458 /* BoundedDataTests.swift */,
+				FA8AC9428BF0F3F1C8D4CE0C /* IncomingPairingTests.swift */,
+				C7F17326D893968C535E6476 /* NativeLifecycleTests.swift */,
+				FDB64046D81366A7E8EF338D /* NativeStorageTests.swift */,
+				DE013BDD868021E735F5C21E /* RecordingPCMTests.swift */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		C0379E800B470D7C25BECB68 = {
+			isa = PBXGroup;
+			children = (
+				6FE14F5C7C8BF0890372CC72 /* Resources */,
+				360615148690776B991EC289 /* Sources */,
+				7B3BE21A9ACCDA9FCB4ED9BD /* Tests */,
+				DC13EE173948B9EB75587045 /* Frameworks */,
+				299D72121A0A4BDB15A6496D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		DC13EE173948B9EB75587045 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				EE9870120BFAB086A12E6A0E /* AVFoundation.framework */,
+				924A94E485EB309946337779 /* PhotosUI.framework */,
+				E6F4CD08B4A990EF1B218058 /* Security.framework */,
+				4E90DD3DBE956C292746B0F2 /* SwiftUI.framework */,
+				733CA6B31DA0039B189FA340 /* UIKit.framework */,
+				1EF311B13B94C1A60CCD5DEE /* UniformTypeIdentifiers.framework */,
+				5FEF59A4AAF027EEBC38DFF9 /* UserNotifications.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		B0A0AA7A491E979773098DD1 /* ClaudeBot */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1DEB160CEB6944031472C1CA /* Build configuration list for PBXNativeTarget "ClaudeBot" */;
+			buildPhases = (
+				C0324AB31B7B23E1BDA78037 /* Build and embed Kotlin framework */,
+				F3A6E5D6856B4BF522ACA9DB /* Sources */,
+				554681FE7140473E948655D1 /* Resources */,
+				BBA7F49648EC915DFF64AA2A /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ClaudeBot;
+			packageProductDependencies = (
+			);
+			productName = ClaudeBot;
+			productReference = 505148F896B65EB4789B5769 /* ClaudeBot.app */;
+			productType = "com.apple.product-type.application";
+		};
+		F0CB0757E7417342F70F182F /* ClaudeBotNativeTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8161E455036989D61685A03A /* Build configuration list for PBXNativeTarget "ClaudeBotNativeTests" */;
+			buildPhases = (
+				60901C3EBB17400BD423D317 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7FE02B16F539F7A5A0527EAD /* PBXTargetDependency */,
+			);
+			name = ClaudeBotNativeTests;
+			packageProductDependencies = (
+			);
+			productName = ClaudeBotNativeTests;
+			productReference = E570E96C23858CD603BC30E2 /* ClaudeBotNativeTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F5ABED02AE21745528AF4D80 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					B0A0AA7A491E979773098DD1 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = A4367F0525A701A9A1045570 /* Build configuration list for PBXProject "ClaudeBot" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+				uk,
+			);
+			mainGroup = C0379E800B470D7C25BECB68;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 299D72121A0A4BDB15A6496D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B0A0AA7A491E979773098DD1 /* ClaudeBot */,
+				F0CB0757E7417342F70F182F /* ClaudeBotNativeTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		554681FE7140473E948655D1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E2D281B6B5E9187791EDFB31 /* Assets.xcassets in Resources */,
+				4EB1CC1A0994096D4B3FCFF0 /* InfoPlist.strings in Resources */,
+				E2F54D018047B05A3660495A /* Localizable.strings in Resources */,
+				02432B2BF61ACBADA35656A0 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		C0324AB31B7B23E1BDA78037 /* Build and embed Kotlin framework */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build and embed Kotlin framework";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\nif [ \"${OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED:-NO}\" = \"YES\" ]; then\n  exit 0\nfi\ncd \"$SRCROOT/..\"\n./gradlew :shared:embedAndSignAppleFrameworkForXcode\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		60901C3EBB17400BD423D317 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				251AFD9E02963BB82A88B77B /* BoundedDataTests.swift in Sources */,
+				702B70AF8229A9E27E658A7B /* IncomingPairingTests.swift in Sources */,
+				15C0BBCD88F3A439B9D96E56 /* NativeLifecycleTests.swift in Sources */,
+				7CCE172E95B41920ADF32C94 /* NativeStorageTests.swift in Sources */,
+				4A52E6D1705BADD3434C232B /* RecordingPCMTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F3A6E5D6856B4BF522ACA9DB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				499692F135509E25903729F1 /* BoundedData.swift in Sources */,
+				603CCF196723ACF4CA29CA1F /* ClaudeBotApp.swift in Sources */,
+				0A46C44ACE6D1BBF33297777 /* NativeBridge.swift in Sources */,
+				8830CA630939D5949ECEED3F /* NativePicker.swift in Sources */,
+				6D8074B553F06EEDE2DF0073 /* NativeRecording.swift in Sources */,
+				12167956EC57D7F243F20C74 /* NativeStorage.swift in Sources */,
+				0884F0D42B989BFF7BCADA89 /* QRScanController.swift in Sources */,
+				A708A77BFB5EF32367846C29 /* RecordingPCM.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7FE02B16F539F7A5A0527EAD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B0A0AA7A491E979773098DD1 /* ClaudeBot */;
+			targetProxy = 2E695267FB2081E5595A8EE3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		16F1EF7A4D5CF1A820C124BF /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				A039A37C0D1B0C458E76FBD7 /* en */,
+				9A8BC6D1EAF0E9F188C43074 /* uk */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+		F65E1AAA6099547749F19971 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				5C7619111708D724A3A19A3F /* en */,
+				F549C2C4828F3250E2CF229D /* uk */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		7951E531111F03C153DBA2B5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)",
+					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = "$(inherited) -framework ClaudeBot -lc++";
+				PRODUCT_BUNDLE_IDENTIFIER = me.waveio.claudebot.mobile;
+				PRODUCT_MODULE_NAME = ClaudeBotApp;
+				PRODUCT_NAME = ClaudeBot;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		7C74978727775314850E93B3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(BUILT_PRODUCTS_DIR)",
+					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = "$(inherited) -framework ClaudeBot -lc++";
+				PRODUCT_BUNDLE_IDENTIFIER = me.waveio.claudebot.mobile;
+				PRODUCT_MODULE_NAME = ClaudeBotApp;
+				PRODUCT_NAME = ClaudeBot;
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		92FCF8FF8AAF26BADD901A9E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		C1794D8111A20926C1DB0492 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.waveio.claudebot.mobile.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClaudeBot.app/ClaudeBot";
+			};
+			name = Release;
+		};
+		EB5BE0FA002BE6240A5E6BB3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		F06B4EA2C73BEC4822B0F437 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = me.waveio.claudebot.mobile.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClaudeBot.app/ClaudeBot";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1DEB160CEB6944031472C1CA /* Build configuration list for PBXNativeTarget "ClaudeBot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7C74978727775314850E93B3 /* Debug */,
+				7951E531111F03C153DBA2B5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8161E455036989D61685A03A /* Build configuration list for PBXNativeTarget "ClaudeBotNativeTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F06B4EA2C73BEC4822B0F437 /* Debug */,
+				C1794D8111A20926C1DB0492 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A4367F0525A701A9A1045570 /* Build configuration list for PBXProject "ClaudeBot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				92FCF8FF8AAF26BADD901A9E /* Debug */,
+				EB5BE0FA002BE6240A5E6BB3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F5ABED02AE21745528AF4D80 /* Project object */;
+}

@@ -1,0 +1,9 @@
+<!-- Existing maskable dashboard mascot; provenance: androidApp/LAUNCHER_ICON.md. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="64" android:viewportHeight="64">
+    <path android:fillColor="#FFE08A67"
+        android:pathData="M22,22H42A5,5 0,0 1,47 27V38A5,5 0,0 1,42 43H22A5,5 0,0 1,17 38V27A5,5 0,0 1,22 22Z" />
+    <path android:fillColor="#FF13110F"
+        android:pathData="M25.2,29H27.3A1.2,1.2 0,0 1,28.5 30.2V34.8A1.2,1.2 0,0 1,27.3 36H25.2A1.2,1.2 0,0 1,24 34.8V30.2A1.2,1.2 0,0 1,25.2 29Z M36.7,29H38.8A1.2,1.2 0,0 1,40 30.2V34.8A1.2,1.2 0,0 1,38.8 36H36.7A1.2,1.2 0,0 1,35.5 34.8V30.2A1.2,1.2 0,0 1,36.7 29Z" />
+</vector>

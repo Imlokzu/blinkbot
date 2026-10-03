@@ -1,0 +1,81 @@
+name: ClaudeBot
+options:
+  bundleIdPrefix: me.waveio
+  deploymentTarget:
+    iOS: "16.0"
+  developmentLanguage: en
+  knownRegions: [en, uk, Base]
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: "1.0.0"
+targets:
+  ClaudeBot:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Resources
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.waveio.claudebot.mobile
+        PRODUCT_NAME: ClaudeBot
+        PRODUCT_MODULE_NAME: ClaudeBotApp
+        INFOPLIST_FILE: Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator"
+        SUPPORTS_MACCATALYST: NO
+        FRAMEWORK_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(BUILT_PRODUCTS_DIR)"
+          - "$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+        OTHER_LDFLAGS: "$(inherited) -framework ClaudeBot -lc++"
+    preBuildScripts:
+      - name: Build and embed Kotlin framework
+        basedOnDependencyAnalysis: false
+        script: |
+          set -eu
+          if [ "${OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED:-NO}" = "YES" ]; then
+            exit 0
+          fi
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+    dependencies:
+      - sdk: UIKit.framework
+      - sdk: SwiftUI.framework
+      - sdk: AVFoundation.framework
+      - sdk: PhotosUI.framework
+      - sdk: Security.framework
+      - sdk: UniformTypeIdentifiers.framework
+      - sdk: UserNotifications.framework
+  ClaudeBotNativeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: me.waveio.claudebot.mobile.tests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: ClaudeBot
+schemes:
+  ClaudeBot:
+    build:
+      targets:
+        ClaudeBot: all
+        ClaudeBotNativeTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets: [ClaudeBotNativeTests]
+    archive:
+      config: Release

@@ -1,0 +1,16 @@
+"action.cancel" = "Cancel";
+"action.ok" = "OK";
+"qr.title" = "Scan pairing code";
+"qr.instruction" = "Point the camera at your bot's QR code.";
+"error.title" = "Action could not be completed";
+"error.keychain" = "Secure storage could not be accessed. Unlock your device and try again. Your credentials have not been saved.";
+"error.microphone.permission" = "Microphone access is disabled. Enable it in Settings to record voice messages.";
+"error.recording" = "The voice recording could not be completed. Please try again.";
+"error.recording.interrupted" = "Recording was interrupted. The incomplete recording was discarded.";
+"error.camera.permission" = "Camera access is disabled. Enable it in Settings to scan a code or take a photo.";
+"error.camera.unavailable" = "The camera is unavailable. Use a device with a camera or try again later.";
+"error.camera.interrupted" = "The camera was interrupted. Please try again.";
+"error.file.tooLarge" = "Choose a file smaller than or equal to 20 MiB.";
+"error.file.invalid" = "The file is empty, unavailable, or could not be read. Please choose another file.";
+"error.picker.kind" = "This attachment type is not supported.";
+"error.notifications" = "Notification settings could not be updated or the notification could not be delivered.";

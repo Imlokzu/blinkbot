@@ -79,10 +79,11 @@ data class WorkspaceFile(
     @SerialName("mime_type") val mimeType: String? = null,
     @SerialName("too_large") val tooLarge: Boolean = false,
     val size: Long? = null,
+    val revision: String? = null,
 )
 
 @Serializable
-data class WorkspaceWrite(val ok: Boolean, val path: String, val size: Long? = null)
+data class WorkspaceWrite(val ok: Boolean, val path: String, val size: Long? = null, val revision: String? = null)
 
 /** The backend attachment manifest uses url/name/type/size. */
 @Serializable

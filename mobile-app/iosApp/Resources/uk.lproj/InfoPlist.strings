@@ -1,0 +1,5 @@
+"CFBundleDisplayName" = "Клод Бот";
+"NSCameraUsageDescription" = "Камера потрібна для сканування QR-коду підключення бота або додавання зробленого вами фото.";
+"NSMicrophoneUsageDescription" = "Записуйте голосові повідомлення для свого бота.";
+"NSPhotoLibraryUsageDescription" = "Вибирайте фото для повідомлення або шпалери для бота.";
+"NSLocalNetworkUsageDescription" = "Підключайтеся до вибраного вами сервера бота в локальній мережі.";

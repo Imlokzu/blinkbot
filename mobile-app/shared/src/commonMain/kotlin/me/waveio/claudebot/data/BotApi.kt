@@ -110,6 +110,22 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
             put("path", path); put("content", content); put("session_id", sessionId)
         })
 
+    suspend fun readMobileWorkspace(path: String, sessionId: String = ""): WorkspaceFile =
+        get("mobile", "workspace", "file", query = mapOf("path" to path, "session_id" to sessionId))
+
+    suspend fun writeMobileWorkspace(path: String, content: String, revision: String, sessionId: String = ""): WorkspaceWrite =
+        post(listOf("mobile", "workspace", "file"), buildJsonObject {
+            put("path", path); put("content", content); put("session_id", sessionId)
+            put("revision", revision); put("append", false)
+        })
+
+    suspend fun forkMessage(sessionId: String, messageId: String, action: String, clientId: String,
+                            message: String? = null, model: String = "", effort: String = "none"): MobileJob =
+        post(listOf("mobile", "sessions", checkedId(sessionId), "fork"), buildJsonObject {
+            put("message_id", messageId); put("action", action); put("client_id", clientId)
+            message?.let { put("message", it) }; put("model", model); put("reasoning_effort", effort)
+        })
+
     suspend fun upload(name: String, bytes: ByteArray, mimeType: String): Attachment =
         multipart(listOf("chat", "upload"), "file", name, bytes, mimeType)
 

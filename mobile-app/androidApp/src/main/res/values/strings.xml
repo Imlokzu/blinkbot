@@ -1,5 +1,12 @@
 <resources>
     <string name="app_name">Claude Bot</string>
+    <string name="native_qr_prompt">Point the camera at a Claude Bot pairing QR code</string>
+    <string name="native_cancel">Cancel</string>
+    <string name="native_camera_error">Unable to open the camera</string>
+    <string name="native_share">Share</string>
+    <string name="native_reply_channel">Conversation replies</string>
+    <string name="native_reply_description">Replies for conversations with notifications enabled</string>
+    <string name="native_storage_error">Unable to save device settings securely</string>
     <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">true</item>

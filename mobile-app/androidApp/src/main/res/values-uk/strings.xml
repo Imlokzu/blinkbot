@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">Клод Бот</string>
+    <string name="native_qr_prompt">Наведіть камеру на QR-код сполучення Клод Бота</string>
+    <string name="native_cancel">Скасувати</string>
+    <string name="native_camera_error">Не вдалося відкрити камеру</string>
+    <string name="native_share">Поділитися</string>
+    <string name="native_reply_channel">Відповіді в розмовах</string>
+    <string name="native_reply_description">Відповіді в розмовах з увімкненими сповіщеннями</string>
+    <string name="native_storage_error">Не вдалося безпечно зберегти налаштування пристрою</string>
 </resources>

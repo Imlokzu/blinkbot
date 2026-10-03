@@ -20,6 +20,8 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.ui)
             implementation(compose.components.resources)
+            implementation("dev.chrisbanes.haze:haze:1.7.2")
+            implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.38.1")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
@@ -27,7 +29,10 @@ kotlin {
             implementation("io.ktor:ktor-client-content-negotiation:3.3.3")
             implementation("io.ktor:ktor-serialization-kotlinx-json:3.3.3")
         }
-        androidMain.dependencies { implementation("io.ktor:ktor-client-okhttp:3.3.3") }
+        androidMain.dependencies {
+            implementation("io.ktor:ktor-client-okhttp:3.3.3")
+            implementation("androidx.activity:activity-compose:1.10.1")
+        }
         iosMain.dependencies { implementation("io.ktor:ktor-client-darwin:3.3.3") }
         commonTest.dependencies {
             implementation(kotlin("test"))
