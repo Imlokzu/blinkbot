@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type DragEvent } from 'react';
 import { ImagePlus, RotateCcw, ShieldCheck, Trash2, Video } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
@@ -24,6 +24,7 @@ function ChatAppearanceControls() {
   const videoInput = useRef<HTMLInputElement>(null);
   const uploadGeneration = useRef(0);
   const [uploading, setUploading] = useState<'image' | 'video' | null>(null);
+  const [dragging, setDragging] = useState<'image' | 'video' | null>(null);
   const [error, setError] = useState<BackgroundImageErrorCode | WallpaperMediaErrorCode | null>(null);
   const media = useWallpaperMedia(appearance.videoId);
   const fullApp = hasFullAppBackground(appearance);
@@ -78,6 +79,36 @@ function ChatAppearanceControls() {
     setError(null);
   };
 
+  const handleDragOver = (kind: 'image' | 'video', event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = uploading ? 'none' : 'copy';
+    if (!uploading) setDragging(kind);
+  };
+
+  const handleDragEnter = (kind: 'image' | 'video', event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = uploading ? 'none' : 'copy';
+    if (!uploading) setDragging(kind);
+  };
+
+  const handleDragLeave = (kind: 'image' | 'video', event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const relatedTarget = event.relatedTarget;
+    if (relatedTarget && relatedTarget instanceof Node && event.currentTarget.contains(relatedTarget)) return;
+    setDragging(current => current === kind ? null : current);
+  };
+
+  const handleDrop = (kind: 'image' | 'video', event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = uploading ? 'none' : 'copy';
+    setDragging(current => current === kind ? null : current);
+    if (uploading) return;
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+    if (kind === 'image') void upload(file);
+    else void uploadVideo(file);
+  };
+
   return <div className="chat-appearance-controls">
     <fieldset className="chat-appearance-fieldset">
       <legend>{t('background')}</legend>
@@ -104,7 +135,13 @@ function ChatAppearanceControls() {
           <span>{t(`background.${background}`)}</span>
         </button>)}
       </div>
-      <div className="chat-appearance-upload">
+      <div className="chat-appearance-upload"
+        data-wallpaper-drop="image" data-wallpaper-drop-active={dragging === 'image' ? '' : undefined}
+        data-uploading={uploading === 'image' ? 'true' : undefined}
+        onDragEnter={event => handleDragEnter('image', event)}
+        onDragOver={event => handleDragOver('image', event)}
+        onDragLeave={event => handleDragLeave('image', event)}
+        onDrop={event => handleDrop('image', event)}>
         <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" disabled={Boolean(uploading)} hidden
           onChange={(event) => {
             const file = event.target.files?.[0];
@@ -115,13 +152,20 @@ function ChatAppearanceControls() {
           onClick={() => input.current?.click()}>
           <ImagePlus aria-hidden="true" />{t(uploading === 'image' ? 'uploading' : 'upload')}
         </Button>
+        <span className="chat-appearance-drop-copy"><span className="chat-appearance-drop-label">{t('dropImage')}</span></span>
         {appearance.image ? <Button size="icon-sm" variant="ghost" disabled={Boolean(uploading)} aria-label={t('removeImage')}
           title={t('removeImage')} onClick={() => setAppearance((previous) => ({
             image: null, background: previous.background === 'custom' ? 'sky' : previous.background,
           }))}><Trash2 aria-hidden="true" /></Button> : null}
         <span id={`${id}-file-hint`} className="chat-appearance-hint">{t('uploadHint')}</span>
       </div>
-      <div className="chat-appearance-upload">
+      <div className="chat-appearance-upload"
+        data-wallpaper-drop="video" data-wallpaper-drop-active={dragging === 'video' ? '' : undefined}
+        data-uploading={uploading === 'video' ? 'true' : undefined}
+        onDragEnter={event => handleDragEnter('video', event)}
+        onDragOver={event => handleDragOver('video', event)}
+        onDragLeave={event => handleDragLeave('video', event)}
+        onDrop={event => handleDrop('video', event)}>
         <input ref={videoInput} type="file" accept="video/mp4,video/webm" disabled={Boolean(uploading)} hidden
           onChange={event => {
             const file = event.target.files?.[0];
@@ -132,6 +176,7 @@ function ChatAppearanceControls() {
           onClick={() => videoInput.current?.click()}>
           <Video aria-hidden="true" />{t(uploading === 'video' ? 'uploadingVideo' : appearance.videoId ? 'replaceVideo' : 'uploadVideo')}
         </Button>
+        <span className="chat-appearance-drop-copy"><span className="chat-appearance-drop-label">{t('dropVideo')}</span></span>
         {appearance.videoId ? <Button size="icon-sm" variant="ghost" disabled={Boolean(uploading)} aria-label={t('removeVideo')}
           title={t('removeVideo')} onClick={removeVideo}><Trash2 aria-hidden="true" /></Button> : null}
         <span id={`${id}-video-hint`} className="chat-appearance-hint">{t('videoUploadHint')}</span>

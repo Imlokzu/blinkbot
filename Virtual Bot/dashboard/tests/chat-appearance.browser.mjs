@@ -29,7 +29,10 @@ const closeAppearance = () => {
   evaluate("window.location.hash = '#/chat'; true");
   browser('wait', '.chat-thread');
 };
-const clickText = (text) => browser('find', 'role', 'button', 'click', '--name', text, '--exact');
+const clickText = (text) => {
+  evaluate('document.querySelector("[aria-label=\\"Dismiss question\\"]")?.click(); true');
+  browser('find', 'role', 'button', 'click', '--name', text, '--exact');
+};
 const mockReply = () => evaluate(`(() => {
   const original = window.fetch;
   window.__chatAppearanceSends = [];
@@ -99,6 +102,28 @@ try {
   writeFileSync(imageFile, Buffer.from(png.split(',')[1], 'base64'));
   writeFileSync(rejectedFile, '<svg xmlns="http://www.w3.org/2000/svg"/>');
   openAppearance();
+  evaluate(`(() => {
+    const zone = document.querySelector('[data-wallpaper-drop="image"]');
+    const raw = atob(${JSON.stringify(png.split(',')[1])});
+    const bytes = Uint8Array.from(raw, character => character.charCodeAt(0));
+    const data = new DataTransfer();
+    data.items.add(new File([bytes], 'dropped.png', { type: 'image/png' }));
+    zone.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: data }));
+    zone.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: data }));
+    return true;
+  })()`);
+  browser('wait', '--fn', 'document.querySelector("[data-wallpaper-drop=\\"image\\"]")?.hasAttribute("data-wallpaper-drop-active")');
+  evaluate(`(() => {
+    const zone = document.querySelector('[data-wallpaper-drop="image"]');
+    const raw = atob(${JSON.stringify(png.split(',')[1])});
+    const bytes = Uint8Array.from(raw, character => character.charCodeAt(0));
+    const data = new DataTransfer();
+    data.items.add(new File([bytes], 'dropped.png', { type: 'image/png' }));
+    zone.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: data }));
+    return true;
+  })()`);
+  browser('wait', '--fn', 'document.documentElement.dataset.wallpaper === "custom"');
+  assert.match(saved().image, /^data:image\/jpeg;base64,/);
   browser('upload', '.chat-appearance-settings input[type="file"][accept^="image/"]', imageFile);
   browser('wait', '--fn', 'document.documentElement.dataset.wallpaper === "custom"');
   assert.match(saved().image, /^data:image\/jpeg;base64,/);
@@ -197,6 +222,28 @@ try {
   assert.match(saved().videoId, /^wallpaper-/);
   assert.ok(JSON.stringify(saved()).length < 2000, 'video bytes belong in IndexedDB, not localStorage');
   assert.equal(evaluate('document.querySelectorAll("video").length'), 1, 'Settings must reuse the shared player with a still preview');
+  evaluate(`(() => {
+    const zone = document.querySelector('[data-wallpaper-drop="video"]');
+    const raw = atob(${JSON.stringify(webm)});
+    const bytes = Uint8Array.from(raw, character => character.charCodeAt(0));
+    const data = new DataTransfer();
+    data.items.add(new File([bytes], 'dropped.webm', { type: 'video/webm' }));
+    zone.dispatchEvent(new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: data }));
+    zone.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: data }));
+    return true;
+  })()`);
+  browser('wait', '--fn', 'document.querySelector("[data-wallpaper-drop=\\"video\\"]")?.hasAttribute("data-wallpaper-drop-active")');
+  evaluate(`(() => {
+    const zone = document.querySelector('[data-wallpaper-drop="video"]');
+    const raw = atob(${JSON.stringify(webm)});
+    const bytes = Uint8Array.from(raw, character => character.charCodeAt(0));
+    const data = new DataTransfer();
+    data.items.add(new File([bytes], 'dropped.webm', { type: 'video/webm' }));
+    zone.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: data }));
+    return true;
+  })()`);
+  browser('wait', '--fn', 'document.documentElement.dataset.wallpaper === "video"');
+  assert.match(saved().videoId, /^wallpaper-/);
   closeAppearance();
   browser('wait', '--fn', 'document.querySelector(".app-wallpaper video")?.paused === false');
   assert.equal(evaluate('document.querySelector(".app-wallpaper video").muted && document.querySelector(".app-wallpaper video").loop'), true);
@@ -260,7 +307,7 @@ try {
   browser('wait', '--text', 'A local test reply.');
   assert.equal(evaluate('getComputedStyle(document.querySelector("[data-chat-composer-position]")).transform'), 'none');
   browser('screenshot', join(tmpdir(), 'claude-chat-mobile.png'));
-  console.log('PASS: centered composer, preserved draft, local image upload/reload/rejection/quota/reset, first-send movement, history, mobile keyboard and reduced motion');
+  console.log('PASS: centered composer, preserved draft, click and drag/drop image/video uploads, reload/rejection/quota/reset, first-send movement, history, mobile keyboard and reduced motion');
 } finally {
   browser('close');
   rmSync(imageFile, { force: true });

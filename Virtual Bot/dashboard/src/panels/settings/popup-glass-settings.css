@@ -2,10 +2,21 @@
 .popup-glass-settings legend { padding: 0; color: var(--c-text); font-size: 14px; font-weight: 500; }
 .popup-glass-settings > p { margin: 5px 0 10px; max-width: 62ch; color: var(--c-text-3); font-size: 12px; line-height: 1.5; }
 .popup-glass-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
-.popup-glass-choices label { display: flex; min-height: 44px; align-items: center; gap: 10px; padding: 8px 6px; border-radius: 5px; color: var(--c-text-2); font-size: 13px; cursor: pointer; }
+.popup-glass-choices label { display: flex; min-height: 44px; align-items: center; gap: 10px; padding: 8px 6px; border-radius: 5px; color: var(--c-text-2); font-size: 13px; cursor: pointer; transition: background-color 180ms ease, color 180ms ease; }
 .popup-glass-choices label:hover { background: var(--c-surface-2); }
 .popup-glass-choices label:has(input:focus-visible) { outline: 2px solid var(--c-accent); outline-offset: 1px; }
-.popup-glass-choices input { width: 17px; height: 17px; margin: 0; flex-shrink: 0; accent-color: var(--c-accent); }
+.popup-glass-choices label:has(input:checked) { color: var(--c-text); }
+.popup-glass-choices input {
+  position: relative; width: 18px; height: 18px; margin: 0; flex-shrink: 0; appearance: none;
+  border: 1.5px solid var(--c-border-strong); border-radius: 5px; background: var(--c-surface); cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms var(--e-spring);
+}
+.popup-glass-choices input:hover { border-color: var(--c-accent); }
+.popup-glass-choices input:checked { border-color: var(--c-accent); background: var(--c-accent); transform: scale(1.04); }
+.popup-glass-choices input:checked::after {
+  content: ''; position: absolute; left: 5px; top: 2px; width: 5px; height: 9px;
+  border: solid var(--c-accent-ink); border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
 .popup-glass-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 4px; }
 .popup-glass-actions button { min-width: 44px; min-height: 44px; padding: 8px 6px; border-radius: 5px; color: var(--c-text-2); font-size: 12px; }
 .popup-glass-actions button:hover:enabled { background: var(--c-surface-2); color: var(--c-text); }
