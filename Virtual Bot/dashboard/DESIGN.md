@@ -133,6 +133,10 @@ the library's.
 
 ## Navigation
 
+Phone pairing, linked phones and access revocation live in Settings → Devices.
+The section is searchable by device, phone and QR terms in both locales. Pairing
+errors distinguish outdated hosts, authentication, operator access and origins.
+
 The dock floats over the content and can be moved: press and hold — it sticks to
 the nearest edge (bottom, top, left, right). The choice lives in
 `localStorage.claudeBotDockSide` alongside the theme and accent — it is the same

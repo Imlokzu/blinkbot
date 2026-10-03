@@ -1512,3 +1512,15 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   7 HTTP endpoints and all 301 release resources. The guarded integrated
   settings publication includes both feature commits, matches current source
   and is pushed to origin. No older captured build was republished.
+
+## Phone pairing settings follow-up (2026-10-03)
+
+Phone pairing and linked-phone revocation now live in Settings / Devices, with
+English/Ukrainian labels and searchable phone/QR terms. Pairing failures identify
+outdated backend routes, sign-in, operator access, invalid origins, or transport
+errors. Device-list polling errors remain separate from successful QR creation.
+The reported failure was a running pre-mobile backend returning 404; the refreshed
+local server exposes the mobile routes and live QR issuance returns HTTP 200.
+Scoped dashboard typecheck, 188 unit tests and production build passed. A real
+browser verified QR rendering and the Devices destination, plus English/Ukrainian
+search; no authentication gate was relaxed.

@@ -10,7 +10,7 @@ full Xcode compilation and device testing.
 2. Route the owner's HTTPS API hostname through Cloudflare Tunnel to that host.
    Set `MOBILE_API_ORIGIN=https://your-api-host` in the host environment when it
    differs from `https://api-bot.waveio.me`. No Cloudflare token belongs in the app.
-3. In the PC dashboard, open Settings / Profile / Connect your phone. Enter that
+3. In the PC dashboard, open Settings / Devices / Connect your phone. Enter that
    HTTPS origin and create a QR. The code expires after five minutes and is
    single-use. The phone receives its own revocable device credential.
 4. Install the Android debug APK and scan the QR. Revoke a lost phone from the

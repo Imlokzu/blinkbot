@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouteParam } from '@/app/useRoute';
-import { AudioLines, Brain, Compass, Palette, Plug, Puzzle, Search, Sparkles, User, Wrench } from 'lucide-react';
+import { AudioLines, Brain, Compass, Palette, Plug, Puzzle, Search, Smartphone, Sparkles, User, Wrench } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Textarea } from '@/components/ui/Field';
@@ -41,7 +41,7 @@ import './settings-surfaces.css';
  * row is marked and sits next to the local row it belongs with.
  */
 
-type SectionId = 'connectors' | 'profile' | 'style' | 'brain' | 'voice' | 'look' | 'tools' | 'mcp' | 'skills' | 'discover';
+type SectionId = 'connectors' | 'profile' | 'style' | 'brain' | 'voice' | 'look' | 'devices' | 'tools' | 'mcp' | 'skills' | 'discover';
 
 const SECTIONS: { id: SectionId; label: `settings.section.${SectionId}`; icon: LucideIcon; local: string }[] = [
   { id: 'connectors', label: 'settings.section.connectors', icon: BookOpen, local: 'connector notebooklm sources' },
@@ -50,6 +50,7 @@ const SECTIONS: { id: SectionId; label: `settings.section.${SectionId}`; icon: L
   { id: 'brain', label: 'settings.section.brain', icon: Brain, local: 'модель ключ omni токен model key' },
   { id: 'voice', label: 'settings.section.voice', icon: AudioLines, local: 'голос мікрофон темп voice' },
   { id: 'look', label: 'settings.section.look', icon: Palette, local: 'тема попап скло акцент theme popup glass accent' },
+  { id: 'devices', label: 'settings.section.devices', icon: Smartphone, local: 'phone mobile device pairing qr' },
   { id: 'tools', label: 'settings.section.tools', icon: Wrench, local: 'інструмент дозвіл tool' },
   { id: 'mcp', label: 'settings.section.mcp', icon: Plug, local: 'mcp сервер server міст bridge' },
   { id: 'skills', label: 'settings.section.skills', icon: Puzzle, local: 'уміння скіл skill' },
@@ -118,6 +119,7 @@ export default function SettingsPanel() {
     if (!needle) return true;
     if (t(item.label).toLowerCase().includes(needle)) return true;
     if (item.local.includes(needle)) return true;
+    if (item.id === 'devices' && t('settings.keywords.devices').includes(needle)) return true;
     return gatewayFields.some((field) => field.section === item.id && fieldMatches(field, needle));
   });
   const current = visible.find((item) => item.id === section) ?? visible[0];
@@ -174,11 +176,10 @@ export default function SettingsPanel() {
 
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-8">
         <div className="settings-content-surface mx-auto w-full max-w-[720px]">
-          {current?.id === 'profile' && !needle ? <MobileConnection /> : null}
           {current ? (
             <h1 className="mb-5 text-[22px] font-medium tracking-[-0.02em] text-ink">{t(current.label)}</h1>
           ) : null}
-          {setup.isPending || !form ? (
+          {current?.id === 'devices' ? <MobileConnection /> : setup.isPending || !form ? (
             <SettingGroup>
               <div className="p-4"><SkeletonList rows={6} /></div>
             </SettingGroup>

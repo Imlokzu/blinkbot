@@ -12,6 +12,13 @@ const uk = {
   revoke: 'Відкликати доступ',
   failed: 'Не вдалося виконати дію. Перевір адресу API та доступ до налаштувань.',
   close: 'Закрити QR',
+  backendOutdated: 'Сервер ще не підтримує підключення телефона. Онови й перезапусти бекенд бота, потім спробуй знову.',
+  signInRequired: 'Увійди в обліковий запис знову, щоб підключити телефон.',
+  operatorRequired: 'Створити код може власник бота. Відкрий панель на комп’ютері хоста або увійди як власник.',
+  invalidOrigin: 'Перевір HTTPS-адресу API: лише домен, без шляху. Вона має збігатися з адресою в налаштуваннях сервера.',
+  networkFailed: 'Немає зв’язку із сервером бота. Перевір з’єднання й спробуй знову.',
+  loadingDevices: 'Завантажуємо пристрої…',
+  deviceMissing: 'Цей телефон уже від’єднано. Список пристроїв невдовзі оновиться.',
 } as const;
 
 const en: Record<keyof typeof uk, string> = {
@@ -28,6 +35,13 @@ const en: Record<keyof typeof uk, string> = {
   revoke: 'Revoke access',
   failed: 'Could not complete this action. Check the API address and settings access.',
   close: 'Close QR',
+  backendOutdated: 'This server does not support phone pairing yet. Update and restart the bot backend, then try again.',
+  signInRequired: 'Sign in again to connect your phone.',
+  operatorRequired: 'Only the bot owner can create a code. Open the dashboard on the host computer or sign in as the owner.',
+  invalidOrigin: 'Check the HTTPS API address: use only the domain, without a path. It must match the address configured on the server.',
+  networkFailed: 'Cannot reach the bot server. Check the connection and try again.',
+  loadingDevices: 'Loading devices…',
+  deviceMissing: 'This phone has already been disconnected. The device list will refresh shortly.',
 };
 
 export const mobileLocales = { uk, en };
