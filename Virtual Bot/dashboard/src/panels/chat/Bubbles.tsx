@@ -1,13 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { TextMessagePartProvider } from '@assistant-ui/react';
-import { ChevronRight, CloudSun, Coins, FileText, Folder, Image as ImageIcon, ListTodo, MessageCircleQuestion, Music, Play, Search, SmilePlus, type LucideIcon } from 'lucide-react';
-import { t as activityT } from '@/lib/i18n';
-import { t, type ChatKey } from '@/locales/chat';
+import { SmilePlus } from 'lucide-react';
+import { t } from '@/locales/chat';
 import { cn } from '@/lib/cn';
 import { Markdown } from './Markdown';
 import { REPLY_ATTRIBUTE } from './SelectionActions';
-import type { ToolStep } from './types';
+export { ActivityLine } from './ActivityTree';
 
 /*
  * The pieces of a messenger-style reply: short bubbles, the line that says
@@ -50,144 +49,6 @@ export function typingLeaveMs(): number {
 }
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🙏', '👏'] as const;
-
-/** OpenClaw prefixes our MCP tools (`tools__web_search`); the labels know the bare name. */
-function bareTool(label: string): string {
-  return label.replace(/^(?:tools|workspace|emotions)__/, '');
-}
-
-const TOOL_ICONS: Record<string, LucideIcon> = {
-  web_search: Search,
-  image_search: ImageIcon,
-  image_generate: ImageIcon,
-  facts: FileText,
-  weather: CloudSun,
-  currency: Coins,
-  memory_search: Search,
-  workspace_read: FileText,
-  workspace_write: FileText,
-  workspace_list: Folder,
-  workspace_show: FileText,
-  workspace_info: FileText,
-  ask_question: MessageCircleQuestion,
-  todo_list: ListTodo,
-  show_choice: ListTodo,
-  play_music: Music,
-  stop_music: Music,
-  play_video: Play,
-  listen_to_video: Play,
-  video_control: Play,
-};
-
-const TOOL_TITLES: Record<string, ChatKey> = {
-  web_search: 'tool.web_search',
-  image_search: 'tool.image_search',
-  image_generate: 'tool.image_generate',
-  facts: 'tool.facts',
-  weather: 'tool.weather',
-  currency: 'tool.currency',
-  memory_search: 'tool.memory_search',
-  workspace_read: 'tool.workspace_read',
-  workspace_write: 'tool.workspace_write',
-  workspace_list: 'tool.workspace_list',
-  workspace_show: 'tool.workspace_show',
-  ask_question: 'tool.ask_question',
-  todo_list: 'tool.todo_list',
-  show_choice: 'tool.show_choice',
-  play_music: 'tool.play_music',
-  play_video: 'tool.play_video',
-};
-
-function toolTitle(label: string): string {
-  const name = bareTool(label);
-  const key = TOOL_TITLES[name];
-  if (key) return t(key);
-  return name.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function ToolIcon({ label }: { label: string }) {
-  const Icon = TOOL_ICONS[bareTool(label)] ?? Search;
-  return <Icon className="size-3.5" strokeWidth={1.75} />;
-}
-
-/** Clerk and other sign-in failures arrive as a JSON blob. The card says so in words. */
-function needsSignIn(result: unknown): boolean {
-  const text = typeof result === 'string' ? result : JSON.stringify(result ?? '');
-  return /clerk|sign-?in|потрібен вхід|нужен вход|unauthorized/i.test(text);
-}
-
-function Payload({ value }: { value: unknown }) {
-  return <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-words rounded-md bg-surface px-3 py-2 font-mono text-[11px] leading-relaxed text-ink-2">{
-    typeof value === 'string' ? value : JSON.stringify(value, null, 2)
-  }</pre>;
-}
-
-/** The raw call, folded under the card. Height eases open and the text rises in. */
-function ToolLogs({ step }: { step: ToolStep }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="mt-1">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-1 text-[11px] text-ink-3 outline-none hover:text-ink-2 focus-visible:ring-2 focus-visible:ring-accent">
-        <ChevronRight className={cn('size-3 transition-transform duration-200 motion-reduce:transition-none', open && 'rotate-90')} />
-        {t('tool.logs')}
-      </button>
-      <div className="chat-log" data-open={open ? '' : undefined}>
-        <div className="chat-log-clip">
-          <div className="chat-log-panel space-y-2 pt-1.5">
-            {step.input !== undefined && <section><p className="mb-1 text-[11px] text-ink-3">{activityT('activity.input')}</p><Payload value={step.input} /></section>}
-            {step.result !== undefined
-              ? <section><p className="mb-1 text-[11px] text-ink-3">{activityT(step.status === 'active' ? 'activity.partial' : 'activity.result')}</p><Payload value={step.result} /></section>
-              : null}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * One tool, the way a person reads it: an icon, a name, what it was asked,
- * and whether it worked. The raw call stays behind Logs.
- */
-function ToolCard({ step }: { step: ToolStep }) {
-  const signedOut = step.status === 'failed' && needsSignIn(step.result);
-  const hasLog = step.input !== undefined || step.result !== undefined;
-  return (
-    <div className="flex min-w-0 max-w-full items-start gap-2.5 rounded-lg border border-line bg-surface-2 px-3 py-2" data-tool-status={step.status}>
-      <span className={cn(
-        'grid size-7 shrink-0 place-items-center rounded-md bg-surface',
-        step.status === 'failed' ? 'text-err' : step.status === 'done' ? 'text-ok' : 'text-ink-2',
-      )}>
-        {step.status === 'active' ? <span className="chat-live"><ToolIcon label={step.label} /></span> : <ToolIcon label={step.label} />}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-[13px] leading-5 text-ink">{toolTitle(step.label)}</p>
-        {step.detail ? <p className="truncate text-[12px] leading-5 text-ink-3">{step.detail}</p> : null}
-        <p className={cn('text-[12px] leading-5', step.status === 'failed' ? 'text-err' : step.status === 'done' ? 'text-ok' : 'text-ink-3')}>
-          {activityT(`activity.${step.status}`)}
-          {signedOut ? ` · ${t('tool.signIn')}` : ''}
-        </p>
-        {hasLog ? <ToolLogs step={step} /> : null}
-      </div>
-    </div>
-  );
-}
-
-/**
- * What the bot is doing between two messages.
- *
- * Each tool is its own card — name, the thing it was given, and a status —
- * rather than the raw call. While one is still running, that card breathes.
- */
-export function ActivityLine({ steps, running }: { steps: ToolStep[]; running: boolean }) {
-  if (!steps.length) return null;
-  return (
-    <div className="flex w-full min-w-0 max-w-full flex-col gap-3" data-agent-activity data-running={running ? '' : undefined}>
-      {steps.map((step) => <ToolCard key={step.id} step={step} />)}
-    </div>
-  );
-}
 
 export function TypingBubble({ leaving = false }: { leaving?: boolean }) {
   return (

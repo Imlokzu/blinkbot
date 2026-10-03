@@ -571,6 +571,29 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
 - Labels live in English/Ukrainian locale files. Regression coverage uses
   tests/chat-welcome.browser.mjs and the appearance/workbench browser fixtures.
 
+## Tool activity branches and reference wallpaper (2026-10-03)
+
+- Ordinary tool calls share a compact, borderless tree inside their existing
+  reply group. A thin trunk and rounded elbows connect neutral tool glyphs,
+  operation names and chips containing the real query or path description.
+  Preserve the operation name when a long chip truncates.
+- One header folds the group; each row with actual parameters or results
+  folds its log. Keyboard focus and open logs survive incoming snapshots and
+  group toggles. Hidden details are inert and absent from accessibility.
+- Calls retain their own IDs and reported outcomes. A pulse means an active
+  call, rather than an unfinished reply; failure and unconfirmed interruption
+  stay distinct. Never invent progress, reads or reasoning. The specialized
+  generated-image surface remains separate.
+- Small transform/opacity entry and disclosure transitions explain updates.
+  Reduced motion removes them; coarse pointers use 44px targets.
+- The existing sky preset now uses the owner's exact sunset/ocean JPEG,
+  bundled with provenance and cached offline. Main wallpaper and Settings
+  preview share the asset. Saved choices, uploads, video and placement remain.
+- Regression coverage: tests/activity-tree.browser.mjs exercises live SSE,
+  parallel calls, replacement snapshots, logs, keyboard, stop, saved history,
+  both languages, reduced motion and narrow layouts. The reference-wallpaper
+  unit test guards original bytes, local consumers and JPEG precaching.
+
 
 ## Settings readability and welcome type (2026-10-03)
 

@@ -1200,3 +1200,36 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   states, reduced transparency, shared model glass and Automatic reset.
 - The release is built from committed source plus this change. Unrelated
   integration, activity-tree and customization drafts/staged work remain intact.
+
+
+## Reference activity tree and sunset wallpaper (2026-10-03)
+
+- Ordinary tool cards now form a compact, borderless tree within each existing
+  reply group. Real operation names and redacted path/query chips connect to
+  a thin trunk with rounded elbows; rows reveal actual parameters and results.
+  Group/log folding retains focus and open state during streamed snapshots.
+- Stable call IDs preserve concurrent same-name tools and repeated deliveries.
+  Active, completed, failed and unconfirmed interruption remain distinct;
+  finishing the reply never invents tool success. Dedicated image generation
+  keeps its existing surface. No reasoning or synthetic progress is added.
+- The sky preset uses the owner's exact original 1672x941 sunset/ocean JPEG,
+  bundled locally with source and checksum provenance. Main wallpaper and
+  Settings preview share it; JPEG files are precached offline. A stationary
+  theme-specific wash improves reading over the image. Existing preference
+  IDs, uploaded images/videos and placement choices continue to work.
+- An independent supported maximum-effort reviewer fixed squeezed operation
+  labels, an undefined connector token and measured caption contrast failures.
+  The review also verified touch targets, unknown names, interruption labels
+  and exact locally decoded image bytes. Fable is unavailable in this runtime;
+  no Fable certification is claimed.
+- Validation: 152 frontend tests, TypeScript, an isolated production build,
+  1049 Python tests with 6 skipped and 178 subtests. The browser-only SSE suite
+  passed on development and production builds: live concurrency/progress,
+  snapshot replacement, keyboard folding, Stop, history, inert raw payloads,
+  separate images, both locales, reduced motion and desktop/390/320px layouts.
+  Scoped light/dark accessibility audits passed; native coarse-pointer controls
+  measure 44px. Fixtures made no server mutations.
+- Post-review HTTP smoke passed 7 endpoints and all 294 release resources,
+  including the exact local JPEG and its precache entry. Both memory and
+  workspace traversal attempts returned 400. Task-owned test servers and
+  browser sessions are stopped; the existing dashboard server is preserved.
