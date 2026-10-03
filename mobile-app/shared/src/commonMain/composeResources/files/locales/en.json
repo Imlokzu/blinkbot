@@ -189,5 +189,6 @@
   "model.effortHint.max": "The deepest supported reasoning",
   "model.effortHint.adaptive": "Adjust to the task",
   "model.effortHint.ultra": "Extended reasoning",
-  "nav.closeMenu": "Close menu"
+  "nav.closeMenu": "Close menu",
+  "model.loading": "Loading models…"
 }

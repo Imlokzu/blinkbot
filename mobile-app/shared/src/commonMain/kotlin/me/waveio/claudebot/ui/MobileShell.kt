@@ -125,7 +125,7 @@ private fun TopBar(state: AppState, actions: AppActions) {
                 val model = state.models.firstOrNull { it.id == state.selectedModel }
                 Row(Modifier.clip(RoundedCornerShape(14.dp)).clickable { actions.modelPicker(true) }.heightIn(min = 44.dp).padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     BrandMark(model?.brand ?: "", Modifier.size(18.dp))
-                    Text(model?.label ?: tr("model.choose"), color = p.ink, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, false))
+                    Text(model?.label ?: state.selectedModel.takeIf { it.isNotBlank() }?.substringAfterLast('/') ?: tr(if (state.modelsLoading) "model.loading" else "model.choose"), color = p.ink, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, false))
                     Glyph("down", modifier = Modifier.size(13.dp), tint = p.muted)
                 }
             } else Text(state.openFile?.substringAfterLast('/') ?: screenTitle(state.screen), fontSize = 16.sp, fontWeight = FontWeight.Medium, color = p.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)

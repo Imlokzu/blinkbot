@@ -68,6 +68,7 @@ fun ModelPicker(state: AppState, actions: AppActions) {
                     }
                 }
                 Spacer(Modifier.height(10.dp))
+                if (state.modelsLoading) LoadingDots(Modifier.padding(14.dp))
                 ActionButton(tr("action.done"), { actions.modelPicker(false) }, Modifier.fillMaxWidth(), primary = true)
             } else Column(Modifier.fillMaxWidth()) {
                 BotField(query, { query = it }, placeholder = tr("model.search"), icon = "search")
@@ -87,7 +88,7 @@ fun ModelPicker(state: AppState, actions: AppActions) {
                             if (picked) Glyph("check", modifier = Modifier.size(17.dp), tint = palette.accent)
                         }
                     }
-                    if (filtered.isEmpty()) item { Text(tr("model.empty"), color = palette.muted, modifier = Modifier.padding(16.dp)) }
+                    if (filtered.isEmpty() && !state.modelsLoading) item { Text(tr("model.empty"), color = palette.muted, modifier = Modifier.padding(16.dp)) }
                 }
                 Hairline(Modifier.padding(top = 9.dp, bottom = 4.dp))
                 MenuRow("effort", tr("model.effort"), { focus.clearFocus(); keyboard?.hide(); effortPage = true }, selected?.label, trailing = {

@@ -77,6 +77,7 @@ data class AppState(
     val attachments: List<DraftAttachment> = emptyList(),
     val uploading: Boolean = false,
     val models: List<ModelRow> = emptyList(),
+    val modelsLoading: Boolean = false,
     val selectedModel: String = "",
     val effort: String = "none",
     val busy: Boolean = false,

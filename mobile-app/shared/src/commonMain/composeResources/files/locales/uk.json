@@ -189,5 +189,6 @@
   "model.effortHint.max": "Найглибше доступне обмірковування",
   "model.effortHint.adaptive": "Підлаштуватися під завдання",
   "model.effortHint.ultra": "Розширене обмірковування",
-  "nav.closeMenu": "Закрити меню"
+  "nav.closeMenu": "Закрити меню",
+  "model.loading": "Завантажуємо моделі…"
 }

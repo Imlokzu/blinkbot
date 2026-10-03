@@ -101,7 +101,7 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
                 Choices(listOf("last" to "defaults.last", "fixed" to "defaults.fixed"), preferences.defaultModelMode) { actions.preferences(preferences.copy(defaultModelMode = it)) }
                 state.models.forEach { model ->
                     Row(Modifier.fillMaxWidth().clickable { actions.preferences(preferences.copy(defaultModel = model.id, defaultModelMode = "fixed")) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { if (preferences.defaultModel == model.id) Glyph("check", modifier = Modifier.size(18.dp), tint = p.accent) }
+                        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { if (preferences.defaultModelMode == "fixed" && preferences.defaultModel == model.id) Glyph("check", modifier = Modifier.size(18.dp), tint = p.accent) }
                         BrandMark(model.brand); Spacer(Modifier.width(8.dp)); Text(model.label, color = p.ink)
                     }
                 }

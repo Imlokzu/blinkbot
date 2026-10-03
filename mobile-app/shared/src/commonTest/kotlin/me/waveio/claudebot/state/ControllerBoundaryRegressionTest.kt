@@ -595,6 +595,17 @@ class ControllerBoundaryRegressionTest {
         assertEquals("none", fixture.controller.state.value.effort)
     }
 
+    @Test fun anUnsetPcPickerUsesTheAdvertisedDefaultInsteadOfABlankPhoneHeader() = controllerTest {
+        val fixture = fixture()
+        fixture.handler = { request -> if (request.url.encodedPath == "/api/brain/models")
+            jsonResponse("""{"models":[{"id":"jev/auto"},{"id":"regolo/default","label":"Default model"}],"selected":"","default":"regolo/default"}""") else null }
+        runCurrent()
+        assertEquals("regolo/default", fixture.controller.state.value.selectedModel)
+        assertFalse(fixture.controller.state.value.modelsLoading)
+        fixture.controller.newChat()
+        assertEquals("regolo/default", fixture.controller.state.value.selectedModel)
+    }
+
     @Test fun explicitOffRemainsDistinctFromInheritingTheGatewayDefault() = controllerTest {
         val fixture = fixture()
         runCurrent()

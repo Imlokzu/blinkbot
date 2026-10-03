@@ -64,6 +64,7 @@ data class ModelOption(
 data class ModelCatalog(
     val models: List<ModelOption>,
     val selected: String? = null,
+    @SerialName("default") val defaultModel: String? = null,
     @SerialName("thinking_levels") val efforts: List<String> = emptyList(),
     val thinking: String? = null,
     val available: Boolean? = null,
