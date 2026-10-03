@@ -528,3 +528,29 @@ Checks: `tests/attachmentInfo.test.mjs`, `tests/attachment-previews.browser.mjs`
 existing attachment/connector browsers and backend `tests/test_chat_uploads.py`.
 `tests/attachment-motion.browser.mjs` samples actual browser keyframes, viewport
 fit and focus on desktop/phone with both motion preferences.
+
+
+## Generated-image motion (2026-10-03)
+
+A generated image has one stable surface from real tool activity to downloaded
+media. Adapt beUI's [dither field](https://beui.dev/components/agents/image-generation)
+to existing warm tokens and Plex typography; its MIT notice lives in
+`licenses/beui-MIT.txt`. Use the installed Motion runtime and a bounded 2D canvas.
+
+Show a drifting field while generation is active, then keep it while the owned
+file loads. Reveal only decoded media with opacity and a small scale transition;
+show actual natural dimensions. No fake preview, progress percentage or timed
+refinement phase. Failure, interruption and preview-load errors are distinct.
+Preview retry reloads the existing file and does not trigger paid generation.
+
+The completed surface participates in the reply's shared viewer. Exact delivered
+Markdown images are suppressed without removing unrelated prose or other media.
+Its message identity remains stable across completion and cancellation; repeated
+Stop cannot append a second settled reply. Solid caption surfaces remain readable
+over all wallpapers, in both themes. The square reserves its layout on phones.
+
+Reduced motion shows a static field and immediate media. Canvas work pauses in
+hidden documents and offscreen surfaces and releases listeners, observers and
+frames on removal. Scoped accessibility audits, both languages and 320/390/1280
+layouts are covered by `tests/image-generation-motion.browser.mjs`; unit tests
+cover terminal states, private URLs, Markdown delivery and component lifecycle.

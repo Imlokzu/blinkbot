@@ -1117,3 +1117,36 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   reduced motion/transparency, preference cleanup and prior style restoration.
   Read-only HTTP status/screen/dashboard checks returned 200 and memory
   traversal returned 400. Unrelated drafts and staged changes remain intact.
+
+
+## 2026-10-03 — Animated image generation
+
+- Added a beUI-inspired dither field to actual image generation activity in
+  chat, followed by a gentle reveal of the decoded private image. The same
+  surface remains mounted from pending work to completion, reserves a square
+  layout and shows actual image dimensions. The existing viewer/download works.
+- Generation, loading, failure and interruption use real outcomes and locale
+  keys. Exact delivered Markdown images do not create a second preview or an
+  empty bubble. File-load retry reloads the existing result without regenerating.
+- Reduced motion is static; canvas work pauses offscreen/in hidden documents
+  and releases observers, listeners and frames. Captions use solid themed
+  surfaces so custom wallpapers do not reduce readability.
+- Independent supported maximum-effort review fixed live motion-preference
+  updates and titled/grouped Markdown delivery. It identified duplicate reply
+  IDs on repeated/late cancellation; an idempotent settlement guard closes it.
+  Final review approved; Fable is unavailable in this runtime.
+- Validation: 1049 Python tests passed, 6 skipped and 178 subtests; 149 clean-
+  source frontend tests, TypeScript and production build passed. Controlled
+  SSE browser checks cover pending/loading/reveal, single private fetch, stable
+  DOM identity, real Stop/double Stop, failure/reload, saved history, the viewer,
+  both languages/themes and 320/390/1280 layouts, with zero scoped axe violations.
+  Existing chat navigation regression passed. HTTP smoke: 300 checks including
+  both traversal guards returning 400 and every release resource returning200.
+- Provenance: https://beui.dev/components/agents/image-generation; its MIT
+  notice is retained in dashboard/licenses/beui-MIT.txt. No paid image generation
+  was required for this visual change. Changes and production assets are pushed
+  on main as the required owner identity; unrelated drafts remain untouched.
+- Separate existing follow-up: App.tsx changes its outer wrapper when the OS
+  reduced-motion preference changes, remounting the current panel. This task
+  leaves that application-wide behavior unchanged; initial reduced-motion
+  mode and the new component's preference subscription are verified separately.
