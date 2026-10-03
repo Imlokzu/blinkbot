@@ -795,14 +795,19 @@ async def chat_openclaw(
     # Durable OpenClaw sessions already own their transcript. Sending the
     # application history again makes the Gateway wrap it as pending context
     # (`Chat messages since your last reply`) and duplicates every turn.
-    request_history = [] if session_key else history
+    import mobile_routing
+    request_history = [] if session_key and not mobile_routing.seed_history() else history
     # Vision goes to OpenClaw's image model; text follows the panel's pick,
     # which with Jev is decided per message (jev_router.py).
     # A non-streamed reply does not name its model, and the global "last
     # Jev pick" can already belong to a background call (the chat title)
     # by the time this turn is recorded — so the turn keeps its own.
     routed_model = ""
-    if images:
+    forced_model = mobile_routing.model_override()
+    if forced_model:
+        model_headers, sent_message = {"x-openclaw-model": forced_model}, message
+        routed_model = forced_model
+    elif images:
         model_headers, sent_message = _image_headers(), message
     else:
         started = time.perf_counter()
@@ -1929,10 +1934,16 @@ async def chat(
         return reply, 'idle', 'codex', [{'tool': 'image_generate', 'input': {'prompt': prompt}, 'result': result}]
     system_prompt = build_system_prompt(message, voice=voice, spoken=spoken, channel=channel)
 
+    import mobile_api
+    import mobile_routing
+    mobile_request = mobile_api.current_turn_options() is not None
+    if mobile_request and not cfg.get_openclaw_token():
+        raise mobile_routing.RoutingError("gateway_unavailable")
+
     # OpenClaw gateway — єдиний шлях для тексту й vision. Gateway вибирає
     # текстову або image-модель із власної конфігурації.
     if cfg.get_openclaw_token():
-        backoff_left = openclaw_backoff_remaining()
+        backoff_left = 0 if mobile_request else openclaw_backoff_remaining()
         if backoff_left > 0:
             log.info("OpenClaw у бекофі після невдачі — пропускаю (ще %.0f с)", backoff_left)
             trace_log.step("brain", "openclaw", "skip", f"бекоф після невдачі, ще {backoff_left:.0f} с")
@@ -1940,8 +1951,11 @@ async def chat(
             trace_log.step("brain", "openclaw", "start", cfg.OPENCLAW_AGENT)
             started = time.perf_counter()
             try:
+                import mobile_api
+                import mobile_routing
+                gateway_chat = mobile_routing.chat_gateway if mobile_api.current_turn_options() is not None else chat_openclaw
                 result = await asyncio.wait_for(
-                    chat_openclaw(
+                    gateway_chat(
                         message,
                         system_prompt,
                         history,
@@ -1970,7 +1984,9 @@ async def chat(
                 _remember_brain("openclaw", actual_model or _openclaw_agent_model())
                 trace_log.step("brain", "openclaw", "ok", cfg.OPENCLAW_AGENT, _elapsed_ms(started))
                 return reply, emotion, "openclaw", tool_results
-            except Exception as exc:  # noqa: BLE001 — свідомо ковтаємо, падаємо на наступний мозок
+            except Exception as exc:  # Keep legacy fallback separate from explicit mobile routing.
+                if mobile_api.current_turn_options() is not None:
+                    raise
                 _openclaw_note_failure()
                 trace_log.step(
                     "brain", "openclaw", "fail",

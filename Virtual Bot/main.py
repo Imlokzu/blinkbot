@@ -51,6 +51,10 @@ from pydantic import BaseModel, Field
 
 import app_config as cfg
 import auth_clerk
+import mobile_api
+import mobile_bridge
+import mobile_content
+import workspace_write_guard
 import brain_context
 import brains
 import chat_bubbles
@@ -335,6 +339,8 @@ async def rewrite_share_host(request: Request, call_next):
     звичайний роутер. Хости самої панелі не чіпаємо.
     """
     host = (request.headers.get("host") or "").split(":")[0]
+    if mobile_bridge.is_api_host(host):
+        return await call_next(request)
     if host.endswith(".waveio.me"):
         slug = host[: -len(".waveio.me")]
         if slug and slug not in {"www", "waveio"}:
@@ -364,10 +370,29 @@ async def reject_oversized_asr_request(request: Request, call_next):
     return await call_next(request)
 
 
+@app.middleware("http")
+async def mobile_host_access(request: Request, call_next):
+    """The dedicated tunnel host exposes only authenticated mobile surfaces."""
+    if mobile_bridge.is_api_host(request.url.hostname or ""):
+        path = request.url.path
+        if not mobile_bridge.mobile_path_allowed(path):
+            return JSONResponse(status_code=404, content={"detail": {"code": "not_found"}})
+        if not (path == "/api/mobile/pair/exchange" and request.method == "POST"):
+            try:
+                if mobile_bridge.request_mobile_user(request) is None:
+                    raise HTTPException(status_code=401, detail={"code": "mobile_auth_required"})
+            except HTTPException as exc:
+                return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    return await call_next(request)
+
+
 # ------------------------------------------------------------------ auth helpers
 
 def _clerk_user_or_none(request: Request) -> Optional[str]:
     """Без токена -> None (пустить без 401), з токеном -> sub або 401."""
+    mobile_user = mobile_bridge.request_mobile_user(request)
+    if mobile_user is not None:
+        return mobile_user
     if auth_clerk.is_auth_disabled():
         return None
     # Шукаємо токен у заголовках / query
@@ -385,7 +410,12 @@ def _clerk_user_or_none(request: Request) -> Optional[str]:
 
 
 async def _require_user(request: Request) -> str:
-    """Strict gate: без валідного Clerk токена — 401. Для всіх /api/chat|memory|workspace|..."""
+    """Preserve the existing owner for both device and Clerk credentials."""
+    mobile_user = mobile_bridge.request_mobile_user(request)
+    if mobile_user is not None:
+        return mobile_user
+    if mobile_bridge.is_api_host(request.url.hostname or "") and auth_clerk.is_auth_disabled():
+        raise HTTPException(status_code=401, detail={"code": "mobile_auth_required"})
     if auth_clerk.is_auth_disabled():
         # Дев-режим без Clerk: ПОРОЖНІЙ uid, а не "dev". Будь-який непорожній
         # рядок тут вмикає clerk-гілку в _active_brain/chat_store: усі розмови
@@ -1909,13 +1939,16 @@ def _openclaw_session_key(session_id: str, clerk_user_id: str) -> str:
 
 
 def _get_history(sid: str, req_history: list[dict[str, str]]) -> list[dict[str, str]]:
-    """Історія: спершу явно передана, інакше з in-memory сесії."""
+    """Mobile history stays in the existing owner-scoped persistent store."""
     if req_history:
         return [
             {"role": h.get("role", ""), "content": h.get("content", "")}
             for h in req_history
             if isinstance(h, dict) and h.get("role") in ("user", "assistant") and h.get("content")
         ][-cfg.CHAT_HISTORY_LIMIT:]
+    if mobile_api.current_turn_options() is not None:
+        # The legacy PC cache is keyed by session only, without an owner.
+        return chat_store.history(sid, cfg.CHAT_HISTORY_LIMIT)
     with _sessions_lock:
         entry = _sessions.get(sid)
         if entry is not None:
@@ -1942,19 +1975,28 @@ def _save_history(
     participant_name: str = "",
     parts: list | None = None,
     reaction: str | None = None,
+    mobile_model: dict | None = None,
 ) -> tuple[str, str] | None:
-    """Дописує обмін до історії сесії: у памʼять процесу і на диск."""
+    """Append a turn to shared history, including mobile model disclosure."""
     history.append({"role": "user", "content": _participant_message(user, participant_name)})
     history.append({"role": "assistant", "content": assistant})
     with _sessions_lock:
         _cleanup_stale_sessions()
-        _sessions[sid] = (history[-cfg.CHAT_HISTORY_LIMIT:], time.monotonic())
+        if mobile_api.current_turn_options() is not None:
+            # PC requests reload the shared disk update; a phone owner's
+            # history must not enter the legacy cache for another account.
+            _sessions.pop(sid, None)
+        else:
+            _sessions[sid] = (history[-cfg.CHAT_HISTORY_LIMIT:], time.monotonic())
     try:
-        return chat_store.append(
+        ids = chat_store.append(
             sid, user, assistant, steps, attachments, participant_name,
             parts=parts, reaction=reaction,
         )
-    except Exception:  # noqa: BLE001 — збереження історії не має валити відповідь
+        if ids and mobile_model:
+            mobile_bridge.persist_model(sid, ids[1], mobile_model)
+        return ids
+    except Exception:  # noqa: BLE001 — retain the existing history failure policy
         log.exception("Не вдалося зберегти чат на диск")
         return None
 
@@ -2193,6 +2235,11 @@ async def api_chat(request: Request, req: ChatRequest):
 
 
 async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat", on_note=None):
+    """Use the same conversation lease for phone, PC, and messenger requests."""
+    return await mobile_bridge.serialized_turn(req, clerk_uid, turn_source, _chat_turn_unlocked, on_note=on_note)
+
+
+async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str = "chat", on_note=None):
     """
     One conversation turn, whoever asked for it.
 
@@ -2311,7 +2358,7 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat",
                 parts=parts, reaction=reaction,
             )
             # Назву чату генеруємо у фоні — відповідь на неї не чекає
-            asyncio.create_task(_autoname_chat(sid, message, reply))
+            mobile_api.create_background_task(_autoname_chat(sid, message, reply))
 
             # Інтеграційний шар: SSE-подія, міст до дисплея, автожурнал.
             # Помилка будь-якої з цих дій НЕ ламає відповідь клієнту.
@@ -2366,6 +2413,7 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat",
             timeline: list[dict] = []
             notes: dict[str, list[str]] = {}
             reaction: dict[str, str | None] = {"emoji": None}
+            mobile_model: dict = {}
 
             def add_step(step_id: str) -> None:
                 if any(step_id in entry.get("ids", ()) for entry in timeline):
@@ -2407,6 +2455,8 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat",
                 return parts
 
             async def emit(event: dict) -> None:
+                if event.get("type") == "model":
+                    mobile_model.update(mobile_bridge.model_metadata(event))
                 if event.get("type") in ("tool_start", "tool_progress", "tool_done", "tool_result", "tool_error"):
                     event = activity.record(event)
                     step = event.get("step")
@@ -2497,9 +2547,10 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat",
                     steps=activity.finish(),
                     attachments=req.attachments, participant_name=participant_name,
                     parts=parts, reaction=reaction["emoji"],
+                    mobile_model=mobile_model,
                 )
                 saved = True
-                asyncio.create_task(_autoname_chat(sid, message, reply))
+                mobile_api.create_background_task(_autoname_chat(sid, message, reply))
                 for frame in late_reaction:
                     yield frame
 
@@ -2542,7 +2593,7 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat",
                 done = {
                     'reply': reply, 'bubbles': bubbles, 'parts': parts, 'reaction': reaction["emoji"],
                     'emotion': final_emotion, 'session_id': sid, 'mode': mode,
-                    'model': brains.get_last_model(), 'tool_results': tool_results,
+                    'model': mobile_model.get("model") or brains.get_last_model(), 'tool_results': tool_results,
                     'steps': activity.finish(),
                     'user_message_id': ids[0] if ids else '', 'assistant_message_id': ids[1] if ids else '',
                 }
@@ -2580,7 +2631,8 @@ async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat",
                     _save_history(sid, history, message, "\n\n".join(partial),
                                   steps=activity.finish(), attachments=req.attachments,
                                   participant_name=participant_name,
-                                  parts=build_parts(partial), reaction=reaction["emoji"])
+                                  parts=build_parts(partial), reaction=reaction["emoji"],
+                                  mobile_model=mobile_model)
                     trace_log.end_turn(error="interrupted")
                 await asyncio.gather(chat_task, return_exceptions=True)
 
@@ -4346,6 +4398,18 @@ def index():
     if target is not None:
         return FileResponse(target, headers=_STATIC_HEADERS)
     return HTMLResponse(_PLACEHOLDER_HTML, status_code=200)
+
+
+_mobile_routes = mobile_api.router(
+    _require_user, _require_openclaw_operator,
+    mobile_bridge.runner(ChatRequest, chat_turn),
+    server_origin=os.environ.get("MOBILE_API_ORIGIN", ""),
+)
+app.include_router(_mobile_routes)
+app.include_router(mobile_content.router(
+    _require_user, read_file=api_workspace_file, save_file=api_workspace_save,
+    write_guard=workspace_write_guard.mobile_reservation,
+))
 
 
 @app.get("/{asset_path:path}", include_in_schema=False)

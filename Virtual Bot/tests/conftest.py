@@ -33,6 +33,10 @@ os.environ.setdefault(
 os.environ["TYPESAFE_API_KEY"] = ""
 os.environ["VBOT_USAGE_DB"] = str(Path(tempfile.mkdtemp(prefix="virtual-bot-usage-")) / "usage.sqlite3")
 
+# A test lifespan must never recover or lock the running host's mobile jobs.
+_mobile_runtime = tempfile.TemporaryDirectory(prefix="virtual-bot-mobile-tests-")
+os.environ["MOBILE_DATABASE_PATH"] = str(Path(_mobile_runtime.name) / "mobile.sqlite3")
+
 # Integrations keep their tokens under runtime/integrations/. Point them at an
 # empty folder so a test run never starts a Telegram/Discord poller with the
 # owner's real token (it would steal their bot's updates).

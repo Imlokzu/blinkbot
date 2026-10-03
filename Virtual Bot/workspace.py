@@ -236,20 +236,22 @@ def read_file(rel: str) -> dict:
 
 
 def write_file(rel: str, content: str, *, append: bool = False) -> dict:
-    """Створює або перезаписує файл (батьківські теки — за потреби)."""
+    """Write under the reservation shared with revision-aware mobile saves."""
     text = content if isinstance(content, str) else str(content)
     if len(text.encode("utf-8")) > MAX_WRITE_BYTES:
         raise ValueError("Забагато тексту для одного файлу")
     path = _resolve(rel)
     if path == root():
         raise ValueError("Потрібне ім'я файлу")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if append and path.exists():
-        with path.open("a", encoding="utf-8") as fh:
-            fh.write(text)
-    else:
-        path.write_text(text, encoding="utf-8")
-    return {"ok": True, "path": rel_path(path), "size": path.stat().st_size}
+    import workspace_write_guard
+    with workspace_write_guard.writing(path):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if append and path.exists():
+            with path.open("a", encoding="utf-8") as fh:
+                fh.write(text)
+        else:
+            path.write_text(text, encoding="utf-8")
+        return {"ok": True, "path": rel_path(path), "size": path.stat().st_size}
 
 
 def make_dir(rel: str) -> dict:
