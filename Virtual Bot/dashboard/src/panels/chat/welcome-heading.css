@@ -3,17 +3,20 @@
 .chat-landing-heading .welcome-heading {
   display: grid;
   perspective: 600px;
-  font-family: 'Lora', Georgia, serif;
-  font-style: italic;
-  font-weight: 500;
-  font-size: clamp(28px, 5cqw, 44px);
-  line-height: 1.25;
-  letter-spacing: -.03em;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: clamp(32px, 6cqw, 54px);
+  line-height: 1.12;
+  letter-spacing: -.025em;
+  font-kerning: normal;
 }
+.welcome-heading em { font-weight: 500; font-style: italic; }
 .welcome-heading__phrase,
 .welcome-heading__measure {
   grid-area: 1 / 1;
   align-self: center;
+  padding-inline: .08em;
 }
 .welcome-heading__phrase {
   backface-visibility: hidden;

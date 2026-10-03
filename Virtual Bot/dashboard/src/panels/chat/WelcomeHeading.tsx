@@ -11,6 +11,15 @@ const HEADINGS = [
 ] as const;
 const HOLD_MS = 2_000;
 
+/** The same mixed styles must size the hidden phrases and the visible one. */
+function Phrase({ text }: { text: string }) {
+  const words = text.split(' ');
+  if (words.length < 2) return text;
+  const tail = document.documentElement.lang.startsWith('en') ? 2 : 1;
+  const split = Math.max(1, words.length - tail);
+  return <>{words.slice(0, split).join(' ')}{' '}<em>{words.slice(split).join(' ')}</em></>;
+}
+
 export function WelcomeHeading() {
   const [index, setIndex] = useState(0);
   const reducedMotion = useReducedMotion();
@@ -40,10 +49,10 @@ export function WelcomeHeading() {
     <h2 className="welcome-heading" aria-label={t('thread.prompt1')}>
       {/* Reserve the tallest localized phrase so the composer never jumps. */}
       {HEADINGS.map((key) => (
-        <span key={key} aria-hidden="true" className="welcome-heading__measure">{t(key)}</span>
+        <span key={key} aria-hidden="true" className="welcome-heading__measure"><Phrase text={t(key)} /></span>
       ))}
       {reducedMotion ? (
-        <span aria-hidden="true" className="welcome-heading__phrase">{t('thread.prompt1')}</span>
+        <span aria-hidden="true" className="welcome-heading__phrase"><Phrase text={t('thread.prompt1')} /></span>
       ) : (
         <AnimatePresence initial={false} mode="wait">
           <motion.span
@@ -55,7 +64,7 @@ export function WelcomeHeading() {
             exit={{ rotateX: 65, opacity: 0 }}
             transition={{ type: 'spring', duration: .24, bounce: 0 }}
           >
-            {t(HEADINGS[current])}
+            <Phrase text={t(HEADINGS[current])} />
           </motion.span>
         </AnimatePresence>
       )}

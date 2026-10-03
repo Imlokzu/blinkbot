@@ -1242,3 +1242,17 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   JPEG also returns 200 with matching original bytes over the phone LAN URL.
   The final PWA precache contains 102 entries. Temporary test servers and
   browser sessions are closed, and unrelated staged/source drafts are preserved.
+
+
+## Expressive welcome typography (2026-10-03)
+
+- The welcome heading now uses self-hosted Cormorant Garamond: 600 roman
+  text with 500 italic emphasis, measured identically across all phrases.
+  Latin/Cyrillic subsets and the original OFL ship locally. Type scales from
+  32 to 54px; inline padding protects italic overhangs. The existing two-second
+  flip, stable accessible name, hidden-tab pause and drafts remain intact.
+- Validation: 152 frontend tests, TypeScript and isolated production build;
+  1,049 Python tests with 6 skipped and 178 subtests; existing welcome browser
+  fixtures in both locales/themes, plus independent maximum-effort visual
+  review of glyph coverage, phone sizing and offline font delivery.
+- Unrelated owner drafts and staged changes remain preserved.

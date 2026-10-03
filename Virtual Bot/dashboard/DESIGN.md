@@ -612,3 +612,14 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   hidden-tab pause, stable accessible name and reduced-motion fallback.
 - Regression coverage: tests/settings-surfaces.browser.mjs,
   tests/chat-welcome.browser.mjs and tests/model-effort.browser.mjs.
+
+
+## Expressive welcome typography (2026-10-03)
+
+- The owner's refined direction uses Cormorant Garamond for welcome-only
+  display text: 600 roman, with the final meaningful word(s) in 500 italic.
+  Its 32-54px scale and optical spacing add contrast; regular UI text stays
+  Plex. Self-host both styles with Latin/Cyrillic subsets and their license.
+- Apply identical mixed styles to hidden phrase measurements and the visible
+  phrase. Keep the existing two-second motion, stable accessible heading,
+  reduced-motion mode, hidden-tab pause and unchanged composer position.
