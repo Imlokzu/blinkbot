@@ -2398,6 +2398,9 @@ async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str
         with _brain_context(sid, clerk_uid), trace_log.bind(turn_id):
             event_queue: asyncio.Queue[dict] = asyncio.Queue()
             activity = ActivityLog()
+            # Mobile previews reflect actual provider arrival, including a
+            # large frame. Completed text is disclosed only by the done event.
+            mobile_stream = mobile_api.current_turn_options() is not None
 
             # Скільки тексту вже віддали СПРАВЖНІМ стрімом токенів (brains шле delta).
             # Якщо мозок стрімить — НЕ ріжемо готову відповідь на слова вдруге.
@@ -2493,7 +2496,7 @@ async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str
                     if not visible:
                         return  # чанк був цілком тегом (або чекає в буфері)
                     streamed["text"] += visible
-                    if len(visible) > _LUMP_CHARS:
+                    if not mobile_stream and len(visible) > _LUMP_CHARS:
                         # Не стрімінг, а відповідь одним шматком — набираємо її
                         # словами. Мозок на цей момент уже відпрацював, тож ці
                         # паузи нічого не затримують.
@@ -2577,7 +2580,7 @@ async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str
                         # Текст розішовся (напр. вирізано тег емоції всередині) —
                         # просимо фронтенд замінити текст ціліком (done нижче все одно це зробить).
                         log.debug("Стрімовий текст відрізняється від фінального — заміню на done")
-                    else:
+                    elif not mobile_stream:
                         # Мозок не стрімить (демо, тулзи, Anthropic) — імітуємо пословно,
                         # щоб усе одно було видно появу тексту, а не стіну відразу.
                         words = raw_reply.split(" ")
@@ -2636,7 +2639,9 @@ async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str
                     trace_log.end_turn(error="interrupted")
                 await asyncio.gather(chat_task, return_exceptions=True)
 
-    return StreamingResponse(stream_response(), media_type="text/event-stream")
+    return StreamingResponse(stream_response(), media_type="text/event-stream", headers={
+        "Cache-Control": "no-store, no-transform", "X-Accel-Buffering": "no",
+    })
 
 
 # ------------------------------------------------------------------ messengers

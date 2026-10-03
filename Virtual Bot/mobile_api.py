@@ -588,7 +588,11 @@ def router(require_user, require_operator, run_turn: RunTurn, *, store: MobileSt
                 yield ": keepalive\n\n"
                 await asyncio.sleep(runtime.scan_interval)
 
-        return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+        # Cloudflare may transform/compress small frames unless the origin opts
+        # out. Each yield must reach the listener while the provider is running.
+        return StreamingResponse(stream(), media_type="text/event-stream", headers={
+            "Cache-Control": "no-store, no-transform", "X-Accel-Buffering": "no",
+        })
 
     @routes.post("/messages/{job_id}/stop")
     async def stop(job_id: str, user_id: str = Depends(identity)):

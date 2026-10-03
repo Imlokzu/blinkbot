@@ -125,7 +125,7 @@ def test_original_sse_payload_replay_and_last_event_id(tmp_path):
         job = client.post("/api/mobile/messages", json=request_body()).json()
         wait_state(store, "", job["id"], "completed")
         response = client.get(f"/api/mobile/messages/{job['id']}/events")
-        assert response.headers["cache-control"] == "no-store"
+        assert response.headers["cache-control"] == "no-store, no-transform"
         blocks = [block for block in response.text.split("\n\n") if block]
         ids = [int(block.splitlines()[0].split(": ")[1]) for block in blocks]
         assert ids == list(range(1, len(ids) + 1))
