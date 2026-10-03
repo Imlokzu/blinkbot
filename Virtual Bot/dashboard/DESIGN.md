@@ -677,3 +677,21 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
 - Build in isolation with the guarded npm script; publish only current-revision
   artifacts through scripts/publish-dashboard.mjs, never overwrite the live
   directory with an older captured build. Verify the actual /dash/ bundle.
+
+## Model intelligence index (2026-10-03)
+
+- A brain toggle in the models heading shows a benchmark index (0–100) on
+  every scored row: a mono number and a 22px neutral bar. It is off by
+  default and remembered in `localStorage.claudeBotModelIntel`; the request
+  runs only while it is on. Jev has no score; an unscored model shows "—".
+- The number comes from `/api/brain/intelligence` (`model_intelligence.py`):
+  six Epoch AI benchmarks (GPQA Diamond, OTIS Mock AIME, SciCode, ARC-AGI-2,
+  SimpleQA Verified, CritPt) folded with a Rasch fit, so missing hard
+  benchmarks do not inflate a model. The row tooltip lists the raw scores;
+  fewer than four benchmarks dims the number and says it is approximate.
+- Neutral ink only: the accent stays with the selection. The bar never
+  animates. The list order does not change — sorting stays removed.
+- Epoch's data is CC BY 4.0, so a footer credits it with a link whenever
+  the index is shown. Benchmark names are proper names, not locale keys.
+- Regression coverage: `tests/modelIntelligence.test.mjs`,
+  `tests/model-effort.browser.mjs` (off by default, no row badges).

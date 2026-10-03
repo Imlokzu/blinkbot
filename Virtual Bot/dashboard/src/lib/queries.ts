@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, get, post } from './api';
 import { parseBrainModelsCache } from './brainModelsCache';
+import { parseIntelligence } from '@/panels/chat/modelIntelligence';
 
 /*
  * Запити до бекенда. Один файл на всі ~90 ендпоїнтів переростив би себе,
@@ -163,6 +164,21 @@ export function useBrainModels() {
     initialDataUpdatedAt: readBrainModelsCache()?.savedAt,
     // Каталог читається через CLI OpenClaw (~1 с) і міняється рідко.
     staleTime: 120_000,
+  });
+}
+
+/**
+ * Benchmark index for the picker. Fetched only while the index is shown:
+ * the server's first call of a day downloads Epoch's archive, and nobody
+ * who keeps the index hidden should pay for that.
+ */
+export function useBrainIntelligence(enabled: boolean) {
+  return useQuery({
+    queryKey: ['brain-intelligence'],
+    queryFn: async ({ signal }) => parseIntelligence(await api<unknown>('/api/brain/intelligence', { signal })),
+    enabled,
+    // The server refreshes its table once a day; an hour here is plenty.
+    staleTime: 3_600_000,
   });
 }
 

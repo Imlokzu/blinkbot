@@ -11,6 +11,14 @@ const uk = {
   retry: 'Повторити',
   retrying: 'Завантажую…',
   noCapability: 'У каталозі немає моделей із цією можливістю.',
+  intelShow: 'Показати індекс інтелекту',
+  intelHide: 'Сховати індекс інтелекту',
+  intelDetail: 'Індекс інтелекту {index} зі 100, бенчмарків: {count} з {total}. {scores}',
+  intelPartial: 'Мало бенчмарків, оцінка приблизна.',
+  intelMissing: 'Бенчмарків для цієї моделі немає',
+  intelSource: 'Індекс із {count} бенчмарків · {source}, {license}',
+  intelLoading: 'Завантажую бенчмарки…',
+  intelFailed: 'Не вдалося завантажити бенчмарки.',
 };
 
 const en: Record<keyof typeof uk, string> = {
@@ -25,6 +33,14 @@ const en: Record<keyof typeof uk, string> = {
   retry: 'Retry',
   retrying: 'Loading…',
   noCapability: 'No models in the catalog report this capability.',
+  intelShow: 'Show intelligence index',
+  intelHide: 'Hide intelligence index',
+  intelDetail: 'Intelligence index {index} of 100, from {count} of {total} benchmarks. {scores}',
+  intelPartial: 'Few benchmarks, so the score is approximate.',
+  intelMissing: 'No benchmark data for this model',
+  intelSource: 'Index from {count} benchmarks · {source}, {license}',
+  intelLoading: 'Loading benchmarks…',
+  intelFailed: 'Could not load benchmarks.',
 };
 
 export function t(key: keyof typeof uk, values: Record<string, string | number> = {}): string {

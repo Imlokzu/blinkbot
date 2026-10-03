@@ -88,7 +88,9 @@ const assertStructure = lang => {
       groups: document.querySelectorAll('${menu} [role=radiogroup]').length,
       modelScroll: document.querySelector('${models}').scrollHeight > document.querySelector('${models}').clientHeight,
       effortScroll: getComputedStyle(document.querySelector('${effort}')).overflowY,
-      traits: document.querySelectorAll('${menu} .lucide-eye, ${menu} .lucide-zap, ${menu} .lucide-brain, ${menu} .lucide-life-buoy').length,
+      traits: document.querySelectorAll('${models} [role=radio] :is(.lucide-eye, .lucide-zap, .lucide-brain, .lucide-life-buoy)').length,
+      intelToggle: document.querySelector('${menu} .model-picker-intel-toggle')?.getAttribute('aria-pressed'),
+      intelScores: document.querySelectorAll('${models} .model-intel').length,
       comparison: Boolean(document.querySelector('${menu} a')),
       radios: document.querySelectorAll('${models} [role=radio]').length,
       checked: document.querySelectorAll('${models} [role=radio][aria-checked=true]').length,
@@ -109,6 +111,9 @@ const assertStructure = lang => {
   assert.equal(state.effortScroll, 'auto');
   assert.equal(state.traits, 0, 'model rows have no capability/status badges');
   assert.equal(state.comparison, false, 'the comparison footer is removed');
+  // The benchmark index is opt-in: off until the heading toggle is pressed.
+  assert.equal(state.intelToggle, 'false');
+  assert.equal(state.intelScores, 0, 'rows carry no index while it is hidden');
   assert.equal(state.radios, catalog.models.length, 'recents move models without duplicating radio choices');
   assert.equal(state.checked, 1);
   assert.equal(state.modelRowText, 'GPT-6 Astra', 'rows show a model name without hostname or trait text');

@@ -1,17 +1,19 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
-import { Check, ChevronDown, Search, X } from 'lucide-react';
+import { Brain, Check, ChevronDown, Search, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { t } from '@/locales/chat';
 import { t as pickerText } from '@/locales/modelPicker';
-import type { BrainModel } from '@/lib/queries';
+import { useBrainIntelligence, type BrainModel } from '@/lib/queries';
 import { BrandLogo } from './BrandLogo';
 import { EffortOptions } from './EffortMenu';
 import { BRAND_NAMES, arrange, parseRecent, remember } from './modelCatalog';
+import { SOLID_COVERAGE, coverage, scoreLine, type IntelBenchmark, type IntelEntry } from './modelIntelligence';
 import { thinkingLabel, useBrainChoice } from './useBrainChoice';
 import './model-menu.css';
 
 const RECENT_KEY = 'claudeBotRecentModels';
+const INTEL_KEY = 'claudeBotModelIntel';
 
 /** Storage is optional: a blocked browser still has a fully working picker. */
 function loadRecent(fallback: string[] = []): string[] {
@@ -19,6 +21,29 @@ function loadRecent(fallback: string[] = []): string[] {
     const raw = localStorage.getItem(RECENT_KEY);
     return raw ? parseRecent(JSON.parse(raw)) : fallback;
   } catch { return fallback; }
+}
+
+function loadShowIntel(): boolean {
+  try { return localStorage.getItem(INTEL_KEY) === '1'; } catch { return false; }
+}
+
+/** The index as a number and a thin bar; the breakdown lives in its tooltip. */
+function IntelScore({ entry, benchmarks }: { entry?: IntelEntry; benchmarks: IntelBenchmark[] }) {
+  if (!entry) {
+    return <span className="model-intel is-missing" title={pickerText('intelMissing')}>—</span>;
+  }
+  const count = coverage(entry, benchmarks);
+  const partial = count < SOLID_COVERAGE;
+  const index = Math.round(entry.index);
+  const detail = pickerText('intelDetail', { index, count, total: benchmarks.length, scores: scoreLine(entry, benchmarks) })
+    + (partial ? ` ${pickerText('intelPartial')}` : '');
+  return (
+    <span className={cn('model-intel', partial && 'is-partial')} title={detail}
+      style={{ '--intel': `${index}%` } as React.CSSProperties}>
+      <span aria-hidden="true" className="model-intel-bar" />
+      <span className="model-intel-value">{index}</span>
+    </span>
+  );
 }
 
 function GroupHead({ brand }: { brand: string | null }) {
@@ -37,6 +62,8 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
   const [searchOpen, setSearchOpen] = useState(false);
   const [recent, setRecent] = useState(() => loadRecent());
   const [active, setActive] = useState(0);
+  const [showIntel, setShowIntel] = useState(loadShowIntel);
+  const intel = useBrainIntelligence(open && showIntel);
   const input = useRef<HTMLInputElement>(null);
   const search = useRef<HTMLDivElement>(null);
   const modelsPane = useRef<HTMLElement>(null);
@@ -127,6 +154,12 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
       setActive(0);
     }
   };
+  const toggleIntel = () => {
+    const next = !showIntel;
+    setShowIntel(next);
+    try { localStorage.setItem(INTEL_KEY, next ? '1' : '0'); } catch { /* Optional storage. */ }
+  };
+  const intelData = intel.data;
   const label = brain.currentModel?.label || brain.current || (brain.loading ? t('composer.loading') : 'OpenClaw');
   const effort = brain.thinking ? thinkingLabel(brain.thinking) : t('composer.asConfigured');
   const accessibleLabel = t('composer.chooseModelEffort', { model: label, level: effort });
@@ -177,6 +210,10 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
           <section ref={modelsPane} className="brain-picker-pane model-picker-pane" aria-label={t('composer.models')}>
             <div className="brain-picker-heading model-picker-heading" data-search-open={searchOpen ? '' : undefined}>
               <h2 className="u-label model-picker-title">{t('composer.models')}</h2>
+              <button type="button" aria-pressed={showIntel} aria-label={pickerText(showIntel ? 'intelHide' : 'intelShow')}
+                title={pickerText(showIntel ? 'intelHide' : 'intelShow')} className="model-picker-intel-toggle" onClick={toggleIntel}>
+                <Brain aria-hidden="true" className="size-4" strokeWidth={1.75} />
+              </button>
               <div
                 ref={search}
                 className="model-picker-search"
@@ -234,6 +271,8 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
                             <span className="brain-picker-name block">{model.label}</span>
                             {model.available === false ? <span className="brain-picker-feedback">{t('models.unavailable')}</span> : null}
                           </span>
+                          {showIntel && intelData?.available && !model.auto
+                            ? <IntelScore entry={intelData.models[model.id]} benchmarks={intelData.benchmarks} /> : null}
                           {current ? <Check aria-hidden="true" className="brain-picker-check" strokeWidth={1.75} /> : null}
                         </button>
                       );
@@ -244,6 +283,15 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
                   : brain.models.length ? t('models.none', { query }) : null}</p> : null}
               </div>
             </div>
+            {showIntel ? (
+              <p className="model-intel-source" role="status">
+                {intel.isError || (intelData && !intelData.available) ? pickerText('intelFailed')
+                  : !intelData ? pickerText('intelLoading')
+                    : <a href={intelData.source.url || undefined} target="_blank" rel="noopener noreferrer">
+                      {pickerText('intelSource', { count: intelData.benchmarks.length, source: intelData.source.name, license: intelData.source.license })}
+                    </a>}
+              </p>
+            ) : null}
           </section>
           <EffortOptions brain={brain} />
           {brain.saving ? <p className="sr-only" role="status">{pickerText('saving')}</p> : null}
