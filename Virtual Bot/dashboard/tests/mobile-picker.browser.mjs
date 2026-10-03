@@ -104,7 +104,7 @@ const inList = (row, list, message) => assert.ok(row && row.top >= list.top - 1 
 const assertPhone = (state, label) => {
   assert.ok(state.coarse, 'measurements use a real coarse pointer media query');
   assert.ok(state.popup.width <= Math.min(360, state.width - 24) + 1, `${label}: width is phone sized`);
-  assert.ok(state.popup.height <= Math.min(360, state.height * .52) + 1, `${label}: height stays compact`);
+  assert.ok(state.popup.height <= Math.min(320, state.height * .52) + 1, `${label}: height stays compact`);
   assert.ok(state.popup.height < Math.min(560, state.height * .74) * .82, `${label}: materially shorter than the desktop popup`);
   assert.ok(state.popup.left >= -1 && state.popup.top >= -1 && state.popup.right <= state.width + 1
     && state.popup.bottom <= state.height + 1, `${label}: popup fits the viewport`);
@@ -200,8 +200,8 @@ try {
     browser('set', 'viewport', String(width), String(height));
     openMenu();
     const state = measure();
-    assert.equal(state.popup.width, 560, `${width}px keeps the established wide popup`);
-    assert.ok(state.popup.height > 360, `${width}px keeps the established tall popup`);
+    assert.equal(state.popup.width, 440, `${width}px uses the compact desktop popup`);
+    assert.ok(state.popup.height <= 361, `${width}px keeps the desktop popup short`);
     closeMenu();
   }
   assert.deepEqual(evaluate('window.__mobilePickerWrites'), [], 'all gestures are read-only and dispatch no model or chat writes');

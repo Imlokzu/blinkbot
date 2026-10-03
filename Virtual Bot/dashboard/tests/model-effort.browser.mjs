@@ -97,7 +97,10 @@ const assertStructure = lang => {
       unknownLogo: Boolean(document.querySelector(${JSON.stringify(modelRow('regolo/future'))})?.querySelector('svg[data-brand]')),
       unavailable: document.querySelector(${JSON.stringify(modelRow('regolo/closed'))})?.textContent,
       unavailableDisabled: document.querySelector(${JSON.stringify(modelRow('regolo/closed'))})?.ariaDisabled,
-      touchRows: [...document.querySelectorAll('${menu} [role=radio]')].every(row => row.getBoundingClientRect().height >= 44),
+      coarse: matchMedia('(pointer: coarse)').matches,
+      viewportWidth: innerWidth,
+      popup: { width: document.querySelector('${menu}').getBoundingClientRect().width, height: document.querySelector('${menu}').getBoundingClientRect().height },
+      rowHeights: [...document.querySelectorAll('${menu} [role=radio]')].map(row => row.getBoundingClientRect().height),
     });`);
   assert.equal(state.groups, 2);
   assert.deepEqual(state.headers, [labels[lang].models, labels[lang].effort]);
@@ -112,7 +115,8 @@ const assertStructure = lang => {
   assert.ok(state.knownLogo && !state.unknownLogo, 'known makers retain their actual SVG; unknown makers are neutral');
   assert.equal(state.unavailableDisabled, 'true');
   assert.ok(state.unavailable.includes(labels[lang].unavailable));
-  assert.ok(state.touchRows, 'all choices retain 44px targets');
+  assert.ok(state.rowHeights.every(height => height >= (state.coarse || state.viewportWidth < 760 ? 44 : 36)), 'compact mouse rows preserve larger touch targets');
+  assert.ok(state.popup.width <= 441 && state.popup.height <= 361, 'the combined picker stays within its compact size');
 };
 // Keep touch emulation and measurements within one CDP session: the CLI reapplies input settings.
 const touchLayout = () => {
@@ -263,7 +267,7 @@ try {
       assert.ok(bounds.triggerWidth >= 44 && bounds.triggerHeight >= 44, 'the single trigger remains a 44px touch target');
       assert.ok(bounds.left >= -1 && bounds.top >= -1 && bounds.right <= bounds.width + 1 && bounds.bottom <= bounds.height + 1, `popover fits ${lang} ${width}x${height}`);
       assert.ok(bounds.scrollWidth <= bounds.width && !bounds.rowOverflow, 'columns and rows never widen the page');
-      assert.ok(bounds.modelWidth > bounds.effortWidth && bounds.modelWidth / (bounds.modelWidth + bounds.effortWidth) < .6);
+      assert.ok(bounds.modelWidth > bounds.effortWidth && bounds.modelWidth / (bounds.modelWidth + bounds.effortWidth) < .66, 'thinking retains usable width beside the model list');
       if (width === 320) {
         const accessibility = JSON.parse(browser('--json', 'a11y', '--selector', menu)).data;
         assert.equal(accessibility.counts.violations, 0, `the combined ${lang} menu passes its scoped accessibility audit`);

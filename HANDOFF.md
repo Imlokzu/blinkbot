@@ -1355,3 +1355,15 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   aliases and argument terminators. Fourteen focused publication tests passed.
   The new wrapper's real isolated production build, TypeScript and all 170
   frontend tests passed. Unrelated owner drafts and staged work remain intact.
+
+
+## Compact model picker (2026-10-03)
+
+- Desktop model/thinking selection is capped at 440x360px with 36px mouse
+  rows and a 40px heading. Phones cap height at 320px; coarse pointers retain
+  44px targets and 16px search input. Both columns scroll independently.
+- Independent browser review verified 101 models, selected final model/effort,
+  both actual themes/locales, 320/390/768/1440px and short landscape layouts.
+  Existing model/effort and mobile fixtures passed, including writes, rollback,
+  focus, glass and keyboard-reduced areas. The actual port-8100 sidebar fixture
+  also passed. Python checks: 1,073 passed, 6 skipped and 178 subtests.

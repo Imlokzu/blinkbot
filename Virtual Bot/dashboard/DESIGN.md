@@ -659,3 +659,16 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   use one header with title, New and Close; all existing pin/selection/dismissal
   behavior and saved visibility remain. Regression coverage lives in
   tests/session-sidebar.browser.mjs and tests/chat-navigation.browser.mjs.
+
+
+## Compact model picker (2026-10-03)
+
+- Desktop uses at most 440x360px, 62/38 columns, 36px fine-pointer rows and
+  a 40px header. Keep readable names and independent scrolling rather than
+  filling the available screen. Phones use at most 360x320px with existing
+  52dvh/available-height bounds; all coarse targets remain 44px.
+- Search remains 16px on phones. Current choices, recovery controls, keyboard
+  focus and selected glass must remain available within short popup bounds.
+- Build in isolation with the guarded npm script; publish only current-revision
+  artifacts through scripts/publish-dashboard.mjs, never overwrite the live
+  directory with an older captured build. Verify the actual /dash/ bundle.
