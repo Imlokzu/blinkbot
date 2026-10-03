@@ -126,6 +126,9 @@ const DICT = {
     "how.cloudName": "Розум",
     "how.cloudWhere": "Мовні моделі",
     "how.cloudText": "Будь-яка модель через шлюз OpenClaw — міняй коли завгодно.",
+    "how.edgeLatency": "< 50 мс",
+    "how.fogLatency": "100–500 мс",
+    "how.cloudLatency": "0,3–3 с",
 
     "start.eyebrow": "Почати",
     "start.titleA": "Три команди",
@@ -258,6 +261,9 @@ const DICT = {
     "how.cloudName": "The thinking",
     "how.cloudWhere": "Language models",
     "how.cloudText": "Any model through the OpenClaw gateway — swap it whenever you like.",
+    "how.edgeLatency": "< 50 ms",
+    "how.fogLatency": "100–500 ms",
+    "how.cloudLatency": "0.3–3 s",
 
     "start.eyebrow": "Get started",
     "start.titleA": "Three commands",

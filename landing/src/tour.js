@@ -61,13 +61,24 @@ export function initTour({ reduced }) {
       const prev = previous >= 0 ? screen.querySelector(`[data-tour-shot="${steps[previous].dataset.tourStep}"]`) : null;
 
       if ((name === "mobile") !== phone) shape(name === "mobile", previous >= 0);
+      const images = [...screen.querySelectorAll("img")];
+      // Only the picture on show is announced; the others are stacked under it.
+      images.forEach((img) => img.setAttribute("aria-hidden", String(img !== next)));
       if (!prev || reduced) {
-        screen.querySelectorAll("img").forEach((img) => img.classList.toggle("is-active", img === next));
+        images.forEach((img) => img.classList.toggle("is-active", img === next));
         return;
+      }
+      // A fast scroll can cut a wipe short, and with it the cleanup in its
+      // onComplete. Settle every picture that is not part of this change.
+      for (const img of images) {
+        gsap.killTweensOf(img);
+        if (img !== next && img !== prev) {
+          img.classList.remove("is-active");
+          gsap.set(img, { clearProps: "zIndex,clipPath,scale" });
+        }
       }
       // The new picture wipes in from below over the old one.
       const down = index > previous;
-      gsap.killTweensOf([next, prev]);
       next.classList.add("is-active");
       gsap.set(next, { zIndex: 2 });
       gsap.set(prev, { zIndex: 1 });

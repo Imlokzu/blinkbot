@@ -46,12 +46,16 @@ const observer =
     : null;
 
 // The engine resumes itself when the tab comes back; a crab that is still
-// off screen should not. Registered after every crab's own listener.
+// off screen (or held still) should not. Each engine registers its own
+// listener in its constructor, after this one, so the check waits a tick
+// until all of them have run and then takes back what they restarted.
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) return;
-  for (const record of crabs) {
-    if (record.still || !record.visible) pause(record.crab);
-  }
+  setTimeout(() => {
+    for (const record of crabs) {
+      if (record.still || !record.visible) pause(record.crab);
+    }
+  }, 0);
 });
 
 /**

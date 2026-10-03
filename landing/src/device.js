@@ -76,10 +76,16 @@ export function initDevice({ reduced, finePointer }) {
     moodLabel.textContent = mood === "idle" ? t("device.faceLabel") : t(`device.mood.${mood}`);
   };
 
+  const press = (buttons, isOn) =>
+    buttons.forEach((b) => {
+      b.classList.toggle("is-active", isOn(b));
+      b.setAttribute("aria-pressed", String(isOn(b)));
+    });
+
   const setMood = (next) => {
     mood = next;
     crab.setEmotion(next);
-    moodButtons.forEach((b) => b.classList.toggle("is-active", b.dataset.mood === next));
+    press(moodButtons, (b) => b.dataset.mood === next);
     showLabel();
   };
 
@@ -88,12 +94,15 @@ export function initDevice({ reduced, finePointer }) {
     const from = views.get(current);
     const to = views.get(name);
     current = name;
-    viewButtons.forEach((b) => b.classList.toggle("is-active", b.dataset.showView === name));
+    press(viewButtons, (b) => b.dataset.showView === name);
     if (reduced) {
       from.classList.remove("is-active");
       to.classList.add("is-active");
       return;
     }
+    // A tap during a transition must not let the older tween's cleanup
+    // hide the view that is now on screen.
+    gsap.killTweensOf([from, to]);
     to.classList.add("is-active");
     gsap.fromTo(to, { xPercent: 12, opacity: 0 }, { xPercent: 0, opacity: 1, duration: 0.6, ease: "expo.out" });
     gsap.to(from, {
@@ -102,6 +111,7 @@ export function initDevice({ reduced, finePointer }) {
       duration: 0.45,
       ease: "power2.in",
       onComplete: () => {
+        if (views.get(current) === from) return;
         from.classList.remove("is-active");
         gsap.set(from, { clearProps: "all" });
       },
@@ -173,6 +183,7 @@ export function initDevice({ reduced, finePointer }) {
     for (const dt of section.querySelectorAll("[data-count]")) {
       const target = Number(dt.dataset.count);
       const counter = { value: 0 };
+      dt.textContent = "0"; // so the count starts from what is already shown
       gsap.to(counter, {
         value: target,
         duration: 1.6,

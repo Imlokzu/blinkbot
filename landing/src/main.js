@@ -83,6 +83,48 @@ function remeasureOnResize() {
   }).observe(main);
 }
 
+// Set once the page has been built; until then a language switch only has
+// to swap text, because nothing has been split or animated yet.
+let built = null;
+let switching = false;
+
+function switchLanguage(lang) {
+  if (lang === getLang() || switching) return;
+  try {
+    localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    // private mode: the choice lasts for this visit only
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.delete("lang");
+  window.history.replaceState(null, "", url);
+
+  if (!built) {
+    applyLanguage(lang);
+    return;
+  }
+  switching = true;
+  built.intro?.progress(1);
+  const content = document.querySelector("#smooth-content");
+  gsap.to(content, {
+    opacity: 0,
+    duration: reduced ? 0 : 0.2,
+    onComplete: () => {
+      unsplit();
+      applyLanguage(lang);
+      built.device.refreshLabels();
+      resplit({ reduced });
+      ScrollTrigger.refresh();
+      gsap.to(content, { opacity: 1, duration: reduced ? 0 : 0.35, onComplete: () => (switching = false) });
+    },
+  });
+}
+
+// Wired at once, not after the fonts: a click in the first moment must count.
+for (const button of document.querySelectorAll("[data-set-lang]")) {
+  button.addEventListener("click", () => switchLanguage(button.dataset.setLang));
+}
+
 fontsLoaded.then(() => {
   const { intro } = initHero({ reduced, finePointer });
   initReveals({ reduced });
@@ -94,43 +136,17 @@ fontsLoaded.then(() => {
   initFinal({ reduced });
   initNav();
   if (finePointer && !reduced) initMagnetic();
+  built = { intro, device };
 
-  // "See it in action" lands where the dashboard has fully risen.
+  // "See it in action" lands where the dashboard has fully risen; without
+  // the pin (phones, reduced motion) that is simply the window itself.
+  const win = document.querySelector("[data-window]");
   const revealPoint = () => {
     const pin = ScrollTrigger.getAll().find((st) => st.pin === document.querySelector("[data-hero]"));
-    return pin ? pin.start + (pin.end - pin.start) * 0.62 : document.querySelector("[data-window]").offsetTop;
+    if (pin) return pin.start + (pin.end - pin.start) * 0.62;
+    return smoother ? smoother.offset(win, "top 80px") : win.getBoundingClientRect().top + window.scrollY - 80;
   };
-  initScrollLinks({ smoother, revealPoint });
-
-  for (const button of document.querySelectorAll("[data-set-lang]")) {
-    button.addEventListener("click", () => {
-      const lang = button.dataset.setLang;
-      if (lang === getLang()) return;
-      try {
-        localStorage.setItem(LANG_KEY, lang);
-      } catch {
-        // private mode: the choice lasts for this visit only
-      }
-      const url = new URL(window.location.href);
-      url.searchParams.delete("lang");
-      window.history.replaceState(null, "", url);
-
-      intro?.progress(1);
-      const content = document.querySelector("#smooth-content");
-      gsap.to(content, {
-        opacity: 0,
-        duration: reduced ? 0 : 0.2,
-        onComplete: () => {
-          unsplit();
-          applyLanguage(lang);
-          device.refreshLabels();
-          resplit({ reduced });
-          ScrollTrigger.refresh();
-          gsap.to(content, { opacity: 1, duration: reduced ? 0 : 0.35 });
-        },
-      });
-    });
-  }
+  initScrollLinks({ smoother, revealPoint, reduced });
 
   ScrollTrigger.refresh();
   remeasureOnResize();

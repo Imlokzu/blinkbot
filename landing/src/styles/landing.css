@@ -314,6 +314,25 @@
   background: var(--surface);
 }
 
+/* A band of light that crosses the screen as the window settles. */
+.window__glint {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 0 0 15px 15px;
+  pointer-events: none;
+}
+
+.window__glint i {
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: 0;
+  width: 26%;
+  background: linear-gradient(100deg, transparent, rgb(255 242 232 / 0.07) 40%, rgb(255 242 232 / 0.13) 50%, rgb(255 242 232 / 0.07) 60%, transparent);
+  transform: translateX(-130%) skewX(-14deg);
+}
+
 .callouts {
   position: absolute;
   inset: 0;

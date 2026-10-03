@@ -122,6 +122,7 @@ export function initHero({ reduced, finePointer }) {
         0,
       )
       .fromTo("[data-hero-scroll]", { opacity: 1 }, { opacity: 0, duration: 0.08 }, 0)
+      .fromTo("[data-glint]", { xPercent: -130 }, { xPercent: 520, ease: "power1.inOut", duration: 0.3 }, 0.32)
       .fromTo(
         callouts,
         { opacity: 0, scale: 0.85 },

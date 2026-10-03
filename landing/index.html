@@ -29,6 +29,16 @@
             : (navigator.languages || [navigator.language]).some(function (c) { return /^uk\b/i.test(c || ""); }) ? "uk" : "en";
           root.lang = lang;
           root.dataset.lang = lang;
+          // The hero picture is the first thing worth waiting for; start it
+          // now, in the right language, instead of after the module runs.
+          var shots = "%BASE_URL%shots/" + lang + "/chat";
+          var hint = document.createElement("link");
+          hint.rel = "preload";
+          hint.as = "image";
+          hint.setAttribute("imagesrcset", shots + "-half.webp 1440w, " + shots + ".webp 2880w");
+          hint.setAttribute("imagesizes", "(max-width: 960px) 92vw, 1180px");
+          hint.setAttribute("fetchpriority", "high");
+          document.head.appendChild(hint);
         } catch (e) {}
       })();
     </script>
@@ -110,6 +120,7 @@
                 </div>
                 <div class="window__view">
                   <img data-shot="chat" data-ratio="1440x1000" data-i18n-attr="alt:reveal.alt" fetchpriority="high" width="1440" height="1000" />
+                  <span class="window__glint" aria-hidden="true"><i data-glint></i></span>
                   <div class="callouts">
                     <div class="callout" data-callout style="--x: 46%; --y: 31%">
                       <span class="callout__dot"></span>
@@ -191,20 +202,20 @@
                 </li>
               </ol>
 
-              <div class="tour__stage" data-tour-stage aria-hidden="true">
+              <div class="tour__stage" data-tour-stage>
                 <div class="device-frame" data-device-frame data-mode="desktop">
-                  <div class="device-frame__bar">
+                  <div class="device-frame__bar" aria-hidden="true">
                     <span class="window__dots"><i></i><i></i><i></i></span>
                     <span class="device-frame__notch"></span>
                   </div>
                   <div class="device-frame__screen">
-                    <img data-shot="chat" data-tour-shot="chat" data-ratio="1440x1000" alt="" loading="lazy" width="1440" height="1000" />
-                    <img data-shot="memory" data-tour-shot="memory" data-ratio="1440x1000" alt="" loading="lazy" width="1440" height="1000" />
-                    <img data-shot="welcome" data-tour-shot="welcome" data-ratio="1440x1000" alt="" loading="lazy" width="1440" height="1000" />
-                    <img data-shot="mobile" data-tour-shot="mobile" data-ratio="390x844" alt="" loading="lazy" width="390" height="844" />
+                    <img data-shot="chat" data-tour-shot="chat" data-ratio="1440x1000" data-i18n-attr="alt:tour.chatAlt" loading="lazy" width="1440" height="1000" />
+                    <img data-shot="memory" data-tour-shot="memory" data-ratio="1440x1000" data-i18n-attr="alt:tour.memoryAlt" loading="lazy" width="1440" height="1000" />
+                    <img data-shot="welcome" data-tour-shot="welcome" data-ratio="1440x1000" data-i18n-attr="alt:tour.styleAlt" loading="lazy" width="1440" height="1000" />
+                    <img data-shot="mobile" data-tour-shot="mobile" data-ratio="390x844" data-i18n-attr="alt:tour.phoneAlt" loading="lazy" width="390" height="844" />
                   </div>
                 </div>
-                <div class="tour__progress"><span data-tour-progress></span></div>
+                <div class="tour__progress" aria-hidden="true"><span data-tour-progress></span></div>
               </div>
             </div>
           </section>
@@ -220,13 +231,13 @@
 
               <p class="moods__label" data-reveal data-i18n="device.moodLabel"></p>
               <div class="moods" data-reveal data-moods>
-                <button type="button" class="chip" data-mood="happy" data-i18n="device.mood.happy"></button>
-                <button type="button" class="chip" data-mood="love" data-i18n="device.mood.love"></button>
-                <button type="button" class="chip" data-mood="thinking" data-i18n="device.mood.thinking"></button>
-                <button type="button" class="chip" data-mood="web" data-i18n="device.mood.web"></button>
-                <button type="button" class="chip" data-mood="writing" data-i18n="device.mood.writing"></button>
-                <button type="button" class="chip" data-mood="sleepy" data-i18n="device.mood.sleepy"></button>
-                <button type="button" class="chip" data-mood="celebrating" data-i18n="device.mood.celebrating"></button>
+                <button type="button" class="chip" aria-pressed="false" data-mood="happy" data-i18n="device.mood.happy"></button>
+                <button type="button" class="chip" aria-pressed="false" data-mood="love" data-i18n="device.mood.love"></button>
+                <button type="button" class="chip" aria-pressed="false" data-mood="thinking" data-i18n="device.mood.thinking"></button>
+                <button type="button" class="chip" aria-pressed="false" data-mood="web" data-i18n="device.mood.web"></button>
+                <button type="button" class="chip" aria-pressed="false" data-mood="writing" data-i18n="device.mood.writing"></button>
+                <button type="button" class="chip" aria-pressed="false" data-mood="sleepy" data-i18n="device.mood.sleepy"></button>
+                <button type="button" class="chip" aria-pressed="false" data-mood="celebrating" data-i18n="device.mood.celebrating"></button>
               </div>
 
               <dl class="stats" data-reveal>
@@ -261,10 +272,10 @@
                 <div class="bot__shadow" aria-hidden="true"></div>
               </div>
               <div class="bot__views" role="group" data-i18n-attr="aria-label:device.viewsLabel">
-                <button type="button" class="chip chip--quiet is-active" data-show-view="face" data-i18n="device.viewFace"></button>
-                <button type="button" class="chip chip--quiet" data-show-view="clock" data-i18n="device.viewClock"></button>
-                <button type="button" class="chip chip--quiet" data-show-view="weather" data-i18n="device.viewWeather"></button>
-                <button type="button" class="chip chip--quiet" data-show-view="apps" data-i18n="device.viewApps"></button>
+                <button type="button" class="chip chip--quiet is-active" aria-pressed="true" data-show-view="face" data-i18n="device.viewFace"></button>
+                <button type="button" class="chip chip--quiet" aria-pressed="false" data-show-view="clock" data-i18n="device.viewClock"></button>
+                <button type="button" class="chip chip--quiet" aria-pressed="false" data-show-view="weather" data-i18n="device.viewWeather"></button>
+                <button type="button" class="chip chip--quiet" aria-pressed="false" data-show-view="apps" data-i18n="device.viewApps"></button>
               </div>
               <p class="bot__hardware" data-i18n="device.hardware"></p>
             </div>
@@ -361,7 +372,7 @@
                 <span class="tier__name" data-i18n="how.edgeName"></span>
                 <strong class="tier__where" data-i18n="how.edgeWhere"></strong>
                 <p data-i18n="how.edgeText"></p>
-                <span class="tier__latency">&lt; 50 ms</span>
+                <span class="tier__latency" data-i18n="how.edgeLatency"></span>
               </li>
               <li class="tier__link" aria-hidden="true"><i></i></li>
               <li class="tier" data-tier>
@@ -369,7 +380,7 @@
                 <span class="tier__name" data-i18n="how.fogName"></span>
                 <strong class="tier__where" data-i18n="how.fogWhere"></strong>
                 <p data-i18n="how.fogText"></p>
-                <span class="tier__latency">100–500 ms</span>
+                <span class="tier__latency" data-i18n="how.fogLatency"></span>
               </li>
               <li class="tier__link" aria-hidden="true"><i></i></li>
               <li class="tier" data-tier>
@@ -377,7 +388,7 @@
                 <span class="tier__name" data-i18n="how.cloudName"></span>
                 <strong class="tier__where" data-i18n="how.cloudWhere"></strong>
                 <p data-i18n="how.cloudText"></p>
-                <span class="tier__latency">0.3–3 s</span>
+                <span class="tier__latency" data-i18n="how.cloudLatency"></span>
               </li>
             </ol>
           </section>

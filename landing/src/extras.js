@@ -30,7 +30,8 @@ export function initNav() {
   });
 }
 
-export function initScrollLinks({ smoother, revealPoint }) {
+export function initScrollLinks({ smoother, revealPoint, reduced }) {
+  const behavior = reduced ? "auto" : "smooth";
   for (const link of document.querySelectorAll("[data-scroll-to]")) {
     link.addEventListener("click", (event) => {
       const selector = link.dataset.scrollTo;
@@ -41,9 +42,9 @@ export function initScrollLinks({ smoother, revealPoint }) {
       if (smoother) {
         smoother.scrollTo(y ?? target, true, "top top");
       } else if (y !== null) {
-        window.scrollTo({ top: y, behavior: "smooth" });
+        window.scrollTo({ top: y, behavior });
       } else {
-        target.scrollIntoView({ behavior: "smooth" });
+        target.scrollIntoView({ behavior });
       }
       if (selector.startsWith("#")) history.replaceState(null, "", selector === "#top" ? location.pathname + location.search : selector);
     });
