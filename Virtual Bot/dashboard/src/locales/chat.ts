@@ -36,6 +36,10 @@ const uk = {
   'composer.models': 'Моделі',
   'composer.chooseModel': 'Обрати модель',
   'composer.chooseEffort': 'Рівень думання',
+  'composer.chooseEffortCurrent': 'Рівень думання: {level}',
+  'composer.effortUnsupported': 'OpenClaw зараз не пропонує цей рівень',
+  'composer.effortUnavailable': 'OpenClaw не повідомляє доступні рівні думання.',
+  'composer.effortLoadFailed': 'Не вдалося оновити рівні думання. Показано останні налаштування.',
   'composer.prompt': 'Повідомлення боту',
   'composer.add': 'Додати до розмови',
   'composer.listening': 'Слухаю…',
@@ -90,6 +94,7 @@ const uk = {
   'models.auto': 'авто',
   'models.autoHint': 'Сам обирає: швидка, Luna чи Sol',
   'models.none': 'Нічого не знайшлось за «{query}»',
+  'models.unavailable': 'недоступна',
 
   // Рівні думання
   'effort.off': 'Без думання',
@@ -260,6 +265,10 @@ const en: Record<keyof typeof uk, string> = {
   'composer.models': 'Models',
   'composer.chooseModel': 'Choose model',
   'composer.chooseEffort': 'Thinking level',
+  'composer.chooseEffortCurrent': 'Thinking level: {level}',
+  'composer.effortUnsupported': 'OpenClaw does not currently offer this level',
+  'composer.effortUnavailable': 'OpenClaw does not report available thinking levels.',
+  'composer.effortLoadFailed': 'Could not refresh thinking levels. Showing the last settings.',
   'composer.prompt': 'Message to the bot',
   'composer.add': 'Add to conversation',
   'composer.listening': 'Listening…',
@@ -312,6 +321,7 @@ const en: Record<keyof typeof uk, string> = {
   'models.auto': 'auto',
   'models.autoHint': 'Picks for you: fast, Luna or Sol',
   'models.none': 'Nothing matches “{query}”',
+  'models.unavailable': 'unavailable',
 
   'effort.off': 'No thinking',
   'effort.minimal': 'Minimal',
