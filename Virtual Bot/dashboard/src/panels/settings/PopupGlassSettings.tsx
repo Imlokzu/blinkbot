@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { SwitchRow } from '@/components/ui/Switch';
 import { POPUP_GLASS_KINDS } from '@/hooks/popupGlassPreferences';
 import { usePopupGlassPreference } from '@/hooks/usePopupGlassPreference';
 import { t } from '@/locales/popupGlass';
@@ -13,15 +14,14 @@ export function PopupGlassSettings({ language }: { language?: 'uk' | 'en' }) {
       <legend>{text('title')}</legend>
       <p id={`${id}-hint`}>{text('hint')}</p>
       <div className="popup-glass-choices">
-        {POPUP_GLASS_KINDS.map(kind => (
-          <label key={kind}>
-            <input type="checkbox" checked={targets.includes(kind)} onChange={event => {
-              const checked = event.currentTarget.checked;
-              setTargets(previous => checked ? [...previous, kind] : previous.filter(target => target !== kind));
-            }} />
-            <span>{text(`kind.${kind}`)}</span>
-          </label>
-        ))}
+        {POPUP_GLASS_KINDS.map(kind => <SwitchRow
+          key={kind}
+          label={text(`kind.${kind}`)}
+          checked={targets.includes(kind)}
+          onChange={checked => setTargets(previous => checked
+            ? [...previous, kind]
+            : previous.filter(target => target !== kind))}
+        />)}
       </div>
       <div className="popup-glass-actions">
         <button type="button" disabled={targets.length === POPUP_GLASS_KINDS.length} onClick={() => setTargets(POPUP_GLASS_KINDS)}>{text('all')}</button>

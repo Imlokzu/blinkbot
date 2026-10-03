@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type DragEvent } from 'react';
 import { ImagePlus, RotateCcw, ShieldCheck, Trash2, Video } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Switch } from '@/components/ui/Switch';
+import { Switch, SwitchRow } from '@/components/ui/Switch';
 import { t } from '@/locales/chatAppearance';
 import { BACKGROUND_TARGETS, BackgroundImageError, hasFullAppBackground, prepareBackgroundImage,
   type BackgroundImageErrorCode, type ChatBackground, type ChatColor } from './appearancePreferences';
@@ -197,13 +197,14 @@ function ChatAppearanceControls() {
         <button type="button" aria-pressed={!fullApp} onClick={() => { if (fullApp) setAppearance({ targets: ['chat'] }); }}>{t('placement.selected')}</button>
       </div>
       <div className="chat-appearance-targets">
-        {BACKGROUND_TARGETS.map(target => <label key={target}>
-          <input type="checkbox" checked={appearance.targets.includes(target)} onChange={event => {
-            const checked = event.target.checked;
-            setAppearance(previous => ({ targets: checked ? [...previous.targets, target] : previous.targets.filter(item => item !== target) }));
-          }} />
-          <span>{t(`target.${target}`)}</span>
-        </label>)}
+        {BACKGROUND_TARGETS.map(target => <SwitchRow
+          key={target}
+          label={t(`target.${target}`)}
+          checked={appearance.targets.includes(target)}
+          onChange={checked => setAppearance(previous => ({
+            targets: checked ? [...previous.targets, target] : previous.targets.filter(item => item !== target),
+          }))}
+        />)}
       </div>
     </fieldset>
 

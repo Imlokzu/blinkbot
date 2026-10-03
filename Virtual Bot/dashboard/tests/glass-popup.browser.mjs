@@ -72,7 +72,7 @@ try {
   browser('screenshot', '/tmp/clear-composer-after-send.png');
 
   settings();
-  browser('check', '.popup-glass-choices label:nth-child(1) input');
+  browser('click', '.popup-glass-choices label:nth-child(1) [role="switch"]');
   browser('wait', '--fn', 'document.documentElement.dataset.popupGlassTargets === "models"');
   assert.deepEqual(evaluate('JSON.parse(localStorage.getItem("claudeBotPopupGlassTargets"))'), ['models']);
   chat();
@@ -112,10 +112,10 @@ try {
   evaluate(`window.__popupSetItem=Storage.prototype.setItem; Storage.prototype.setItem=function(key,value){
     if(key==='claudeBotPopupGlassTargets')throw new DOMException('Full','QuotaExceededError');
     return window.__popupSetItem.call(this,key,value); }; true`);
-  browser('check', '.popup-glass-choices label:nth-child(1) input');
+  browser('click', '.popup-glass-choices label:nth-child(1) [role="switch"]');
   browser('wait', '--text', 'Could not save popup appearance');
   assert.equal(selected(), 'attachments');
-  assert.equal(evaluate('document.querySelector(".popup-glass-choices label:nth-child(1) input").checked'), false);
+  assert.equal(evaluate('document.querySelector(".popup-glass-choices label:nth-child(1) [role=\\"switch\\"]").ariaChecked'), 'false');
   evaluate('Storage.prototype.setItem=window.__popupSetItem; true');
   browser('reload');
   browser('wait', '.popup-glass-settings');
