@@ -79,12 +79,30 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             }
         }
         val notice = state.error ?: state.notice
-        if (notice != null) {
-            LaunchedEffect(notice) { if (state.error == null) { kotlinx.coroutines.delay(2300); actions.dismissNotice() } }
-            Row(Modifier.align(Alignment.TopCenter).windowInsetsPadding(WindowInsets.statusBars).padding(top = 62.dp, start = 16.dp, end = 16.dp).clip(RoundedCornerShape(18.dp)).background(palette.surface).border(1.dp, palette.line, RoundedCornerShape(18.dp)).padding(start = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Glyph(if (state.error != null) "close" else "check", modifier = Modifier.size(17.dp), tint = if (state.error != null) MaterialTheme.colorScheme.error else palette.accent)
-                Text(tr(notice, "model" to state.noticeDetail.orEmpty()), fontSize = 12.sp, color = palette.ink, modifier = Modifier.weight(1f).padding(horizontal = 10.dp))
-                IconAction("close", tr("action.close"), actions::dismissNotice)
+        LaunchedEffect(notice) {
+            val shown = notice ?: return@LaunchedEffect
+            kotlinx.coroutines.delay(2600)
+            if (state.error == shown || state.notice == shown) actions.dismissNotice()
+        }
+        AnimatedVisibility(
+            visible = notice != null,
+            modifier = Modifier.align(Alignment.TopCenter),
+            enter = fadeIn(tween(180)) + scaleIn(tween(220), initialScale = .92f),
+            exit = fadeOut(tween(180)) + scaleOut(tween(180), targetScale = .94f),
+        ) {
+            notice?.let { shown ->
+                val isError = state.error != null
+                val shape = RoundedCornerShape(30.dp)
+                Row(Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(top = 62.dp, start = 16.dp, end = 16.dp)
+                    .clip(shape).background(palette.surface.copy(alpha = .96f)).border(1.dp, palette.line, shape)
+                    .padding(start = 8.dp, end = 4.dp, top = 7.dp, bottom = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(32.dp).clip(CircleShape).background(if (isError) MaterialTheme.colorScheme.error.copy(alpha = .12f) else palette.accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) {
+                        Glyph(if (isError) "close" else "check", modifier = Modifier.size(16.dp), tint = if (isError) MaterialTheme.colorScheme.error else palette.accent)
+                    }
+                    Text(tr(shown, "model" to state.noticeDetail.orEmpty()), fontSize = 12.sp, color = palette.ink,
+                        modifier = Modifier.weight(1f).padding(horizontal = 10.dp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    IconAction("close", tr("action.close"), actions::dismissNotice, Modifier.size(40.dp))
+                }
             }
         }
         ModelPicker(state, actions)
