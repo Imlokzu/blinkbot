@@ -25,6 +25,8 @@ interface AppActions {
     fun attachments(open: Boolean)
     fun pickFile(kind: String)
     fun removeAttachment(path: String)
+    fun loadReplyImage(path: String, source: String, retry: Boolean = false) {}
+    fun previewReplyImage(path: String, source: String) {}
     fun loadAttachmentThumbnail(path: String)
     fun previewAttachment(path: String)
     fun previewWorkFile(path: String) {}

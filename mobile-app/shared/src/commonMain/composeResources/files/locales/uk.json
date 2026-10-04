@@ -262,5 +262,8 @@
   "update.available": "Готовий Claude Bot {version}.",
   "update.changelog": "Що змінилося",
   "update.noChanges": "Невеликі покращення та виправлення.",
-  "update.close": "Пізніше"
+  "update.close": "Пізніше",
+  "media.photo": "Зображення",
+  "media.imageLoading": "Завантажуємо зображення…",
+  "media.imageFailed": "Не вдалося завантажити зображення."
 }

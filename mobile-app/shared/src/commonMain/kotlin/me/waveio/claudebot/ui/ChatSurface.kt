@@ -57,7 +57,6 @@ import kotlinx.coroutines.yield
 import kotlinx.coroutines.flow.first
 import me.waveio.claudebot.state.*
 
-private val HTTPS_LINK = Regex("https://[^\\s)\\]<>\"']+")
 
 @Composable
 fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, headerHeight: Dp, header: @Composable () -> Unit) {
@@ -163,7 +162,7 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
                     }
                 }, contentPadding = PaddingValues(start = 18.dp, top = topPanel + 20.dp, end = 18.dp, bottom = bottomPanel + 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     items(state.messages, key = { it.presentationId ?: it.id }) { message ->
-                        MessageContent(message, actions, reducedMotion, state.busy, state.attachmentThumbnails, state.mediaGeneration, seen.add(message.presentationId ?: message.id) && (message.live || message.presentationId != null || message.id.startsWith("u-")))
+                        MessageContent(message, actions, reducedMotion, state.busy, state.attachmentThumbnails, state.mediaGeneration, state.baseUrl, state.imageFailures, seen.add(message.presentationId ?: message.id) && (message.live || message.presentationId != null || message.id.startsWith("u-")))
                     }
                     if (showTyping && waiting) item(key = "typing") {
                         EnterMotion(true) { motion -> Box(motion.testTag("chat-typing")) { TypingIndicator() } }
@@ -231,7 +230,7 @@ private fun Welcome(modifier: Modifier, reducedMotion: Boolean) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MessageContent(message: MessageRow, actions: AppActions, reducedMotion: Boolean, busy: Boolean, thumbnails: Map<String, ByteArray>, mediaGeneration: Long, animate: Boolean) {
+private fun MessageContent(message: MessageRow, actions: AppActions, reducedMotion: Boolean, busy: Boolean, thumbnails: Map<String, ByteArray>, mediaGeneration: Long, origin: String, imageFailures: Set<String>, animate: Boolean) {
     val palette = LocalPalette.current
     val user = message.role == "user"
     var menuText by remember(message.id) { mutableStateOf<String?>(null) }
@@ -260,14 +259,7 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
                 ) {
                     Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         if (user) Text(line, color = palette.userInk, fontSize = 16.sp, lineHeight = 23.sp)
-                        else {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                ChatMarkdown(line)
-                                HTTPS_LINK.findAll(line).map { it.value.trimEnd('.', ',', ';') }.distinct().forEach { url ->
-                                    QuietAction(tr("chat.openLink"), { actions.openLink(url) }, Modifier.fillMaxWidth())
-                                }
-                            }
-                        }
+                        else ReplyMarkdown(line, origin, message.live, mediaGeneration, thumbnails, imageFailures, actions)
                     }
                 }
             }

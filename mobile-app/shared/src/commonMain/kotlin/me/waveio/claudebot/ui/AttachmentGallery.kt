@@ -24,15 +24,19 @@ import me.waveio.claudebot.state.PreviewItem
 
 internal fun PreviewItem.cacheKey(): String = if (source == "workspace") "workspace:$path" else path
 internal fun AppActions.preview(item: PreviewItem) {
-    if (item.source == "workspace") previewWorkFile(item.path) else previewAttachment(item.path)
+    when (item.source) {
+        "remote" -> previewReplyImage(item.path, item.source)
+        "workspace" -> previewWorkFile(item.path)
+        else -> previewAttachment(item.path)
+    }
 }
 
 @Composable
-internal fun rememberMediaBitmap(bytes: ByteArray?, thumbnail: Boolean = false, retainOnEviction: Boolean = false): ImageBitmap? {
+internal fun rememberMediaBitmap(bytes: ByteArray?, thumbnail: Boolean = false, retainOnEviction: Boolean = false, decodedLimit: Int = if (thumbnail) 384 else 2048): ImageBitmap? {
     val currentBytes by rememberUpdatedState(bytes)
-    val bitmap by produceState<ImageBitmap?>(null, thumbnail, retainOnEviction) {
+    val bitmap by produceState<ImageBitmap?>(null, decodedLimit, retainOnEviction) {
         snapshotFlow { currentBytes }.filter { it != null || !retainOnEviction }.collectLatest { encoded ->
-            if (encoded != null) value = withContext(Dispatchers.Default) { decodeImage(encoded, if (thumbnail) 384 else 2048) }
+            if (encoded != null) value = withContext(Dispatchers.Default) { decodeImage(encoded, decodedLimit) }
             else value = null
         }
     }

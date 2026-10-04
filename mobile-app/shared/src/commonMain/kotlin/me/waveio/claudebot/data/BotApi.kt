@@ -152,6 +152,21 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
         }.execute { boundedBytes(it) }
     }
 
+    /** Public image URLs go through our host; the token never goes to the image origin. */
+    suspend fun fetchReplyImage(url: String): ImageDownload = guarded {
+        val parsed = runCatching { Url(url) }.getOrNull() ?: throw ApiFailure(0, "invalid_image_url")
+        if (parsed.protocol.name !in setOf("http", "https") || parsed.user != null || parsed.password != null || url.length > 8192)
+            throw ApiFailure(0, "invalid_image_url")
+        transport.prepareRequest {
+            configure(HttpMethod.Get, listOf("mobile", "images", "fetch"), mapOf("url" to url))
+        }.execute { response ->
+            checkResponse(response)
+            val mime = response.headers[HttpHeaders.ContentType]?.substringBefore(';')?.trim()?.lowercase().orEmpty()
+            if (mime !in setOf("image/png", "image/jpeg", "image/webp", "image/gif", "image/avif")) throw ApiFailure(415, "invalid_image_type")
+            ImageDownload(boundedBytes(response), mime)
+        }
+    }
+
     private suspend fun boundedBytes(response: HttpResponse): ByteArray {
         checkResponse(response)
         val limit = 20 * 1024 * 1024
@@ -434,3 +449,5 @@ internal fun safeFailure(failure: Throwable): Throwable = when (failure) {
     val token: String, @SerialName("device_id") val deviceId: String,
     @SerialName("expires_at") val expiresAt: JsonPrimitive,
 )
+
+data class ImageDownload(val bytes: ByteArray, val mimeType: String)

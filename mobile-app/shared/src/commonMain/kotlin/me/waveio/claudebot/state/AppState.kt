@@ -109,6 +109,7 @@ data class AppState(
     /** Ephemeral encoded images; never serialized into preferences or the outbox. */
     val attachmentThumbnails: Map<String, ByteArray> = emptyMap(),
     val mediaGeneration: Long = 0,
+    val imageFailures: Set<String> = emptySet(),
     val uploading: Boolean = false,
     val models: List<ModelRow> = emptyList(),
     val modelsLoading: Boolean = false,

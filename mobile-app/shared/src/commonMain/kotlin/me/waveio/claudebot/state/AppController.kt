@@ -49,6 +49,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     private val thumbnailLoads = mutableMapOf<String, Job>()
     private val thumbnailMisses = mutableSetOf<String>()
     private val reducedThumbnails = mutableSetOf<String>()
+    private val replyImageCache = linkedMapOf<Pair<String, Boolean>, List<PreviewItem>>()
     private var uploadVersion = 0L
     private var activeUploadVersion: Long? = null
     private val presentationIds = mutableMapOf<String, String>()
@@ -841,7 +842,8 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     private fun clearAttachmentPreviews() {
         closePreview()
         thumbnailLoads.values.forEach { it.cancel() }; thumbnailLoads.clear(); thumbnailMisses.clear(); reducedThumbnails.clear()
-        update { it.copy(attachmentThumbnails = emptyMap(), mediaGeneration = it.mediaGeneration + 1) }
+        replyImageCache.clear()
+        update { it.copy(attachmentThumbnails = emptyMap(), imageFailures = emptySet(), mediaGeneration = it.mediaGeneration + 1) }
     }
     private fun attachment(path: String): DraftAttachment? = state.value.attachments.firstOrNull { it.path == path }
         ?: state.value.messages.asSequence().flatMap { it.attachments.asSequence() }.firstOrNull { it.path == path }
@@ -856,13 +858,40 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         presentationIds[id] = key
         while (presentationIds.size > 500) presentationIds.remove(presentationIds.keys.first())
     }
-    private fun previewItems(path: String, source: String): List<PreviewItem> {
-        fun MessageRow.items() = attachments.map { PreviewItem(it.path, it.name, it.mimeType, "upload") } +
-            workFiles.filterNot { it.active }.map { PreviewItem(it.path, it.name, it.mimeType, "workspace") }
-        val row = state.value.messages.lastOrNull { message -> message.items().any { it.path == path && it.source == source } }
-        return (row?.items() ?: state.value.attachments.map { PreviewItem(it.path, it.name, it.mimeType, "upload") })
+    private fun messageMedia(message: MessageRow): List<PreviewItem> {
+        val inline = if (message.role == "assistant") message.parts.filter { it.type == "text" }.map { it.text }
+            .ifEmpty { message.bubbles.ifEmpty { listOf(message.text) } }.flatMap { text ->
+                val key = text to message.live
+                replyImageCache.getOrPut(key) { replyImages(text, state.value.baseUrl, message.live).map { it.item } }
+            } else emptyList()
+        while (replyImageCache.size > 64) replyImageCache.remove(replyImageCache.keys.first())
+        return (message.attachments.map { PreviewItem(it.path, it.name, it.mimeType, "upload") } +
+            message.workFiles.filterNot { it.active }.map { PreviewItem(it.path, it.name, it.mimeType, "workspace") } + inline)
             .distinctBy { it.source to it.path }
     }
+    private fun replyImage(path: String, source: String): PreviewItem? = state.value.messages.asSequence()
+        .flatMap { messageMedia(it).asSequence() }.firstOrNull { it.path == path && it.source == source && it.mimeType.startsWith("image/") }
+    private fun previewItems(path: String, source: String): List<PreviewItem> {
+        val row = state.value.messages.lastOrNull { message -> messageMedia(message).any { it.path == path && it.source == source } }
+        return (row?.let(::messageMedia) ?: state.value.attachments.map { PreviewItem(it.path, it.name, it.mimeType, "upload") })
+            .distinctBy { it.source to it.path }
+    }
+    private suspend fun downloadImage(connection: BotApi, path: String, source: String, session: String): ImageDownload = when (source) {
+        "remote" -> connection.fetchReplyImage(path)
+        "workspace" -> ImageDownload(connection.downloadWorkspace(path, session), workspaceMimeType(path))
+        else -> ImageDownload(connection.downloadAttachment(path), attachment(path)?.mimeType ?: workspaceMimeType(path))
+    }
+    override fun loadReplyImage(path: String, source: String, retry: Boolean) {
+        if (replyImage(path, source) == null) return
+        val key = if (source == "workspace") "workspace:$path" else path
+        if (retry) {
+            thumbnailMisses.remove(key)
+            reducedThumbnails.remove(key)
+            update { it.copy(imageFailures = it.imageFailures - key, attachmentThumbnails = it.attachmentThumbnails - key) }
+        }
+        loadThumbnail(path, source)
+    }
+    override fun previewReplyImage(path: String, source: String) { replyImage(path, source)?.let { preview(it) } }
     private suspend fun cacheThumbnail(path: String, bytes: ByteArray, isCurrent: () -> Boolean = { true }) {
         val epoch = connectionVersion
         val navigation = navigationVersion
@@ -875,7 +904,11 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         // Encoding adds a suspension point: old chats/accounts and invalidated
         // reads must never repopulate the current cache after it completes.
         if (epoch != connectionVersion || navigation != navigationVersion || !isCurrent()) return
-        if (thumbnail == null || thumbnail.isEmpty() || thumbnail.size > MAX_THUMBNAIL_BYTES) { thumbnailMisses += path; return }
+        if (thumbnail == null || thumbnail.isEmpty() || thumbnail.size > MAX_THUMBNAIL_BYTES) {
+            thumbnailMisses += path
+            update { it.copy(imageFailures = it.imageFailures + path) }
+            return
+        }
         if (reduced) reducedThumbnails += path else reducedThumbnails -= path
         thumbnailMisses.remove(path)
         update { current ->
@@ -886,7 +919,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                 val oldest = images.keys.first()
                 size -= images.remove(oldest)?.size ?: 0
             }
-            current.copy(attachmentThumbnails = images)
+            current.copy(attachmentThumbnails = images, imageFailures = current.imageFailures - path)
         }
         reducedThumbnails.retainAll(state.value.attachmentThumbnails.keys)
     }
@@ -906,7 +939,8 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     private fun loadThumbnail(path: String, source: String) {
         val key = if (source == "workspace") "workspace:" + path else path
         if (key in state.value.attachmentThumbnails || key in thumbnailMisses || thumbnailLoads[key]?.isActive == true) return
-        val image = if (source == "workspace") workFile(path)?.let { it.kind == "image" && !it.active } == true
+        val inline = replyImage(path, source)
+        val image = inline != null || if (source == "workspace") workFile(path)?.let { it.kind == "image" && !it.active } == true
             else attachment(path)?.mimeType?.startsWith("image/") == true
         if (!image) return
         val connection = api ?: return
@@ -917,25 +951,33 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         thumbnailLoads[key] = scope.launch {
             val load = currentCoroutineContext()[Job]
             try {
-                val bytes = if (source == "workspace") connection.downloadWorkspace(path, session) else connection.downloadAttachment(path)
-                val exists = if (source == "workspace") workFile(path)?.let { !it.active && it.revision == revision } == true else attachment(path) != null
+                val bytes = downloadImage(connection, path, source, session).bytes
+                val exists = if (inline != null) replyImage(path, source) != null else if (source == "workspace") workFile(path)?.let { !it.active && it.revision == revision } == true else attachment(path) != null
                 if (epoch == connectionVersion && navigation == navigationVersion && exists && thumbnailLoads[key] === load) {
                     cacheThumbnail(key, bytes) {
-                        thumbnailLoads[key] === load && if (source == "workspace") workFile(path)?.let { !it.active && it.revision == revision } == true else attachment(path) != null
+                        thumbnailLoads[key] === load && if (inline != null) replyImage(path, source) != null else if (source == "workspace") workFile(path)?.let { !it.active && it.revision == revision } == true else attachment(path) != null
                     }
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { if (epoch == connectionVersion && navigation == navigationVersion && thumbnailLoads[key] === load) thumbnailMisses += key }
+            catch (_: Exception) { if (epoch == connectionVersion && navigation == navigationVersion && thumbnailLoads[key] === load) {
+                thumbnailMisses += key
+                update { it.copy(imageFailures = it.imageFailures + key) }
+            } }
             finally { if (epoch == connectionVersion && navigation == navigationVersion && thumbnailLoads[key] === load) thumbnailLoads.remove(key) }
         }
     }
     override fun previewAttachment(path: String) {
         val item = attachment(path)
-        if (item == null) { previewWorkFile(path); return }
+        if (item == null) {
+            val inline = replyImage(path, "upload")
+            if (inline != null) preview(inline) else previewWorkFile(path)
+            return
+        }
         preview(PreviewItem(path, item.name, item.mimeType, "upload"))
     }
     override fun previewWorkFile(path: String) {
-        val file = workFile(path) ?: return
+        val file = workFile(path)
+        if (file == null) { replyImage(path, "workspace")?.let { preview(it) }; return }
         if (file.active) { update { it.copy(error = "files.stillWriting") }; return }
         preview(PreviewItem(path, file.name, file.mimeType, "workspace"))
     }
@@ -950,16 +992,17 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         update { it.copy(previewTitle = item.name, previewPath = item.path, previewSource = item.source,
             previewMimeType = item.mimeType, previewItems = previewItems(item.path, item.source),
             previewBytes = null, previewText = "", previewTruncated = false, previewExporting = false, loading = true, error = null) }
-        if (item.mimeType.startsWith("image/") && key !in reducedThumbnails) state.value.attachmentThumbnails[key]?.let { bytes ->
+        if (item.mimeType.startsWith("image/") && item.source != "remote" && key !in reducedThumbnails) state.value.attachmentThumbnails[key]?.let { bytes ->
             update { it.copy(previewBytes = bytes, loading = false) }; return
         }
         fun current() = version == previewVersion && epoch == connectionVersion && navigation == navigationVersion
         run(isCurrent = ::current) {
             if (item.mimeType.startsWith("image/")) {
-                val bytes = if (item.source == "workspace") connection.downloadWorkspace(item.path, session) else connection.downloadAttachment(item.path)
+                val download = downloadImage(connection, item.path, item.source, session)
+                val bytes = download.bytes
                 if (current()) {
                     cacheThumbnail(key, bytes, ::current)
-                    if (current()) update { it.copy(previewBytes = bytes, loading = false) }
+                    if (current()) update { it.copy(previewBytes = bytes, previewMimeType = download.mimeType, loading = false) }
                 }
             } else if (item.source == "workspace") {
                 val result = connection.readWorkspace(item.path, session)
@@ -995,9 +1038,17 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         run(isCurrent = ::current) {
             try {
                 // Extracted/truncated preview text is never substituted for the file.
-                val bytes = if (source == "workspace") connection.downloadWorkspace(path, session) else connection.downloadAttachment(path)
+                val download = downloadImage(connection, path, source, session)
+                val bytes = download.bytes
                 if (!current()) return@run
-                val file = PickedFile(snapshot.previewTitle?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: path.substringAfterLast('/'), snapshot.previewMimeType.ifBlank { "application/octet-stream" }, bytes)
+                val mime = download.mimeType.takeUnless { it == "image/*" }.orEmpty().ifBlank { snapshot.previewMimeType.ifBlank { "application/octet-stream" } }
+                val extension = when (mime) {
+                    "image/jpeg" -> ".jpg"; "image/png" -> ".png"; "image/gif" -> ".gif"
+                    "image/webp" -> ".webp"; "image/avif" -> ".avif"; else -> ""
+                }
+                val name = snapshot.previewTitle?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: path.substringAfterLast('/')
+                val exportedName = if (source == "remote" && extension.isNotEmpty() && !name.endsWith(extension, true)) name + extension else name
+                val file = PickedFile(exportedName, mime, bytes)
                 var completed = false
                 val result: (Boolean) -> Unit = { success ->
                     scope.launch {
@@ -1218,7 +1269,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         partialAsr?.cancel(); fileDebounce?.cancel(); platform.cancelRecording()
         watchers.values.forEach { it.cancel() }; watchers.clear(); api?.close(); api = null
         thumbnailLoads.values.forEach { it.cancel() }; thumbnailLoads.clear(); thumbnailMisses.clear(); reducedThumbnails.clear()
-        presentationIds.clear(); uploadVersion++; activeUploadVersion = null
+        presentationIds.clear(); replyImageCache.clear(); uploadVersion++; activeUploadVersion = null
         chatActionVersions.clear(); chatActionLocks.clear(); deletingChats.clear(); reactionLocks.clear(); reactionVersions.clear(); reactionBaselines.clear()
         sessionsVersion++; messageMutationVersion++
         outbox.clear(); permitted.clear(); outboxSnapshot = emptyList(); allowedSnapshot = emptySet(); fileDrafts.clear(); fileBaselines.clear(); fileRevisions.clear(); cursors.clear(); sessionStreamVersions.clear(); observedJobStates.clear(); reportedJobErrors.clear(); cachedProfile = null; catalogDefaultModel = ""; beforeEdit = null
