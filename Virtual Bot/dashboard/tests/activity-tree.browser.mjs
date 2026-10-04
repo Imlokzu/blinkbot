@@ -14,6 +14,44 @@ const emit = (type, data) => evaluate(`window.__emit(${JSON.stringify(type)}, ${
 const row = id => `[data-tool-step=${JSON.stringify(id)}]`;
 const tree = id => `.chat-activity-tree:has(${row(id)})`;
 const state = id => evaluate(`document.querySelector(${JSON.stringify(row(id))})?.dataset.toolStatus`);
+const arrivalNames = ['chat-activity-arrive', 'chat-activity-trunk', 'chat-activity-elbow',
+  'chat-activity-icon', 'chat-activity-draw', 'chat-activity-text', 'chat-activity-glint'];
+const arrivalSnapshot = id => evaluate(`(() => {
+  const branch = document.querySelector(${JSON.stringify(row(id))});
+  const record = window.__activityArrivals.get(${JSON.stringify(id)});
+  const current = branch.getAnimations({ subtree:true }).filter(animation => window.__activityArrivalNames.has(animation.animationName));
+  return { entering:branch.hasAttribute('data-activity-enter'), sameNode:record?.node === branch,
+    sameAnimations:current.length === record?.animations.length && current.every(animation => record.animations.includes(animation)),
+    names:current.map(animation => animation.animationName), captured:record?.animations.map(animation => ({ name:animation.animationName, current:current.includes(animation), time:animation.currentTime, state:animation.playState, target:animation.effect?.target?.outerHTML?.slice(0,200), pseudo:animation.effect?.pseudoElement })) };
+})()`);
+const arrivalFrame = (id, time) => evaluate(`(() => {
+  const record = window.__activityArrivals.get(${JSON.stringify(id)});
+  const branch = record.node;
+  const attached = new Set(branch.getAnimations({ subtree:true }));
+  for (const animation of record.animations) if (attached.has(animation)) animation.currentTime = ${time};
+  const transform = (node, pseudo) => {
+    const value = getComputedStyle(node, pseudo).transform;
+    const matrix = new DOMMatrixReadOnly(value === 'none' ? undefined : value);
+    return { x:matrix.m41, y:matrix.m42, scaleX:matrix.a, scaleY:matrix.d };
+  };
+  const icon = branch.querySelector('.chat-activity-tool-icon');
+  const description = branch.querySelector('.chat-activity-description');
+  const followup = branch.querySelector('.chat-activity-followup');
+  const text = [...description.querySelectorAll('.chat-activity-tool-name, .chat-activity-detail, .chat-activity-state')];
+  return { trunk:transform(branch, '::before'), elbow:transform(branch, '::after'),
+    iconOpacity:Number(getComputedStyle(icon).opacity),
+    strokes:[...icon.querySelectorAll('[pathLength]')].map(shape => ({ length:shape.getAttribute('pathLength'), offset:parseFloat(getComputedStyle(shape).strokeDashoffset) })),
+    text:text.map(node => ({ text:node.textContent, opacity:Number(getComputedStyle(description).opacity) * Number(getComputedStyle(node).opacity), ...transform(description) })),
+    followup:{ opacity:Number(getComputedStyle(followup).opacity), ...transform(followup) } };
+})()`);
+const noArrival = (ids, reason) => {
+  const observed = evaluate(`[...document.querySelectorAll('[data-tool-step]')]
+    .filter(branch => ${JSON.stringify(ids)}.includes(branch.dataset.toolStep))
+    .map(branch => ({ id:branch.dataset.toolStep, entering:branch.hasAttribute('data-activity-enter'), drawing:branch.querySelectorAll('.chat-activity-tool-icon > [data-activity-stroke]').length,
+      names:branch.getAnimations({ subtree:true }).filter(animation => window.__activityArrivalNames.has(animation.animationName)).map(animation => animation.animationName) }))`);
+  assert.equal(observed.length, ids.length, 'all requested activity rows must exist');
+  assert.deepEqual(observed.filter(branch => branch.entering || branch.drawing || branch.names.length), [], reason);
+};
 const settleTree = (id, expanded) => browser('wait', '--fn', `(() => {
   const root = document.querySelector(${JSON.stringify(tree(id))});
   const fold = root?.querySelector('[data-activity-branches]');
@@ -89,6 +127,7 @@ const restoreIconDeadlines = () => evaluate(`for (const id of window.__faviconTi
 
 let socket;
 let cdpSession;
+let socketFailure;
 let nextId = 0;
 const pending = new Map();
 const faviconRequests = [];
@@ -110,6 +149,7 @@ const faviconCandidate = url => {
 const waitForFixture = async predicate => {
   const deadline = Date.now() + 5000;
   while (!predicate()) {
+    if (socketFailure) throw socketFailure;
     assert.ok(Date.now() < deadline, 'the intercepted favicon request must arrive');
     await new Promise(resolve => setTimeout(resolve, 10));
   }
@@ -122,6 +162,16 @@ const cdp = (method, params = {}, sessionId = cdpSession) => new Promise((resolv
   pending.set(id, { resolve:value => { clearTimeout(timeout); resolve(value); }, reject:error => { clearTimeout(timeout); reject(error); } });
   socket.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
 });
+
+const respondToPausedRequest = async (method, params, sessionId) => {
+  try { return await cdp(method, params, sessionId); }
+  catch (error) {
+    // Navigation and source replacement can cancel a paused favicon before the
+    // fixture fulfills it. Every other protocol failure must fail the test.
+    if (error.cdpError?.code === -32602 && error.cdpError.message === 'Invalid InterceptionId.') return;
+    throw error;
+  }
+};
 
 // Install before React mounts, including after history/locale reloads. The
 // catch-all browser route protects initial startup; this guard records and
@@ -136,6 +186,23 @@ const init = `(() => {
   const original = window.fetch.bind(window);
   const frame = (type, data) => 'event: ' + type + '\\ndata: ' + JSON.stringify(data) + '\\n\\n';
   window.__activitySends = []; window.__activityAborts = 0; window.__fixtureImageReads = 0;
+  // Capture on insertion, before CLI round trips can consume the reveal. Seeking
+  // only entry animations leaves disclosure, status pulses and the browser clock real.
+  window.__activityArrivalNames = new Set(${JSON.stringify(arrivalNames)});
+  window.__activityArrivals = new Map();
+  window.__activityPauseArrivals = new Set(['read-a', 'read-b', 'search']);
+  new MutationObserver(() => {
+    for (const node of document.querySelectorAll('[data-tool-step]')) {
+      const id = node.dataset.toolStep;
+      if (window.__activityArrivals.has(id)) continue;
+      const animations = node.getAnimations({ subtree:true }).filter(animation => window.__activityArrivalNames.has(animation.animationName));
+      if (!animations.length) continue;
+      window.__activityArrivals.set(id, { node, animations });
+      if (window.__activityPauseArrivals.has(id)) {
+        for (const animation of animations) { animation.pause(); animation.currentTime = 0; }
+      }
+    }
+  }).observe(document, { childList:true, subtree:true });
   window.__blockedWrites = JSON.parse(sessionStorage.getItem('activity-fixture-blocked-writes') || '[]');
   window.__emit = (type, data) => window.__activityStream.enqueue(new TextEncoder().encode(frame(type, data)));
   window.fetch = async (url, options) => {
@@ -166,7 +233,7 @@ const init = `(() => {
 
 const longPath = `session/research/${'a-very-long-directory-name/'.repeat(12)}reference.ts`;
 const first = { call_id:'read-a', tool:'workspace__workspace_read', detail:longPath, input:{ path:longPath } };
-const second = { call_id:'read-b', tool:'workspace__workspace_read', detail:'session/second.md', input:{ path:'session/second.md' } };
+const second = { call_id:'read-b', tool:'workspace__workspace_read', detail:'', input:{ path:'session/second.md' } };
 const search = { call_id:'search', tool:'web_search', detail:'reference animation', input:{ query:'reference animation' } };
 const searchResult = { results:[
   { title:'Fixture guide', url:'https://docs.example.org/guide' },
@@ -211,13 +278,13 @@ try {
     socket.addEventListener('open', resolve, { once:true });
     socket.addEventListener('error', reject, { once:true });
   });
-  socket.addEventListener('message', async event => {
+  const handleMessage = async event => {
     const message = JSON.parse(event.data);
     if (message.method === 'Fetch.requestPaused') {
       const request = message.params;
       const url = new URL(request.request.url);
       if (url.origin === origin) {
-        await cdp('Fetch.continueRequest', { requestId:request.requestId }, message.sessionId);
+        await respondToPausedRequest('Fetch.continueRequest', { requestId:request.requestId }, message.sessionId);
       } else if (faviconCandidate(url)) {
         const candidate = faviconCandidate(url);
         faviconRequests.push({ ...candidate, url:url.href, headers:request.request.headers });
@@ -225,7 +292,7 @@ try {
         else {
           const succeeds = (['docs.example.org','fresh.example.org','hidden.example.org'].includes(candidate.site) && candidate.candidate === 'google')
             || (candidate.site === 'lookup.example.org' && candidate.candidate === 'ddg');
-          await cdp('Fetch.fulfillRequest', { requestId:request.requestId,
+          await respondToPausedRequest('Fetch.fulfillRequest', { requestId:request.requestId,
             responseCode:succeeds ? 200 : 404,
             responseHeaders:[{ name:'Content-Type', value:'image/png' }, { name:'Cache-Control', value:'no-store' }],
             body:succeeds ? faviconPng : '',
@@ -233,15 +300,23 @@ try {
         }
       } else {
         unexpectedExternal.push(url.href);
-        await cdp('Fetch.failRequest', { requestId:request.requestId, errorReason:'BlockedByClient' }, message.sessionId);
+        await respondToPausedRequest('Fetch.failRequest', { requestId:request.requestId, errorReason:'BlockedByClient' }, message.sessionId);
       }
       return;
     }
     const request = pending.get(message.id);
     if (!request) return;
     pending.delete(message.id);
-    if (message.error) request.reject(new Error(JSON.stringify(message.error)));
-    else request.resolve(message.result);
+    if (message.error) {
+      const error = new Error(JSON.stringify(message.error));
+      error.cdpError = message.error;
+      request.reject(error);
+    } else request.resolve(message.result);
+  };
+  socket.addEventListener('message', event => {
+    // Keep asynchronous interception failures inside the main try/finally so
+    // the fixture always closes its own browser, including on protocol errors.
+    handleMessage(event).catch(error => { socketFailure = error; });
   });
   const target = (await cdp('Target.getTargets')).targetInfos.find(info => info.type === 'page' && info.url.startsWith(`${origin}${path}`));
   assert.ok(target, 'the isolated dashboard target must exist');
@@ -259,8 +334,36 @@ try {
   browser('wait', row('read-a'));
   browser('wait', row('read-b'));
   browser('wait', row('search'));
-  assert.equal(evaluate(`getComputedStyle(document.querySelector(${JSON.stringify(`${row('search')} [data-tool-row]`)}), '::after').animationName`), 'chat-activity-glint',
-    'a newly discovered branch gets a visible accent reveal');
+  browser('wait', '--fn', 'window.__activityArrivals.size === 3');
+  const initialArrival = arrivalSnapshot('read-a');
+  assert.equal(initialArrival.entering, true, 'only a newly discovered live branch enters');
+  for (const name of arrivalNames) assert.ok(initialArrival.names.includes(name), `capture the ${name} phase`);
+  const startFrame = arrivalFrame('read-a', 0);
+  assert.equal(startFrame.trunk.scaleY, 0, 'the new segment begins undrawn');
+  assert.equal(startFrame.elbow.scaleX, 0);
+  assert.equal(startFrame.iconOpacity, 0);
+  assert.ok(startFrame.strokes.length > 0, 'the actual tool icon contains normalized drawing geometry');
+  assert.ok(startFrame.strokes.every(stroke => stroke.length === '1' && stroke.offset === 1));
+  assert.ok(startFrame.text.length >= 3 && startFrame.text.every(text => text.opacity === 0));
+  assert.equal(startFrame.followup.opacity, 0, 'sources and logs share the delayed label reveal');
+  const trunkFrame = arrivalFrame('read-a', 90);
+  assert.ok(trunkFrame.trunk.scaleY > 0 && trunkFrame.trunk.scaleY < 1, 'the vertical trunk visibly extends down before the next phase');
+  assert.equal(trunkFrame.elbow.scaleX, 0, 'the elbow waits for the trunk');
+  assert.equal(trunkFrame.iconOpacity, 0);
+  assert.ok(trunkFrame.text.every(text => text.opacity === 0));
+  shot('activity-arrival-trunk');
+  const elbowFrame = arrivalFrame('read-a', 170);
+  assert.ok(elbowFrame.elbow.scaleX > 0 && elbowFrame.elbow.scaleX < 1, 'the elbow grows toward the waiting icon');
+  assert.equal(elbowFrame.iconOpacity, 0);
+  const iconFrame = arrivalFrame('read-a', 320);
+  assert.equal(iconFrame.trunk.scaleY, 1);
+  assert.equal(iconFrame.elbow.scaleX, 1);
+  assert.ok(iconFrame.iconOpacity > 0 && iconFrame.iconOpacity < 1, 'the icon fades up after its connection');
+  assert.ok(iconFrame.strokes.every(stroke => stroke.offset > 0 && stroke.offset < 1), 'the icon strokes draw through a real intermediate frame');
+  assert.ok(iconFrame.text.every(text => text.opacity === 0), 'labels wait for the icon drawing');
+  assert.equal(iconFrame.followup.opacity, 0, 'early results cannot appear ahead of their tool label');
+  shot('activity-arrival-icon');
+  assert.equal(arrivalSnapshot('read-a').sameAnimations, true, 'frame seeking preserves the same animation objects');
   assert.equal(evaluate('document.querySelectorAll(".chat-activity-tree").length'), 1);
   assert.equal(evaluate('document.querySelectorAll("[data-tool-step]").length'), 3, 'same-named concurrent calls keep separate rows');
   assert.equal(evaluate('document.querySelector(".chat-activity-tree").hasAttribute("data-running")'), true);
@@ -285,6 +388,33 @@ try {
   browser('wait', '--text', 'Replacement snapshot');
   assert.equal(evaluate('document.querySelectorAll("[data-tool-step]").length'), 3);
   assert.equal(controls(readToggle).expanded, 'true', 'progress replacement preserves an open row');
+  emit('tool_progress', { ...second, detail:'session/second.md' });
+  browser('wait', '--fn', 'document.querySelector("[data-tool-step=read-b] .chat-activity-detail")?.textContent === "session/second.md"');
+  assert.equal(arrivalSnapshot('read-b').sameAnimations, true, 'late metadata shares its existing description animation instead of starting another fade');
+  assert.equal(arrivalFrame('read-b', 320).text.find(text => text.text === 'session/second.md').opacity, 0, 'late metadata stays gated with the rest of its still-hidden label');
+  assert.equal(arrivalSnapshot('read-a').sameNode, true, 'progress retains the live branch node');
+  assert.equal(arrivalSnapshot('read-a').sameAnimations, true, `progress snapshots cannot restart a partly drawn icon or label: ${JSON.stringify(arrivalSnapshot('read-a'))}`);
+  const progressFrame = arrivalFrame('read-a', 320);
+  assert.deepEqual(progressFrame, iconFrame, 'progress leaves every sampled arrival phase at its current frame');
+  const textFrame = arrivalFrame('read-a', 520);
+  assert.equal(textFrame.iconOpacity, 1);
+  assert.ok(textFrame.strokes.every(stroke => stroke.offset === 0));
+  assert.ok(textFrame.text.every(text => text.opacity > 0 && text.opacity < 1 && text.y > 0), 'tool name, metadata and status fade together after drawing');
+  assert.equal(textFrame.followup.opacity, textFrame.text[0].opacity, 'followup content keeps the same reveal clock as its label');
+  shot('activity-arrival-text');
+  // Let CSS complete normally so its animationend cleanup is exercised too.
+  evaluate(`for (const record of window.__activityArrivals.values()) {
+    const attached = new Set(record.node.getAnimations({ subtree:true }));
+    for (const animation of record.animations) {
+      if (attached.has(animation) && animation.currentTime < animation.effect.getComputedTiming().endTime) animation.play();
+    }
+  } true`);
+  browser('wait', '--fn', '[...document.querySelectorAll("[data-tool-step]")].every(branch => !branch.hasAttribute("data-activity-enter"))');
+  noArrival(['read-a','read-b','search'], 'completed entry phases release their CSS animation objects');
+  const settledFrame = arrivalFrame('read-a', 800);
+  assert.ok(settledFrame.text.every(text => text.opacity === 1 && text.y === 0));
+  assert.ok(settledFrame.strokes.every(stroke => stroke.offset === 0));
+  shot('activity-arrival-finished');
 
   evaluate(`window.__activityFoldSamples = []; window.__activityFoldRoot = document.querySelector('.chat-activity-tree');
     const started = performance.now(); window.__activityFoldStop = false;
@@ -309,6 +439,7 @@ try {
   assert.equal(controls(readToggle).expanded, 'true', 'reopening the group preserves row logs');
   assert.equal(evaluate('document.activeElement.matches("[data-activity-toggle]")'), true, 'group toggling retains keyboard focus');
   settleTree('read-a', true);
+  noArrival(['read-a','read-b','search'], 'manual close and reopen cannot replay branch creation');
   evaluate('window.__activityFoldStop = true; true');
   browser('wait', '--fn', 'window.__activityFoldSampled');
   const backingSamples = evaluate('window.__activityFoldSamples');
@@ -427,6 +558,24 @@ try {
 
   send('A controlled interruption.');
   assert.equal(controls(`${tree('read-a')} [data-activity-toggle]`).expanded, 'true', 'a manually reopened settled tree stays open during later turns');
+  // A result may be the first log payload: the row changes from div to button.
+  // That structural update settles the existing entry instead of replaying it
+  // on the new icon and text nodes.
+  evaluate('window.__activityPauseArrivals.add("late-log"); true');
+  const lateLog = { call_id:'late-log', tool:'workspace_read', detail:'session/late-result.md' };
+  emit('tool_start', lateLog);
+  browser('wait', '--fn', 'window.__activityArrivals.has("late-log")');
+  arrivalFrame('late-log', 320);
+  assert.equal(evaluate('document.querySelector("[data-tool-step=late-log] [data-tool-row]").tagName'), 'DIV');
+  emit('tool_progress', { ...lateLog, result:{ content:'A first log arrived during icon drawing' } });
+  browser('wait', '--fn', 'document.querySelector("[data-tool-step=late-log] [data-tool-row]")?.tagName === "BUTTON"');
+  assert.equal(arrivalSnapshot('late-log').sameNode, true, 'late log data retains its list item identity');
+  noArrival(['late-log'], 'a structural result update reveals the replacement content without replay');
+  const lateLogFrame = arrivalFrame('late-log', 320);
+  assert.equal(lateLogFrame.iconOpacity, 1);
+  assert.ok(lateLogFrame.strokes.every(stroke => stroke.offset === 0));
+  assert.ok(lateLogFrame.text.every(text => text.opacity === 1 && text.y === 0));
+  evaluate('window.__activityPauseArrivals.delete("late-log"); true');
   const pendingRead = { call_id:'stop-active', tool:'workspace_read', detail:longPath, input:{ path:longPath } };
   const completedRead = { call_id:'stop-done', tool:'workspace_read', detail:'session/complete.md', input:{ path:'session/complete.md' } };
   emit('tool_start', pendingRead);
@@ -507,7 +656,7 @@ try {
   assert.equal(evaluate('window.__faviconTimers.size'), 0, 'the bounded chain leaves no icon deadline running');
   restoreIconDeadlines();
   for (const request of heldFavicons) {
-    await cdp('Fetch.fulfillRequest', { requestId:request.requestId, responseCode:404, body:'' }, request.sessionId).catch(() => undefined);
+    await respondToPausedRequest('Fetch.fulfillRequest', { requestId:request.requestId, responseCode:404, body:'' }, request.sessionId);
   }
   assert.deepEqual(faviconRequests.filter(request => request.site === 'timeout.example.org').map(request => request.candidate), ['direct','google','ddg']);
   assert.ok(faviconRequests.every(request => !request.url.includes('article') && !request.url.includes('private') && !request.url.includes('mode=')), 'cache requests carry only the validated hostname');
@@ -516,6 +665,33 @@ try {
   settleTree('icons-edge', false);
   assert.deepEqual(unexpectedExternal, []);
   assert.deepEqual(evaluate('window.__blockedWrites'), []);
+
+  // Verify restored history with motion enabled first: reduced-motion CSS alone
+  // would otherwise hide an accidental replay of an old call's entry animation.
+  assert.equal(evaluate('matchMedia("(prefers-reduced-motion: reduce)").matches'), false);
+  browser('click', '.chat-narrow-toolbar button[aria-label="Conversations"]');
+  browser('wait', '[data-session-id="activity-history"]');
+  browser('wait', '--fn', `(() => {
+    const entry = document.querySelector('[data-session-id="activity-history"]');
+    const title = [...entry.querySelectorAll('*')].find(node => !node.children.length && node.textContent.trim() === 'Saved activity fixture');
+    if (!title) return false;
+    for (let owner = title; owner; owner = owner.parentElement)
+      if (owner.getAnimations().some(animation => animation.playState === 'running')) return false;
+    const bounds = title.getBoundingClientRect();
+    return entry.contains(document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2));
+  })()`);
+  browser('find', 'text', 'Saved activity fixture', 'click', '--exact');
+  browser('wait', '--text', 'Saved activity fixture.');
+  settleTree('saved-ok', false);
+  noArrival(['saved-ok','saved-error','saved-stop','saved-legacy','saved-active'], 'normal-motion saved history starts with fully drawn, unanimated rows');
+  browser('focus', '[data-activity-toggle]');
+  browser('press', 'Enter');
+  settleTree('saved-ok', true);
+  noArrival(['saved-ok','saved-error','saved-stop','saved-legacy','saved-active'], 'opening normal-motion history reveals existing rows without a new-entry sequence');
+  assert.equal(evaluate('["saved-ok","saved-error","saved-stop","saved-legacy","saved-active"].some(id => window.__activityArrivals.has(id))'), false,
+    'the insertion observer must never see a hidden history entry animation');
+  overflow();
+  shot('activity-history-320-motion');
 
   // Reloaded legacy activity cannot turn unknown or unfinished outcomes into
   // success. Native reduced-motion emulation also checks the live tree path.
@@ -564,6 +740,7 @@ try {
   browser('wait', row('saved-legacy'));
   assert.deepEqual(['saved-ok','saved-error','saved-stop','saved-legacy','saved-active'].map(state), ['done','failed','interrupted','interrupted','interrupted']);
   assert.equal(evaluate('document.querySelectorAll("[data-tool-step]").length'), 5);
+  noArrival(['saved-ok','saved-error','saved-stop','saved-legacy','saved-active'], 'restored history has no live entry marker or drawing animation');
   assert.equal(evaluate('document.querySelectorAll("[data-agent-activity][data-running]").length'), 0);
   assert.equal(evaluate(`document.querySelector(${JSON.stringify(`${row('saved-stop')} [data-tool-state]`)}).textContent`), 'Перервано · завершення не підтверджено');
   browser('focus', `${row('saved-ok')} button[data-tool-row]`);
@@ -584,6 +761,17 @@ try {
   emit('tool_start', { call_id:'reduced-read', tool:'workspace_read', detail:longPath, input:{ path:longPath } });
   browser('wait', row('reduced-read'));
   assert.equal(evaluate(`document.querySelector(${JSON.stringify(row('reduced-read'))}).getAnimations({ subtree:true }).filter(animation => animation.playState === 'running').length`), 0, 'reduced motion suppresses entry and ongoing branch animation');
+  const reducedFrame = evaluate(`(() => {
+    const branch = document.querySelector(${JSON.stringify(row('reduced-read'))});
+    const description = branch.querySelector('.chat-activity-description');
+    return { icon:Number(getComputedStyle(branch.querySelector('.chat-activity-tool-icon')).opacity),
+      strokes:[...branch.querySelectorAll('.chat-activity-tool-icon [pathLength]')].map(shape => parseFloat(getComputedStyle(shape).strokeDashoffset)),
+      labels:[...branch.querySelectorAll('.chat-activity-tool-name, .chat-activity-detail, .chat-activity-state')].map(node => Number(getComputedStyle(node).opacity) * Number(getComputedStyle(description).opacity)) };
+  })()`);
+  assert.equal(reducedFrame.icon, 1, 'reduced motion reveals the complete icon immediately');
+  assert.ok(reducedFrame.strokes.every(offset => offset === 0), 'reduced motion never leaves partially drawn strokes');
+  assert.ok(reducedFrame.labels.every(opacity => opacity === 1), 'reduced motion exposes every label immediately');
+  noArrival(['reduced-read'], 'reduced motion removes the live entry and direct SVG stroke gates');
   overflow();
   browser('click', '.prompt-bar__send');
   browser('wait', `${row('reduced-read')}[data-tool-status=interrupted]`);
@@ -624,10 +812,12 @@ try {
   assert.equal(controls(`${tree('saved-ok')} [data-activity-toggle]`).expanded, 'true', 'manually reopened history survives later settled replies');
   assert.deepEqual(evaluate('window.__blockedWrites'), []);
   assert.deepEqual(unexpectedExternal, []);
-  console.log('PASS: real SSE concurrency/progress/snapshots/outcomes, settle/Stop/history folding and manual reopen, keyboard/log state, stationary backing, decoded/fallback favicons and distinct source links, no fabricated activity, separate images, inert payloads, en/uk, desktop/390/320px, native reduced motion/transparency; no server mutations or external network');
+  if (socketFailure) throw socketFailure;
+  console.log('PASS: real SSE concurrency/progress/snapshots/outcomes, settle/Stop/history folding and manual reopen, keyboard/log state, stationary backing, sampled trunk/elbow/icon/text choreography without progress/reopen/history replay, decoded/fallback favicons and distinct source links, no fabricated activity, separate images, inert payloads, en/uk, desktop/390/320px, native reduced motion/transparency; no server mutations or external network');
 } catch (error) {
+  if (socketFailure) console.error('Interception failure:', socketFailure);
   try {
-    console.error(evaluate('({ text:document.body.innerText.slice(-2200), states:[...document.querySelectorAll("[data-tool-step]")].map(node => ({ id:node.dataset.toolStep, status:node.dataset.toolStatus })), blockedWrites:window.__blockedWrites })'));
+    console.error(evaluate('({ text:document.body.innerText.slice(-2200), states:[...document.querySelectorAll("[data-tool-step]")].map(node => ({ id:node.dataset.toolStep, status:node.dataset.toolStatus, entry:node.hasAttribute("data-activity-enter"), animations:node.getAnimations({ subtree:true }).filter(animation => window.__activityArrivalNames.has(animation.animationName)).map(animation => ({ name:animation.animationName, state:animation.playState, time:animation.currentTime, style:getComputedStyle(animation.effect.target, animation.effect.pseudoElement).animationName })) })), blockedWrites:window.__blockedWrites })'));
     shot('activity-failure');
   } catch { /* Preserve the original failure if the browser itself has closed. */ }
   throw error;

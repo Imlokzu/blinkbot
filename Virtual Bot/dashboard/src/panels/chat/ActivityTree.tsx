@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Check, ChevronRight, CircleAlert, CircleDashed, CloudSun, Coins, FileText, Folder,
   Image as ImageIcon, ListTodo, MessageCircleQuestion, Music, Play, Search, Terminal,
   Wrench, type LucideIcon } from 'lucide-react';
@@ -71,8 +71,19 @@ function ToolState({ step }: { step: ToolStep }) {
 }
 
 /** A row keeps its identity and expanded log through progress and outcome updates. */
-function ToolBranch({ step }: { step: ToolStep }) {
+function ToolBranch({ step, animateEntry }: { step: ToolStep; animateEntry: boolean }) {
   const { ref, open, phase, toggle } = useDisclosureMotion();
+  // Only a live, visible newcomer gets the sequence; updates never restart it.
+  const [entering, setEntering] = useState(animateEntry);
+  useLayoutEffect(() => {
+    if (!entering) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const settle = () => { if (reduced.matches) setEntering(false); };
+    settle();
+    reduced.addEventListener('change', settle);
+    return () => reduced.removeEventListener('change', settle);
+  }, [entering]);
+  useEffect(() => { if (!animateEntry) setEntering(false); }, [animateEntry]);
   const detailsId = useId();
   const trigger = useRef<HTMLButtonElement>(null);
   const toggleLog = () => {
@@ -85,6 +96,22 @@ function ToolBranch({ step }: { step: ToolStep }) {
   const Icon = TOOL_ICONS[name] ?? Wrench;
   const title = toolTitle(step.label);
   const hasLog = step.input !== undefined || step.result !== undefined;
+  const entryShape = useRef({ hasLog, Icon });
+  const sameEntryShape = entryShape.current.hasLog === hasLog && entryShape.current.Icon === Icon;
+  const drawEntry = entering && sameEntryShape;
+  const prepareIcon = useCallback((icon: SVGSVGElement | null) => {
+    // Normalize Lucide's mixed primitives. Gate each shape directly because
+    // Chromium can retain SVG animations when only an ancestor selector changes.
+    icon?.querySelectorAll('path, circle, line, polyline, polygon, rect, ellipse').forEach(shape => {
+      shape.setAttribute('pathLength', '1');
+      shape.toggleAttribute('data-activity-stroke', drawEntry);
+    });
+  }, [drawEntry]);
+  useLayoutEffect(() => {
+    // Late log data changes div to button; show the result immediately instead
+    // of replaying the sequence on its newly mounted children.
+    if (!sameEntryShape) setEntering(false);
+  }, [sameEntryShape]);
   // A source belongs to the completed call that actually returned it.
   const sites = [...new Map(collectSources([step]).map(source => [source.host, source])).values()];
   const signedOut = step.status === 'failed'
@@ -92,18 +119,27 @@ function ToolBranch({ step }: { step: ToolStep }) {
       typeof step.result === 'string' ? step.result : JSON.stringify(step.result ?? ''),
     );
   const content = <>
-    <Icon className="chat-activity-tool-icon" aria-hidden="true" strokeWidth={1.75} />
-    <span className="chat-activity-tool-name" title={title}>{title}</span>
-    {step.detail ? <span className="chat-activity-detail" title={step.detail}>{step.detail}</span> : null}
-    <ToolState step={step} />
-    {hasLog ? <ChevronRight className="chat-activity-log-chevron" aria-hidden="true" strokeWidth={1.75} /> : null}
+    <Icon ref={prepareIcon} className="chat-activity-tool-icon" aria-hidden="true" strokeWidth={1.75} />
+    <span className="chat-activity-description">
+      <span className="chat-activity-tool-name" title={title}>{title}</span>
+      {step.detail ? <span className="chat-activity-detail" title={step.detail}>{step.detail}</span> : null}
+      <ToolState step={step} />
+      {hasLog ? <ChevronRight className="chat-activity-log-chevron" aria-hidden="true" strokeWidth={1.75} /> : null}
+    </span>
   </>;
-  return <li className="chat-activity-branch" data-tool-step={step.id} data-tool-status={step.status}>
+  return <li className="chat-activity-branch" data-tool-step={step.id} data-tool-status={step.status}
+    data-activity-enter={drawEntry ? '' : undefined} onAnimationEnd={event => {
+      if (event.animationName === 'chat-activity-text'
+        && event.target instanceof Element && event.target.classList.contains('chat-activity-description')) {
+        setEntering(false);
+      }
+    }}>
     {hasLog ? <button ref={trigger} type="button" className="chat-activity-row" data-tool-row
       aria-expanded={open} aria-controls={detailsId}
       aria-label={activityT('activity.logs', { tool: title, detail: step.detail, status: activityT(`activity.${step.status}`) })}
       onClick={toggleLog}>{content}</button>
       : <div className="chat-activity-row" data-tool-row>{content}</div>}
+    <div className="chat-activity-followup">
     {sites.length ? <div className="chat-activity-sites" role="group" aria-label={t('sources.label', { count: sites.length })}>
       {sites.map(source => <a key={source.host} href={source.url} target="_blank" rel="noreferrer noopener"
         className="chat-activity-site" title={source.title || source.host}>
@@ -115,6 +151,7 @@ function ToolBranch({ step }: { step: ToolStep }) {
       data-open={open ? '' : undefined} inert={!open} aria-hidden={!open}>
       <div className="chat-activity-clip"><ToolDetails step={step} /></div>
     </div> : null}
+    </div>
   </li>;
 }
 
@@ -151,7 +188,7 @@ export function ActivityLine({ steps, running }: { steps: ToolStep[]; running: b
     <div ref={branches} id={branchesId} data-activity-branches className="chat-activity-fold" data-phase={phase}
       data-open={open ? '' : undefined} inert={!open} aria-hidden={!open}>
       <div className="chat-activity-clip">
-        <ol className="chat-activity-list">{steps.map(step => <ToolBranch key={step.id} step={step} />)}</ol>
+        <ol className="chat-activity-list">{steps.map(step => <ToolBranch key={step.id} step={step} animateEntry={running && open} />)}</ol>
       </div>
     </div>
   </div>;

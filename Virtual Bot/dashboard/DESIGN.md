@@ -784,3 +784,18 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
 - The hover-revealed search field gets a short close grace period to absorb
   layout reflow. Focus-visible remains a two-pixel accent outline. Reduced
   motion removes the lift, halo transform and transitions.
+
+
+## Staged activity branch arrival (2026-10-04)
+
+- New visible live steps connect downward first, draw the existing Lucide
+  glyph second, and reveal all text third. Use short local CSS phases with a
+  bounded 125 ms row stagger; never animate the glass backdrop or blur text.
+- Normalize SVG primitive path lengths once at mount. Stable description and
+  follow-up wrappers share the same text clock so incoming metadata/results
+  do not restart it. A structural row/icon replacement settles immediately.
+- Entry belongs to the mount, not to status. Restored history, closed groups
+  and manually reopened rows stay still. Reduced motion restores full glyphs
+  and text immediately and does not replay when the preference changes back.
+- `tests/activity-tree.browser.mjs` samples intermediate frames and guards
+  progress identity, late data, history, focus and reduced preferences.

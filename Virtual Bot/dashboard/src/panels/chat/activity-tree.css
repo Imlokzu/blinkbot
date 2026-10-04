@@ -23,13 +23,15 @@
 .chat-activity-branch {
   --activity-delay: 0ms;
   position: relative; min-width: 0; padding-left: 20px;
-  animation: chat-activity-arrive 260ms var(--e-spring) var(--activity-delay) both;
 }
-.chat-activity-branch:nth-child(2) { --activity-delay: 35ms; }
-.chat-activity-branch:nth-child(3) { --activity-delay: 70ms; }
-.chat-activity-branch:nth-child(4) { --activity-delay: 105ms; }
-.chat-activity-branch:nth-child(5) { --activity-delay: 140ms; }
-.chat-activity-branch:nth-child(6) { --activity-delay: 175ms; }
+.chat-activity-branch:nth-child(2) { --activity-delay: 25ms; }
+.chat-activity-branch:nth-child(3) { --activity-delay: 50ms; }
+.chat-activity-branch:nth-child(4) { --activity-delay: 75ms; }
+.chat-activity-branch:nth-child(5) { --activity-delay: 100ms; }
+.chat-activity-branch:nth-child(n+6) { --activity-delay: 125ms; }
+.chat-activity-branch[data-activity-enter] {
+  animation: chat-activity-arrive 200ms var(--e-spring) var(--activity-delay) both;
+}
 /* Every row extends the trunk; the last elbow closes it at the row's centre. */
 .chat-activity-branch::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0;
@@ -40,6 +42,15 @@
   content: ''; position: absolute; left: 0; top: 8px; width: 12px; height: 9px;
   border-left: 1px solid var(--c-border-strong); border-bottom: 1px solid var(--c-border-strong); border-bottom-left-radius: 5px;
 }
+/* Draw the connection first; the backdrop and existing rows stay stationary. */
+.chat-activity-branch[data-activity-enter]::before {
+  transform-origin: top center;
+  animation: chat-activity-trunk 180ms var(--e-out) var(--activity-delay) both;
+}
+.chat-activity-branch[data-activity-enter]::after {
+  transform-origin: left center;
+  animation: chat-activity-elbow 140ms var(--e-out) calc(var(--activity-delay) + 100ms) both;
+}
 .chat-activity-row {
   position: relative; display: flex; align-items: center; gap: 7px; width: 100%; min-width: 0; min-height: 34px;
   padding: 4px 2px; border: 0; background: transparent; text-align: left;
@@ -48,11 +59,26 @@
   content: ''; position: absolute; left: 2px; bottom: 0; width: 26px; height: 1px;
   border-radius: 1px; background: var(--c-accent); opacity: 0; pointer-events: none;
   transform: translateX(-4px) scaleX(.25); transform-origin: left center;
-  animation: chat-activity-glint 560ms var(--e-out) var(--activity-delay) both;
+}
+.chat-activity-branch[data-activity-enter] .chat-activity-row::after {
+  animation: chat-activity-glint 280ms var(--e-out) calc(var(--activity-delay) + 360ms) both;
 }
 button.chat-activity-row { cursor: pointer; }
 button.chat-activity-row:hover .chat-activity-tool-name { color: var(--c-text); }
 .chat-activity-tool-icon { width: 14px; height: 14px; flex-shrink: 0; color: var(--c-text-3); }
+.chat-activity-branch[data-activity-enter] .chat-activity-tool-icon {
+  animation: chat-activity-icon 240ms var(--e-out) calc(var(--activity-delay) + 200ms) both;
+}
+.chat-activity-tool-icon > [data-activity-stroke] {
+  stroke-dasharray: 1;
+  animation: chat-activity-draw 260ms var(--e-out) calc(var(--activity-delay) + 200ms) both;
+}
+.chat-activity-description { display: flex; flex: 1; align-items: center; gap: 7px; min-width: 0; }
+.chat-activity-followup { min-width: 0; }
+/* Stable wrappers share one clock, including text or sources arriving later. */
+.chat-activity-branch[data-activity-enter] :is(.chat-activity-description, .chat-activity-followup) {
+  animation: chat-activity-text 240ms var(--e-out) calc(var(--activity-delay) + 400ms) both;
+}
 .chat-activity-tool-name { flex-shrink: 0; min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-activity-detail {
   flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -102,7 +128,15 @@ html[data-chat-material="solid"] .chat-activity-tree::before { background: var(-
   .chat-activity-tree::before { background: var(--c-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 @keyframes chat-activity-arrive {
-  from { opacity: 0; transform: translateY(6px) scale(.985); }
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes chat-activity-trunk { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes chat-activity-elbow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes chat-activity-icon { from { opacity: 0; } to { opacity: 1; } }
+@keyframes chat-activity-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes chat-activity-text {
+  from { opacity: 0; transform: translateY(3px); }
   to { opacity: 1; transform: none; }
 }
 @keyframes chat-activity-glint {
@@ -119,6 +153,12 @@ html[data-chat-material="solid"] .chat-activity-tree::before { background: var(-
   .chat-activity-log-chevron { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .chat-activity-branch, .chat-activity-row::after, .chat-activity-pulse { animation: none; }
+  .chat-activity-branch[data-activity-enter],
+  .chat-activity-branch[data-activity-enter]::before, .chat-activity-branch[data-activity-enter]::after,
+  .chat-activity-branch[data-activity-enter] .chat-activity-row::after,
+  .chat-activity-branch[data-activity-enter] :is(.chat-activity-tool-icon, .chat-activity-description, .chat-activity-followup),
+  .chat-activity-tool-icon > [data-activity-stroke],
+  .chat-activity-pulse { animation: none; }
+  .chat-activity-tool-icon > [data-activity-stroke] { stroke-dasharray: none; }
   .chat-activity-toggle > svg, .chat-activity-log-chevron, .chat-activity-fold { transition: none; }
 }

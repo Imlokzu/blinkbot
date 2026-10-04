@@ -1807,3 +1807,28 @@ fixture Send tap. The optimized release is separately installed and launch-teste
 Version code6/version0.3.2 keeps the earlier signing identity. No backend changes;
 iOS runtime and physical-phone refresh-rate guarantees remain unverified.
 See `docs/mobile-app/RELEASE-0.3.2.md` for the exact scope.
+
+
+## Staged activity branch reveal (2026-10-04)
+
+- Live newcomers now reveal in three phases: the connector grows downward,
+  normalized Lucide strokes draw the icon, then the description and follow-up
+  text fade in. Each phase is bounded; adjacent starts stagger by at most
+  125 ms. The backdrop stays stationary and no filter animates on the text.
+- Persistent text wrappers keep late metadata, sources, errors and logs on
+  the existing clock. Progress preserves animation identity; a late change
+  from a plain row to a log button settles immediately instead of replaying.
+  Restored history and closed groups skip entry. Closing, settlement and a
+  native reduced-motion preference end the sequence permanently for that row.
+- Validation: TypeScript and 208 dashboard unit tests passed; the offline
+  Python suite passed 1,227 tests, with 7 skipped and 178 subtests. Browser coverage
+  samples connector scale, SVG dash offsets and text opacity at intermediate
+  frames, tests delayed metadata/log controls, progress identity and history,
+  and exercises desktop/390/320px layouts, both locales and reduced preferences.
+  Independent native adversarial review repaired the two late-data edge cases;
+  Fable was unavailable and no Fable certification is claimed. SVG drawing
+  gates live on each primitive so Chromium releases the effects on cleanup.
+- Release build note: the committed Settings panel imports the existing
+  untracked IntegrationsSection.tsx and locales/integrations.ts drafts. The
+  isolated build freezes those required files without changing or staging them;
+  a clean checkout still requires that separate integration work to be finished.
