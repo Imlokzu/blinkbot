@@ -329,6 +329,7 @@ class MobileUiTest {
         screenshot("pixel-model-large")
         compose.onNodeWithContentDescription("Find a model").performClick().performTextInput("GPT")
         screenshot("pixel-model-keyboard-large")
+        assertTextFits(compose.onNodeWithText("fixture", useUnmergedTree = true))
         compose.onAllNodesWithText("GPT", substring = false).onLast().assertIsDisplayed().performClick()
         waitFor("Effort")
         screenshot("pixel-effort-large")

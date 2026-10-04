@@ -41,6 +41,7 @@ fun ModelPicker(state: AppState, actions: AppActions) {
     // On short windows the keyboard leaves too little room below the header.
     // Lift the panel within the safe area and let its choices share one scroller.
     val compact = with(density) { (windowHeight - safeTop - safeBottom).toDp() < 400.dp }
+    val denseRows = compact && keyboardHeight > 0
     val inset = safeTop + with(density) { (if (compact) 8.dp else 60.dp).roundToPx() }
     val availableHeight = with(density) { (windowHeight - inset - safeBottom).toDp() - 14.dp }.coerceAtLeast(0.dp)
     val selected = state.models.firstOrNull { it.id == state.selectedModel }
@@ -90,11 +91,11 @@ fun ModelPicker(state: AppState, actions: AppActions) {
                             val picked = model.id == state.selectedModel
                             Row(Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(16.dp)).background(if (picked) palette.secondary else palette.surface)
                                 .semantics { this.selected = picked }.clickable(enabled = model.available, role = Role.RadioButton) { actions.selectModel(model.id); focus.clearFocus(); keyboard?.hide(); effortPage = true }
-                                .padding(12.dp, 13.dp), verticalAlignment = Alignment.CenterVertically) {
+                                .padding(12.dp, if (denseRows) 6.dp else 13.dp), verticalAlignment = Alignment.CenterVertically) {
                                 BrandMark(model.brand, Modifier.size(24.dp)); Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text(model.label, color = if (model.available) palette.ink else palette.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    Text(if (model.available) model.provider else tr("model.unavailable"), color = palette.muted, fontSize = 11.sp)
+                                    Text(model.label, color = if (model.available) palette.ink else palette.muted, fontSize = 14.sp, lineHeight = if (denseRows) 18.sp else 24.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(if (model.available) model.provider else tr("model.unavailable"), color = palette.muted, fontSize = 11.sp, lineHeight = if (denseRows) 14.sp else 24.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 if (picked) Glyph("check", modifier = Modifier.size(17.dp), tint = palette.accent)
                             }
