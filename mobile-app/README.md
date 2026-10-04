@@ -20,18 +20,20 @@ The client does not call model providers directly. Conversations, workspace,
 models and bot personalization come from the existing host and owner identity.
 Backend contract and deployment assumptions: [MOBILE-API.md](../Virtual%20Bot/docs/MOBILE-API.md).
 
-## Version 0.3.0
+## Version 0.3.1
 
 Custom model/effort picker, opaque bubbles, inline dictation with live transcript,
 large attachment tiles, a genuine installed-skills picker, and a drawer revealed
 beneath the foreground conversation. Real gateway snapshots stream before final
 completion. Waiting indicators, context menus and settings share the custom UI.
 
-The 0.3.0 follow-up fixes native live snapshots and image-model routing, adds
+The 0.3 follow-up fixes native live snapshots and image-model routing, adds
 persisted reactions and chat rename/delete actions, and keeps full Markdown table
 content readable. Custom menus preserve the keyboard, image attachments show
 previews, and the drawer supports swipes from inside the chat. Chats are grouped
-by local day. See [RELEASE-0.3.md](../docs/mobile-app/RELEASE-0.3.md).
+by local day. Version 0.3.1 makes short bubbles fit their content and lets
+messages fade beneath the header/composer instead of hitting rectangular edges.
+See [RELEASE-0.3.1.md](../docs/mobile-app/RELEASE-0.3.1.md).
 
 ## Implemented behavior
 

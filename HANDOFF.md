@@ -1775,3 +1775,18 @@ and unset image models, missing/false metadata, model receipts and failure clean
 Actual loopback transport tests also passed. No paid/live provider request was
 made. The registered host was restarted after confirming zero running/stopping
 mobile jobs; tunnel configuration was unchanged. Change: `381e495`.
+
+## Mobile 0.3.1 bubble sizing and history edges (2026-10-04)
+
+Assistant Markdown no longer fills the entire row for short replies. History
+now occupies the complete safe viewport behind overlaid header/composer panels,
+with measured content padding and content-only edge fading. Covered panels
+shield underlying message taps. Existing gestures and note/table following are
+preserved. No backend or provider-routing changes belong to this UI patch.
+
+Validation: 14 existing UI scenarios and 11 interaction cases passed, including
+new bubble/text geometry and panel/composer-growth tests. Actual dark-theme
+screenshots were inspected. The streaming emulator sample remained p95 23ms;
+this is not a physical-phone/120Hz claim. See `docs/mobile-app/RELEASE-0.3.1.md`
+for exact verification boundaries. Android version code5/version0.3.1 retains
+the prior signing identity; Apple metadata is aligned but runtime unverified.
