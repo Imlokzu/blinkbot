@@ -95,7 +95,8 @@ const settle = selector => {
 const settleComposer = () => browser('wait','--fn','getComputedStyle(document.querySelector("[data-chat-composer-position]")).transform === "none"');
 const open = () => {
   browser('focus', trigger); browser('press', 'Space'); settle(menu);
-  assert.equal(evaluate(`document.activeElement === document.querySelector('${menu} .attach-media-rows button, ${menu} .attach-media-grid button')`),true,'keyboard opening starts on the first media action');
+  const focus=evaluate(`({first:document.activeElement === document.querySelector('${menu} .attach-media-rows button, ${menu} .attach-media-grid button'),language:document.documentElement.lang,theme:document.documentElement.dataset.theme,width:innerWidth,height:innerHeight,active:document.activeElement.outerHTML.slice(0,180),activation:document.querySelector('${trigger}').dataset.attachmentActivation})`);
+  assert.equal(focus.first,true,`${focus.language}/${focus.theme}/${focus.width}x${focus.height}: keyboard opening starts on the first media action; ${JSON.stringify(focus)}`);
 };
 const close = () => {
   browser('press', 'Escape');
@@ -212,6 +213,9 @@ try {
       else browser('wait','--fn','document.activeElement.matches("[data-attachment-trigger]")');
       if (width<1180) {
         open(); action(language,workbenchT,'wb.open'); browser('wait','.workbench'); dismissDialog();
+        // Radix restores focus after removing the dialog. Wait for that
+        // required close behavior before a new menu can take focus.
+        browser('wait','--fn','document.activeElement.matches("[data-attachment-trigger]")');
         open();
         evaluate(`const button=document.querySelector('${menu} .attach-context button');button.scrollIntoView({block:'nearest'});button.click();true`);
         browser('wait','[data-popup-kind=context]');
