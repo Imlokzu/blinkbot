@@ -37,16 +37,23 @@ async def chat_gateway(message: str, system_prompt: str, history: list,
 
     options = mobile_api.current_turn_options() or {}
     if images:
-        # Use the same image path as the web chat. Catalog capability badges
-        # are incomplete display metadata, not permission to send image bytes.
-        # The shared brain reads the gateway's image model and owns its fallback.
-        handle = _model.set(None)
+        # An empty model is the inherited/default intent: let the gateway use
+        # its configured image route. An explicit picker choice is authoritative
+        # for the turn, including models whose catalog metadata does not carry a
+        # reliable vision badge. The provider will return a truthful failure if
+        # that explicit model cannot accept the image.
+        selected = str(options.get("model") or "").strip()
+        explicit_model = selected if selected not in {"", "auto", "jev", jev_router.JEV_ID} else None
+        handle = _model.set(explicit_model)
         try:
             if session_key:
                 effort = str(options.get("reasoning_effort") or "none")
-                await openclaw_control._rpc("sessions.patch", {
+                patch = {
                     "key": session_key, "thinkingLevel": None if effort == "none" else effort,
-                })
+                }
+                if explicit_model:
+                    patch["model"] = explicit_model
+                await openclaw_control._rpc("sessions.patch", patch)
             result = await brains.chat_openclaw(message, system_prompt, history,
                                                emit=emit, images=images, session_key=session_key)
             if brains._looks_like_gateway_error(result[0]):

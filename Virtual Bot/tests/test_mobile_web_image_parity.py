@@ -56,9 +56,10 @@ def image_route(monkeypatch):
     pytest.param(SOL, [], "", "none", "image-session", id="unset-image-model"),
     pytest.param("auto", [], "", "high", None, id="gateway-default-without-session"),
 ])
-def test_images_delegate_once_to_shared_web_route(image_route, monkeypatch, selection,
+def test_images_delegate_to_shared_web_route_with_explicit_model_intent(image_route, monkeypatch, selection,
                                                  entries, image_model, effort, session_key):
-    """Catalog flags and text choices cannot gate the already shared web route."""
+    """Blank intent uses gateway routing; an explicit model reaches the shared image path."""
+    expected_model = selection if selection not in {"", "auto", "jev"} else None
     catalog_calls, calls, emitted = [], [], []
     history = [{"role": "assistant", "content": "Synthetic prior turn"}]
     shared_event = {"type": "model", "provider": "gateway-provider", "model": "reported"}
@@ -73,7 +74,7 @@ def test_images_delegate_once_to_shared_web_route(image_route, monkeypatch, sele
 
     async def shared_chat(message, system_prompt, passed_history, **kwargs):
         calls.append((message, system_prompt, passed_history, kwargs))
-        assert mobile_routing.model_override() is None
+        assert mobile_routing.model_override() == expected_model
         if kwargs["emit"]:
             await kwargs["emit"](shared_event)
         return shared_result
@@ -108,9 +109,10 @@ def test_images_delegate_once_to_shared_web_route(image_route, monkeypatch, sele
         "type": "model", "provider": "gateway-provider", "model": "reported",
     }]
     assert emitted[0] is shared_event
-    assert image_route == ([] if session_key is None else [
-        ("sessions.patch", {"key": session_key, "thinkingLevel": None if effort == "none" else effort}),
-    ])
+    expected_patch = {"key": session_key, "thinkingLevel": None if effort == "none" else effort}
+    if expected_model:
+        expected_patch["model"] = expected_model
+    assert image_route == ([] if session_key is None else [("sessions.patch", expected_patch)])
 
 
 @pytest.mark.parametrize("after_work", [False, True])
@@ -127,7 +129,7 @@ def test_image_gateway_failure_is_not_retried_or_reclassified(image_route, monke
 
     async def shared_chat(*args, emit=None, **kwargs):
         calls.append(True)
-        assert mobile_routing.model_override() is None
+        assert mobile_routing.model_override() == SOL
         if after_work:
             await emit({"type": "tool_start", "tool": "synthetic-tool"})
         raise failure
@@ -211,7 +213,9 @@ def test_real_brains_image_payload_matches_web(image_route, monkeypatch, image_m
                 "Describe the attachment", "Synthetic system", history,
                 emit=web_emit if streaming else None, images=IMAGES, session_key="image-session",
             )
-            options = mobile_api._turn_options.set({"model": "text/only", "reasoning_effort": "high"})
+            # Compare the shared web route with the same explicit image model;
+            # inherited mobile intent remains covered by the automatic-route tests.
+            options = mobile_api._turn_options.set({"model": image_model, "reasoning_effort": "high"})
             try:
                 mobile_result = await mobile_routing.chat_gateway(
                     "Describe the attachment", "Synthetic system", history,
@@ -231,7 +235,7 @@ def test_real_brains_image_payload_matches_web(image_route, monkeypatch, image_m
 
     asyncio.run(check())
     assert len(requests) == 2
-    assert config_reads == [True, True], "Each dispatch must read the shared image config only once"
+    assert len(config_reads) == (2 if not image_model else 1), "Explicit image picks must not reread gateway defaults"
     assert requests[0] == requests[1]
     headers, payload = requests[1]
     if image_model:
@@ -250,4 +254,7 @@ def test_real_brains_image_payload_matches_web(image_route, monkeypatch, image_m
     ]
     image_url = payload["messages"][-1]["content"][1]["image_url"]["url"]
     assert base64.b64decode(image_url.split(",", 1)[1]) == PNG
-    assert image_route == [("sessions.patch", {"key": "image-session", "thinkingLevel": "high"})]
+    expected_patch = {"key": "image-session", "thinkingLevel": "high"}
+    if image_model:
+        expected_patch["model"] = image_model
+    assert image_route == [("sessions.patch", expected_patch)]

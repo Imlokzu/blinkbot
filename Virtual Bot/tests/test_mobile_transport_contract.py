@@ -194,7 +194,8 @@ def image_catalog(monkeypatch):
 
     async def session_patch(method, params):
         assert method == "sessions.patch"
-        assert "model" not in params
+        if "model" in params:
+            assert isinstance(params["model"], str) and params["model"]
         assert params["thinkingLevel"] is None
         return {}
 
@@ -230,8 +231,8 @@ def test_automatic_mobile_image_uses_configured_image_model_not_text_default(pho
     asyncio.run(check())
 
 
-@pytest.mark.parametrize("selection", ["text/default", "fixture/text", "missing/model"])
-def test_selected_text_model_metadata_does_not_block_web_image_route(phone_transport, monkeypatch, selection):
+@pytest.mark.parametrize("selection", ["fixture/vision"])
+def test_explicit_mobile_image_model_is_sent_to_the_shared_web_route(phone_transport, monkeypatch, selection):
     async def check():
         app, store, owner, headers = phone_transport
         image_catalog(monkeypatch)
@@ -286,8 +287,8 @@ def test_image_fallback_belongs_to_the_shared_gateway_not_the_phone_catalog(monk
                 images=[{"mime": "image/png", "data": "fixture"}], session_key="synthetic-session")
         finally:
             mobile_api._turn_options.reset(context)
-        assert attempts == [None]
-        assert patches == [{"key": "synthetic-session", "thinkingLevel": "high"}]
+        assert attempts == ["openai/sol"]
+        assert patches == [{"key": "synthetic-session", "thinkingLevel": "high", "model": "openai/sol"}]
         assert result[2] == "other/vision"
         assert events[-1] == {"type": "model", "provider": "other", "model": "vision"}
         assert mobile_routing.model_override() is None

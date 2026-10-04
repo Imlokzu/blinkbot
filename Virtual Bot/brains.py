@@ -804,9 +804,14 @@ async def chat_openclaw(
     # Jev pick" can already belong to a background call (the chat title)
     # by the time this turn is recorded — so the turn keeps its own.
     routed_model = ""
-    forced_model = mobile_routing.model_override()
+    forced_model = (mobile_routing.model_override()
+                    if mobile_api.current_turn_options() is not None else None)
     if images:
-        model_headers, sent_message = _image_headers(), message
+        # Mobile keeps an explicit image-capable picker choice. Empty inherited
+        # intent follows the configured gateway image route instead.
+        model_headers = ({"x-openclaw-model": forced_model}
+                         if forced_model else _image_headers())
+        sent_message = message
         routed_model = model_headers.get("x-openclaw-model", "")
     elif forced_model:
         model_headers, sent_message = {"x-openclaw-model": forced_model}, message
