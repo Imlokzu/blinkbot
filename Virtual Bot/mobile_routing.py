@@ -9,7 +9,6 @@ from typing import Any
 import mobile_api
 import jev_router
 import openclaw_control
-import openclaw_config
 import openclaw_models
 
 _model: ContextVar[str | None] = ContextVar("mobile_effective_model", default=None)
@@ -37,31 +36,45 @@ async def chat_gateway(message: str, system_prompt: str, history: list,
     import brains
 
     options = mobile_api.current_turn_options() or {}
+    if images:
+        # Use the same image path as the web chat. Catalog capability badges
+        # are incomplete display metadata, not permission to send image bytes.
+        # The shared brain reads the gateway's image model and owns its fallback.
+        handle = _model.set(None)
+        try:
+            if session_key:
+                effort = str(options.get("reasoning_effort") or "none")
+                await openclaw_control._rpc("sessions.patch", {
+                    "key": session_key, "thinkingLevel": None if effort == "none" else effort,
+                })
+            result = await brains.chat_openclaw(message, system_prompt, history,
+                                               emit=emit, images=images, session_key=session_key)
+            if brains._looks_like_gateway_error(result[0]):
+                raise RoutingError("mobile_model_unavailable")
+            if emit is not None and len(result) > 2 and "/" in result[2]:
+                provider, model = result[2].split("/", 1)
+                await emit({"type": "model", "provider": provider, "model": model})
+            return result
+        finally:
+            _model.reset(handle)
+
     selected = str(options.get("model") or "")
     catalog = await openclaw_models.catalog()
     by_id = {str(entry.get("id")): entry for entry in catalog if entry.get("id")}
-    if images and selected in {"", "auto", "jev", jev_router.JEV_ID}:
-        # A blank/automatic choice inherits the gateway's image model, not its
-        # text default. Explicit choices retain their provider and capability.
-        selected = openclaw_config.image_model()
-    elif selected in {"auto", "jev", jev_router.JEV_ID}:
+    if selected in {"auto", "jev", jev_router.JEV_ID}:
         _, selected, _, _ = await jev_router.route(message)
     elif not selected:
         selected = openclaw_models.default_model(catalog)
     entry = by_id.get(selected)
     if entry is None:
-        raise RoutingError("mobile_image_model_unavailable" if images else "mobile_model_unavailable")
-    if images and entry.get("vision") is not True:
-        raise RoutingError("mobile_image_model_unavailable")
+        raise RoutingError("mobile_model_unavailable")
     provider = str(entry.get("provider") or "")
     if not provider:
         raise RoutingError("mobile_model_provider_unknown")
     candidates = [entry] + [item for item in catalog if item.get("id") != selected and item.get("provider") == provider]
     candidates = [item for item in candidates if item.get("available") is not False]
-    if images:
-        candidates = [item for item in candidates if item.get("vision") is True]
     if not candidates:
-        raise RoutingError("mobile_image_model_unavailable" if images else "mobile_model_unavailable")
+        raise RoutingError("mobile_model_unavailable")
 
     observed_work = False
     observed_model = ""

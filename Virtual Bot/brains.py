@@ -805,11 +805,12 @@ async def chat_openclaw(
     # by the time this turn is recorded — so the turn keeps its own.
     routed_model = ""
     forced_model = mobile_routing.model_override()
-    if forced_model:
+    if images:
+        model_headers, sent_message = _image_headers(), message
+        routed_model = model_headers.get("x-openclaw-model", "")
+    elif forced_model:
         model_headers, sent_message = {"x-openclaw-model": forced_model}, message
         routed_model = forced_model
-    elif images:
-        model_headers, sent_message = _image_headers(), message
     else:
         started = time.perf_counter()
         model_headers, sent_message, tier, source = await openclaw_models.chat_route(message)

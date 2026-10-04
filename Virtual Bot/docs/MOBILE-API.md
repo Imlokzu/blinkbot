@@ -60,9 +60,18 @@ mobile run. The adapter establishes this context before calling the factory
 and preserves it throughout iteration/cleanup. Child chat tasks inherit it;
 other conversations and PC requests do not. The getter returns a copy.
 
-`mobile_routing.chat_gateway` validates each turn's model against the existing
+Image turns use the same `brains.chat_openclaw` dispatch as the web client.
+The shared `_image_headers()` reads the configured gateway image model; if it is
+unset, the gateway chooses. Mobile text selections and incomplete catalog
+`vision` badges do not block or override this path. The phone still applies
+session-local effort, without pinning a text model during an image request.
+Gateway fallback and its actual model report are preserved, with no additional
+phone-side image retry or provider restriction. This supersedes the stricter
+0.3.0 image eligibility gate; installed clients need no update for this fix.
+
+For text-only turns, `mobile_routing.chat_gateway` validates the model against the existing
 catalog and supplies an `x-openclaw-model` override without changing `_selected`
-or the gateway's global primary model. Blank model uses the catalog default;
+or the gateway's global primary model. Blank text model uses the catalog default;
 `jev/auto` invokes the existing Jev router directly for this turn, independently
 of the PC picker. Jev's generated thinking directive is not sent: explicit
 effort is applied through the session override instead.

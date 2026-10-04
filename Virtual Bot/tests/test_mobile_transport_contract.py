@@ -48,6 +48,7 @@ def phone_transport(isolated_turn, tmp_path, monkeypatch):
     monkeypatch.setenv("MOBILE_API_ORIGIN", "https://phone.fixture.example")
     monkeypatch.setattr(brains.cfg, "get_openclaw_token", lambda: "synthetic-provider-token")
     monkeypatch.setattr(mobile_routing, "model_override", lambda: "fixture/vision")
+    monkeypatch.setattr(brains.openclaw_config, "image_model", lambda: "fixture/vision")
     user = "fixture-owner"
     pairing = store.create_pairing(user)
     token = store.exchange(pairing["code"], "Synthetic phone", "android")["token"]
@@ -193,12 +194,13 @@ def image_catalog(monkeypatch):
 
     async def session_patch(method, params):
         assert method == "sessions.patch"
-        assert params["model"] == "fixture/vision"
+        assert "model" not in params
+        assert params["thinkingLevel"] is None
         return {}
 
     monkeypatch.setattr(mobile_routing, "model_override", lambda: mobile_routing._model.get())
     monkeypatch.setattr(mobile_routing.openclaw_models, "catalog", catalog)
-    monkeypatch.setattr(mobile_routing.openclaw_config, "image_model", lambda: "fixture/vision")
+    monkeypatch.setattr(brains.openclaw_config, "image_model", lambda: "fixture/vision")
     monkeypatch.setattr(mobile_routing.openclaw_control, "_rpc", session_patch)
 
 
@@ -229,7 +231,7 @@ def test_automatic_mobile_image_uses_configured_image_model_not_text_default(pho
 
 
 @pytest.mark.parametrize("selection", ["text/default", "fixture/text", "missing/model"])
-def test_explicit_unsupported_mobile_image_returns_stable_code_without_provider_work(phone_transport, monkeypatch, selection):
+def test_selected_text_model_metadata_does_not_block_web_image_route(phone_transport, monkeypatch, selection):
     async def check():
         app, store, owner, headers = phone_transport
         image_catalog(monkeypatch)
@@ -246,52 +248,48 @@ def test_explicit_unsupported_mobile_image_returns_stable_code_without_provider_
                 async with client.stream("GET", f"/api/mobile/messages/{job['id']}/events") as stream:
                     observed = [(event, data) async for _, event, data in frames(stream)]
                 listed = (await client.get("/api/mobile/messages", params={"session_id": job["session_id"]})).json()["messages"]
-        code = "mobile_image_model_unavailable"
-        assert captured == []
-        assert not finished.is_set()
-        assert next(data["error"] for event, data in observed if event == "error") == code
-        assert next(data["error"] for event, data in observed if event == "mobile_state" and data["state"] == "failed") == code
-        assert listed[0]["error"] == code
-        assert store.get(owner, job["id"])["state"] == "failed"
-        assert store.get(owner, job["id"])["error"] == code
-        assert not any(event == "done" for event, _ in observed)
+        assert len(captured) == 1
+        assert finished.is_set()
+        assert listed[0]["state"] == "completed"
+        assert store.get(owner, job["id"])["state"] == "completed"
+        assert not any(event == "error" for event, _ in observed)
+        assert next(data["model"] for event, data in observed if event == "done") == "fixture/vision"
+        image_url = captured[0]["messages"][-1]["content"][1]["image_url"]["url"]
+        assert base64.b64decode(image_url.split(",", 1)[1]) == PNG
     asyncio.run(check())
 
 
-def test_image_fallback_remains_within_configured_provider(monkeypatch):
+def test_image_fallback_belongs_to_the_shared_gateway_not_the_phone_catalog(monkeypatch):
     async def check():
-        attempts, patches = [], []
+        attempts, patches, events = [], [], []
 
         async def catalog():
-            return [{"id": "image/primary", "provider": "image", "available": True, "vision": True},
-                    {"id": "other/vision", "provider": "other", "available": True, "vision": True},
-                    {"id": "image/text", "provider": "image", "available": True},
-                    {"id": "image/backup", "provider": "image", "available": True, "vision": True}]
+            raise AssertionError("Images must not be gated by the phone catalog")
 
         async def rpc(method, params):
-            patches.append(params["model"])
+            patches.append(params)
             return {}
 
         async def gateway(*args, **kwargs):
-            model = mobile_routing.model_override()
-            attempts.append(model)
-            if model == "image/primary":
-                raise RuntimeError("Synthetic pre-work failure")
-            return "A real backup answer", [], model
+            attempts.append(mobile_routing.model_override())
+            return "A real gateway answer", [], "other/vision"
+
+        async def emit(event):
+            events.append(event)
 
         monkeypatch.setattr(mobile_routing.openclaw_models, "catalog", catalog)
-        monkeypatch.setattr(mobile_routing.openclaw_config, "image_model", lambda: "image/primary")
         monkeypatch.setattr(mobile_routing.openclaw_control, "_rpc", rpc)
         monkeypatch.setattr(brains, "chat_openclaw", gateway)
-        context = mobile_api._turn_options.set({"model": "", "reasoning_effort": "none"})
+        context = mobile_api._turn_options.set({"model": "openai/sol", "reasoning_effort": "high"})
         try:
-            result = await mobile_routing.chat_gateway("Describe.", "", [], images=[{"mime": "image/png", "data": "fixture"}],
-                                                      session_key="synthetic-session")
+            result = await mobile_routing.chat_gateway("Describe.", "", [], emit=emit,
+                images=[{"mime": "image/png", "data": "fixture"}], session_key="synthetic-session")
         finally:
             mobile_api._turn_options.reset(context)
-        assert attempts == ["image/primary", "image/backup"]
-        assert patches == attempts
-        assert result[2] == "image/backup"
+        assert attempts == [None]
+        assert patches == [{"key": "synthetic-session", "thinkingLevel": "high"}]
+        assert result[2] == "other/vision"
+        assert events[-1] == {"type": "model", "provider": "other", "model": "vision"}
         assert mobile_routing.model_override() is None
     asyncio.run(check())
 
@@ -509,7 +507,7 @@ def test_manual_phone_rename_survives_an_inflight_automatic_title(phone_transpor
     asyncio.run(check())
 
 
-def test_all_eligible_image_provider_failures_are_service_failures_not_capability_errors(phone_transport, monkeypatch):
+def test_shared_image_gateway_failures_are_service_failures_not_capability_errors(phone_transport, monkeypatch):
     async def check():
         app, store, owner, headers = phone_transport
         image_catalog(monkeypatch)
@@ -522,7 +520,7 @@ def test_all_eligible_image_provider_failures_are_service_failures_not_capabilit
 
         async def patch_session(method, params):
             assert method == "sessions.patch"
-            assert params["model"] in {"fixture/vision", "fixture/backup"}
+            assert "model" not in params
             return {}
 
         async def fail(*args, **kwargs):
@@ -544,7 +542,7 @@ def test_all_eligible_image_provider_failures_are_service_failures_not_capabilit
                 job = submitted.json()
                 async with client.stream("GET", f"/api/mobile/messages/{job['id']}/events") as stream:
                     observed = [(event, data) async for _, event, data in frames(stream)]
-        assert attempts == ["fixture/vision", "fixture/backup"]
+        assert attempts == [None]
         assert captured == []
         assert next(data["error"] for event, data in observed if event == "error") == "mobile_turn_failed"
         assert store.get(owner, job["id"])["error"] == "turn_failed"
