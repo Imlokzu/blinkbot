@@ -1855,3 +1855,18 @@ See `docs/mobile-app/RELEASE-0.3.2.md` for the exact scope.
   Fable is unavailable, so no Fable certification is claimed.
 - The first working-checkout Python run stalled at 15% and was terminated;
   it is not counted as passing. A clean-source, isolated-state rerun follows.
+
+
+## Solar icon release verification (2026-10-04)
+
+- Published the reviewed Solar activity subset. All 211 dashboard tests,
+  TypeScript and the isolated production build passed. The full activity-tree
+  fixture passed against both source and the published /dash build, including
+  actual Solar identity, sampled stroke animation, cleanup and reduced motion.
+- Localized attribution fits 320px in both languages and retains keyboard
+  access. All 308 release resources and seven endpoints passed smoke; both
+  traversal guards returned 400. The local Solar notice is served and precached.
+- The clean-source Python run passed 1,241 tests with 8 skipped and 178
+  subtests. Its single missing-issuer fixture failure passed a focused retry
+  with a synthetic Clerk issuer; this is not an unqualified full-suite pass.
+  The earlier working-checkout stalled run remains excluded from pass counts.
