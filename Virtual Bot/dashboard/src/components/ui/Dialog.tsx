@@ -1,5 +1,5 @@
 import * as RadixDialog from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
+import { X } from '../../vendor/solar-icons/compat.ts';
 import { cn } from '@/lib/cn';
 import { Button } from './Button';
 import { t } from '@/lib/i18n';

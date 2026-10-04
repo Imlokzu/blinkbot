@@ -13,8 +13,8 @@ import {
   CalendarClock,
   MessagesSquare,
   Radio,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+} from '../vendor/solar-icons/compat.ts';
+import type { LucideIcon } from '../vendor/solar-icons/compat.ts';
 import { t as inferenceText } from '@/locales/inference';
 import { t as controlText } from '@/locales/control';
 

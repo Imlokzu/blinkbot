@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert } from '../../vendor/solar-icons/compat.ts';
 import { Panel, PanelHead } from '@/components/ui/Panel';
 import { SwitchRow } from '@/components/ui/Switch';
 import { ErrorNote, SkeletonList } from '@/components/ui/Feedback';

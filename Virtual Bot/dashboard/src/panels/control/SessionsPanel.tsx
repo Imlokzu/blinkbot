@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MessagesSquare } from 'lucide-react';
+import { MessagesSquare } from '../../vendor/solar-icons/compat.ts';
 import { useRouteParam } from '@/app/useRoute';
 import { Input, Select } from '@/components/ui/Field';
 import { Empty } from '@/components/ui/Feedback';

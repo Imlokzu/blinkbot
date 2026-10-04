@@ -68,7 +68,7 @@ async function cardHarness() {
         effects[index] = { dependencies, cleanup: callback() };
       },
     },
-    'lucide-react': { Check: 'Check', CircleAlert: 'CircleAlert', ImageOff: 'ImageOff', RotateCcw: 'RotateCcw' },
+    '../../vendor/solar-icons/compat.ts': { Check: 'Check', CircleAlert: 'CircleAlert', ImageOff: 'ImageOff', RotateCcw: 'RotateCcw' },
     // The installed Motion hook snapshots its initial value rather than subscribing.
     'motion/react': { AnimatePresence: 'AnimatePresence', motion: { img: 'motion.img', div: 'motion.div', span: 'motion.span' }, useReducedMotion: () => false },
     '@/components/ui/Button': { Button: 'Button' },

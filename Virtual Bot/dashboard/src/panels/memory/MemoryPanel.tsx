@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Brain, Plus, Save, Trash2 } from 'lucide-react';
+import { Brain, Plus, Save, Trash2 } from '../../vendor/solar-icons/compat.ts';
 import { Panel, PanelHead } from '@/components/ui/Panel';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Field';

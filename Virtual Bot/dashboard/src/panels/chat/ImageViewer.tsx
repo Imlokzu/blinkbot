@@ -10,7 +10,7 @@ import {
   Plus,
   Share2,
   X,
-} from 'lucide-react';
+} from '../../vendor/solar-icons/compat.ts';
 import { LatticeLoader } from '@/vendor/reactbits';
 import { Morph } from '@/components/ui/Morph';
 import { Tip } from '@/components/ui/Tip';

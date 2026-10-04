@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BookMarked, Languages, Scissors, Sparkles } from 'lucide-react';
+import { BookMarked, Languages, Scissors, Sparkles } from '../../vendor/solar-icons/compat.ts';
 import { t, type ChatKey } from '@/locales/chat';
 
 /*

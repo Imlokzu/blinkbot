@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowDownRight, ArrowUpRight, GitBranch, Sparkles } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, GitBranch, Sparkles } from '../../vendor/solar-icons/compat.ts';
 import { api } from '@/lib/api';
 import { Panel } from '@/components/ui/Panel';
 import { Select } from '@/components/ui/Field';

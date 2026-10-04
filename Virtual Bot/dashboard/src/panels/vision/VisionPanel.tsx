@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, CameraOff, Play, Square } from 'lucide-react';
+import { Camera, CameraOff, Play, Square } from '../../vendor/solar-icons/compat.ts';
 import { Panel, PanelHead } from '@/components/ui/Panel';
 import { Button } from '@/components/ui/Button';
 import { Dot } from '@/components/ui/Status';

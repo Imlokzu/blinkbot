@@ -10,7 +10,7 @@ import { useCssVar } from '@/hooks/useAccentRgb';
 import { authHeaders } from '@/lib/auth';
 import { get, post } from '@/lib/api';
 import { glue } from '@/lib/glue';
-import { MicOff, Play } from 'lucide-react';
+import { MicOff, Play } from '../../vendor/solar-icons/compat.ts';
 
 /*
  * Голос бота.

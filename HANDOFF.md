@@ -1895,3 +1895,29 @@ review findings were repaired. No paid bot-provider calls or production messages
 were sent. The optimized Android APK is version 0.4.0/code 7 with the prior signing
 identity; iOS source metadata is aligned but its framework/runtime remain untested.
 See docs/mobile-app/RELEASE-0.4.0.md for scope and test/build distinctions.
+
+
+## Solar icons throughout the dashboard (2026-10-04)
+
+- All owned generic dashboard glyphs now use Solar Linear by 480 Design:
+  navigation, chat controls, settings, files, editor tools and status controls.
+  135 compatibility aliases use 119 pinned originals and documented genuine
+  primitive composites. Existing names/classes, sizes, refs and accessibility
+  labels remain compatible; explicit color props now color the actual geometry.
+- ReactBits keeps its 39 raw tuple exports. Path-only consumers retain path
+  data, filled outlines retain their source attributes, and animated send/stop,
+  checks, bell and spinner now show genuine Solar geometry. Send/stop safely
+  crossfades rather than interpolating incompatible original shapes.
+- Brand/model logos, pixel bot, favicons and plotted/progress artwork keep their
+  identities. Excalidraw's internal tool UI remains supplied by that editor;
+  the surrounding dashboard editor controls use Solar.
+- Validation: 215 dashboard tests, TypeScript and an isolated build passed.
+  The isolated Python suite passed 1,242 tests, 8 skipped and 178 subtests.
+  Broad browser coverage
+  observed 2,030 Solar instances across 14 routes and 12 Settings tabs, both
+  locales at desktop/phone widths, explicit color, keyboard access and layout.
+  Phone navigation, model/effort and activity motion regression fixtures passed.
+- Independent native adversarial review verified all mappings and geometry,
+  preserved raw APIs/ref behavior, and found/fixed the color-prop regression.
+  Fable was unavailable; no Fable certification is claimed. Existing owner
+  FilesPanel drafts and untracked integration source remain separate.

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { MessagePrimitive, ThreadPrimitive, useAuiState } from '@assistant-ui/react';
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown } from '../../vendor/solar-icons/compat.ts';
 import { motion, useReducedMotion } from 'motion/react';
 import { AttachmentCards } from './AttachmentCards';
 import { GalleryScope } from './Gallery';

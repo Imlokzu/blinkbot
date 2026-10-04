@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, ChevronDown, Pause, Play, Plus } from 'lucide-react';
+import { CalendarClock, ChevronDown, Pause, Play, Plus } from '../../vendor/solar-icons/compat.ts';
 import { useRouteParam } from '@/app/useRoute';
 import { Button } from '@/components/ui/Button';
 import { Input, Select } from '@/components/ui/Field';

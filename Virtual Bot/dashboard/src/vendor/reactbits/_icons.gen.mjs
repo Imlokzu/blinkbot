@@ -1,7 +1,7 @@
-import { renderToStaticMarkup } from 'react-dom/server';
-import { createElement } from 'react';
-import * as L from 'lucide-react';
+import { SOLAR_COMPAT_DATA } from '../solar-icons/compat-data.ts';
 
+// Original Solar nodes, not installed Lucide artwork. Keep this alias map in
+// sync with _icons.jsx when importing another ReactBits component.
 const MAP = {
   Alert02Icon: 'TriangleAlert', Archive02Icon: 'Archive', ArrowDown01Icon: 'ChevronDown',
   ArrowLeft01Icon: 'ChevronLeft', ArrowRight02Icon: 'ArrowRight', ArrowUp02Icon: 'ArrowUp',
@@ -14,20 +14,4 @@ const MAP = {
   StarIcon: 'Star', Attachment01Icon: 'Paperclip', Calendar03Icon: 'Calendar',
   ChartLineData01Icon: 'ChartLine', CheckIcon: 'Check', DockIcon: 'PanelBottom', TextFontIcon: 'Type', ThumbsUpIcon: 'ThumbsUp', Tick02Icon: 'Check', Undo02Icon: 'Undo2',
 };
-
-const out = [];
-for (const [alias, lucideName] of Object.entries(MAP)) {
-  const Icon = L[lucideName];
-  if (!Icon) { console.error('MISSING', lucideName); continue; }
-  const html = renderToStaticMarkup(createElement(Icon));
-  // Витягуємо кожен дочірній елемент svg із його атрибутами.
-  const nodes = [...html.matchAll(/<(path|circle|rect|line|polyline|polygon|ellipse)\b([^>]*)\/?>/g)].map((m) => {
-    const tag = m[1];
-    const attrs = {};
-    for (const a of m[2].matchAll(/([a-zA-Z-]+)="([^"]*)"/g)) attrs[a[1]] = a[2];
-    return [tag, attrs];
-  });
-  if (!nodes.length) { console.error('NO NODES', lucideName); continue; }
-  out.push([alias, nodes]);
-}
-console.log(JSON.stringify(Object.fromEntries(out), null, 0));
+console.log(JSON.stringify(Object.fromEntries(Object.entries(MAP).map(([alias, name]) => [alias, SOLAR_COMPAT_DATA[name].nodes]))));

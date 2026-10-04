@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { FileText, Globe, Paperclip, Plus } from 'lucide-react';
+import { FileText, Globe, Paperclip, Plus } from '../../vendor/solar-icons/compat.ts';
 import VoiceBeam from 'voice-glow';
 import { PromptBar, type PromptBarControl } from '@/vendor/reactbits';
 import { useToast } from '@/components/ui/Toaster';

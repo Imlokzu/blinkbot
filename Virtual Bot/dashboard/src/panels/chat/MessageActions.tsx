@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, Copy, RotateCcw, Square, Volume2 } from 'lucide-react';
+import { Check, Copy, RotateCcw, Square, Volume2 } from '../../vendor/solar-icons/compat.ts';
 import { authHeaders } from '@/lib/auth';
 import { copyText } from '@/lib/clipboard';
 import { get } from '@/lib/api';

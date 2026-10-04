@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, CircleAlert, ImageOff, RotateCcw } from 'lucide-react';
+import { Check, CircleAlert, ImageOff, RotateCcw } from '../../vendor/solar-icons/compat.ts';
 import { AnimatePresence, motion } from 'motion/react';
 import { Button } from '@/components/ui/Button';
 import { t } from '@/locales/imageGeneration';

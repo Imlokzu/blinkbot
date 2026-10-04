@@ -1,5 +1,6 @@
 import React, { useState, Children, useRef, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { SOLAR_COMPAT_DATA } from '../solar-icons/compat-data.ts';
 
 import './Stepper.css';
 
@@ -239,15 +240,15 @@ function StepConnector({ isComplete }) {
 
 function CheckIcon(props) {
   return (
-    <svg {...props} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-      <motion.path
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ delay: 0.1, type: 'tween', ease: 'easeOut', duration: 0.3 }}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M5 13l4 4L19 7"
-      />
+    <svg {...props} fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden="true" data-solar-icon="Check">
+      {SOLAR_COMPAT_DATA.Check.nodes
+        .filter(([tag]) => tag === 'path')
+        .map(([tag, attributes]) => React.createElement(motion[tag], {
+          ...attributes,
+          initial: { pathLength: 0 },
+          animate: { pathLength: 1 },
+          transition: { delay: 0.1, type: 'tween', ease: 'easeOut', duration: 0.3 }
+        }))}
     </svg>
   );
 }

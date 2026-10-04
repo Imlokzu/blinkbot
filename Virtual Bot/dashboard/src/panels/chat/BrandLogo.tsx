@@ -1,4 +1,4 @@
-import { Sparkle } from 'lucide-react';
+import { Sparkle } from '../../vendor/solar-icons/compat.ts';
 import { BRAND_ICONS, type Brand } from '@/vendor/lobe-icons';
 import { cn } from '@/lib/cn';
 import { brandOf, type CatalogModel } from './modelCatalog';

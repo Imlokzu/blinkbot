@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Activity, ArrowUpRight, RefreshCw, X, CircleDollarSign, Database, ChevronRight, KeyRound, Network } from 'lucide-react';
+import { Activity, ArrowUpRight, RefreshCw, X, CircleDollarSign, Database, ChevronRight, KeyRound, Network } from '../../vendor/solar-icons/compat.ts';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { t } from '@/locales/inference';

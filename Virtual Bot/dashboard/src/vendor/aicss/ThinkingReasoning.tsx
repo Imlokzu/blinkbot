@@ -4,6 +4,7 @@ import styles from "./ThinkingReasoning.module.css";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { t } from '@/lib/i18n';
+import { ChevronUp } from '../solar-icons/compat.ts';
 
 /*
  * Джерело: https://www.aicss.dev/r/thinking-reasoning.json (реєстр shadcn).
@@ -121,9 +122,7 @@ export function ThinkingReasoning({
           <span className={styles.trLabel + " " + styles.trShimmer}>{label}</span>
         )}
         {canToggle && (
-          <svg className={styles.trChevron} viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
-            <path d="m4.5 15.75 7.5-7.5 7.5 7.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <ChevronUp className={styles.trChevron} size={12} aria-hidden="true" />
         )}
       </button>
 

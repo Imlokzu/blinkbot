@@ -1,6 +1,7 @@
 # Solar Icons by 480 Design
 
-This dashboard's activity tree uses 18 icons from the Solar Linear collection.
+This dashboard uses Solar Linear artwork throughout its owned interface: 135
+UI aliases plus the activity-specific subset.
 
 Creator: 480 Design
 Original collection: https://www.figma.com/community/file/1166831539721848736
@@ -20,8 +21,15 @@ Adaptations made for Claude Bot:
   to apply, and kept filled punctuation free of inherited outlines.
 - Added decorative SVG identifiers and normalized stroke lengths for the
   connector -> icon drawing -> text reveal sequence.
-- Original path, circle and coordinate geometry is unchanged.
+- Original path, circle and coordinate geometry is unchanged. Selected frame
+  removal, scaling, direction changes and composites use only genuine Solar
+  primitives and are recorded per alias in compat-data.ts.
 
 The source SVGs and their checksums are retained in
 Virtual Bot/dashboard/src/vendor/solar-icons/. The icon artwork license remains
 separate from the renderer and application code licenses.
+
+The dashboard bridge covers ReactBits tuple-array and animated consumers.
+Brand/model logos, the pixel bot, favicons and scientific/progress graphics
+retain their own identity. Third-party Excalidraw drawing controls are supplied
+by that editor; the surrounding Claude Bot tools use Solar.

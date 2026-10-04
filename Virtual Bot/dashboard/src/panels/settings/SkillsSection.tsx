@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Compass, Search } from 'lucide-react';
+import { Compass, Search } from '../../vendor/solar-icons/compat.ts';
 import { Button } from '@/components/ui/Button';
 import { Segmented } from '@/components/ui/Segmented';
 import { Switch } from '@/components/ui/Switch';

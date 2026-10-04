@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { animate, motion, useMotionValue, useMotionValueEvent, useReducedMotion, useTransform } from 'motion/react';
 import { HugeiconsIcon } from './_icons.jsx';
 import { ArrowRight02Icon, Tick02Icon } from './_icons.jsx';
+import { LoaderCircle } from '../solar-icons/compat.ts';
 
 import './SlideCommit.css';
 
@@ -32,10 +33,7 @@ const finePointer = () =>
   typeof window !== 'undefined' && !!window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
 
 const Spinner = ({ size }) => (
-  <svg className="slide-commit__spinner" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
-    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2.4" strokeOpacity="0.25" />
-    <path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-  </svg>
+  <LoaderCircle className="slide-commit__spinner" size={size} strokeWidth={2.4} aria-hidden="true" />
 );
 
 export default function SlideCommit({

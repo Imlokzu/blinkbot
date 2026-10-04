@@ -1,4 +1,4 @@
-import { Radio } from 'lucide-react';
+import { Radio } from '../../vendor/solar-icons/compat.ts';
 import { Empty } from '@/components/ui/Feedback';
 import { Panel } from '@/components/ui/Panel';
 import { t } from '@/locales/control';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import * as Popover from '@radix-ui/react-popover';
-import { Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight } from '../../vendor/solar-icons/compat.ts';
 import { get } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { t } from '@/locales/workspace';

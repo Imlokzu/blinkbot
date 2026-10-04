@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { TextMessagePartProvider } from '@assistant-ui/react';
-import { SmilePlus } from 'lucide-react';
+import { SmilePlus } from '../../vendor/solar-icons/compat.ts';
 import { t } from '@/locales/chat';
 import { cn } from '@/lib/cn';
 import { Markdown } from './Markdown';

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, Eye, MessageSquare } from 'lucide-react';
+import { ArrowUpRight, Eye, MessageSquare } from '../../vendor/solar-icons/compat.ts';
 import { AnimatedContent, DotGrid, GlobalSpotlight, StarBorder } from '@/vendor/reactbits';
 import { SectionHeader } from '@/components/shell/SectionHeader';
 import { Tile, TileHead, TileNumber } from './Tile';

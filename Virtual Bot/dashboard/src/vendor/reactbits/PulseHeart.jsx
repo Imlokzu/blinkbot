@@ -218,10 +218,10 @@ export default function PulseHeart({
       <span ref={pillRef} className="pulse-heart__pill">
         <span ref={heartRef} className="pulse-heart__heart" aria-hidden="true">
           {paths ? (
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" data-solar-icon={paths.solarName}>
               <g ref={glyphRef}>
-                {paths.map(([, attrs]) => (
-                  <path key={String(attrs.key)} d={String(attrs.d)} vectorEffect="non-scaling-stroke" />
+                {paths.map(([Tag, { key, ...attributes }], index) => (
+                  <Tag key={key ?? index} {...attributes} vectorEffect="non-scaling-stroke" />
                 ))}
               </g>
             </svg>

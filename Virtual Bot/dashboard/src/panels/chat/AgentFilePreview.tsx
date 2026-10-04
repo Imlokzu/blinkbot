@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ContextType } from 'react';
-import { PenLine } from 'lucide-react';
+import { PenLine } from '../../vendor/solar-icons/compat.ts';
 import { BotIcon } from '@/components/ui/BotIcon';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { t } from '@/locales/workbench';

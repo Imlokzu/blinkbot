@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useEditorState, type Editor } from '@tiptap/react';
-import { Bold, Italic, Strikethrough, Code, Quote, List, ListOrdered, ListChecks, Undo2, Redo2, Table2, Link, Image, PenTool, Rows3, Columns3, Trash2, type LucideIcon } from 'lucide-react';
+import { Bold, Italic, Strikethrough, Code, Quote, List, ListOrdered, ListChecks, Undo2, Redo2, Table2, Link, Image, PenTool, Rows3, Columns3, Trash2, type LucideIcon } from '../../vendor/solar-icons/compat.ts';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent } from '@/components/ui/Dialog';
 import { useToast } from '@/components/ui/Toaster';

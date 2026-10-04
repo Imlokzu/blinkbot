@@ -3,7 +3,7 @@ import { useIsPhone } from '@/hooks/useMediaQuery';
 import { t } from '@/locales/chat';
 import * as Popover from '@radix-ui/react-popover';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, FolderInput, Pin, PinOff, Trash2 } from 'lucide-react';
+import { ChevronLeft, FolderInput, Pin, PinOff, Trash2 } from '../../vendor/solar-icons/compat.ts';
 import { useToast } from '@/components/ui/Toaster';
 import { del, get, post } from '@/lib/api';
 import { cn } from '@/lib/cn';

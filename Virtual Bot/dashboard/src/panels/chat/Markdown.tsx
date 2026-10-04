@@ -6,7 +6,7 @@ import {
 } from '@assistant-ui/react-markdown';
 import { Children, isValidElement, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy } from '../../vendor/solar-icons/compat.ts';
 import remarkGfm from 'remark-gfm';
 import { DataTable, FileDiff, parseUnifiedDiff } from '@/vendor/aicss';
 import { ChatGallery, ChatImage } from './Gallery';

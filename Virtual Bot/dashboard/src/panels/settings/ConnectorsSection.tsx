@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpen, Cable, ExternalLink } from 'lucide-react';
+import { BookOpen, Cable, ExternalLink } from '../../vendor/solar-icons/compat.ts';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Field';
 import { useToast } from '@/components/ui/Toaster';

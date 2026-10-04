@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
-import { ArrowRight, RotateCw } from 'lucide-react';
+import { ArrowRight, RotateCw } from '../../vendor/solar-icons/compat.ts';
 import { Panel } from '@/components/ui/Panel';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Field';
 import { Empty } from '@/components/ui/Feedback';
-import { Globe } from 'lucide-react';
+import { Globe } from '../../vendor/solar-icons/compat.ts';
 import { glue } from '@/lib/glue';
 import { SectionHeader } from '@/components/shell/SectionHeader';
 

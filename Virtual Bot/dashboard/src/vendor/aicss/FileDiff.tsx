@@ -1,4 +1,5 @@
 import styles from "./FileDiff.module.css";
+import { Code2 } from '../solar-icons/compat.ts';
 
 /*
  * Джерело: https://www.aicss.dev/r/file-diff.json (реєстр shadcn).
@@ -120,9 +121,7 @@ export function FileDiff({ file = "src/auth.ts", rows = ROWS }: { file?: string;
     <div className={styles.diff}>
       <div className={styles.diffHead}>
         <span className={styles.diffFileWrap}>
-          <svg className={styles.diffIcon} viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
-            <path d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <Code2 className={styles.diffIcon} size={15} aria-hidden="true" />
           <span className={styles.diffFile}>{file}</span>
         </span>
         <span className={styles.diffStat}>

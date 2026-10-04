@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, FileText, Image as ImageIcon, X } from 'lucide-react';
+import { Download, FileText, Image as ImageIcon, X } from '../../vendor/solar-icons/compat.ts';
 import { authHeaders } from '@/lib/auth';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';

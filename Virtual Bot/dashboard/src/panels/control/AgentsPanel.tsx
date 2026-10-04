@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowUpRight, Bot } from 'lucide-react';
+import { ArrowUpRight, Bot } from '../../vendor/solar-icons/compat.ts';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Field';
 import { Empty } from '@/components/ui/Feedback';

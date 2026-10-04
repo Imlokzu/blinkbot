@@ -813,3 +813,21 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   Read, write and search have distinct glyphs; unknown tools use Settings.
 - Keep the creator/license credit in Settings > Appearance and the offline
   public notice. Attribution is separate from tool data and action labels.
+
+
+## Global Solar dashboard iconography (2026-10-04)
+
+- The owner's global Solar choice supersedes the Lucide default and the earlier
+  activity-only exception. All owned generic UI glyphs use the local Solar
+  Linear catalogue; the installed renderer is retained only as rendering code.
+- 135 names in vendor/solar-icons/compat.ts preserve existing icon APIs and
+  legacy CSS classes. Use the relative .ts import in native-testable modules.
+  Raw ReactBits consumers use compat-data.ts through their tuple bridge.
+- Retain genuine pinned geometry and disclose framing/composite adaptations.
+  Explicit icon colors must apply to currentColor shapes. Preserve dimensions,
+  focus behavior, status/off-state meaning and animated control lifecycles.
+- Brand identities, pixel bot and data graphics retain their own visual role.
+  Excalidraw's internal editor controls are a library boundary; dashboard-owned
+  editor, file and navigation controls use Solar.
+- tests/solarUiIcons.test.mjs and tests/solar-dashboard.browser.mjs cover source
+  provenance, API/color compatibility and cross-route/icon-family consistency.

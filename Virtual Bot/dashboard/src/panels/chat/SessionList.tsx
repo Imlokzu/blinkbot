@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { MessageCircle, Plus } from 'lucide-react';
+import { MessageCircle, Plus } from '../../vendor/solar-icons/compat.ts';
 import { SwipeRow } from '@/vendor/reactbits';
 import { cn } from '@/lib/cn';
 import { Button } from '@/components/ui/Button';

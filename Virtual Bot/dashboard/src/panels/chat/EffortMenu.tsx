@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef } from 'react';
-import { Check } from 'lucide-react';
+import { Check } from '../../vendor/solar-icons/compat.ts';
 import { cn } from '@/lib/cn';
 import { t } from '@/locales/chat';
 import { thinkingLabel, type useBrainChoice } from './useBrainChoice';

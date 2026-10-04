@@ -1,5 +1,5 @@
 import { useId, useMemo, useRef } from 'react';
-import { ChevronRight, ExternalLink } from 'lucide-react';
+import { ChevronRight, ExternalLink } from '../../vendor/solar-icons/compat.ts';
 import { collectSources } from './sources';
 import { SiteIcon } from './SiteIcon';
 import { useIsPhone } from '@/hooks/useMediaQuery';

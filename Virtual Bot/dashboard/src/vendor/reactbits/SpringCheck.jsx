@@ -147,7 +147,7 @@ export default function SpringCheck({
         <span ref={boxRef} className="spring-check__box" style={{ transform: r.box }}>
           <span className="spring-check__ring" aria-hidden="true" />
           <span ref={fillRef} className="spring-check__fill" style={{ transform: r.fill }} />
-          <svg className="spring-check__tick" viewBox="0 0 24 24" aria-hidden="true">
+          <svg className="spring-check__tick" viewBox="0 0 24 24" aria-hidden="true" data-solar-icon="check">
             <path ref={tickRef} d={TICK_PATH} pathLength={1} strokeDasharray={1} style={{ strokeDashoffset: r.tick }} />
           </svg>
         </span>

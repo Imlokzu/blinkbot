@@ -6,7 +6,9 @@ import { SOLAR_ICON_DATA, type SolarIconId } from './data.ts';
 function solarIcon(id: SolarIconId) {
   const Svg = createLucideIcon(`Solar${id}`, SOLAR_ICON_DATA[id].nodes);
   const Icon = forwardRef<SVGSVGElement, LucideProps>((props, ref) => {
-    const svgProps = { strokeWidth: 1.5, ...props, ref, 'data-solar-icon': id };
+    const svgProps = { strokeWidth: 1.5, ...props, ref,
+      style: props.color ? { color: props.color, ...props.style } : props.style,
+      'data-solar-icon': id };
     return createElement(Svg, svgProps);
   });
   Icon.displayName = `Solar${id}`;

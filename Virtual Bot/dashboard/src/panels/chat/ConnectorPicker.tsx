@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, ChevronLeft, FileText, Settings } from 'lucide-react';
+import { BookOpen, ChevronLeft, FileText, Settings } from '../../vendor/solar-icons/compat.ts';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent } from '@/components/ui/Dialog';
 import { useToast } from '@/components/ui/Toaster';

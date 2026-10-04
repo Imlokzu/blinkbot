@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Smartphone } from 'lucide-react';
+import { Smartphone } from '../../vendor/solar-icons/compat.ts';
 import { get, post, del } from '@/lib/api';
 import { useLanguage } from '@/hooks/useLanguage';
 import { t } from '@/locales/mobile';

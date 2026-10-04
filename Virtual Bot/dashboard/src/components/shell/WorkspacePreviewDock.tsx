@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { FileText, Image as ImageIcon, RefreshCw, Save, X } from 'lucide-react';
+import { FileText, Image as ImageIcon, RefreshCw, Save, X } from '../../vendor/solar-icons/compat.ts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Empty, SkeletonList } from '@/components/ui/Feedback';

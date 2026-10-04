@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MousePointer2 } from 'lucide-react';
+import { MousePointer2 } from '../../vendor/solar-icons/compat.ts';
 import { EditorContent, Extension, useEditor } from '@tiptap/react';
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';

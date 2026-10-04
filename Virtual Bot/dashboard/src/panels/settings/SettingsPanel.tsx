@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouteParam } from '@/app/useRoute';
-import { AudioLines, Brain, Cable, Compass, Palette, Plug, Puzzle, Search, Smartphone, Sparkles, User, Wrench } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { AudioLines, Brain, Cable, Compass, Palette, Plug, Puzzle, Search, Smartphone, Sparkles, User, Wrench } from '../../vendor/solar-icons/compat.ts';
+import type { LucideIcon } from '../../vendor/solar-icons/compat.ts';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Textarea } from '@/components/ui/Field';
 import { Switch } from '@/components/ui/Switch';
@@ -33,7 +33,7 @@ import { MobileConnection } from './MobileConnection';
 import { fieldMatches, OpenClawFields, useOpenClawSettings } from './OpenClawSection';
 import { SettingGroup, SettingRow } from './SettingRow';
 import { ConnectorsSection } from './ConnectorsSection';
-import { BookOpen } from 'lucide-react';
+import { BookOpen } from '../../vendor/solar-icons/compat.ts';
 import type { SetupData } from './types';
 import './settings-surfaces.css';
 

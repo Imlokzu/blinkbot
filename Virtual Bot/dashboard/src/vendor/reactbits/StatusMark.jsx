@@ -1,12 +1,13 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { createElement, useEffect, useLayoutEffect, useRef } from 'react';
 import { animate, useMotionValue, useReducedMotion } from 'motion/react';
+import { SOLAR_COMPAT_DATA } from '../solar-icons/compat-data.ts';
 
 import './StatusMark.css';
 
 const UI = { type: 'spring', duration: 0.3, bounce: 0 };
 const MORPH = { duration: 0.3, ease: [0.77, 0, 0.175, 1] };
-const CHECK = 'M7.5 12.25 10.5 15.25 16.75 8.75';
-const CROSS = 'M8.5 8.5 15.5 15.5M15.5 8.5 8.5 15.5';
+const CHECK = SOLAR_COMPAT_DATA.Check.nodes.filter(([tag]) => tag === 'path');
+const CROSS = SOLAR_COMPAT_DATA.X.nodes.filter(([tag]) => tag === 'path');
 const TEXT = {
   pending: 'Pending',
   running: 'In progress',
@@ -140,8 +141,12 @@ export default function StatusMark({
       >
         <circle className="status-mark__track" cx="12" cy="12" r={r} transform="rotate(-90 12 12)" />
         <circle ref={ringRef} className="status-mark__ring" cx="12" cy="12" r={r} transform="rotate(-90 12 12)" />
-        <path className="status-mark__check" d={CHECK} pathLength="1" />
-        <path className="status-mark__cross" d={CROSS} pathLength="1" />
+        <g data-solar-icon="Check">
+          {CHECK.map(([tag, attributes]) => createElement(tag, { ...attributes, className: 'status-mark__check', pathLength: 1 }))}
+        </g>
+        <g data-solar-icon="X">
+          {CROSS.map(([tag, attributes]) => createElement(tag, { ...attributes, className: 'status-mark__cross', pathLength: 1 }))}
+        </g>
       </svg>
       {hasLabel ? <span className="status-mark__sr">{spoken}: </span> : null}
       {hasLabel ? (

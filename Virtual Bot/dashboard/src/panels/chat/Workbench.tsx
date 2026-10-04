@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowUpRight, Code2, FileText, FolderOpen, Globe, Image as ImageIcon, PenTool, RefreshCw, Save, Workflow, X,
-} from 'lucide-react';
+} from '../../vendor/solar-icons/compat.ts';
 import { get, post } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { useTheme } from '@/hooks/useTheme';

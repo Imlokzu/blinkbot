@@ -1,4 +1,4 @@
-import { Play } from 'lucide-react';
+import { Play } from '../../vendor/solar-icons/compat.ts';
 import { SlideCommit } from '@/vendor/reactbits';
 import { useCssVar } from '@/hooks/useAccentRgb';
 import { Panel, PanelHead } from '@/components/ui/Panel';

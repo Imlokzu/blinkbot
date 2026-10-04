@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
-import { Check, ChevronDown, Search, X } from 'lucide-react';
+import { Check, ChevronDown, Search, X } from '../../vendor/solar-icons/compat.ts';
 import { cn } from '@/lib/cn';
 import { t } from '@/locales/chat';
 import { t as pickerText } from '@/locales/modelPicker';

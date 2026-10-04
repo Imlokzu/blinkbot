@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Menu } from 'lucide-react';
+import { Menu } from '../../vendor/solar-icons/compat.ts';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Button';
 import { SECTIONS } from '@/app/sections';

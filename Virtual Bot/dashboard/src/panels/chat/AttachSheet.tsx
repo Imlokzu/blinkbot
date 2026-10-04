@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { Cable, Camera, ChevronRight, FileText, Image, ImagePlus, PanelRightOpen, Wrench, X } from 'lucide-react';
+import { Cable, Camera, ChevronRight, FileText, Image, ImagePlus, PanelRightOpen, Wrench, X } from '../../vendor/solar-icons/compat.ts';
 import { ContextMeter } from './ContextMeter';
 import { t } from '@/locales/chat';
 import { t as benchT } from '@/locales/workbench';

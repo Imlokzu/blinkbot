@@ -2,7 +2,7 @@ import { createContext, lazy, Suspense, useContext, useRef, useState } from 'rea
 import Image from '@tiptap/extension-image';
 import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from '@tiptap/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { PenTool, ChevronDown, ChevronUp } from 'lucide-react';
+import { PenTool, ChevronDown, ChevronUp } from '../../vendor/solar-icons/compat.ts';
 import { get, post } from '@/lib/api';
 import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/components/ui/Button';

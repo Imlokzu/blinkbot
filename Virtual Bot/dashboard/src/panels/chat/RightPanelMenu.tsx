@@ -1,6 +1,6 @@
 import { forwardRef } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Check, Columns2, PanelRight, PanelRightClose } from 'lucide-react';
+import { Check, Columns2, PanelRight, PanelRightClose } from '../../vendor/solar-icons/compat.ts';
 import { Button } from '@/components/ui/Button';
 import { t } from '@/locales/chatLayout';
 

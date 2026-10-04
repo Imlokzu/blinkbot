@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from '../../vendor/solar-icons/compat.ts';
 import { cn } from '@/lib/cn';
 import { t } from '@/locales/settings';
 import { byLineup } from '@/panels/chat/modelCatalog';

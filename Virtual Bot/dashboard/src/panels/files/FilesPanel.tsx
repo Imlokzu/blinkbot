@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, Code, ExternalLink, Eye, File, Folder, FolderOpen, RotateCw, Save } from 'lucide-react';
+import { ChevronRight, Code, ExternalLink, Eye, File, Folder, FolderOpen, RotateCw, Save } from '../../vendor/solar-icons/compat.ts';
 import { Panel, PanelHead } from '@/components/ui/Panel';
 import { Button } from '@/components/ui/Button';
 import { Empty, SkeletonList } from '@/components/ui/Feedback';

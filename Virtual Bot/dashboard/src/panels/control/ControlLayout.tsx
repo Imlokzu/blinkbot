@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ArrowRight, Bot, CalendarClock, MessagesSquare, Radio, RefreshCw } from 'lucide-react';
+import { ArrowRight, Bot, CalendarClock, MessagesSquare, Radio, RefreshCw } from '../../vendor/solar-icons/compat.ts';
 import { SectionHeader } from '@/components/shell/SectionHeader';
 import { Button } from '@/components/ui/Button';
 import { Empty, SkeletonList } from '@/components/ui/Feedback';

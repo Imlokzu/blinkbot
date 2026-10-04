@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AssistantRuntimeProvider } from '@assistant-ui/react';
 import { createPortal } from 'react-dom';
-import { List, PanelLeft, PanelRight, Paperclip, Plus, X } from 'lucide-react';
+import { List, PanelLeft, PanelRight, Paperclip, Plus, X } from '../../vendor/solar-icons/compat.ts';
 import { Thread } from './Thread';
 import { Composer } from './Composer';
 import { SessionList } from './SessionList';

@@ -1,5 +1,6 @@
-import { isValidElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createElement, isValidElement, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { animate, useMotionValue, useMotionValueEvent, useReducedMotion } from 'motion/react';
+import { SOLAR_COMPAT_DATA } from '../solar-icons/compat-data.ts';
 import { HugeiconsIcon } from './_icons.jsx';
 import {
   ArrowDown01Icon,
@@ -63,8 +64,6 @@ import './PromptBar.css';
  * Позначено тут, щоб при оновленні з reactbits.dev правку не загубити.
  */
 
-const ARROW_UP = [12, 4.5, 18.5, 11, 14.25, 11, 14.25, 19.5, 9.75, 19.5, 9.75, 11, 5.5, 11];
-const SQUARE = [12, 6, 18, 6, 18, 12, 18, 18, 6, 18, 6, 12, 6, 6];
 const EASE_IN_OUT = [0.77, 0, 0.175, 1];
 const LINE = 22;
 const EDGE = 11;
@@ -97,15 +96,6 @@ const DEFAULT_MODELS = [
 ];
 const DEFAULT_EFFORTS = ['Low', 'Medium', 'High', 'Extra', 'Max'];
 
-const mix = (a, b, t) => a + (b - a) * t;
-const pathAt = (a, b, t) => {
-  let d = '';
-  for (let i = 0; i < a.length; i += 2) {
-    d += `${i ? 'L' : 'M'}${mix(a[i], b[i], t).toFixed(2)} ${mix(a[i + 1], b[i + 1], t).toFixed(2)}`;
-  }
-  return `${d}Z`;
-};
-
 const parseToken = draft => {
   const m = /(^|\s)([@/])([\w-]*)$/.exec(draft);
   if (!m) return null;
@@ -121,7 +111,8 @@ const attachmentName = file =>
 function SendGlyph({ busy, morphDuration, squash, tilt }) {
   const reduce = useReducedMotion();
   const svgRef = useRef(null);
-  const pathRef = useRef(null);
+  const arrowRef = useRef(null);
+  const stopRef = useRef(null);
   const dir = useRef(busy ? 1 : -1);
   const t = useMotionValue(busy ? 1 : 0);
 
@@ -138,7 +129,9 @@ function SendGlyph({ busy, morphDuration, squash, tilt }) {
   }, [busy, morphDuration, reduce, t]);
 
   useMotionValueEvent(t, 'change', v => {
-    pathRef.current?.setAttribute('d', pathAt(ARROW_UP, SQUARE, v));
+    // Solar glyphs have different path topology; crossfade their original nodes.
+    arrowRef.current?.setAttribute('opacity', String(1 - v));
+    stopRef.current?.setAttribute('opacity', String(v));
     const goo = reduce ? 0 : Math.sin(v * Math.PI);
     const sx = 1 - squash * goo;
     if (svgRef.current) {
@@ -152,12 +145,18 @@ function SendGlyph({ busy, morphDuration, squash, tilt }) {
       className="prompt-bar__glyph"
       viewBox="0 0 24 24"
       aria-hidden="true"
-      fill="currentColor"
+      fill="none"
       stroke="currentColor"
-      strokeWidth="2"
+      strokeWidth="1.5"
+      strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path ref={pathRef} d={pathAt(ARROW_UP, SQUARE, t.get())} />
+      <g ref={arrowRef} opacity={1 - t.get()} data-solar-icon="ArrowUp">
+        {SOLAR_COMPAT_DATA.ArrowUp.nodes.map(([tag, attributes]) => createElement(tag, attributes))}
+      </g>
+      <g ref={stopRef} opacity={t.get()} data-solar-icon="Square">
+        {SOLAR_COMPAT_DATA.Square.nodes.map(([tag, attributes]) => createElement(tag, attributes))}
+      </g>
     </svg>
   );
 }

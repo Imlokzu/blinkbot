@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Send, X } from 'lucide-react';
+import { Check, Send, X } from '../../vendor/solar-icons/compat.ts';
 import { useBotEvents } from '@/hooks/useBotEvents';
 import { t } from '@/lib/i18n';
 

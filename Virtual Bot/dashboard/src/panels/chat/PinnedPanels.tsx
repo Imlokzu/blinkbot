@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import * as Popover from '@radix-ui/react-popover';
-import { Check, Clock, Eye, Folder, Gauge, Monitor, Plus, ArrowUpRight, Wallet, X } from 'lucide-react';
+import { Check, Clock, Eye, Folder, Gauge, Monitor, Plus, ArrowUpRight, Wallet, X } from '../../vendor/solar-icons/compat.ts';
 import { get } from '@/lib/api';
 import { t } from '@/locales/workspace';
 import { cn } from '@/lib/cn';

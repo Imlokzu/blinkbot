@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { CornerDownLeft, Search } from 'lucide-react';
+import { CornerDownLeft, Search } from '../../vendor/solar-icons/compat.ts';
 import { SECTIONS } from '@/app/sections';
 import { ACCENTS, THEMES, useTheme } from '@/hooks/useTheme';
 import { useServiceAction } from '@/lib/queries';

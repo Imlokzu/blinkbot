@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Compass, Plus, Trash2 } from 'lucide-react';
+import { Compass, Plus, Trash2 } from '../../vendor/solar-icons/compat.ts';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent } from '@/components/ui/Dialog';
 import { Input, Select, Textarea } from '@/components/ui/Field';

@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createElement, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { animate, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
-import { HugeiconsIcon } from './_icons.jsx';
-import { Notification03Icon } from './_icons.jsx';
+import { Bell } from '../solar-icons/compat.ts';
+import { SOLAR_COMPAT_DATA } from '../solar-icons/compat-data.ts';
 import './BellToggle.css';
 
 const SPRING_UI = { type: 'spring', duration: 0.3, bounce: 0 };
@@ -9,7 +9,8 @@ const SEG_EASE = 'cubic-bezier(0.77, 0, 0.175, 1)';
 const WARP = 0.6;
 const SIZES = { sm: [36, 12.5, 14, 15, 8], md: [44, 13.5, 16, 19, 9], lg: [52, 15, 18, 23, 10] };
 const WOBBLE = { amplitude: 0.4, passes: 3, duration: 420 };
-const BELL_BODY = 'M6 16.5V10a6 6 0 0 1 12 0v6.5l1.6 2.3H4.4L6 16.5z';
+// Separate the original Solar body and clapper nodes for independent swings.
+const [BELL_BODY, BELL_CLAPPER] = SOLAR_COMPAT_DATA.Bell.nodes;
 
 const passOffset = (k, passes) => 1 - Math.pow(1 - (k + 2 / 3) / (passes + 1), WARP);
 const ringKeyframes = (from, amplitude, passes, decay) => {
@@ -203,21 +204,21 @@ export default function BellToggle({
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="1.75"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                data-solar-icon="bell"
               >
-                <path d={BELL_BODY} />
-                <path d="M12 2.5V4" />
+                {createElement(BELL_BODY[0], BELL_BODY[1])}
               </svg>
             ) : (
-              (icon ?? <HugeiconsIcon icon={Notification03Icon} size={iconSize} strokeWidth={2} />)
+              (icon ?? <Bell size={iconSize} />)
             )}
           </span>
           {clapper ? (
             <span ref={clapperRef} className="bell-toggle__clapper">
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="20.4" r="1.7" fill="currentColor" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                {createElement(BELL_CLAPPER[0], BELL_CLAPPER[1])}
               </svg>
             </span>
           ) : null}

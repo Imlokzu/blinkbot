@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type DragEvent } from 'react';
-import { Check, ImagePlus, Link2, RotateCcw, ShieldCheck, Trash2, Video } from 'lucide-react';
+import { Check, ImagePlus, Link2, RotateCcw, ShieldCheck, Trash2, Video } from '../../vendor/solar-icons/compat.ts';
 import { Button } from '@/components/ui/Button';
 import { Switch, SwitchRow } from '@/components/ui/Switch';
 import { t } from '@/locales/chatAppearance';
