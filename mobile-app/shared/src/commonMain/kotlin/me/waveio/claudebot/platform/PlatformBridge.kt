@@ -53,6 +53,8 @@ interface PlatformBridge {
     fun haptic()
     fun copyText(value: String)
     fun shareText(value: String)
+    /** Open an explicitly rendered HTTPS link without attaching app credentials. */
+    fun openExternalUrl(url: String) {}
     fun requestNotifications(onResult: (Boolean) -> Unit)
     fun notifyReply(title: String, body: String, conversationId: String)
     fun nowMillis(): Long

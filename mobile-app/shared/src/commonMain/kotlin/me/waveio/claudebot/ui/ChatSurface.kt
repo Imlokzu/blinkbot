@@ -57,6 +57,8 @@ import kotlinx.coroutines.yield
 import kotlinx.coroutines.flow.first
 import me.waveio.claudebot.state.*
 
+private val HTTPS_LINK = Regex("https://[^\\s)\\]<>\"']+")
+
 @Composable
 fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, headerHeight: Dp, header: @Composable () -> Unit) {
     val list = rememberLazyListState()
@@ -258,7 +260,14 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
                 ) {
                     Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         if (user) Text(line, color = palette.userInk, fontSize = 16.sp, lineHeight = 23.sp)
-                        else ChatMarkdown(line)
+                        else {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                ChatMarkdown(line)
+                                HTTPS_LINK.findAll(line).map { it.value.trimEnd('.', ',', ';') }.distinct().forEach { url ->
+                                    QuietAction(tr("chat.openLink"), { actions.openLink(url) }, Modifier.fillMaxWidth())
+                                }
+                            }
+                        }
                     }
                 }
             }

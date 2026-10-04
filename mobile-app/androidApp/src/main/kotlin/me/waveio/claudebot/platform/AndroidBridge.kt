@@ -453,6 +453,11 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
         runCatching { activity.startActivity(Intent.createChooser(intent, activity.getString(R.string.native_share))) }
     }
 
+    override fun openExternalUrl(url: String) {
+        if (!url.startsWith("https://", ignoreCase = true) || destroyed) return
+        runCatching { activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    }
+
     override fun requestNotifications(onResult: (Boolean) -> Unit) {
         if (nativeBusy()) { onResult(false); return }
         if (Build.VERSION.SDK_INT >= 33) requestPermission(Manifest.permission.POST_NOTIFICATIONS) { allowed ->

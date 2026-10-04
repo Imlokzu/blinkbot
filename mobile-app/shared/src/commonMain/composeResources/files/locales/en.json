@@ -35,6 +35,7 @@
   "chat.edit": "Edit message",
   "chat.regenerate": "Try another response",
   "chat.share": "Share",
+  "chat.openLink": "Open link",
   "chat.copied": "Copied",
   "model.title": "Model",
   "model.search": "Find a model",

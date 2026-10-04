@@ -1106,6 +1106,9 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
 
     override fun copyContent(text: String) { platform.copyText(text); feedback(); update { it.copy(notice = "chat.copied") } }
     override fun shareContent(text: String) { platform.shareText(text) }
+    override fun openLink(url: String) {
+        if (url.startsWith("https://", ignoreCase = true)) platform.openExternalUrl(url)
+    }
     override fun copyMessage(id: String) { state.value.messages.firstOrNull { it.id == id }?.let { platform.copyText(it.text); update { current -> current.copy(notice = "chat.copied") } } }
     override fun shareMessage(id: String) { state.value.messages.firstOrNull { it.id == id }?.let { platform.shareText(it.text) } }
     override fun editMessage(id: String) {

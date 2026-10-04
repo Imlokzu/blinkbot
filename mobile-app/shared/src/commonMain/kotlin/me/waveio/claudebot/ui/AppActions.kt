@@ -38,6 +38,7 @@ interface AppActions {
     fun useTranscript()
     fun copyContent(text: String)
     fun shareContent(text: String)
+    fun openLink(url: String)
     fun useSkill(name: String)
     fun copyMessage(id: String)
     fun shareMessage(id: String)
