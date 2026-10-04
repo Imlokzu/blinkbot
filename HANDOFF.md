@@ -1917,3 +1917,21 @@ See docs/mobile-app/RELEASE-0.4.0.md for scope and test/build distinctions.
 - All 296 release resources and seven endpoints passed smoke; both traversal
   guards returned 400. Source and artifacts are pushed; existing owner drafts
   and services remain separate from this UI change.
+## Mobile 0.4.1 model, motion and device metadata (2026-10-04)
+
+Explicit mobile model selections now remain authoritative for image turns, while
+inherited blank image intent continues through the gateway configured image route.
+This prevents a selected GPT-6 Sol turn from silently switching to another image
+model. The model picker is edge-to-edge without the old side frame, its arrow
+rotates with open state, and picker entrance blur is disabled to avoid Android 16
+scroll flicker. Sent bubbles rise from a small blurred seed and expand into place;
+streaming bubbles retain a restrained live blur; reactions render below bubbles and
+keep the conversation tail visible. Full-screen wallpaper is the default for new
+preferences, and profile toggles animate track and thumb colors.
+
+Android/iOS pairing now sends a human-readable device model and OS label. The
+owner dashboard lists platform, QR pairing method, connection date and expiry
+using the existing device records. Backend image routing, dashboard metadata and
+mobile UI tests were run with fixtures; no provider calls or production messages
+were used. Android 0.4.1/code 8 release APK was cold-launched after installation
+with no crash entries. iOS source changes remain uncompiled on this Mac.
