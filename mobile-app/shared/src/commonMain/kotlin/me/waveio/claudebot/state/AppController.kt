@@ -186,6 +186,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                     versionCode = value["version_code"]?.jsonPrimitive?.intOrNull ?: 0,
                     changelog = value["changelog"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
                     url = value["url"]?.jsonPrimitive?.contentOrNull,
+                    iosUrl = value["ios_url"]?.jsonPrimitive?.contentOrNull,
                     sha256 = value["sha256"]?.jsonPrimitive?.contentOrNull,
                     mandatory = value["mandatory"]?.jsonPrimitive?.booleanOrNull == true,
                 )
@@ -1277,6 +1278,36 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     }
     override fun dismissNotice() { update { it.copy(error = null, notice = null, noticeDetail = null) } }
     override fun dismissUpdate() { update { it.copy(update = null) } }
+    override fun installUpdate() {
+        val available = state.value.update ?: return
+        val target = if (platform.platformName == "ios") available.iosUrl ?: available.url else available.url
+        if (target.isNullOrBlank()) { update { it.copy(updateError = "update.unavailable") }; return }
+        if (platform.platformName == "ios") {
+            platform.openExternalUrl(target)
+            return
+        }
+        val connection = api ?: return
+        val version = connectionVersion
+        update { it.copy(updateInstalling = true, updateError = null) }
+        run(isCurrent = { version == connectionVersion }) {
+            try {
+                val bytes = connection.downloadUpdate(target)
+                if (bytes.isEmpty()) throw ApiFailure(0, "update.empty")
+                val expected = available.sha256?.lowercase()?.replace(Regex("[^0-9a-f]"), "")
+                if (!expected.isNullOrBlank()) {
+                    val actual = platform.sha256(bytes)?.lowercase()
+                    if (actual == null || actual != expected) throw ApiFailure(0, "update.checksum")
+                }
+                val accepted = CompletableDeferred<Boolean>()
+                platform.installPackage(PickedFile("ClaudeBot-${available.versionName}.apk", "application/vnd.android.package-archive", bytes)) { accepted.complete(it) }
+                if (accepted.await() && version == connectionVersion) update { it.copy(update = null) }
+            } catch (failure: Exception) {
+                if (version == connectionVersion) update { it.copy(updateError = "update.failed") }
+            } finally {
+                if (version == connectionVersion) update { it.copy(updateInstalling = false) }
+            }
+        }
+    }
     fun close() { platform.cancelRecording(); scope.cancel(); api?.close() }
 
     private fun <T> MutableList<T>.replaceAllInPlace(transform: (T) -> T) {

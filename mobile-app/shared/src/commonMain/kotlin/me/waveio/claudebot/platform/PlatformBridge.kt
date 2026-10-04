@@ -55,6 +55,10 @@ interface PlatformBridge {
     fun shareText(value: String)
     /** Open an explicitly rendered HTTPS link without attaching app credentials. */
     fun openExternalUrl(url: String) {}
+    /** Hand a verified native package to the platform installer/store flow. */
+    fun installPackage(file: PickedFile, onResult: (Boolean) -> Unit) { onResult(false) }
+    /** Platform implementations may provide a cryptographic digest for downloads. */
+    fun sha256(bytes: ByteArray): String? = null
     fun requestNotifications(onResult: (Boolean) -> Unit)
     fun notifyReply(title: String, body: String, conversationId: String)
     fun nowMillis(): Long

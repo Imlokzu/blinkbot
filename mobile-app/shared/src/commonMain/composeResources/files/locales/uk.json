@@ -263,6 +263,12 @@
   "update.changelog": "Що змінилося",
   "update.noChanges": "Невеликі покращення та виправлення.",
   "update.close": "Пізніше",
+  "update.install": "Встановити оновлення",
+  "update.downloading": "Завантажуємо…",
+  "update.failed": "Не вдалося встановити оновлення. Спробуй ще раз.",
+  "update.unavailable": "Для цієї платформи оновлення не налаштоване.",
+  "update.empty": "Пакет оновлення порожній.",
+  "update.checksum": "Перевірка пакета оновлення не пройшла.",
   "media.photo": "Зображення",
   "media.imageLoading": "Завантажуємо зображення…",
   "media.imageFailed": "Не вдалося завантажити зображення."

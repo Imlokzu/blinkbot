@@ -63,6 +63,7 @@ interface AppActions {
     fun disconnect()
     fun dismissNotice()
     fun dismissUpdate()
+    fun installUpdate()
     fun offlineDelivery(allow: Boolean)
     fun refresh()
 }

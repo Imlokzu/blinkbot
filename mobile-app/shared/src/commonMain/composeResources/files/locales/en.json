@@ -263,6 +263,12 @@
   "update.changelog": "What changed",
   "update.noChanges": "Small improvements and fixes.",
   "update.close": "Later",
+  "update.install": "Install update",
+  "update.downloading": "Downloading…",
+  "update.failed": "The update could not be installed. Try again.",
+  "update.unavailable": "This update is not configured for this platform.",
+  "update.empty": "The update package was empty.",
+  "update.checksum": "The update package failed verification.",
   "media.photo": "Image",
   "media.imageLoading": "Loading image…",
   "media.imageFailed": "Could not load this image."

@@ -34,6 +34,7 @@ data class MobileUpdate(
     val versionCode: Int,
     val changelog: List<String> = emptyList(),
     val url: String? = null,
+    val iosUrl: String? = null,
     val sha256: String? = null,
     val mandatory: Boolean = false,
 )
@@ -100,6 +101,8 @@ data class AppState(
     val notice: String? = null,
     val noticeDetail: String? = null,
     val update: MobileUpdate? = null,
+    val updateInstalling: Boolean = false,
+    val updateError: String? = null,
     val conversations: List<ConversationRow> = emptyList(),
     val sessionId: String = "",
     val messages: List<MessageRow> = emptyList(),

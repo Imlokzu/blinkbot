@@ -25,6 +25,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import java.io.File
+import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
@@ -456,6 +457,33 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
     override fun openExternalUrl(url: String) {
         if (!url.startsWith("https://", ignoreCase = true) || destroyed) return
         runCatching { activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    }
+
+    override fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256")
+        .digest(bytes).joinToString("") { "%02x".format(it) }
+
+    override fun installPackage(file: PickedFile, onResult: (Boolean) -> Unit) {
+        if (destroyed || !file.name.endsWith(".apk", true) || file.bytes.isEmpty() || file.bytes.size > 20 * 1024 * 1024) {
+            onResult(false); return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
+            runCatching {
+                activity.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")))
+            }
+            onResult(false); return
+        }
+        val stored = runCatching { NativeFileTransfers.prepareShare(context.cacheDir, file) }.getOrNull()
+        if (stored == null) { onResult(false); return }
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.native-files", stored,
+            NativeFileTransfers.safeName(file.name))
+        runCatching {
+                activity.startActivity(Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                clipData = ClipData.newRawUri("", uri)
+            })
+            onResult(true)
+        }.onFailure { stored.parentFile?.deleteRecursively(); onResult(false) }
     }
 
     override fun requestNotifications(onResult: (Boolean) -> Unit) {

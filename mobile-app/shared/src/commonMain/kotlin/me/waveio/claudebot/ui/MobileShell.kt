@@ -105,6 +105,15 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
                 update.changelog.forEach { item -> Text("• $item", color = palette.muted, fontSize = 13.sp, modifier = Modifier.padding(vertical = 3.dp)) }
                 if (update.changelog.isEmpty()) Text(tr("update.noChanges"), color = palette.muted, fontSize = 13.sp)
             }
+            if (state.updateError != null) Text(tr(state.updateError), color = MaterialTheme.colorScheme.error, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+            ActionButton(
+                tr(if (state.updateInstalling) "update.downloading" else "update.install"),
+                actions::installUpdate,
+                Modifier.fillMaxWidth(),
+                primary = true,
+                enabled = !state.updateInstalling,
+                icon = if (state.updateInstalling) "time" else "download",
+            )
             if (!update.mandatory) QuietAction(tr("update.close"), actions::dismissUpdate, Modifier.fillMaxWidth())
         } }
     }

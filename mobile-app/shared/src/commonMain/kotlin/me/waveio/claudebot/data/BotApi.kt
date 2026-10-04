@@ -167,9 +167,8 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
         }
     }
 
-    private suspend fun boundedBytes(response: HttpResponse): ByteArray {
+    private suspend fun boundedBytes(response: HttpResponse, limit: Int = 20 * 1024 * 1024): ByteArray {
         checkResponse(response)
-        val limit = 20 * 1024 * 1024
         if ((response.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: 0) > limit) throw ApiFailure(413, "workspace_file_too_large")
         val channel = response.bodyAsChannel()
         val chunks = mutableListOf<ByteArray>()
@@ -219,6 +218,19 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
 
     suspend fun capabilities(platform: String = "android", versionCode: Int = 0): JsonObject =
         get("mobile", "capabilities", query = mapOf("platform" to platform, "version_code" to versionCode.toString()))
+
+    /** Download an operator-published package from this same API origin. */
+    suspend fun downloadUpdate(url: String): ByteArray = guarded {
+        val requested = runCatching { Url(url) }.getOrNull() ?: throw ApiFailure(0, "invalid_update_url")
+        if (requested.protocol != originUrl.protocol || !requested.host.equals(originUrl.host, true) || requested.port != originUrl.port || requested.user != null || requested.password != null) {
+            throw ApiFailure(0, "invalid_update_url")
+        }
+        transport.prepareRequest {
+            method = HttpMethod.Get
+            this.url.takeFrom(requested)
+            attributes.put(Authenticated, true)
+        }.execute { boundedBytes(it, 100 * 1024 * 1024) }
+    }
 
     suspend fun fetchMobileSkills(): List<MobileSkill> = get<SkillCatalog>("mobile", "skills").skills
 
