@@ -67,7 +67,7 @@ fun BotDialog(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit
         var entered by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { entered = true }
         val progress by animateFloatAsState(if (entered) 1f else 0f, tween(if (LocalReducedMotion.current) 0 else 190), label = "dialog")
-        Column(Modifier.padding(22.dp).widthIn(max = 480.dp).fillMaxWidth().graphicsLayer { alpha = progress; scaleX = .97f + progress * .03f; scaleY = scaleX }.clip(RoundedCornerShape(26.dp)).background(p.surface).border(1.dp, p.line, RoundedCornerShape(26.dp)).padding(20.dp), content = content)
+        Column(Modifier.padding(16.dp).widthIn(max = 480.dp).fillMaxWidth().graphicsLayer { alpha = progress; scaleX = .97f + progress * .03f; scaleY = scaleX }.clip(RoundedCornerShape(26.dp)).background(p.surface).border(1.dp, p.line, RoundedCornerShape(26.dp)).padding(16.dp), content = content)
     }
 }
 

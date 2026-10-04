@@ -30,15 +30,22 @@ fun ModelPicker(state: AppState, actions: AppActions) {
     var effortPage by remember(state.modelPickerOpen) { mutableStateOf(false) }
     val palette = LocalPalette.current
     val density = LocalDensity.current
-    val inset = WindowInsets.safeDrawing.getTop(density) + with(density) { 60.dp.roundToPx() }
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
-    val windowHeight = LocalWindowInfo.current.containerSize.height
+    val windowSize = LocalWindowInfo.current.containerSize
+    val windowHeight = windowSize.height
+    val landscape = windowSize.width > windowSize.height
     val keyboardHeight = WindowInsets.ime.getBottom(density)
-    val availableHeight = with(density) { (windowHeight - inset - keyboardHeight).toDp() - 14.dp }.coerceAtLeast(160.dp)
+    val safeTop = WindowInsets.safeDrawing.getTop(density)
+    val safeBottom = maxOf(keyboardHeight, WindowInsets.safeDrawing.getBottom(density))
+    // On short windows the keyboard leaves too little room below the header.
+    // Lift the panel within the safe area and let its choices share one scroller.
+    val compact = with(density) { (windowHeight - safeTop - safeBottom).toDp() < 400.dp }
+    val inset = safeTop + with(density) { (if (compact) 8.dp else 60.dp).roundToPx() }
+    val availableHeight = with(density) { (windowHeight - inset - safeBottom).toDp() - 14.dp }.coerceAtLeast(0.dp)
     val selected = state.models.firstOrNull { it.id == state.selectedModel }
-    MotionPopup(state.modelPickerOpen, { actions.modelPicker(false) }, Modifier.padding(horizontal = 16.dp).widthIn(max = 440.dp).fillMaxWidth().heightIn(max = availableHeight), offset = IntOffset(0, inset)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    MotionPopup(state.modelPickerOpen, { actions.modelPicker(false) }, Modifier.padding(horizontal = 16.dp).widthIn(max = if (landscape) 600.dp else 440.dp).fillMaxWidth().heightIn(max = availableHeight), offset = IntOffset(0, inset)) {
+        if (!landscape || effortPage) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (effortPage) IconAction("back", tr("nav.back"), { effortPage = false })
             Text(tr(if (effortPage) "model.effort" else "model.title"), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.ink, modifier = Modifier.weight(1f).padding(start = if (effortPage) 0.dp else 10.dp))
             IconAction("close", tr("action.close"), { actions.modelPicker(false) })
@@ -48,7 +55,7 @@ fun ModelPicker(state: AppState, actions: AppActions) {
             if (effortsVisible) Column(Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(12.dp, 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     BrandMark(selected?.brand.orEmpty(), Modifier.size(22.dp)); Spacer(Modifier.width(10.dp))
-                    Text(selected?.label ?: state.selectedModel, color = palette.muted, fontSize = 13.sp)
+                    Text(selected?.label ?: state.selectedModel, color = palette.muted, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 }
                 val efforts = selected?.efforts.orEmpty().ifEmpty { listOf("none") }
                 Column(Modifier.weight(1f, fill = false).heightIn(max = 350.dp).verticalScroll(rememberScrollState()).selectableGroup()) {
@@ -68,33 +75,50 @@ fun ModelPicker(state: AppState, actions: AppActions) {
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-                if (state.modelsLoading) LoadingDots(Modifier.padding(14.dp))
                 ActionButton(tr("action.done"), { actions.modelPicker(false) }, Modifier.fillMaxWidth(), primary = true)
-            } else Column(Modifier.fillMaxWidth()) {
-                BotField(query, { query = it }, placeholder = tr("model.search"), icon = "search")
-                Spacer(Modifier.height(10.dp))
-                val filtered = state.models.filter { it.label.contains(query, true) || it.provider.contains(query, true) }
-                LazyColumn(Modifier.weight(1f, fill = false).heightIn(max = 310.dp).selectableGroup()) {
-                    items(filtered, key = { it.id }) { model ->
-                        val picked = model.id == state.selectedModel
-                        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(16.dp)).background(if (picked) palette.secondary else palette.surface)
-                            .semantics { this.selected = picked }.clickable(enabled = model.available, role = Role.RadioButton) { actions.selectModel(model.id); focus.clearFocus(); keyboard?.hide(); effortPage = true }
-                            .padding(12.dp, 13.dp), verticalAlignment = Alignment.CenterVertically) {
-                            BrandMark(model.brand, Modifier.size(24.dp)); Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(model.label, color = if (model.available) palette.ink else palette.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Text(if (model.available) model.provider else tr("model.unavailable"), color = palette.muted, fontSize = 11.sp)
+            } else {
+                val choices: @Composable (Modifier) -> Unit = { modifier ->
+                    val filtered = state.models.filter { it.label.contains(query, true) || it.provider.contains(query, true) }
+                    LazyColumn(modifier.heightIn(max = 400.dp).selectableGroup()) {
+                        if (state.modelsLoading) item {
+                            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                LoadingDots(); Spacer(Modifier.width(10.dp))
+                                Text(tr("model.loading"), color = palette.muted, fontSize = 13.sp)
                             }
-                            if (picked) Glyph("check", modifier = Modifier.size(17.dp), tint = palette.accent)
+                        }
+                        items(filtered, key = { it.id }) { model ->
+                            val picked = model.id == state.selectedModel
+                            Row(Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(16.dp)).background(if (picked) palette.secondary else palette.surface)
+                                .semantics { this.selected = picked }.clickable(enabled = model.available, role = Role.RadioButton) { actions.selectModel(model.id); focus.clearFocus(); keyboard?.hide(); effortPage = true }
+                                .padding(12.dp, 13.dp), verticalAlignment = Alignment.CenterVertically) {
+                                BrandMark(model.brand, Modifier.size(24.dp)); Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(model.label, color = if (model.available) palette.ink else palette.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(if (model.available) model.provider else tr("model.unavailable"), color = palette.muted, fontSize = 11.sp)
+                                }
+                                if (picked) Glyph("check", modifier = Modifier.size(17.dp), tint = palette.accent)
+                            }
+                        }
+                        if (filtered.isEmpty() && !state.modelsLoading) item { Text(tr("model.empty"), color = palette.muted, modifier = Modifier.padding(16.dp)) }
+                        item {
+                            Hairline(Modifier.padding(top = 9.dp, bottom = 4.dp))
+                            MenuRow("effort", tr("model.effort"), { focus.clearFocus(); keyboard?.hide(); effortPage = true }, tr("model.${state.effort}"), enabled = selected != null, trailing = {
+                                Glyph("down", modifier = Modifier.size(13.dp), tint = palette.muted)
+                            })
                         }
                     }
-                    if (filtered.isEmpty() && !state.modelsLoading) item { Text(tr("model.empty"), color = palette.muted, modifier = Modifier.padding(16.dp)) }
                 }
-                Hairline(Modifier.padding(top = 9.dp, bottom = 4.dp))
-                MenuRow("effort", tr("model.effort"), { focus.clearFocus(); keyboard?.hide(); effortPage = true }, selected?.label, trailing = {
-                    Text(tr("model.${state.effort}"), color = palette.accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.width(8.dp)); Glyph("down", modifier = Modifier.size(13.dp), tint = palette.muted)
-                })
+                // Keep the search field in the same composition while the IME
+                // animates. Landscape uses the available width for two columns.
+                if (landscape) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                    BotField(query, { query = it }, Modifier.weight(.45f), placeholder = tr("model.search"), icon = "search")
+                    choices(Modifier.weight(.55f))
+                    IconAction("close", tr("action.close"), { actions.modelPicker(false) })
+                } else Column(Modifier.fillMaxWidth()) {
+                    BotField(query, { query = it }, placeholder = tr("model.search"), icon = "search")
+                    Spacer(Modifier.height(10.dp))
+                    choices(Modifier.weight(1f, fill = false))
+                }
             }
         }
     }

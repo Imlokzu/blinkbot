@@ -18,6 +18,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
@@ -29,6 +30,8 @@ import me.waveio.claudebot.state.*
 @Composable
 fun Composer(state: AppState, actions: AppActions) {
     val p = LocalPalette.current
+    val window = LocalWindowInfo.current.containerSize
+    val landscape = window.width > window.height
     val keyboard = LocalSoftwareKeyboardController.current
     val popupRise = with(LocalDensity.current) { (-58).dp.roundToPx() }
     val sendLabel = tr("chat.send")
@@ -36,14 +39,14 @@ fun Composer(state: AppState, actions: AppActions) {
     val amplitude = animateFloatAsState(if (state.recording) state.amplitude.coerceIn(0f, 1f) else 0f, tween(if (LocalReducedMotion.current) 0 else 80), label = "voiceAmplitude")
     val corners = RoundedCornerShape(25.dp)
     val shownDraft = if (dictating) listOf(state.draft, state.transcript).filter { it.isNotBlank() }.joinToString(" ") else state.draft
-    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth().drawBehind {
+    Column(Modifier.padding(horizontal = 12.dp, vertical = if (landscape) 0.dp else 8.dp).fillMaxWidth().drawBehind {
         if (dictating) {
             val brush = Brush.linearGradient(listOf(p.accent.copy(alpha = .65f), Color(0xFFDAB397), Color(0xFFC4826A)), start = Offset(0f, size.height * amplitude.value), end = Offset(size.width, size.height * (1f - amplitude.value)))
             val radius = CornerRadius(25.dp.toPx())
             drawRoundRect(brush, cornerRadius = radius, style = Stroke((4f + amplitude.value * 4f).dp.toPx()), alpha = .045f + amplitude.value * .08f)
             drawRoundRect(brush, cornerRadius = radius, style = Stroke((1f + amplitude.value * 1.5f).dp.toPx()), alpha = .4f + amplitude.value * .4f)
         }
-    }.clip(corners).background(p.surface).border(1.dp, if (dictating) p.accent.copy(alpha = .65f) else p.line, corners).padding(8.dp)) {
+    }.clip(corners).background(p.surface).border(1.dp, if (dictating) p.accent.copy(alpha = .65f) else p.line, corners).padding(if (landscape) 0.dp else 8.dp)) {
         if (state.editingMessageId != null) Row(verticalAlignment = Alignment.CenterVertically) {
             Text(tr("chat.edit"), color = p.muted, fontSize = 12.sp, modifier = Modifier.weight(1f).padding(start = 10.dp))
             IconAction("close", tr("input.cancel"), actions::cancelEdit)
@@ -57,10 +60,12 @@ fun Composer(state: AppState, actions: AppActions) {
                 }
             }
         }
-        BasicTextField(shownDraft, actions::draft, Modifier.fillMaxWidth().heightIn(min = if (dictating) 78.dp else 48.dp, max = 190.dp).padding(11.dp, 11.dp),
+        val input: @Composable (Modifier) -> Unit = { modifier ->
+        BasicTextField(shownDraft, actions::draft, modifier.heightIn(min = if (dictating && !landscape) 78.dp else 48.dp, max = if (landscape) 96.dp else 190.dp).padding(11.dp, 11.dp),
             readOnly = dictating, textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.ink, fontSize = 16.sp), cursorBrush = SolidColor(p.accent),
             decorationBox = { field -> Box { if (shownDraft.isEmpty()) Text(tr(if (dictating) "input.dictationHelp" else "chat.placeholder"), color = p.muted, fontSize = 15.sp, lineHeight = 22.sp); field() } })
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        }
+        val controls: @Composable RowScope.() -> Unit = {
             if (dictating) {
                 IconAction("close", tr("input.cancel"), actions::cancelDictation)
                 VoiceBars(amplitude, state.recording)
@@ -74,7 +79,7 @@ fun Composer(state: AppState, actions: AppActions) {
                     AttachmentMenu(state, actions)
                 }
                 if (state.uploading) LoadingDots(Modifier.padding(horizontal = 6.dp))
-                Spacer(Modifier.weight(1f))
+                if (!landscape) Spacer(Modifier.weight(1f))
                 IconAction("mic", tr("input.microphone"), { keyboard?.hide(); actions.startDictation() })
                 if (state.draft.isNotBlank() || state.attachments.isNotEmpty() || !state.busy) Box {
                     val enabled = !state.uploading && (state.draft.isNotBlank() || state.attachments.isNotEmpty())
@@ -91,6 +96,13 @@ fun Composer(state: AppState, actions: AppActions) {
                 }
                 if (state.busy) RoundComposerAction("stop", tr("chat.stop"), actions::stop)
             }
+        }
+        if (landscape) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            input(Modifier.weight(1f))
+            controls()
+        } else {
+            input(Modifier.fillMaxWidth())
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, content = controls)
         }
     }
 }
@@ -140,19 +152,21 @@ private fun AttachmentMenu(state: AppState, actions: AppActions) {
     val p = LocalPalette.current
     val popupRise = with(LocalDensity.current) { (-58).dp.roundToPx() }
     MotionPopup(state.attachmentPickerOpen, { actions.attachments(false) }, Modifier.widthIn(max = 380.dp).fillMaxWidth().padding(horizontal = 4.dp), Alignment.BottomStart, IntOffset(0, popupRise)) {
-        Text(tr("input.attach"), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = p.ink, modifier = Modifier.padding(10.dp, 10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("camera" to "camera", "photo" to "photo", "document" to "file").forEach { (kind, icon) ->
-                Column(Modifier.weight(1f).heightIn(min = 88.dp).clip(RoundedCornerShape(17.dp)).background(p.secondary).clickable(role = Role.Button) { actions.attachments(false); actions.pickFile(kind) }
-                    .padding(vertical = 15.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Glyph(icon, modifier = Modifier.size(26.dp))
-                    Text(tr("input.$kind"), color = p.ink, fontSize = 12.sp, maxLines = 1)
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            Text(tr("input.attach"), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = p.ink, modifier = Modifier.padding(10.dp, 10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("camera" to "camera", "photo" to "photo", "document" to "file").forEach { (kind, icon) ->
+                    Column(Modifier.weight(1f).heightIn(min = 88.dp).clip(RoundedCornerShape(17.dp)).background(p.secondary).clickable(role = Role.Button) { actions.attachments(false); actions.pickFile(kind) }
+                        .padding(vertical = 15.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Glyph(icon, modifier = Modifier.size(26.dp))
+                        Text(tr("input.$kind"), color = p.ink, fontSize = 12.sp, maxLines = 1)
+                    }
                 }
             }
+            Hairline(Modifier.padding(vertical = 10.dp))
+            MenuRow("skills", tr("input.skills"), { actions.attachments(false); actions.navigate(Screen.Skills) })
+            MenuRow("folder", tr("files.root"), { actions.attachments(false); actions.navigate(Screen.Files) })
+            MenuRow("calendar", tr("queue.later"), { actions.attachments(false); actions.schedule(true) }, enabled = state.draft.isNotBlank() || state.attachments.isNotEmpty())
         }
-        Hairline(Modifier.padding(vertical = 10.dp))
-        MenuRow("skills", tr("input.skills"), { actions.attachments(false); actions.navigate(Screen.Skills) })
-        MenuRow("folder", tr("files.root"), { actions.attachments(false); actions.navigate(Screen.Files) })
-        MenuRow("calendar", tr("queue.later"), { actions.attachments(false); actions.schedule(true) }, enabled = state.draft.isNotBlank() || state.attachments.isNotEmpty())
     }
 }

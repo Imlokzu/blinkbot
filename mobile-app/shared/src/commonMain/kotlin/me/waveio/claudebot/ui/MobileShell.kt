@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -100,23 +101,26 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
 @Composable
 private fun ConnectionScreen(state: AppState, actions: AppActions) {
     val p = LocalPalette.current
-    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        BotMark(Modifier.size(76.dp))
-        Spacer(Modifier.height(22.dp))
-        Text(tr("connect.title"), fontSize = 30.sp, lineHeight = 35.sp, fontWeight = FontWeight.Medium, color = p.ink)
-        Spacer(Modifier.height(16.dp))
-        Text(tr("connect.body"), color = p.muted, lineHeight = 23.sp)
-        Spacer(Modifier.height(30.dp))
-        ActionButton(tr(if (state.connecting) "connect.connecting" else "connect.scan"), actions::connect, Modifier.fillMaxWidth().height(54.dp), primary = true, enabled = !state.connecting, icon = "phone")
-        Spacer(Modifier.height(16.dp))
-        Text(state.baseUrl.removePrefix("https://"), color = p.muted, fontSize = 12.sp)
+    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight).padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            BotMark(Modifier.size(76.dp))
+            Spacer(Modifier.height(22.dp))
+            Text(tr("connect.title"), fontSize = 30.sp, lineHeight = 35.sp, fontWeight = FontWeight.Medium, color = p.ink)
+            Spacer(Modifier.height(16.dp))
+            Text(tr("connect.body"), color = p.muted, lineHeight = 23.sp)
+            Spacer(Modifier.height(30.dp))
+            ActionButton(tr(if (state.connecting) "connect.connecting" else "connect.scan"), actions::connect, Modifier.fillMaxWidth().heightIn(min = 54.dp), primary = true, enabled = !state.connecting, icon = "phone")
+            Spacer(Modifier.height(16.dp))
+            Text(state.baseUrl.removePrefix("https://"), color = p.muted, fontSize = 12.sp)
+        }
     }
 }
 
 @Composable
 private fun TopBar(state: AppState, actions: AppActions) {
     val p = LocalPalette.current
-    Row(Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+    val window = LocalWindowInfo.current.containerSize
+    Row(Modifier.fillMaxWidth().height(if (window.width > window.height) 48.dp else 58.dp).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         if (state.openFile != null) IconAction("back", tr("nav.back"), actions::closeFile)
         else if (state.screen !in listOf(Screen.Chat, Screen.Files, Screen.Agents, Screen.Search, Screen.Profile)) IconAction("back", tr("nav.back"), { actions.navigate(if (state.screen == Screen.Skills) Screen.Chat else Screen.Profile) })
         else IconAction("menu", tr("nav.menu"), { actions.menu(true) })

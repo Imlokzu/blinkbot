@@ -86,7 +86,10 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
                 Text(tr("appearance.theme"), color = p.ink)
                 Choices(listOf("system" to "profile.system", "light" to "appearance.light", "dark" to "appearance.dark"), preferences.theme) { actions.preferences(preferences.copy(theme = it)) }
                 ToggleRow("appearance.wallpaper", preferences.wallpaper) { actions.preferences(preferences.copy(wallpaper = it)) }
-                Row { ActionButton(tr("appearance.change"), { actions.pickFile("wallpaper") }, icon = "photo"); Spacer(Modifier.width(8.dp)); QuietAction(tr("appearance.reset"), actions::resetWallpaper) }
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ActionButton(tr("appearance.change"), { actions.pickFile("wallpaper") }, icon = "photo")
+                    QuietAction(tr("appearance.reset"), actions::resetWallpaper)
+                }
                 ToggleRow("appearance.full", preferences.fullWallpaper) { actions.preferences(preferences.copy(fullWallpaper = it)) }
                 BotSlider(tr("appearance.dim"), preferences.wallpaperDim, 0f..0.65f) { actions.preferences(preferences.copy(wallpaperDim = it)) }
                 BotSlider(tr("appearance.blur"), preferences.wallpaperBlur, 0f..48f) { actions.preferences(preferences.copy(wallpaperBlur = it)) }

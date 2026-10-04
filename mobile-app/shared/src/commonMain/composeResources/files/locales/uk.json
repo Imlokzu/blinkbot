@@ -162,6 +162,7 @@
   "appearance.everywhere": "Усюди",
   "calendar.previous": "Попередній місяць",
   "calendar.next": "Наступний місяць",
+  "calendar.weekdaysCompact": "Пн|Вт|Ср|Чт|Пт|Сб|Нд",
   "calendar.weekdays": "Пн|Вт|Ср|Чт|Пт|Сб|Нд",
   "calendar.decrease": "Зменшити: {field}",
   "calendar.increase": "Збільшити: {field}",

@@ -162,6 +162,7 @@
   "appearance.everywhere": "Everywhere",
   "calendar.previous": "Previous month",
   "calendar.next": "Next month",
+  "calendar.weekdaysCompact": "Mo|Tu|We|Th|Fr|Sa|Su",
   "calendar.weekdays": "Mon|Tue|Wed|Thu|Fri|Sat|Sun",
   "calendar.decrease": "Decrease {field}",
   "calendar.increase": "Increase {field}",
