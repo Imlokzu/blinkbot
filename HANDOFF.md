@@ -1952,3 +1952,13 @@ See docs/mobile-app/RELEASE-0.4.0.md for scope and test/build distinctions.
   build and the composer browser fixture. The isolated backend suite passed
   1,242 tests, 8 skipped and 178 subtests. Six idle/ready/Stop screenshots were
   inspected across desktop light and phone dark appearances.
+
+
+## Composer button release verification (2026-10-04)
+
+- Published the circular send/Stop and Solar paperclip composer controls.
+  The focused browser fixture passed against the compiled /dash release,
+  including one send, stop abort, empty draft and attachment keyboard focus.
+- All 296 release resources and seven endpoints passed smoke; both traversal
+  guards returned 400. Source and artifacts are pushed; existing owner drafts
+  and services remain separate from this UI change.
