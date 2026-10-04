@@ -19,7 +19,7 @@ const count = method => evaluate(`window.__mobile.requests.filter(request => req
 const held = method => evaluate(`window.__mobile.requests.findIndex(request => request.method === ${JSON.stringify(method)} && !request.done)`);
 const release = (index, response = {}) => evaluate(`window.__mobile.release(${index}, ${JSON.stringify(response)}); true`);
 const poll = () => evaluate('window.__mobile.poll(); true');
-const phone = { device_id: 'fixture-phone', device_name: 'Fixture phone', platform: 'android', revoked_at: null };
+const phone = { device_id: 'fixture-phone', device_name: 'Pixel 8 · Android 16', platform: 'android', created_at: 1760000000, expires_at: 1767772800, revoked_at: null };
 const fixtures = {
   '/api/auth/config': { disabled: true },
   '/api/setup': { configured: true, profile: { configured: true, name: 'Fixture', language: 'en', persona: 'friendly', persona_custom: '', greeting: '', reply_length: 'balanced', use_emoji: true, spontaneous: false }, languages: [], personas: [], reply_lengths: [], models: [], selected_model: '', keys_set: {} },
@@ -187,12 +187,16 @@ try {
     assert.ok(read >= 0 && deletion >= 0);
     poll(); poll();
     assert.equal(count('GET'), reads, 'slow polling cannot create overlapping device reads');
-    release(deletion); wait(`!${pane}.textContent.includes('Fixture phone')`);
+    release(deletion); wait(`!${pane}.textContent.includes(${JSON.stringify(phone.device_name)})`);
     release(read, { body: { devices: [phone] } }); flush();
-    assert.equal(evaluate(`${pane}.textContent.includes('Fixture phone')`), false, 'an older read cannot restore a revoked phone');
+    assert.equal(evaluate(`${pane}.textContent.includes(${JSON.stringify(phone.device_name)})`), false, 'an older read cannot restore a revoked phone');
   }
 
-  remount([phone]); plan('DELETE', { status: 404 }); click('revoke');
+  remount([phone]);
+  assert.equal(evaluate(`${pane}.textContent.includes(${JSON.stringify(mobileLocales.en.pairedViaQr)})`), true, 'device connection method is visible');
+  assert.equal(evaluate(`${pane}.textContent.includes(${JSON.stringify(mobileLocales.en.connectedAt)})`), true, 'device connection date is visible');
+  assert.equal(evaluate(`${pane}.textContent.includes(${JSON.stringify(mobileLocales.en.expiresAt)})`), true, 'device expiry is visible');
+  plan('DELETE', { status: 404 }); click('revoke');
   wait(`${pane}.querySelector('[role=alert]')?.textContent === ${JSON.stringify(mobileLocales.en.deviceMissing)}`);
   assert.deepEqual(alerts(), [mobileLocales.en.deviceMissing], 'a missing device does not tell users to update a working backend');
 
@@ -211,7 +215,7 @@ try {
   const lateRead = held('GET');
   navigate('profile'); navigate('devices');
   release(lateRead, { body: { devices: [phone] } }); flush();
-  assert.equal(evaluate(`${pane}.textContent.includes('Fixture phone')`), false, 'late polling cannot repopulate a new component');
+  assert.equal(evaluate(`${pane}.textContent.includes(${JSON.stringify(phone.device_name)})`), false, 'late polling cannot repopulate a new component');
   click('create'); wait(`Boolean(${qr})`);
   const finalUrl = evaluate(`${qr}.src`);
   navigate('profile');

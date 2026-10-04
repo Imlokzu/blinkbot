@@ -8,7 +8,21 @@ import { Input } from '@/components/ui/Field';
 import { mobileErrorKey, type MobileErrorKey } from './mobileConnectionErrors';
 
 interface Pairing { qr_svg: string; expires_at: number }
-interface Device { device_id: string; device_name: string; platform: string; revoked_at: number | null }
+interface Device {
+  device_id: string;
+  device_name: string;
+  platform: string;
+  created_at?: number | null;
+  expires_at?: number | null;
+  revoked_at: number | null;
+}
+
+function deviceDate(value: number | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value * 1000);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}
 
 export function MobileConnection() {
   useLanguage();
@@ -100,8 +114,16 @@ export function MobileConnection() {
       <h2 className="pt-2 text-[13px] font-medium text-ink">{t('devices')}</h2>
       {deviceError && <p role="alert" className="text-[13px] text-red-600">{t(deviceError)}</p>}
       {devicesLoading ? <p role="status" className="text-[12px] text-ink-3">{t('loadingDevices')}</p> : !deviceError && devices.length === 0 && <p className="text-[12px] text-ink-3">{t('empty')}</p>}
-      {devices.map(device => <div key={device.device_id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-2">
-        <span className="text-[13px] text-ink">{device.device_name}</span>
+      {devices.map(device => <div key={device.device_id} className="flex flex-wrap items-center justify-between gap-3 border-t border-line py-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <Smartphone className="mt-0.5 shrink-0 text-ink-2" size={18} aria-hidden="true" />
+          <div className="min-w-0">
+            <span className="block truncate text-[13px] text-ink">{device.device_name}</span>
+            <span className="block text-[11px] text-ink-3">{device.platform} · {t('pairedViaQr')}</span>
+            {deviceDate(device.created_at) && <span className="block text-[11px] text-ink-3">{t('connectedAt')}: {deviceDate(device.created_at)}</span>}
+            {deviceDate(device.expires_at) && <span className="block text-[11px] text-ink-3">{t('expiresAt')}: {deviceDate(device.expires_at)}</span>}
+          </div>
+        </div>
         <Button variant="ghost" disabled={busy} onClick={() => { void revoke(device.device_id); }}>{t('revoke')}</Button>
       </div>)}
     </div>
