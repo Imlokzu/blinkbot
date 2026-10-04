@@ -20,16 +20,18 @@ The client does not call model providers directly. Conversations, workspace,
 models and bot personalization come from the existing host and owner identity.
 Backend contract and deployment assumptions: [MOBILE-API.md](../Virtual%20Bot/docs/MOBILE-API.md).
 
-## Version 0.2.1
+## Version 0.3.0
 
 Custom model/effort picker, opaque bubbles, inline dictation with live transcript,
 large attachment tiles, a genuine installed-skills picker, and a drawer revealed
 beneath the foreground conversation. Real gateway snapshots stream before final
 completion. Waiting indicators, context menus and settings share the custom UI.
 
-The 0.2.1 refinement keeps controls reachable on compact screens and at 200%
-font scale: adaptive model search, scrolling attachment/pairing surfaces, readable
-calendar digits, wrapped wallpaper actions, and theme-aware Android system icons.
+The 0.3.0 follow-up fixes native live snapshots and image-model routing, adds
+persisted reactions and chat rename/delete actions, and keeps full Markdown table
+content readable. Custom menus preserve the keyboard, image attachments show
+previews, and the drawer supports swipes from inside the chat. Chats are grouped
+by local day. See [RELEASE-0.3.md](../docs/mobile-app/RELEASE-0.3.md).
 
 ## Implemented behavior
 
@@ -66,24 +68,24 @@ calendar digits, wrapped wallpaper actions, and theme-aware Android system icons
 ## Build and verify
 
 Requirements: JDK17, Android SDK36. Pins: Kotlin2.3.21, Compose1.10.3,
-AGP8.11.1, Gradle8.14.3; minimum Android26. Set `sdk.dir` in the ignored
+AGP8.13.2, Gradle8.14.3; minimum Android26. Set `sdk.dir` in the ignored
 `local.properties` if needed.
 
 ```sh
-./gradlew :androidApp:assembleDebug :shared:testDebugUnitTest :androidApp:testDebugUnitTest
+./gradlew :androidApp:assembleRelease :shared:testDebugUnitTest :androidApp:testDebugUnitTest
 ./gradlew :androidApp:assembleDebugAndroidTest
 # With an emulator/device attached:
 ./gradlew :androidApp:connectedDebugAndroidTest
 ```
 
-APK: `androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
+Distributed APK: `androidApp/build/outputs/apk/release/androidApp-release.apk`.
+The release is optimized with R8 and retains the earlier development signing identity.
 Apple build instructions: [iosApp/README.md](iosApp/README.md).
 
-Validation on 2026-10-04: 85 shared tests, 62 Android unit tests, and 31 UI
-scenario executions across four display/font configurations passed. The 13 UI
-scenarios use a deterministic host fixture and silent OS boundary. The previous
-0.2.0 baseline also passed 44 native instrumentation cases. Reproduction,
-screenshot coverage and limits: [UI-QA.md](../docs/mobile-app/UI-QA.md).
+Validation on 2026-10-04: 131 shared tests, 62 Android unit tests and 62 focused
+backend tests passed. The UI regression suite uses a non-debuggable benchmark
+variant and a deterministic host fixture; optimized release smoke verification
+is separate. Reproduction and exact scope: [RELEASE-0.3.md](../docs/mobile-app/RELEASE-0.3.md).
 
 Architecture: [ARCHITECTURE.md](../docs/mobile-app/ARCHITECTURE.md).
 Product decisions: [DESIGN.md](../docs/mobile-app/DESIGN.md).

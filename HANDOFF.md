@@ -1714,3 +1714,30 @@ incomplete and is not counted as passing by this UI follow-up.
 - Validation: 207 frontend tests, TypeScript, full Python suite (1,213 passed,
   6 skipped, 178 subtests) and dedicated search-icon browser checks in full and
   reduced motion. Existing model-effort and mobile-picker fixtures passed.
+
+## Mobile 0.3.0 streaming and interaction follow-up (2026-10-04)
+
+Fixed discarded ordinary native gateway assistant events, HTTP/snapshot echo
+ordering, inherited image routing and explicit capability errors. The actual
+upload path was accepting files; its model eligibility check caused the reported
+image failures. Added persisted human/bot reactions, image previews, day-grouped
+history, guarded rename/delete, full readable tables, keyboard-preserving custom
+menus, wider drawer gestures, blur/motion and measured-growth scroll following.
+Removed native press rectangles and chat overscroll stretching. Auto-follow now
+respects finger ownership, survives cancelled scrolls and rebinds per conversation.
+
+Verification: 131 shared tests, 62 Android unit tests, 62 focused backend tests,
+23 full phone UI scenarios and 18 adaptive viewport/font scenario executions,
+plus five QA-runner tests passed. Real loopback HTTP/WS fixtures prove output
+before completion and accepted image bytes; there were no paid provider calls.
+Benchmark UI verification is non-debuggable without R8; the separately built
+optimized release is installed and launch-tested. iOS remains runtime-unverified.
+See `docs/mobile-app/RELEASE-0.3.md` for commands and exact limits.
+
+The registered host was restarted only after confirming zero active mobile jobs.
+Tunnel configuration was unchanged. Public OkHttp-like requests receive the
+expected JSON authentication response. The configured image model is present,
+available and marked vision-capable in the live catalog. Android version code4 /
+version0.3.0 uses the previous signing identity. AGP is now8.13.2 for Kotlin2.3 R8
+compatibility; the release uses code/resource shrinking. No full-backend-suite
+pass is claimed; the prior interrupted broad run remains separate.
