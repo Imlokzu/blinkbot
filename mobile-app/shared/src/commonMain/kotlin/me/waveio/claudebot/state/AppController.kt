@@ -17,6 +17,15 @@ import me.waveio.claudebot.ui.LocaleText
 import me.waveio.claudebot.ui.decodeImage
 import me.waveio.claudebot.ui.thumbnailBytes
 
+private val SHA256_HEX = Regex("^[0-9a-f]{64}$")
+
+/** Updates are installable only when the server supplies a complete digest. */
+internal fun updateChecksumMatches(expected: String?, actual: String?): Boolean {
+    val expectedHex = expected?.trim()?.lowercase() ?: return false
+    val actualHex = actual?.trim()?.lowercase() ?: return false
+    return SHA256_HEX.matches(expectedHex) && actualHex == expectedHex
+}
+
 class AppController(private val platform: PlatformBridge, private val makeApi: (String, String) -> BotApi = { server, token -> BotApi(server, token) }, dispatcher: CoroutineDispatcher = Dispatchers.Main, private val makeThumbnail: (ByteArray) -> ByteArray? = { thumbnailBytes(it) }) : AppActions {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -1293,15 +1302,16 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             try {
                 val bytes = connection.downloadUpdate(target)
                 if (bytes.isEmpty()) throw ApiFailure(0, "update.empty")
-                val expected = available.sha256?.lowercase()?.replace(Regex("[^0-9a-f]"), "")
-                if (!expected.isNullOrBlank()) {
-                    val actual = platform.sha256(bytes)?.lowercase()
-                    if (actual == null || actual != expected) throw ApiFailure(0, "update.checksum")
+                if (!updateChecksumMatches(available.sha256, platform.sha256(bytes))) {
+                    throw ApiFailure(0, "update.checksum")
                 }
                 val accepted = CompletableDeferred<Boolean>()
                 platform.installPackage(PickedFile("ClaudeBot-${available.versionName}.apk", "application/vnd.android.package-archive", bytes)) { accepted.complete(it) }
                 if (accepted.await() && version == connectionVersion) update { it.copy(update = null) }
-            } catch (failure: Exception) {
+            } catch (failure: ApiFailure) {
+                val code = if (failure.code == "update.empty" || failure.code == "update.checksum") failure.code else "update.failed"
+                if (version == connectionVersion) update { it.copy(updateError = code) }
+            } catch (_: Exception) {
                 if (version == connectionVersion) update { it.copy(updateError = "update.failed") }
             } finally {
                 if (version == connectionVersion) update { it.copy(updateInstalling = false) }
