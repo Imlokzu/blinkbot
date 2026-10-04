@@ -1597,6 +1597,38 @@ Operational details and verification boundaries: `docs/mobile-app/TUNNEL.md`.
   traversal returned 400. Temporary preview/smoke processes were stopped.
   Source and generated release are pushed; owner drafts/staging remain intact.
 
+## 2026-10-03 — Workspace editor draft safety
+
+- Files panel refreshes now preserve dirty drafts and show a localized external-change notice when the server version changes. Delayed saves only clear dirty state when the selected path and current text still match the submitted snapshot; A→B→A switching remains visibly dirty. Reload is disabled while saving, and successful saves cancel stale reads and update the file cache.
+- Validation: 5 focused file-draft tests, 206 dashboard tests, TypeScript, isolated Vite build, and `VBOT_OFFLINE=1` Python suite (1,129 passed, 7 skipped, 178 subtests). Independent adversarial review approved the fix. Details: `reports/night-agent-files-editor-2026-10-03.md`.
+
+
+## Verified file-drop release (2026-10-03)
+
+- Published source 7bb73b0 through the guarded publisher. The complete
+  file-drop fixture passed against /dash/ on actual port 8100, including
+  multipart bytes, previews, validation feedback, cap, ordering, cancellation,
+  concurrent rejection and late-upload session isolation. All writes were mocks.
+- Status, screen, dashboard and referenced assets returned 200; memory
+  traversal returned 400. Temporary preview/smoke processes were stopped.
+  Source and generated release are pushed; owner drafts/staging remain intact.
+
+## 2026-10-03 — Benchmark index parser hardening
+
+- Model-picker benchmark leaders and scores are now bounded to their documented 0–1 range before percentages or comparisons are rendered. The parser keeps malformed non-finite values unknown.
+- Validation: 10 intelligence tests, 207 dashboard tests and TypeScript passed; an independent adversarial review approved the fix. Details: `reports/night-agent-model-intelligence-2026-10-03.md`.
+
+
+## Verified file-drop release (2026-10-03)
+
+- Published source 7bb73b0 through the guarded publisher. The complete
+  file-drop fixture passed against /dash/ on actual port 8100, including
+  multipart bytes, previews, validation feedback, cap, ordering, cancellation,
+  concurrent rejection and late-upload session isolation. All writes were mocks.
+- Status, screen, dashboard and referenced assets returned 200; memory
+  traversal returned 400. Temporary preview/smoke processes were stopped.
+  Source and generated release are pushed; owner drafts/staging remain intact.
+
 ## Mobile 0.2.0 custom UI and live replies (2026-10-04)
 
 Replaced the visible stock controls with custom model/effort panels, opaque
@@ -1669,6 +1701,19 @@ incomplete and is not counted as passing by this UI follow-up.
 - Validation: 207 dashboard tests, TypeScript, whitespace checks and the new
   browser fixture passed. The focused change is limited to the shared table
   presentation CSS and its browser regression fixture.
+
+
+## Model-picker search affordance (2026-10-04)
+
+- The model picker search icon now uses the selected accent with a soft halo,
+  small spring lift/scale and an icon tilt. Active, hover and keyboard focus
+  share the accent treatment; reduced motion removes transforms and transitions.
+- Search hover keeps a short close grace period so the heading reflow cannot
+  collapse the field under the pointer. Existing click, keyboard and touch
+  search behavior is unchanged.
+- Validation: 207 frontend tests, TypeScript, full Python suite (1,213 passed,
+  6 skipped, 178 subtests) and dedicated search-icon browser checks in full and
+  reduced motion. Existing model-effort and mobile-picker fixtures passed.
 
 ## Mobile 0.3.0 streaming and interaction follow-up (2026-10-04)
 
