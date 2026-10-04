@@ -2024,3 +2024,12 @@ with no crash entries. iOS source changes remain uncompiled on this Mac.
   phases, then verifies sharp settled text, source links, reduced motion,
   accessibility and responsive 1440/390/320px layouts. Dashboard typecheck,
   215 unit tests, activity browser coverage and disclosure-motion coverage pass.
+
+## Activity branch motion release verification (2026-10-04)
+
+- Rebuilt and published the dashboard after the activity branch motion change;
+  the live build metadata points to the current source revision.
+- Activity browser and disclosure-motion coverage passed against the source
+  tree and the compiled dashboard, with typecheck and all 215 dashboard unit
+  tests passing. The release contains 296 verified dashboard resources and
+  retains the existing wallpaper precache and publication lock guarantees.
