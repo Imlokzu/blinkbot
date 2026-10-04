@@ -10,6 +10,7 @@ import me.waveio.claudebot.data.PairingCode
 import platform.Foundation.NSData
 import platform.Foundation.NSDate
 import platform.Foundation.NSUUID
+import platform.Foundation.NSBundle
 import platform.Foundation.create
 import platform.Foundation.timeIntervalSince1970
 import platform.UIKit.UIDevice
@@ -44,6 +45,8 @@ interface IosNativeDelegate {
 class IosBridge(private val delegate: IosNativeDelegate) : PlatformBridge {
     override val platformName: String = "ios"
     override val deviceName: String = "${UIDevice.currentDevice.model} · iOS ${UIDevice.currentDevice.systemVersion}"
+    override val appVersionCode: Int get() = NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleVersion")?.toString()?.toIntOrNull() ?: 0
+    override val appVersionName: String get() = NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString")?.toString() ?: "0.0.0"
     private val active = MutableStateFlow(false)
     override val foreground: StateFlow<Boolean> = active.asStateFlow()
     private val pairing = MutableStateFlow<String?>(null)

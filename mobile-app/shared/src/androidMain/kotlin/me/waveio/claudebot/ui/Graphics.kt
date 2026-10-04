@@ -2,10 +2,13 @@ package me.waveio.claudebot.ui
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import java.io.ByteArrayOutputStream
+import java.io.ByteArrayInputStream
 
 private const val MAX_ENCODED_BYTES = 20 * 1024 * 1024
 private const val MAX_SOURCE_DIMENSION = 32_768
@@ -35,7 +38,8 @@ actual fun decodeImage(bytes: ByteArray, maxDimension: Int): ImageBitmap? {
             inScaled = false
             inPreferredConfig = Bitmap.Config.ARGB_8888
         }
-        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return null
+        val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return null
+        val bitmap = orient(decoded, bytes)
         if (bitmap.width > MAX_DECODED_DIMENSION || bitmap.height > MAX_DECODED_DIMENSION ||
             bitmap.width.toLong() * bitmap.height > MAX_DECODED_PIXELS ||
             bitmap.allocationByteCount.toLong() > MAX_DECODED_PIXELS * 4) {
@@ -44,6 +48,29 @@ actual fun decodeImage(bytes: ByteArray, maxDimension: Int): ImageBitmap? {
         }
         bitmap.asImageBitmap()
     }.getOrNull()
+}
+
+private fun orient(bitmap: Bitmap, bytes: ByteArray): Bitmap {
+    val orientation = runCatching {
+        ExifInterface(ByteArrayInputStream(bytes)).getAttributeInt(
+            ExifInterface.TAG_ORIENTATION,
+            ExifInterface.ORIENTATION_NORMAL,
+        )
+    }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+    val matrix = Matrix()
+    when (orientation) {
+        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.setScale(-1f, 1f)
+        ExifInterface.ORIENTATION_ROTATE_180 -> matrix.setRotate(180f)
+        ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.setScale(1f, -1f)
+        ExifInterface.ORIENTATION_TRANSPOSE -> { matrix.setRotate(90f); matrix.postScale(-1f, 1f) }
+        ExifInterface.ORIENTATION_ROTATE_90 -> matrix.setRotate(90f)
+        ExifInterface.ORIENTATION_TRANSVERSE -> { matrix.setRotate(-90f); matrix.postScale(-1f, 1f) }
+        ExifInterface.ORIENTATION_ROTATE_270 -> matrix.setRotate(-90f)
+        else -> return bitmap
+    }
+    val transformed = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+    if (transformed !== bitmap) bitmap.recycle()
+    return transformed
 }
 
 actual fun thumbnailBytes(bytes: ByteArray): ByteArray? = runCatching {

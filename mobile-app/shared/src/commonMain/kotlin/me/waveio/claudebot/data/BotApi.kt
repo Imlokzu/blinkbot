@@ -202,7 +202,8 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
         })
     }
 
-    suspend fun capabilities(): JsonObject = get("mobile", "capabilities")
+    suspend fun capabilities(platform: String = "android", versionCode: Int = 0): JsonObject =
+        get("mobile", "capabilities", query = mapOf("platform" to platform, "version_code" to versionCode.toString()))
 
     suspend fun fetchMobileSkills(): List<MobileSkill> = get<SkillCatalog>("mobile", "skills").skills
 

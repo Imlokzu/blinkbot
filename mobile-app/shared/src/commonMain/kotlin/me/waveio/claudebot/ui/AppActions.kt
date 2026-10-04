@@ -59,6 +59,7 @@ interface AppActions {
     fun saveProfile()
     fun disconnect()
     fun dismissNotice()
+    fun dismissUpdate()
     fun offlineDelivery(allow: Boolean)
     fun refresh()
 }

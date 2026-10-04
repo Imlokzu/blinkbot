@@ -82,7 +82,9 @@ internal fun AttachmentGallery(items: List<PreviewItem>, thumbnails: Map<String,
     }
     files.forEach { item ->
         Row(Modifier.widthIn(max = 340.dp).fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(p.secondary)
-            .testTag("file:${item.source}:${item.path}").clickable(role = Role.Button) { actions.preview(item) }
+            .testTag("file:${item.source}:${item.path}").clickable(role = Role.Button) {
+                if (item.source == "workspace") actions.openFile(item.path) else actions.preview(item)
+            }
             .padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Glyph("file", tint = p.accent, modifier = Modifier.size(25.dp))
             Column(Modifier.weight(1f)) {

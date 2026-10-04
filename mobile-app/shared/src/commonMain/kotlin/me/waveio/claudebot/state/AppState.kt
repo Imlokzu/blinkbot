@@ -29,6 +29,14 @@ data class Preferences(
 
 /** History timestamps are Unix seconds; unknown dates remain unknown. */
 data class ConversationRow(val id: String, val title: String, val updatedAt: Long? = null)
+data class MobileUpdate(
+    val versionName: String,
+    val versionCode: Int,
+    val changelog: List<String> = emptyList(),
+    val url: String? = null,
+    val sha256: String? = null,
+    val mandatory: Boolean = false,
+)
 data class ModelRow(val id: String, val label: String, val provider: String, val brand: String, val available: Boolean = true, val efforts: List<String> = emptyList(), val vision: Boolean? = null)
 data class ActivityRow(val id: String, val label: String, val detail: String = "", val status: String = "running", val input: JsonElement? = null, val result: JsonElement? = null)
 data class ContentPart(val type: String, val text: String = "", val stepIds: List<String> = emptyList(), val noteId: String? = null, val note: Boolean = false)
@@ -91,6 +99,7 @@ data class AppState(
     val error: String? = null,
     val notice: String? = null,
     val noticeDetail: String? = null,
+    val update: MobileUpdate? = null,
     val conversations: List<ConversationRow> = emptyList(),
     val sessionId: String = "",
     val messages: List<MessageRow> = emptyList(),

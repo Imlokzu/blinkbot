@@ -97,6 +97,16 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             ActionButton(tr("queue.allow"), { actions.offlineDelivery(true) }, Modifier.fillMaxWidth(), primary = true)
             QuietAction(tr("queue.keepDraft"), { actions.offlineDelivery(false) }, Modifier.fillMaxWidth())
         }
+        state.update?.let { update -> BotDialog({ if (!update.mandatory) actions.dismissUpdate() }) {
+            Text(tr("update.title"), fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = palette.ink)
+            Text(tr("update.available", "version" to update.versionName), color = palette.muted, modifier = Modifier.padding(top = 6.dp, bottom = 14.dp))
+            Text(tr("update.changelog"), color = palette.ink, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            Column(Modifier.padding(vertical = 10.dp).verticalScroll(rememberScrollState())) {
+                update.changelog.forEach { item -> Text("• $item", color = palette.muted, fontSize = 13.sp, modifier = Modifier.padding(vertical = 3.dp)) }
+                if (update.changelog.isEmpty()) Text(tr("update.noChanges"), color = palette.muted, fontSize = 13.sp)
+            }
+            if (!update.mandatory) QuietAction(tr("update.close"), actions::dismissUpdate, Modifier.fillMaxWidth())
+        } }
     }
     }
 }

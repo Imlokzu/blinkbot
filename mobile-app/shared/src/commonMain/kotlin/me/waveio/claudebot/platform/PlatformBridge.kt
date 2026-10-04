@@ -15,6 +15,8 @@ interface PlatformBridge {
     val platformName: String
     /** Human-readable model and OS label shown in the owner dashboard. */
     val deviceName: String get() = platformName
+    val appVersionCode: Int get() = 0
+    val appVersionName: String get() = "0.0.0"
     val systemLanguage: String
     val foreground: StateFlow<Boolean>
     val incomingPairing: StateFlow<String?>

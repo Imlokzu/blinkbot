@@ -256,5 +256,10 @@
   "files.previewTruncated": "Це скорочений перегляд. Збережи файл, щоб прочитати повністю.",
   "files.tooLarge": "Цей файл перевищує ліміт завантаження 20 МБ.",
   "files.invalidPath": "Цей файл поза робочою текою агента.",
-  "files.binaryUnavailable": "Для завантаження цього файлу онови сервер."
+  "files.binaryUnavailable": "Для завантаження цього файлу онови сервер.",
+  "update.title": "Доступне оновлення",
+  "update.available": "Готовий Claude Bot {version}.",
+  "update.changelog": "Що змінилося",
+  "update.noChanges": "Невеликі покращення та виправлення.",
+  "update.close": "Пізніше"
 }

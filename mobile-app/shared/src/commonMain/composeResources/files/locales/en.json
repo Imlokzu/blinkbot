@@ -256,5 +256,10 @@
   "files.previewTruncated": "This preview is shortened. Save the file to read it in full.",
   "files.tooLarge": "This file exceeds the 20 MB download limit.",
   "files.invalidPath": "This file is outside the agent workspace.",
-  "files.binaryUnavailable": "This file needs a newer host to download."
+  "files.binaryUnavailable": "This file needs a newer host to download.",
+  "update.title": "Update available",
+  "update.available": "Claude Bot {version} is ready.",
+  "update.changelog": "What changed",
+  "update.noChanges": "Small improvements and fixes.",
+  "update.close": "Later"
 }
