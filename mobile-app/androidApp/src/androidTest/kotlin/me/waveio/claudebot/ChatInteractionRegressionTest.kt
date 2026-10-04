@@ -81,7 +81,7 @@ class ChatInteractionRegressionTest {
             it.window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
         compose.setContent {
-            App(bridge) { platform ->
+            App(bridge, onSystemBarAppearance = compose.activity::systemBarAppearance) { platform ->
                 AppController(platform, makeApi = server::makeApi).also { controller = it }
             }
         }
@@ -93,6 +93,9 @@ class ChatInteractionRegressionTest {
 
     private fun openFixtureChat() {
         compose.onNodeWithContentDescription(strings.get("nav.menu")).performClick()
+        // A short landscape viewport initially shows only navigation. Exercise
+        // the real scrollable drawer to reach the saved conversation.
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText(server.todayTitle))
         waitForText(server.todayTitle)
         compose.onNodeWithText(server.todayTitle).performClick()
         compose.waitUntil(TIMEOUT) {
