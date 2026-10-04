@@ -1921,3 +1921,16 @@ See docs/mobile-app/RELEASE-0.4.0.md for scope and test/build distinctions.
   preserved raw APIs/ref behavior, and found/fixed the color-prop regression.
   Fable was unavailable; no Fable certification is claimed. Existing owner
   FilesPanel drafts and untracked integration source remain separate.
+
+
+## Global Solar release verification (2026-10-04)
+
+- Published the global Solar migration from the guarded isolated snapshot.
+  Broad route/Settings/editor checks passed on the compiled /dash build, with
+  2,027 Solar observations; source checks additionally covered explicit-color
+  rendering. The complete activity stroke/reveal regression passed live.
+- All 296 candidate resources and seven endpoints passed smoke. The Solar
+  attribution notice is served and precached; both traversal guards return
+  400. Source and compiled artifacts are pushed with owner attribution.
+- Owned source imports are committed as import-only deltas. Preexisting
+  FilesPanel, shared documentation and integration drafts remain intact.
