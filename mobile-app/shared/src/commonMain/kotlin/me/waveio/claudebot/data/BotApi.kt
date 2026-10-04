@@ -83,6 +83,7 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
                     .ifEmpty { listOf(message.content).filter { it.isNotEmpty() } },
                 steps = message.steps, attachments = message.attachments, model = message.model,
                 parts = message.parts, timestamp = message.ts,
+                reaction = message.reaction, reactions = message.reactions,
             )
         }
 
@@ -247,6 +248,20 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
         }).ok
     }
 
+    suspend fun renameSession(id: String, title: String): Boolean =
+        post<OkResponse>(listOf("sessions", checkedId(id), "rename"), buildJsonObject { put("title", title) }).ok
+
+    /** Bubble indices include narration text; a null emoji removes the user's reaction. */
+    suspend fun setReaction(sessionId: String, messageId: String, bubbleIndex: Int, emoji: String?): Map<String, String> {
+        if (bubbleIndex < 0 || messageId.isBlank() || messageId.length > 40) throw ApiFailure(0, "invalid_request")
+        val response = post<ReactionsResponse>(listOf("sessions", checkedId(sessionId), "reactions"), buildJsonObject {
+            put("message_id", messageId); put("bubble", bubbleIndex)
+            put("emoji", emoji?.let(::JsonPrimitive) ?: JsonNull)
+        })
+        if (!response.ok) throw ApiFailure(200, "invalid_response")
+        return response.reactions
+    }
+
     suspend fun pinSession(id: String, pinned: Boolean): Boolean =
         post<OkResponse>(listOf("sessions", checkedId(id), "pin"), buildJsonObject { put("pinned", pinned) }).ok
 
@@ -375,6 +390,7 @@ internal fun safeFailure(failure: Throwable): Throwable = when (failure) {
     val id: String? = null, val role: String, val content: String,
     val parts: List<ReplyPart> = emptyList(), val steps: List<ToolStep> = emptyList(),
     val attachments: List<Attachment> = emptyList(), val model: String? = null, val ts: Long? = null,
+    val reaction: String? = null, val reactions: Map<String, String> = emptyMap(),
 )
 @Serializable private data class WorkspaceListing(val entries: List<EntryResponse>)
 @Serializable private data class EntryResponse(val path: String, val name: String, val type: String, val size: Long? = null)
@@ -382,6 +398,7 @@ internal fun safeFailure(failure: Throwable): Throwable = when (failure) {
 @Serializable private data class ModelSelection(val selected: String)
 @Serializable private data class ThinkingSelection(val thinking: String)
 @Serializable private data class OkResponse(val ok: Boolean)
+@Serializable private data class ReactionsResponse(val ok: Boolean, val reactions: Map<String, String>)
 @Serializable private data class JobsResponse(val messages: List<MobileJob>)
 @Serializable private data class PairingResponse(
     val token: String, @SerialName("device_id") val deviceId: String,

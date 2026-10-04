@@ -26,6 +26,8 @@ data class ChatMessage(
     val model: String?,
     val parts: List<ReplyPart> = emptyList(),
     val timestamp: Long? = null,
+    val reaction: String? = null,
+    val reactions: Map<String, String> = emptyMap(),
 )
 
 /** Retain the interleaving of narration, tool activity, and the answer. */
@@ -58,6 +60,8 @@ data class ModelOption(
     val brand: String? = null,
     val available: Boolean? = null,
     val efforts: List<String> = emptyList(),
+    /** Missing capability metadata stays unknown, rather than becoming false. */
+    val vision: Boolean? = null,
 )
 
 @Serializable
@@ -68,6 +72,7 @@ data class ModelCatalog(
     @SerialName("thinking_levels") val efforts: List<String> = emptyList(),
     val thinking: String? = null,
     val available: Boolean? = null,
+    @SerialName("image_model") val imageModel: String? = null,
 )
 
 data class WorkspaceEntry(val path: String, val name: String, val isDirectory: Boolean, val size: Long?)
