@@ -154,6 +154,7 @@ def _mobile_update(platform: str, version_code: int) -> dict[str, Any]:
         "version_code": published_code,
         "changelog": changelog[:32],
         "url": os.environ.get(f"{prefix}_URL", "").strip() or None,
+        "ios_url": os.environ.get("MOBILE_UPDATE_IOS_URL", "").strip() or None,
         "sha256": os.environ.get(f"{prefix}_SHA256", "").strip() or None,
         "mandatory": os.environ.get(f"{prefix}_MANDATORY", "").lower() in {"1", "true", "yes"},
     }
