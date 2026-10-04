@@ -55,14 +55,14 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             Box(Modifier.fillMaxSize()) {
                 Wallpaper(state.preferences, state.customWallpaper, state.screen, state.connected)
                 Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()) {
-                    TopBar(state, actions)
+                    if (state.screen != Screen.Chat) TopBar(state, actions)
                     Box(Modifier.weight(1f)) {
                         AnimatedContent(state.screen, transitionSpec = {
                             fadeIn(tween(if (reducedMotion) 0 else 160)) togetherWith fadeOut(tween(if (reducedMotion) 0 else 90))
                         }, label = "screen") { screen ->
                         EnterMotion(true) { transition -> Box(transition.fillMaxSize()) {
                         when (screen) {
-                            Screen.Chat -> ChatSurface(state, actions, reducedMotion)
+                            Screen.Chat -> ChatSurface(state, actions, reducedMotion, topBarHeight()) { TopBar(state, actions) }
                             Screen.Search -> SearchScreen(state, actions)
                             Screen.Files -> FilesScreen(state, actions)
                             Screen.Skills -> SkillsScreen(state, actions)
@@ -128,10 +128,15 @@ private fun ConnectionScreen(state: AppState, actions: AppActions) {
 }
 
 @Composable
+private fun topBarHeight(): androidx.compose.ui.unit.Dp {
+    val window = LocalWindowInfo.current.containerSize
+    return if (window.width > window.height) 48.dp else 58.dp
+}
+
+@Composable
 private fun TopBar(state: AppState, actions: AppActions) {
     val p = LocalPalette.current
-    val window = LocalWindowInfo.current.containerSize
-    Row(Modifier.fillMaxWidth().height(if (window.width > window.height) 48.dp else 58.dp).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.fillMaxWidth().height(topBarHeight()).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         if (state.openFile != null) IconAction("back", tr("nav.back"), actions::closeFile)
         else if (state.screen !in listOf(Screen.Chat, Screen.Files, Screen.Agents, Screen.Search, Screen.Profile)) IconAction("back", tr("nav.back"), { actions.navigate(if (state.screen == Screen.Skills) Screen.Chat else Screen.Profile) })
         else IconAction("menu", tr("nav.menu"), { actions.menu(true) })

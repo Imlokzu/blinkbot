@@ -29,7 +29,7 @@ fun ChatMarkdown(text: String) {
     val components = remember {
         markdownComponents(table = { ChatTable(it) })
     }
-    Markdown(state, modifier = Modifier.fillMaxWidth(), components = components,
+    Markdown(state, modifier = Modifier.wrapContentWidth(), components = components,
         loading = { Text(text, color = LocalPalette.current.ink) },
         error = { Text(text, color = LocalPalette.current.ink) })
 }

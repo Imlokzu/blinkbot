@@ -39,6 +39,10 @@ import org.jetbrains.compose.resources.Font
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.semantics.*
 import com.mikepenz.markdown.m3.Markdown
@@ -49,10 +53,13 @@ import kotlinx.coroutines.flow.first
 import me.waveio.claudebot.state.*
 
 @Composable
-fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean) {
+fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, headerHeight: Dp, header: @Composable () -> Unit) {
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val palette = LocalPalette.current
+    val density = LocalDensity.current
+    var composerHeight by remember { mutableIntStateOf(0) }
+    val bottomPanel = with(density) { composerHeight.toDp() }
     val seen = remember(state.sessionId) { mutableSetOf<String>() }
     var following by remember(state.sessionId) { mutableStateOf(true) }
     val fingerDown = remember(state.sessionId) { mutableStateOf(false) }
@@ -98,12 +105,15 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             }
         }
     }
-    Column(Modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+    Box(Modifier.fillMaxSize().testTag("chat-surface")) {
+        Box(Modifier.fillMaxSize()) {
             if (state.messages.isEmpty() && !state.loading) {
-                Welcome(Modifier.align(Alignment.Center).padding(horizontal = 38.dp), reducedMotion)
+                Box(Modifier.fillMaxSize().padding(top = headerHeight, bottom = bottomPanel), contentAlignment = Alignment.Center) {
+                    Welcome(Modifier.padding(horizontal = 38.dp), reducedMotion)
+                }
             } else {
-                LazyColumn(state = list, overscrollEffect = null, modifier = Modifier.fillMaxSize().nestedScroll(scrollIntent).pointerInput(state.sessionId) {
+                LazyColumn(state = list, overscrollEffect = null, modifier = Modifier.fillMaxSize().testTag("chat-history")
+                    .chatEdges(headerHeight, bottomPanel).nestedScroll(scrollIntent).pointerInput(state.sessionId) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                         fingerDown.value = true
@@ -111,7 +121,7 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean) {
                             do { val event = awaitPointerEvent(PointerEventPass.Initial) } while (event.changes.any { it.pressed })
                         } finally { fingerDown.value = false }
                     }
-                }, contentPadding = PaddingValues(18.dp, 20.dp, 18.dp, 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                }, contentPadding = PaddingValues(start = 18.dp, top = headerHeight + 20.dp, end = 18.dp, bottom = bottomPanel + 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     items(state.messages, key = { it.id }) { message ->
                         MessageContent(message, actions, reducedMotion, state.busy, state.attachmentThumbnails, seen.add(message.id) && (message.live || message.id.startsWith("u-")))
                     }
@@ -120,9 +130,12 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             }
             if (state.loading) LoadingDots(Modifier.align(Alignment.Center))
             if (!following && state.messages.isNotEmpty()) {
-                ActionButton(tr("chat.latest"), { following = true; scope.launch { list.animateScrollToItem((list.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)) } }, Modifier.align(Alignment.BottomCenter).padding(12.dp), icon = "down")
+                ActionButton(tr("chat.latest"), { following = true; scope.launch { list.animateScrollToItem((list.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)) } }, Modifier.align(Alignment.BottomCenter).padding(bottom = bottomPanel + 12.dp), icon = "down")
             }
         }
+        Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().testTag("chat-header").panelTouchBarrier()) { header() }
+        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().testTag("chat-composer")
+            .onSizeChanged { composerHeight = it.height }.panelTouchBarrier()) {
         if (state.pending.size > 1 || state.pending.isNotEmpty() && state.busy || state.queuePaused) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Glyph("time", modifier = Modifier.size(15.dp), tint = palette.muted)
@@ -132,7 +145,13 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             }
         }
         Composer(state, actions)
+        }
     }
+}
+
+/** Take part in hit testing so covered messages cannot receive panel taps. */
+private fun Modifier.panelTouchBarrier(): Modifier = pointerInput(Unit) {
+    awaitPointerEventScope { while (true) awaitPointerEvent() }
 }
 
 @Composable
@@ -171,7 +190,7 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
             EnterMotion(message.live) { bubbleMotion ->
             Box(bubbleMotion) {
                 Surface(
-                    modifier = Modifier.widthIn(max = if (user) 320.dp else 600.dp).combinedClickable(onClick = {}, onLongClick = { selectedBubble = parts.take(partIndex).count { it.type == "text" }; selectedNote = part.note || part.noteId != null; menuText = line }),
+                    modifier = Modifier.widthIn(max = if (user) 320.dp else 600.dp).testTag("message-bubble:${message.id}:$partIndex").combinedClickable(onClick = {}, onLongClick = { selectedBubble = parts.take(partIndex).count { it.type == "text" }; selectedNote = part.note || part.noteId != null; menuText = line }),
                     shape = RoundedCornerShape(21.dp, 21.dp, if (user) 6.dp else 21.dp, if (user) 21.dp else 6.dp),
                     color = if (user) palette.userBubble else palette.botBubble,
                 ) {

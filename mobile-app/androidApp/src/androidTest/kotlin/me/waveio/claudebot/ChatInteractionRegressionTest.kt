@@ -16,6 +16,10 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.width
+import androidx.compose.ui.unit.height
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.test.platform.app.InstrumentationRegistry
@@ -66,10 +70,10 @@ class ChatInteractionRegressionTest {
         assertTrue("Unexpected fixture requests: ${server.unexpected}", server.unexpected.isEmpty())
     }
 
-    private fun launch(language: String = "en") {
+    private fun launch(language: String = "en", theme: String = "light", wallpaper: Boolean = false) {
         strings = runBlocking { LocaleText.load(language) }
         bridge.preferences["preferences.v1"] = buildJsonObject {
-            put("language", language); put("theme", "light"); put("wallpaper", false)
+            put("language", language); put("theme", theme); put("wallpaper", wallpaper)
             put("haptics", false); put("answerHaptics", false)
         }.toString()
         compose.activityRule.scenario.onActivity {
@@ -144,6 +148,19 @@ class ChatInteractionRegressionTest {
         }
     }
 
+    private fun screenshot(name: String) {
+        compose.waitForIdle()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val directory = File(requireNotNull(instrumentation.targetContext.getExternalFilesDir(null)),
+            "ui-qa/bubble-edges").apply { check(isDirectory || mkdirs()) }
+        val path = File(directory, "$name.png")
+        val bitmap = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+        try {
+            path.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+        } finally { bitmap.recycle() }
+        Log.i("ChatUiRegression", "Screenshot: ${path.absolutePath}")
+    }
+
     private fun imageNode() = compose.onNode(
         hasContentDescription(IMAGE_NAME).and(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Image)),
         useUnmergedTree = true,
@@ -157,6 +174,133 @@ class ChatInteractionRegressionTest {
     // Table semantics retain delimiter padding; compare the complete cell content after trimming it.
     private fun tableCellText(expected: String) = SemanticsMatcher("exact table cell content: $expected") { node ->
         node.config.getOrNull(SemanticsProperties.Text)?.any { it.text.trim() == expected } == true
+    }
+
+    @Test fun assistantBubbleWidthFollowsContentAndBoundsRichLongReplies() {
+        val greeting = "Hello!"
+        val longText = "This longer reply keeps rich Markdown readable while its explanation wraps across several lines. " +
+            "The bubble should grow with the answer, stay within the available chat width, and keep this final sentence visible."
+        val longMarkdown = longText.replace("longer reply", "**longer reply**").replace("rich Markdown", "_rich Markdown_")
+        server.history = JsonArray(listOf(assistantMessage("**$greeting**\n\n$longMarkdown", listOf(
+            textPart("**$greeting**"), textPart(longMarkdown),
+        ))))
+        launch(theme = "dark", wallpaper = true); openFixtureChat()
+        waitForText(greeting); waitForText(longText)
+
+        // Measure the combined-clickable Surface, not its naturally narrow Text child.
+        fun bubble(index: Int, text: String) = compose.onNode(
+            hasTestTag("message-bubble:$REPLY_ID:$index").and(hasClickAction())
+                .and(SemanticsMatcher.keyIsDefined(SemanticsActions.OnLongClick))
+                .and(hasAnyDescendant(hasText(text))),
+            useUnmergedTree = true,
+        )
+        val history = compose.onNodeWithTag("chat-history").getUnclippedBoundsInRoot()
+        val maximumWidth = minOf(history.width.value - 36f, 600f)
+        val shortBubble = bubble(0, greeting).performScrollTo().assertIsDisplayed().getUnclippedBoundsInRoot()
+        val greetingWidth = compose.onNodeWithText(greeting, useUnmergedTree = true).getUnclippedBoundsInRoot().width.value
+        assertEquals("A short reply must wrap its text and horizontal bubble padding", greetingWidth + 32f, shortBubble.width.value, 2f)
+        assertTrue("A greeting must leave unused room in the message row", shortBubble.width.value < maximumWidth)
+        screenshot("bubble-width-before-scroll")
+
+        val longBubble = bubble(1, longText).performScrollTo().assertIsDisplayed().getUnclippedBoundsInRoot()
+        screenshot("bubble-width-after-scroll")
+        assertTrue("Long replies must grow wider than the greeting", longBubble.width.value > shortBubble.width.value + 16f)
+        // Unclipped bounds catch overflow that clipped semantics could hide.
+        assertTrue("Long replies must respect both the viewport and bubble width cap", longBubble.width.value <= maximumWidth + 2f)
+        assertTrue("The bubble must stay inside the leading chat padding", longBubble.left.value >= history.left.value + 18f - 2f)
+        assertTrue("The bubble must stay inside the trailing chat padding", longBubble.right.value <= history.right.value - 18f + 2f)
+        val layouts = mutableListOf<TextLayoutResult>()
+        compose.onNodeWithText(longText, useUnmergedTree = true)
+            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertTrue("The parsed reply must expose its text layout", layouts.isNotEmpty())
+        layouts.forEach { layout ->
+            assertEquals(longText, layout.layoutInput.text.text)
+            assertTrue("A long reply must wrap within its bubble", layout.lineCount > 1)
+            assertFalse("The final sentence must not be truncated", layout.multiParagraph.didExceedMaxLines)
+            for (line in 0 until layout.lineCount) assertFalse("Reply lines must not ellipsize", layout.isLineEllipsized(line))
+        }
+        assertTrue("Bold Markdown must retain its formatting", layouts.any { layout ->
+            layout.layoutInput.text.spanStyles.any { (it.item.fontWeight?.weight ?: 0) >= FontWeight.SemiBold.weight }
+        })
+        assertTrue("Italic Markdown must retain its formatting", layouts.any { layout ->
+            layout.layoutInput.text.spanStyles.any { it.item.fontStyle == FontStyle.Italic }
+        })
+        assertTrue("Opening fixture history must not send a message", server.submitted.isEmpty())
+    }
+
+    @Test fun historyExtendsBehindPanelsAndPadsRepliesWhenComposerGrows() {
+        val replies = List(24) { "History reply $it remains readable while scrolling between the header and composer." }
+        fun replyId(index: Int) = "edge-reply-$index"
+        server.history = JsonArray(replies.mapIndexed { index, text ->
+            JsonObject(assistantMessage(text) + ("id" to JsonPrimitive(replyId(index))))
+        })
+        launch(theme = "dark", wallpaper = true); openFixtureChat()
+        waitForText(replies.last())
+        val history = compose.onNodeWithTag("chat-history")
+        val header = compose.onNodeWithTag("chat-header")
+        val composer = compose.onNodeWithTag("chat-composer")
+        val initialComposerHeight = composer.getUnclippedBoundsInRoot().height.value
+
+        fun assertPanelOverlap() {
+            val viewport = history.getUnclippedBoundsInRoot()
+            val surface = compose.onNodeWithTag("chat-surface").getUnclippedBoundsInRoot()
+            val topPanel = header.getUnclippedBoundsInRoot()
+            val bottomPanel = composer.getUnclippedBoundsInRoot()
+            assertEquals("History must extend to the safe viewport top", surface.top.value, viewport.top.value, 2f)
+            assertEquals("History must extend to the safe viewport bottom", surface.bottom.value, viewport.bottom.value, 2f)
+            assertEquals("The header must overlay the top of history", viewport.top.value, topPanel.top.value, 2f)
+            assertEquals("The composer must overlay the bottom of history", viewport.bottom.value, bottomPanel.bottom.value, 2f)
+            assertTrue("History must continue behind the header", viewport.top.value < topPanel.bottom.value)
+            assertTrue("History must continue behind the composer", viewport.bottom.value > bottomPanel.top.value)
+            assertTrue("The panels must leave an exposed reading region", topPanel.bottom.value < bottomPanel.top.value)
+        }
+        fun assertLastReplyClearOfComposer() {
+            val bubble = compose.onNodeWithTag("message-bubble:${replyId(replies.lastIndex)}:0")
+                .assertIsDisplayed().getUnclippedBoundsInRoot()
+            assertTrue("The followed reply must remain above the measured composer padding",
+                bubble.bottom.value <= composer.getUnclippedBoundsInRoot().top.value - 20f + 2f)
+        }
+        assertPanelOverlap()
+        assertLastReplyClearOfComposer()
+        // Change the real draft without opening the IME, isolating measured panel growth.
+        compose.runOnIdle { controller.draft(List(4) { "Draft line $it" }.joinToString("\n")) }
+        compose.waitUntil(TIMEOUT) { composer.getUnclippedBoundsInRoot().height.value > initialComposerHeight + 8f }
+        compose.waitForIdle()
+        assertPanelOverlap()
+        assertLastReplyClearOfComposer()
+        compose.runOnIdle { controller.draft("") }
+        compose.waitUntil(TIMEOUT) { kotlin.math.abs(composer.getUnclippedBoundsInRoot().height.value - initialComposerHeight) <= 2f }
+        compose.waitForIdle()
+        assertLastReplyClearOfComposer()
+        screenshot("chat-edges-before-scroll")
+
+        val viewport = history.fetchSemanticsNode().boundsInRoot
+        val exposedTop = header.fetchSemanticsNode().boundsInRoot.bottom - viewport.top
+        val exposedBottom = composer.fetchSemanticsNode().boundsInRoot.top - viewport.top
+        val exposedHeight = exposedBottom - exposedTop
+        assertTrue("The swipe must have an exposed body region", exposedHeight > 0f)
+        val before = history.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value()
+        history.performTouchInput {
+            swipe(Offset(centerX, exposedTop + exposedHeight * .2f),
+                Offset(centerX, exposedTop + exposedHeight * .75f), durationMillis = 600)
+        }
+        compose.waitUntil(TIMEOUT) {
+            history.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value() < before - .001f
+        }
+        waitForText(strings.get("chat.latest"))
+        assertPanelOverlap()
+        assertFalse("A vertical body swipe must not open navigation", controller.state.value.menuOpen)
+        compose.onNode(isPopup()).assertDoesNotExist()
+        screenshot("chat-edges-after-scroll")
+
+        // At the start of history, content padding must clear the overlaid header.
+        history.performScrollToIndex(0)
+        waitForText(replies.first())
+        val firstBubble = compose.onNodeWithTag("message-bubble:${replyId(0)}:0")
+            .assertIsDisplayed().getUnclippedBoundsInRoot()
+        assertEquals("The first reply must start below the header and body padding",
+            header.getUnclippedBoundsInRoot().bottom.value + 20f, firstBubble.top.value, 2f)
+        assertTrue("Layout and scrolling must not submit the local draft", server.submitted.isEmpty())
     }
 
     @Test fun markdownTableWrapsTheEntireCellAndScrollsHorizontally() {
@@ -460,12 +604,20 @@ class ChatInteractionRegressionTest {
         assertTrue(controller.state.value.busy)
         compose.onNodeWithContentDescription(strings.get("chat.stop")).assertIsDisplayed()
 
+        // The history viewport now includes both panels; start all drags in exposed content.
+        // Fetch geometry before holding a pointer across asynchronous note growth.
+        val historyBounds = chat.fetchSemanticsNode().boundsInRoot
+        val exposedTop = compose.onNodeWithTag("chat-header").fetchSemanticsNode().boundsInRoot.bottom - historyBounds.top
+        val exposedBottom = compose.onNodeWithTag("chat-composer").fetchSemanticsNode().boundsInRoot.top - historyBounds.top
+        val exposedHeight = exposedBottom - exposedTop
+        assertTrue("Note-follow gestures need an exposed history region", exposedHeight > 0f)
+
         // Drag toward the bottom while already there, then hold the pointer across growth.
         // Following is still enabled, but the real user scroll owns the mutation.
         chat.performTouchInput {
-            down(Offset(centerX, height * .8f))
+            down(Offset(centerX, exposedTop + exposedHeight * .8f))
             advanceEventTime(100)
-            moveTo(Offset(centerX, height * .45f))
+            moveTo(Offset(centerX, exposedTop + exposedHeight * .45f))
         }
         try {
             publishNote(36)
@@ -482,7 +634,8 @@ class ChatInteractionRegressionTest {
 
         // Reading older text disables following; another host update must respect that position.
         chat.performTouchInput {
-            swipe(Offset(centerX, height * .2f), Offset(centerX, height * .75f), durationMillis = 600)
+            swipe(Offset(centerX, exposedTop + exposedHeight * .2f),
+                Offset(centerX, exposedTop + exposedHeight * .75f), durationMillis = 600)
         }
         waitForText(strings.get("chat.latest"))
         publishNote(48)
