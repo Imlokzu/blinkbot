@@ -84,6 +84,8 @@ async def _fetch(raw: str) -> tuple[bytes, str]:
                 "Host": current.netloc.decode("ascii"),
                 "Accept": ", ".join(sorted(RASTER_TYPES)),
                 "Accept-Encoding": "identity",
+                # Public media hosts require an identifiable application agent.
+                "User-Agent": "ClaudeBot/0.4 (image previews; https://github.com/Imlokzu/claude-bot)",
             }, extensions={"sni_hostname": current.host}) as upstream:
                 if upstream.status_code in {301, 302, 303, 307, 308}:
                     location = upstream.headers.get("location", "")

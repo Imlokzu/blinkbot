@@ -97,6 +97,8 @@ def test_original_bytes_and_pinned_authenticated_contract(host):
     assert upstream.extensions["sni_hostname"] == "images.fixture.invalid"
     assert upstream.headers["accept-encoding"] == "identity"
     assert not {"authorization", "x-clerk-token", "cookie", "referer"} & set(upstream.headers)
+    assert upstream.headers["user-agent"].startswith("ClaudeBot/")
+    assert "image previews" in upstream.headers["user-agent"]
     assert len(host.resolutions) == 1
     assert host.streams[0].closed
 
