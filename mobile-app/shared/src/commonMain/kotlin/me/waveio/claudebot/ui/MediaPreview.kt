@@ -45,6 +45,7 @@ internal fun MediaPreview(state: AppState, actions: AppActions) {
         scope.launch { if (reduced) pager.scrollToPage(target) else pager.animateScrollToPage(target) }
     }
     Dialog(actions::closePreview, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        NativeDialogChrome(p.dark)
         Column(Modifier.fillMaxSize().background(p.background).windowInsetsPadding(WindowInsets.safeDrawing).testTag("media-preview")) {
             Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconAction("close", tr("action.close"), actions::closePreview)
