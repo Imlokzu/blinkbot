@@ -259,6 +259,8 @@ try {
   browser('wait', row('read-a'));
   browser('wait', row('read-b'));
   browser('wait', row('search'));
+  assert.equal(evaluate(`getComputedStyle(document.querySelector(${JSON.stringify(`${row('search')} [data-tool-row]`)}), '::after').animationName`), 'chat-activity-glint',
+    'a newly discovered branch gets a visible accent reveal');
   assert.equal(evaluate('document.querySelectorAll(".chat-activity-tree").length'), 1);
   assert.equal(evaluate('document.querySelectorAll("[data-tool-step]").length'), 3, 'same-named concurrent calls keep separate rows');
   assert.equal(evaluate('document.querySelector(".chat-activity-tree").hasAttribute("data-running")'), true);

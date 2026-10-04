@@ -20,7 +20,16 @@
   outline: 2px solid var(--c-accent); outline-offset: 2px; border-radius: 4px;
 }
 .chat-activity-list { margin: 0 0 0 8px; padding: 0; list-style: none; }
-.chat-activity-branch { position: relative; min-width: 0; padding-left: 20px; animation: chat-activity-arrive 220ms var(--e-spring) both; }
+.chat-activity-branch {
+  --activity-delay: 0ms;
+  position: relative; min-width: 0; padding-left: 20px;
+  animation: chat-activity-arrive 260ms var(--e-spring) var(--activity-delay) both;
+}
+.chat-activity-branch:nth-child(2) { --activity-delay: 35ms; }
+.chat-activity-branch:nth-child(3) { --activity-delay: 70ms; }
+.chat-activity-branch:nth-child(4) { --activity-delay: 105ms; }
+.chat-activity-branch:nth-child(5) { --activity-delay: 140ms; }
+.chat-activity-branch:nth-child(6) { --activity-delay: 175ms; }
 /* Every row extends the trunk; the last elbow closes it at the row's centre. */
 .chat-activity-branch::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0;
@@ -32,8 +41,14 @@
   border-left: 1px solid var(--c-border-strong); border-bottom: 1px solid var(--c-border-strong); border-bottom-left-radius: 5px;
 }
 .chat-activity-row {
-  display: flex; align-items: center; gap: 7px; width: 100%; min-width: 0; min-height: 34px;
+  position: relative; display: flex; align-items: center; gap: 7px; width: 100%; min-width: 0; min-height: 34px;
   padding: 4px 2px; border: 0; background: transparent; text-align: left;
+}
+.chat-activity-row::after {
+  content: ''; position: absolute; left: 2px; bottom: 0; width: 26px; height: 1px;
+  border-radius: 1px; background: var(--c-accent); opacity: 0; pointer-events: none;
+  transform: translateX(-4px) scaleX(.25); transform-origin: left center;
+  animation: chat-activity-glint 560ms var(--e-out) var(--activity-delay) both;
 }
 button.chat-activity-row { cursor: pointer; }
 button.chat-activity-row:hover .chat-activity-tool-name { color: var(--c-text); }
@@ -86,7 +101,15 @@ html[data-chat-material="solid"] .chat-activity-tree::before { background: var(-
 @media (prefers-reduced-transparency: reduce) {
   .chat-activity-tree::before { background: var(--c-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
-@keyframes chat-activity-arrive { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes chat-activity-arrive {
+  from { opacity: 0; transform: translateY(6px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes chat-activity-glint {
+  0% { opacity: 0; transform: translateX(-4px) scaleX(.25); }
+  22% { opacity: .85; }
+  100% { opacity: 0; transform: translateX(0) scaleX(1); }
+}
 @keyframes chat-activity-pulse { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
 @media (pointer: coarse) {
   .chat-activity-toggle, .chat-activity-row { min-height: 44px; }
@@ -96,6 +119,6 @@ html[data-chat-material="solid"] .chat-activity-tree::before { background: var(-
   .chat-activity-log-chevron { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .chat-activity-branch, .chat-activity-pulse { animation: none; }
+  .chat-activity-branch, .chat-activity-row::after, .chat-activity-pulse { animation: none; }
   .chat-activity-toggle > svg, .chat-activity-log-chevron, .chat-activity-fold { transition: none; }
 }

@@ -1741,3 +1741,15 @@ available and marked vision-capable in the live catalog. Android version code4 /
 version0.3.0 uses the previous signing identity. AGP is now8.13.2 for Kotlin2.3 R8
 compatibility; the release uses code/resource shrinking. No full-backend-suite
 pass is claimed; the prior interrupted broad run remains separate.
+
+## Activity branch arrival motion (2026-10-04)
+
+- New tool/search branches now enter with a small spring lift and a short
+  accent glint under the row. Up to six adjacent branches stagger by 35 ms;
+  stable step IDs prevent progress snapshots from replaying the arrival.
+- The glint uses only opacity and transform, remains decorative for screen
+  readers, and is removed with the existing reduced-motion media rule.
+- Validation: TypeScript, whitespace checks and the full activity-tree browser
+  fixture passed across desktop/phone, English/Ukrainian, reduced motion and
+  reduced transparency. No chat writes or external source requests escaped
+  the fixture.
