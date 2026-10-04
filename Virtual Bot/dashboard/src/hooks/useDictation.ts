@@ -49,11 +49,15 @@ export function useDictation() {
   const [recognizing, setRecognizing] = useState(false);
   const [error, setError] = useState('');
   const finishRef = useRef<(() => void) | null>(null);
+  // The second press can arrive while getUserMedia/recorder setup is still
+  // pending. Keep that intent until the recorder has an onstop handler.
+  const stopRequestedRef = useRef(false);
 
   const listen = useCallback(async (): Promise<string | null> => {
     // Попередній запис міг ще не закритись (швидкий повторний натиск) —
     // закриваємо його, інакше два мікрофони писали б одночасно.
     finishRef.current?.();
+    stopRequestedRef.current = false;
     setError('');
     setPartial('');
     setRecognizing(false);
@@ -65,6 +69,7 @@ export function useDictation() {
       // й обробленого сигналу. Так само робить екран.
       media = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (cause) {
+      stopRequestedRef.current = false;
       setError(
         (cause as Error)?.name === 'NotAllowedError'
           ? 'Доступ до мікрофона не дозволено'
@@ -74,6 +79,7 @@ export function useDictation() {
     }
     if (!window.MediaRecorder) {
       media.getTracks().forEach((track) => track.stop());
+      stopRequestedRef.current = false;
       setError('Браузер не вміє записувати звук');
       return null;
     }
@@ -86,6 +92,7 @@ export function useDictation() {
     } catch {
       media.getTracks().forEach((track) => track.stop());
       setStream(null);
+      stopRequestedRef.current = false;
       setError('Не вдалося почати запис');
       return null;
     }
@@ -141,6 +148,7 @@ export function useDictation() {
       recorder.onstop = () => {
         cancelAnimationFrame(frame);
         finishRef.current = null;
+        stopRequestedRef.current = false;
         media.getTracks().forEach((track) => track.stop());
         void audio.close();
         setStream(null);
@@ -181,7 +189,12 @@ export function useDictation() {
       };
 
       recorder.start(PARTIAL_MS);
-      frame = requestAnimationFrame(tick);
+      if (stopRequestedRef.current) {
+        stopRequestedRef.current = false;
+        forced = true;
+        finish();
+      }
+      if (recorder.state !== 'inactive') frame = requestAnimationFrame(tick);
     });
 
     const blob = await done;
@@ -209,7 +222,10 @@ export function useDictation() {
   }, []);
 
   /** Людина договорила: закриваємо фразу й віддаємо її на розпізнавання. */
-  const finish = useCallback(() => finishRef.current?.(), []);
+  const finish = useCallback(() => {
+    if (finishRef.current) finishRef.current();
+    else stopRequestedRef.current = true;
+  }, []);
 
   return { listen, finish, stream, partial, recognizing, error };
 }

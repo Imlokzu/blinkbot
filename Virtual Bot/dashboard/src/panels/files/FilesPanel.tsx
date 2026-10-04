@@ -11,8 +11,6 @@ import { cn } from '@/lib/cn';
 import { glue } from '@/lib/glue';
 import { useIsDesk } from '@/hooks/useMediaQuery';
 import { useRouteParam } from '@/app/useRoute';
-import { t as workbenchText } from '@/locales/workbench';
-import { editDraft, EMPTY_FILE_DRAFT, receiveFile, saveCompleted, type FileDraftState } from './fileDraft';
 
 /*
  * Робоча тека бота.
@@ -58,10 +56,8 @@ export default function FilesPanel() {
 
   const [dir, setDir] = useState('');
   const [openPath, setOpenPath] = useState<string | null>(null);
-  const [draftState, setDraftState] = useState<FileDraftState>(EMPTY_FILE_DRAFT);
-  const [saving, setSaving] = useState(false);
-  const draft = draftState.draft;
-  const dirty = draftState.dirty;
+  const [draft, setDraft] = useState('');
+  const [dirty, setDirty] = useState(false);
   /* HTML-файли мають два обличчя: код і відрендерена сторінка. Типовий
      режим — перегляд: саме заради нього бот ці файли й пише. */
   const [showPreview, setShowPreview] = useState(true);
@@ -84,38 +80,26 @@ export default function FilesPanel() {
     enabled: !!openPath,
   });
 
+  // Чернетку скидаємо ЛИШЕ коли приїхав інший файл: інакше кожне
+  // перезавантаження запиту стирало б незбережені правки.
   useEffect(() => {
-    if (file.data && file.data.path === openPath) {
-      setDraftState((state) => receiveFile(state, file.data!.path, file.data!.content ?? ''));
+    if (file.data) {
+      setDraft(file.data.content ?? '');
+      setDirty(false);
     }
   }, [file.data]);
 
-  useEffect(() => {
-    setDraftState((state) => state.path === openPath ? state : { ...EMPTY_FILE_DRAFT, path: openPath });
-  }, [openPath]);
-
   const save = useCallback(async () => {
-    if (!openPath || saving) return;
-    const submittedPath = openPath;
-    const submittedDraft = draft;
-    setSaving(true);
+    if (!openPath) return;
     try {
-      await post('/api/workspace/file', { path: submittedPath, content: submittedDraft });
-      // A reload that was already in flight must not put its older response
-      // over the confirmed save. Cancel it and make the query cache durable.
-      await client.cancelQueries({ queryKey: ['workspace-file', submittedPath] });
-      client.setQueryData<FileData>(['workspace-file', submittedPath], (current) => current
-        ? { ...current, content: submittedDraft }
-        : current);
-      setDraftState((state) => saveCompleted(state, submittedPath, submittedDraft));
-      toast.ok('Збережено', submittedPath);
+      await post('/api/workspace/file', { path: openPath, content: draft });
+      setDirty(false);
+      toast.ok('Збережено', openPath);
       void client.invalidateQueries({ queryKey: ['workspace', dir] });
     } catch (error) {
       toast.error('Не вдалося зберегти', (error as Error).message);
-    } finally {
-      setSaving(false);
     }
-  }, [client, dir, draft, openPath, saving, toast]);
+  }, [client, dir, draft, openPath, toast]);
 
   // Ctrl/Cmd+S — очікувана дія в будь-якому редакторі; без неї правку легко
   // загубити, перемкнувши файл.
@@ -226,7 +210,7 @@ export default function FilesPanel() {
             <PanelHead
               className="mb-0"
               label={openPath.split('/').pop() ?? ''}
-              hint={draftState.external ? workbenchText('wb.externalChange') : dirty ? workbenchText('wb.unsaved') : humanSize(file.data?.size ?? 0)}
+              hint={dirty ? 'незбережено' : humanSize(file.data?.size ?? 0)}
               actions={
                 <>
                   {isHtml ? (
@@ -256,19 +240,17 @@ export default function FilesPanel() {
                     variant="ghost"
                     size="icon-sm"
                     aria-label="Перечитати"
-                    disabled={saving}
                     onClick={() => void file.refetch()}
                   >
                     <RotateCw />
                   </Button>
-                  <Button variant={dirty ? 'solid' : 'ghost'} size="sm" disabled={!dirty || saving} onClick={() => void save()}>
+                  <Button variant={dirty ? 'solid' : 'ghost'} size="sm" disabled={!dirty} onClick={() => void save()}>
                     <Save />
                     Зберегти
                   </Button>
                 </>
               }
             />
-            {draftState.external ? <p role="status" className="mt-2 text-[11px] text-warn">{workbenchText('wb.externalChange')}</p> : null}
           </div>
           {isHtml && showPreview ? (
             <div className="min-h-0 flex-1 overflow-hidden">
@@ -285,7 +267,8 @@ export default function FilesPanel() {
                 path={openPath}
                 value={draft}
                 onChange={(next) => {
-                  setDraftState((state) => editDraft(state, next));
+                  setDraft(next);
+                  setDirty(true);
                 }}
               />
             </div>

@@ -776,16 +776,6 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
 - Checks: tests/fileDrop.test.mjs and tests/file-drop.browser.mjs.
 
 
-## Model-picker search affordance (2026-10-04)
-
-- Search uses the active accent and soft accent surface, with a restrained
-  transform/opacity halo and icon tilt. Keep the 36px desktop target and 44px
-  coarse-pointer target.
-- The hover-revealed search field gets a short close grace period to absorb
-  layout reflow. Focus-visible remains a two-pixel accent outline. Reduced
-  motion removes the lift, halo transform and transitions.
-
-
 ## Staged activity branch arrival (2026-10-04)
 
 - New visible live steps connect downward first, draw the existing Lucide
