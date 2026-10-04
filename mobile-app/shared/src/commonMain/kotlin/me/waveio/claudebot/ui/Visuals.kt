@@ -78,6 +78,7 @@ fun Glyph(name: String, label: String? = null, modifier: Modifier = Modifier.siz
         "send" -> Res.drawable.ic_arrow_up
         "back" -> Res.drawable.ic_arrow_left
         "down" -> Res.drawable.ic_alt_arrow_down
+        "download" -> Res.drawable.ic_download_minimalistic
         "search" -> Res.drawable.ic_magnifer
         "folder" -> Res.drawable.ic_folder
         "file" -> Res.drawable.ic_document
@@ -162,7 +163,7 @@ fun Wallpaper(preferences: Preferences, wallpaper: ByteArray?, screen: Screen, c
     BoxWithConstraints(modifier.fillMaxSize().background(palette.background)) {
         if (visible) {
             val height = if (preferences.fullWallpaper) maxHeight else maxHeight * 0.56f
-            val custom = remember(wallpaper) { wallpaper?.let(::decodeImage) }
+            val custom = remember(wallpaper) { wallpaper?.let { decodeImage(it) } }
             Box(Modifier.fillMaxWidth().height(height)) {
                 WallpaperImage(custom, Modifier.fillMaxSize())
                 if (preferences.wallpaperBlur > 0f) {
@@ -192,7 +193,10 @@ private fun WallpaperImage(custom: ImageBitmap?, modifier: Modifier) {
     else Image(custom, null, modifier, contentScale = ContentScale.Crop)
 }
 
-expect fun decodeImage(bytes: ByteArray): ImageBitmap?
+expect fun decodeImage(bytes: ByteArray, maxDimension: Int = 2048): ImageBitmap?
+
+/** Encode a bounded cache image; export always retains the original file. */
+expect fun thumbnailBytes(bytes: ByteArray): ByteArray?
 
 @Composable
 fun GlassCard(modifier: Modifier = Modifier, radius: Dp = 24.dp, content: @Composable () -> Unit) {

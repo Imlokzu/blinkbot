@@ -15,8 +15,7 @@ import kotlin.math.ceil
 
 /** Keep messages intact; only soften the narrow strips directly beneath controls. */
 @Composable
-fun Modifier.chatEdges(topPanel: Dp, bottomPanel: Dp): Modifier {
-    val content = rememberGraphicsLayer()
+fun Modifier.chatEdges(topPanel: Dp, bottomPanel: Dp, content: androidx.compose.ui.graphics.layer.GraphicsLayer = rememberGraphicsLayer()): Modifier {
     val topBlur = rememberGraphicsLayer()
     val topResult = rememberGraphicsLayer()
     val bottomBlur = rememberGraphicsLayer()

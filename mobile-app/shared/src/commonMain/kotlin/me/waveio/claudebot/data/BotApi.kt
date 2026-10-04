@@ -24,6 +24,7 @@ import io.ktor.http.contentType
 import io.ktor.http.takeFrom
 import io.ktor.util.AttributeKey
 import io.ktor.utils.io.readUTF8Line
+import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -104,7 +105,15 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
             }
 
     suspend fun readWorkspace(path: String, sessionId: String = ""): WorkspaceFile =
-        get("workspace", "file", query = mapOf("path" to path, "session_id" to sessionId))
+        get("workspace", "file", query = mapOf("path" to checkedWorkspacePath(path), "session_id" to sessionId))
+
+    /** Original bytes, including images/PDFs and original text line endings. */
+    suspend fun downloadWorkspace(path: String, sessionId: String = ""): ByteArray = guarded {
+        transport.prepareRequest {
+            configure(HttpMethod.Get, listOf("mobile", "workspace", "download"),
+                mapOf("path" to checkedWorkspacePath(path), "session_id" to sessionId))
+        }.execute { boundedBytes(it) }
+    }
 
     suspend fun writeWorkspace(path: String, content: String, sessionId: String = ""): WorkspaceWrite =
         post(listOf("workspace", "file"), buildJsonObject {
@@ -136,13 +145,33 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
     /** Download a stored upload from the configured origin with device authentication. */
     suspend fun downloadAttachment(path: String): ByteArray = guarded {
         val relative = checkedAttachmentPath(path)
-        val response = transport.request {
+        transport.prepareRequest {
             method = HttpMethod.Get
             url.takeFrom(origin + relative)
             attributes.put(Authenticated, true)
-        }
+        }.execute { boundedBytes(it) }
+    }
+
+    private suspend fun boundedBytes(response: HttpResponse): ByteArray {
         checkResponse(response)
-        response.body<ByteArray>()
+        val limit = 20 * 1024 * 1024
+        if ((response.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: 0) > limit) throw ApiFailure(413, "workspace_file_too_large")
+        val channel = response.bodyAsChannel()
+        val chunks = mutableListOf<ByteArray>()
+        val buffer = ByteArray(8192)
+        var count = 0
+        while (true) {
+            val read = channel.readAvailable(buffer, 0, buffer.size)
+            if (read < 0) break
+            if (read == 0) continue
+            count += read
+            if (count > limit) throw ApiFailure(413, "workspace_file_too_large")
+            chunks += buffer.copyOf(read)
+        }
+        val bytes = ByteArray(count)
+        var offset = 0
+        for (chunk in chunks) { chunk.copyInto(bytes, offset); offset += chunk.size }
+        return bytes
     }
 
     suspend fun transcribe(

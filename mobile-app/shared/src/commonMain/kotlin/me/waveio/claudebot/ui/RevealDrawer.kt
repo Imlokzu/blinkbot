@@ -37,6 +37,42 @@ fun RevealDrawer(open: Boolean, onOpenChange: (Boolean) -> Unit, enabled: Boolea
         var offset by remember { mutableFloatStateOf(0f) }
         val position = animateFloatAsState(if (dragging) offset else if (open) reveal else 0f,
             if (dragging || reduced) snap() else spring(dampingRatio = .9f, stiffness = 460f), label = "drawerReveal")
+        val flingThreshold = with(density) { 420.dp.toPx() }
+        val minimumFlingTravel = with(density) { 24.dp.toPx() }
+        Box(Modifier.fillMaxSize().pointerInput(enabled, reveal, edge, flingThreshold, minimumFlingTravel) {
+            if (!enabled) return@pointerInput
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                if ((!currentOpen && down.position.x > edge) || (currentOpen && down.position.x < position.value)) return@awaitEachGesture
+                val tracker = VelocityTracker()
+                tracker.addPosition(down.uptimeMillis, down.position)
+                val drag = awaitHorizontalTouchSlopOrCancellation(down.id) { event, amount ->
+                    if (currentOpen || amount > 0f) {
+                        event.consume(); dragging = true
+                        offset = ((if (currentOpen) reveal else 0f) + amount).coerceIn(0f, reveal)
+                    }
+                }
+                if (drag != null && dragging) {
+                    tracker.addPosition(drag.uptimeMillis, drag.position)
+                    var lastPosition = drag.position
+                    val finished = horizontalDrag(drag.id) { event ->
+                        tracker.addPosition(event.uptimeMillis, event.position)
+                        lastPosition = event.position
+                        offset = (offset + (event.position.x - event.previousPosition.x)).coerceIn(0f, reveal)
+                        event.consume()
+                    }
+                    val velocity = if (finished) tracker.calculateVelocity().x else 0f
+                    val distance = lastPosition.x - down.position.x
+                    change(when {
+                        !finished -> currentOpen
+                        velocity > flingThreshold && distance > minimumFlingTravel -> true
+                        velocity < -flingThreshold && distance < -minimumFlingTravel -> false
+                        else -> offset > reveal * .42f
+                    })
+                    dragging = false
+                }
+            }
+        }) {
         val visible by remember { derivedStateOf { currentOpen || dragging || position.value > .5f } }
         if (visible) Box(Modifier.fillMaxHeight().fillMaxWidth(.65f).graphicsLayer {
             val fraction = (position.value / reveal).coerceIn(0f, 1f)
@@ -51,34 +87,11 @@ fun RevealDrawer(open: Boolean, onOpenChange: (Boolean) -> Unit, enabled: Boolea
             scaleX = 1f - .025f * fraction; scaleY = scaleX
             shape = RoundedCornerShape((26f * fraction).dp); clip = true
             shadowElevation = 12.dp.toPx() * fraction
-        }.pointerInput(enabled, reveal) {
-            if (!enabled) return@pointerInput
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false)
-                if (!currentOpen && down.position.x > edge) return@awaitEachGesture
-                val tracker = VelocityTracker()
-                tracker.addPosition(down.uptimeMillis, down.position)
-                val drag = awaitHorizontalTouchSlopOrCancellation(down.id) { event, amount ->
-                    if (currentOpen || amount > 0f) {
-                        event.consume(); dragging = true
-                        offset = ((if (currentOpen) reveal else 0f) + amount).coerceIn(0f, reveal)
-                    }
-                }
-                if (drag != null && dragging) {
-                    val finished = horizontalDrag(drag.id) { event ->
-                        tracker.addPosition(event.uptimeMillis, event.position)
-                        offset = (offset + (event.position.x - event.previousPosition.x)).coerceIn(0f, reveal)
-                        event.consume()
-                    }
-                    val velocity = if (finished) tracker.calculateVelocity().x else 0f
-                    change(when { velocity > 650f -> true; velocity < -650f -> false; else -> offset > reveal * .42f })
-                    dragging = false
-                }
-            }
         }) {
             Box(if (visible) Modifier.fillMaxSize().clearAndSetSemantics { } else Modifier.fillMaxSize()) { content() }
             if (visible) Box(Modifier.fillMaxSize().graphicsLayer { alpha = (position.value / reveal).coerceIn(0f, 1f) * .18f }
                 .background(Color.Black).semantics { contentDescription = dismissLabel }.clickable(role = Role.Button) { change(false) })
+        }
         }
     }
 }

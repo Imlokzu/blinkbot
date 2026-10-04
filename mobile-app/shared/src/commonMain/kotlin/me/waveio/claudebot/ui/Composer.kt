@@ -52,14 +52,17 @@ fun Composer(state: AppState, actions: AppActions) {
             IconAction("close", tr("input.cancel"), actions::cancelEdit)
         }
         if (state.attachments.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            state.attachments.forEach { item ->
-                Row(Modifier.clip(RoundedCornerShape(12.dp)).background(p.secondary).padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (item.mimeType.startsWith("image/")) AttachmentThumbnail(item, state.attachmentThumbnails[item.path], actions, compact = true)
-                    else Glyph("file", modifier = Modifier.size(17.dp), tint = p.muted)
+            state.attachments.forEach { item -> key(state.mediaGeneration, item.path) {
+                if (item.mimeType.startsWith("image/")) Box {
+                    AttachmentThumbnail(item, state.attachmentThumbnails[item.path], actions, compact = true)
+                    IconAction("close", tr("input.removeAttachment"), { actions.removeAttachment(item.path) },
+                        Modifier.align(Alignment.TopEnd).padding(2.dp).size(28.dp).clip(CircleShape).background(p.surface.copy(alpha = .92f)))
+                } else Row(Modifier.clip(RoundedCornerShape(12.dp)).background(p.secondary).padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Glyph("file", modifier = Modifier.size(17.dp), tint = p.muted)
                     Text(item.name, maxLines = 1, overflow = TextOverflow.Ellipsis, color = p.ink, fontSize = 12.sp, modifier = Modifier.widthIn(max = 135.dp).padding(start = 7.dp))
                     IconAction("close", tr("input.removeAttachment"), { actions.removeAttachment(item.path) }, Modifier.size(36.dp))
                 }
-            }
+            } }
         }
         val input: @Composable (Modifier) -> Unit = { modifier ->
         BasicTextField(shownDraft, actions::draft, modifier.heightIn(min = if (dictating && !landscape) 78.dp else 48.dp, max = if (landscape) 96.dp else 190.dp).padding(11.dp, 11.dp),

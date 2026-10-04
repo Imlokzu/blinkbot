@@ -89,18 +89,7 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
         ModelPicker(state, actions)
         AttachmentMenu(state, actions)
         if (state.scheduling) SchedulePopup(actions)
-        if (state.previewTitle != null) BotDialog(actions::closePreview) {
-                Column(Modifier.padding(18.dp).heightIn(max = 600.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(state.previewTitle, modifier = Modifier.weight(1f), maxLines = 2)
-                        IconAction("close", tr("action.close"), actions::closePreview)
-                    }
-                    val bitmap = remember(state.previewBytes) { state.previewBytes?.let(::decodeImage) }
-                    if (bitmap != null) Image(bitmap, state.previewTitle, Modifier.fillMaxWidth().weight(1f, false), contentScale = ContentScale.Fit)
-                    else if (state.loading) LoadingDots(Modifier.padding(20.dp))
-                    else Text(state.previewText.ifBlank { tr("files.previewUnavailable") }, modifier = Modifier.verticalScroll(rememberScrollState()))
-                }
-        }
+        if (state.previewTitle != null) MediaPreview(state, actions)
         if (state.offlineQuestion) BotDialog({ actions.offlineDelivery(false) }) {
             Text(tr("queue.offlineTitle"), fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = palette.ink)
             Text(tr("queue.offlineBody"), modifier = Modifier.padding(vertical = 16.dp), color = palette.muted)

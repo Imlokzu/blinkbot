@@ -121,12 +121,18 @@ class ChatInteractionRegressionTest {
                 appendLine("Expected exact text: ${JsonPrimitive(expected)}")
                 if (::controller.isInitialized) {
                     val state = controller.state.value
-                    appendLine("Controller: session=${state.sessionId}, loading=${state.loading}, error=${state.error}")
+                    appendLine("Controller: session=${state.sessionId}, loading=${state.loading}, busy=${state.busy}, error=${state.error}")
+                    appendLine("Draft: ${JsonPrimitive(state.draft)}")
+                    appendLine("Pending: ${state.pending.map { it.id to it.state }}")
+                    appendLine("Thumbnail cache: ${state.attachmentThumbnails.mapValues { it.value.size }}")
                     state.messages.forEach { message ->
-                        appendLine("Message ${message.id}: ${JsonPrimitive(message.text)}")
+                        appendLine("Message ${message.id} role=${message.role}: ${JsonPrimitive(message.text)}")
+                        appendLine("Attachments: ${message.attachments.map { Triple(it.path, it.mimeType, it.size) }}")
                         message.parts.forEach { part -> appendLine("Part ${part.type}: ${JsonPrimitive(part.text)}") }
                     }
                 }
+                appendLine("Fixture: submitted=${server.submitted.size}, historyReads=${server.historyReads.get()}, downloads=${server.downloads.size}, jobReads=${server.jobReads.get()}, streamRequests=${server.streamRequests.get()}, runningFrames=${server.runningFrames.get()}, completed=${server.completed}")
+                appendLine("IME visible: ${imeVisible()}; Compose clock: ${compose.mainClock.currentTime}")
                 appendLine("Unmerged text values (JSON preserves boundary whitespace):")
                 compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Text), useUnmergedTree = true)
                     .fetchSemanticsNodes().forEach { node ->
@@ -150,6 +156,8 @@ class ChatInteractionRegressionTest {
 
     private fun screenshot(name: String) {
         compose.waitForIdle()
+        // Native Dialog window fades run outside the Compose test clock.
+        SystemClock.sleep(300)
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val directory = File(requireNotNull(instrumentation.targetContext.getExternalFilesDir(null)),
             "ui-qa/bubble-edges").apply { check(isDirectory || mkdirs()) }
@@ -169,6 +177,25 @@ class ChatInteractionRegressionTest {
     private fun imeVisible() = compose.runOnIdle {
         ViewCompat.getRootWindowInsets(compose.activity.window.decorView)
             ?.isVisible(WindowInsetsCompat.Type.ime()) == true
+    }
+
+    private fun waitForLatest() = waitForText(strings.get("chat.latest"), hasContentDescription(strings.get("chat.latest")))
+
+    private fun historyScroll() = compose.onNodeWithTag("chat-history").fetchSemanticsNode()
+        .config[SemanticsProperties.VerticalScrollAxisRange].value()
+
+    /** Start body drags inside the reading region exposed between the panels. */
+    private fun exposedHistorySwipe(towardBottom: Boolean, durationMillis: Long = 600) {
+        val history = compose.onNodeWithTag("chat-history")
+        val bounds = history.fetchSemanticsNode().boundsInRoot
+        val top = compose.onNodeWithTag("chat-header").fetchSemanticsNode().boundsInRoot.bottom - bounds.top
+        val bottom = compose.onNodeWithTag("chat-composer").fetchSemanticsNode().boundsInRoot.top - bounds.top
+        assertTrue("History gestures must stay between the overlaid panels", bottom > top)
+        history.performTouchInput {
+            val upper = Offset(centerX, top + (bottom - top) * .2f)
+            val lower = Offset(centerX, top + (bottom - top) * .8f)
+            swipe(if (towardBottom) lower else upper, if (towardBottom) upper else lower, durationMillis)
+        }
     }
 
     // Table semantics retain delimiter padding; compare the complete cell content after trimming it.
@@ -290,7 +317,7 @@ class ChatInteractionRegressionTest {
         compose.waitUntil(TIMEOUT) {
             history.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value() < before - .001f
         }
-        waitForText(strings.get("chat.latest"))
+        waitForText(strings.get("chat.latest"), hasContentDescription(strings.get("chat.latest")))
         assertPanelOverlap()
         assertFalse("A vertical body swipe must not open navigation", controller.state.value.menuOpen)
         compose.onNode(isPopup()).assertDoesNotExist()
@@ -362,6 +389,286 @@ class ChatInteractionRegressionTest {
         compose.onNode(hasSetTextAction()).performTextInput("The chat still accepts input")
         assertEquals("The chat still accepts input", controller.state.value.draft)
         assertTrue(server.submitted.isEmpty())
+    }
+
+    @Test fun shortFastDrawerSwipeUsesDpVelocityAndMinimumTravel() {
+        launch(); openFixtureChat()
+        waitForText(SECOND_BUBBLE)
+        val density = compose.activity.resources.displayMetrics.density
+        val root = compose.onRoot()
+        val bounds = root.fetchSemanticsNode().boundsInRoot
+        val y = bounds.height * .42f
+        val start = 80f * density
+        // This travels far less than 42% of the reveal width but exceeds 420 dp/s.
+        val distance = 48f * density
+        assertTrue("The fixture fling must stay below the distance-only open threshold", distance < bounds.width * .65f * .42f)
+        root.performTouchInput { swipe(Offset(start, y), Offset(start + distance, y), durationMillis = 80) }
+        compose.waitUntil(TIMEOUT) { controller.state.value.menuOpen }
+        compose.onNodeWithContentDescription(strings.get("nav.closeMenu")).assertIsDisplayed()
+        compose.onNodeWithText(server.todayTitle).assertIsDisplayed()
+        val closeStart = bounds.width * .9f
+        root.performTouchInput { swipe(Offset(closeStart, y), Offset(closeStart - distance, y), durationMillis = 80) }
+        compose.waitUntil(TIMEOUT) { !controller.state.value.menuOpen }
+        compose.onNodeWithContentDescription(strings.get("nav.closeMenu")).assertDoesNotExist()
+
+        // A quick nudge must not open the drawer, even when its velocity is high.
+        root.performTouchInput { swipe(Offset(start, y), Offset(start + 18f * density, y), durationMillis = 32) }
+        compose.waitForIdle()
+        assertFalse("Travel below 24 dp must not reveal navigation", controller.state.value.menuOpen)
+        compose.onNodeWithContentDescription(strings.get("nav.closeMenu")).assertDoesNotExist()
+        compose.onNodeWithText(SECOND_BUBBLE).assertIsDisplayed()
+        assertTrue(server.submitted.isEmpty())
+    }
+
+    @Test fun latestHidesAfterManualReturnAndIgnoresTrailingPadding() {
+        val replies = List(18) { "Manual return history reply $it." }
+        server.history = JsonArray(replies.mapIndexed { index, text ->
+            JsonObject((assistantMessage(text) - "model") + ("id" to JsonPrimitive("manual-reply-$index")))
+        })
+        launch(); openFixtureChat()
+        waitForText(replies.last())
+        compose.onNodeWithTag("chat-latest").assertDoesNotExist()
+        exposedHistorySwipe(towardBottom = false)
+        waitForLatest()
+        compose.onNodeWithTag("chat-latest").assertIsDisplayed()
+            .assertContentDescriptionEquals(strings.get("chat.latest"))
+        compose.onNodeWithText(strings.get("chat.latest")).assertDoesNotExist()
+
+        var returned = false
+        for (attempt in 0 until 12) {
+            exposedHistorySwipe(towardBottom = true)
+            if (compose.onAllNodesWithTag("chat-latest").fetchSemanticsNodes().isEmpty()) {
+                returned = true
+                break
+            }
+        }
+        assertTrue("Manually returning to the exposed tail must hide Latest", returned)
+        val tail = compose.onNodeWithTag("message-bubble:manual-reply-${replies.lastIndex}:0")
+            .assertIsDisplayed().getUnclippedBoundsInRoot()
+        val composerTop = compose.onNodeWithTag("chat-composer").getUnclippedBoundsInRoot().top.value
+        assertTrue("The final rendered bubble must clear the composer", tail.bottom.value <= composerTop + 2f)
+
+        // Hold a tiny drag so following cannot erase the remaining padding before inspection.
+        val history = compose.onNodeWithTag("chat-history")
+        val bounds = history.fetchSemanticsNode().boundsInRoot
+        val top = compose.onNodeWithTag("chat-header").fetchSemanticsNode().boundsInRoot.bottom - bounds.top
+        val bottom = compose.onNodeWithTag("chat-composer").fetchSemanticsNode().boundsInRoot.top - bounds.top
+        val density = compose.activity.resources.displayMetrics.density
+        val touchSlop = android.view.ViewConfiguration.get(compose.activity).scaledTouchSlop.toFloat()
+        val before = historyScroll()
+        history.performTouchInput {
+            down(Offset(centerX, top + (bottom - top) * .4f))
+            advanceEventTime(100)
+            moveBy(Offset(0f, touchSlop + 8f * density))
+        }
+        try {
+            compose.waitForIdle()
+            assertTrue("The small drag must actually leave some bottom padding unscrolled", historyScroll() < before)
+            val range = history.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange]
+            assertTrue("Padding remains scrollable while the content tail is already exposed", range.value() < range.maxValue())
+            val exposedTail = compose.onNodeWithTag("message-bubble:manual-reply-${replies.lastIndex}:0")
+                .getUnclippedBoundsInRoot().bottom.value
+            assertTrue("The tiny drag must leave the actual tail above the composer", exposedTail <= composerTop + 2f)
+            compose.onNodeWithTag("chat-latest").assertDoesNotExist()
+            compose.onNodeWithContentDescription(strings.get("chat.latest")).assertDoesNotExist()
+        } finally {
+            history.performTouchInput { advanceEventTime(500); moveBy(Offset.Zero); up() }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("chat-latest").assertDoesNotExist()
+        assertTrue(server.submitted.isEmpty())
+    }
+
+    @Test fun shortUpwardReadingFlingDoesNotSnapBackToBottom() {
+        val replies = List(24) { "Reading fling reply $it leaves enough older history to scroll." }
+        server.history = JsonArray(replies.mapIndexed { index, text ->
+            JsonObject((assistantMessage(text) - "model") + ("id" to JsonPrimitive("fling-reply-$index")))
+        })
+        launch(); openFixtureChat()
+        waitForText(replies.last())
+        compose.waitForIdle()
+        val history = compose.onNodeWithTag("chat-history")
+        val bounds = history.fetchSemanticsNode().boundsInRoot
+        val top = compose.onNodeWithTag("chat-header").fetchSemanticsNode().boundsInRoot.bottom - bounds.top
+        val bottom = compose.onNodeWithTag("chat-composer").fetchSemanticsNode().boundsInRoot.top - bounds.top
+        val composerTop = compose.onNodeWithTag("chat-composer").getUnclippedBoundsInRoot().top.value
+        val density = compose.activity.resources.displayMetrics.density
+        val touchSlop = android.view.ViewConfiguration.get(compose.activity).scaledTouchSlop.toFloat()
+        val tail = compose.onNodeWithTag("message-bubble:fling-reply-${replies.lastIndex}:0")
+        assertTrue("The fling must start with the final rendered tail exposed", tail.getUnclippedBoundsInRoot().bottom.value <= composerTop + 2f)
+        compose.onNodeWithTag("chat-latest").assertDoesNotExist()
+        val start = historyScroll()
+        compose.mainClock.autoAdvance = false
+        try {
+            // Reading upward moves the finger downward. Only 12 dp is consumed
+            // before release, leaving the tail visible inside its 20 dp padding.
+            history.performTouchInput {
+                down(Offset(centerX, top + (bottom - top) * .4f))
+                advanceEventTime(8)
+                moveBy(Offset(0f, touchSlop + 4f * density))
+                advanceEventTime(8)
+                moveBy(Offset(0f, 8f * density))
+                up()
+            }
+            compose.waitForIdle()
+            assertTrue("The short drag must move toward older messages", historyScroll() < start)
+            assertTrue("The tail must still be exposed at release, before fling frames run",
+                tail.getUnclippedBoundsInRoot().bottom.value <= composerTop + 2f)
+            compose.onNodeWithTag("chat-latest").assertDoesNotExist()
+            val released = historyScroll()
+            compose.mainClock.advanceTimeBy(5_000)
+            compose.waitForIdle()
+            assertTrue("The fling must continue into older content and stay there after settling", historyScroll() < released - .001f)
+            compose.onNodeWithTag("chat-latest").assertIsDisplayed()
+                .assertContentDescriptionEquals(strings.get("chat.latest"))
+            assertFalse("A vertical reading fling must not open navigation", controller.state.value.menuOpen)
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+        assertTrue(server.submitted.isEmpty())
+    }
+
+    @Test fun latestAnimatesThroughVeryTallFinalItemAndClearsComposer() {
+        val body = List(160) { "Tall final reply line $it remains readable." }.joinToString("\n")
+        val tailText = "The very tall final item ends here."
+        server.history = JsonArray(listOf(JsonObject(assistantMessage("$body\n\n$tailText", listOf(
+            textPart(body), textPart(tailText),
+        )) - "model")))
+        bridge.reducedMotion = false
+        launch(); openFixtureChat()
+        waitForText(tailText)
+        compose.waitForIdle()
+        compose.onNodeWithText(tailText).assertIsDisplayed()
+        val finalScroll = historyScroll()
+        exposedHistorySwipe(towardBottom = false)
+        waitForLatest()
+        compose.onNodeWithTag("chat-history").performScrollToIndex(0)
+        compose.waitForIdle()
+        val bubble = compose.onNodeWithTag("message-bubble:$REPLY_ID:0").getUnclippedBoundsInRoot()
+        val viewport = compose.onNodeWithTag("chat-history").getUnclippedBoundsInRoot()
+        assertTrue("The final item must be much taller than its viewport", bubble.height.value > viewport.height.value * 3f)
+        val start = historyScroll()
+        assertTrue("The fixture must start above the previously rendered final offset", start < finalScroll)
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithContentDescription(strings.get("chat.latest")).assertIsDisplayed().performClick()
+            var intermediate = false
+            // A jump to the final offset cannot satisfy this intermediate-frame assertion.
+            repeat(8) {
+                compose.mainClock.advanceTimeByFrame()
+                compose.waitForIdle()
+                val position = historyScroll()
+                if (position > start + .001f && position < finalScroll - .001f) intermediate = true
+            }
+            assertTrue("Latest must visibly progress through the tall item instead of jumping", intermediate)
+            compose.mainClock.advanceTimeBy(5_000)
+            compose.waitForIdle()
+            compose.onNodeWithText(tailText).assertIsDisplayed()
+            val tail = compose.onNodeWithTag("message-bubble:$REPLY_ID:1").getUnclippedBoundsInRoot()
+            val composer = compose.onNodeWithTag("chat-composer").getUnclippedBoundsInRoot()
+            assertEquals("Smooth scrolling must include the final measured content padding", composer.top.value - 20f, tail.bottom.value, 2f)
+            compose.onNodeWithTag("chat-latest").assertDoesNotExist()
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+        assertTrue(server.submitted.isEmpty())
+    }
+
+    @Test fun typedSendHasEntranceMotionOnComposeFrames() {
+        server.history = JsonArray(listOf(assistantMessage("An existing reply keeps the chat ready.")))
+        server.holdStream = true
+        server.holdFirstStreamFrame = true
+        bridge.reducedMotion = false
+        launch(); openFixtureChat()
+        val draft = "This typed message should enter smoothly."
+        compose.onNode(hasSetTextAction()).performTextInput(draft)
+        // Settle the native IME before examining motion driven by Compose frames.
+        compose.waitUntil(TIMEOUT) { imeVisible() }
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        compose.waitUntil(TIMEOUT) { !imeVisible() }
+        compose.waitForIdle()
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithContentDescription(strings.get("chat.send")).performClick()
+            var userId: String? = null
+            compose.waitUntil(TIMEOUT) {
+                // Network work is real; advance only one frame per rendered-state observation.
+                compose.mainClock.advanceTimeByFrame()
+                compose.waitForIdle()
+                userId = controller.state.value.messages.lastOrNull { it.role == "user" && it.text == draft }?.id
+                userId?.let { id ->
+                    compose.onAllNodesWithTag("message-bubble:$id:0").fetchSemanticsNodes().isNotEmpty()
+                } == true
+            }
+            val bubble = compose.onNodeWithTag("message-bubble:${requireNotNull(userId)}:0")
+            val entrance = bubble.fetchSemanticsNode().boundsInRoot
+            compose.mainClock.advanceTimeBy(500)
+            compose.waitForIdle()
+            val settled = bubble.assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+            assertTrue("Typed user messages must finish their entrance scale over Compose frames (entrance=$entrance, settled=$settled)",
+                settled.width > entrance.width + .1f * compose.activity.resources.displayMetrics.density)
+            assertEquals("Only the typed draft must reach the host", draft, server.submitted.single().getValue("message").jsonPrimitive.content)
+            assertEquals("", controller.state.value.draft)
+            assertTrue(controller.state.value.busy)
+            assertFalse("No provider text may race the entrance measurement", server.firstStreamFrame.isCompleted)
+            assertFalse(server.completed)
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+    }
+
+    @Test fun heldProviderShowsTypingAndActualTextReplacesItBeforeCompletion() {
+        server.history = JsonArray(emptyList())
+        server.holdStream = true
+        server.holdFirstStreamFrame = true
+        launch(); openFixtureChat()
+        compose.onNode(hasSetTextAction()).performTextInput("Show the waiting indicator until actual text arrives")
+        // Keep the real IME shown, but let its native window animation settle
+        // before freezing the Compose clock and tapping the moving composer.
+        compose.waitUntil(TIMEOUT) { imeVisible() }
+        val imeSettledAfter = SystemClock.uptimeMillis() + 300
+        compose.waitUntil(TIMEOUT) { imeVisible() && SystemClock.uptimeMillis() >= imeSettledAfter }
+        compose.mainClock.autoAdvance = false
+        try {
+            compose.onNodeWithContentDescription(strings.get("chat.send")).assertIsEnabled().performClick()
+            compose.waitUntil(TIMEOUT) {
+                compose.mainClock.advanceTimeByFrame()
+                compose.waitForIdle()
+                server.submitted.size == 1
+            }
+            compose.waitUntil(TIMEOUT) {
+                compose.mainClock.advanceTimeByFrame()
+                compose.waitForIdle()
+                controller.state.value.busy && controller.state.value.messages.any { it.role == "user" }
+            }
+            compose.mainClock.advanceTimeBy(400)
+            compose.waitForIdle()
+            compose.onNodeWithTag("chat-typing").assertDoesNotExist()
+            compose.mainClock.advanceTimeBy(500)
+            compose.waitForIdle()
+            compose.onNodeWithTag("chat-typing").assertIsDisplayed()
+            assertTrue("The typing indicator must appear while the real IME stays visible", imeVisible())
+        } catch (failure: Throwable) {
+            captureWaitFailure("One submitted running job and delayed chat-typing while the IME stays shown", failure)
+            throw failure
+        } finally {
+            compose.mainClock.autoAdvance = true
+        }
+        screenshot("media-typing-visible")
+        assertTrue(controller.state.value.busy)
+        assertFalse("The fixture must still withhold all provider content", server.firstStreamFrame.isCompleted)
+        compose.onNodeWithText(LIVE_FIRST).assertDoesNotExist()
+        server.firstStreamFrame.complete(Unit)
+        waitForText(LIVE_FIRST); waitForText(NOTE_FIRST)
+        compose.onNodeWithText(LIVE_FIRST).assertIsDisplayed()
+        compose.onNodeWithText(NOTE_FIRST).assertIsDisplayed()
+        compose.onNodeWithTag("chat-typing").assertDoesNotExist()
+        assertFalse("Actual streamed text must render before provider completion", server.completeStream.isCompleted)
+        assertTrue(controller.state.value.busy)
+        server.nextStreamFrame.complete(Unit)
+        server.completeStream.complete(Unit)
+        compose.waitUntil(TIMEOUT) { server.completed && !controller.state.value.busy }
+        assertEquals(1, server.submitted.size)
     }
 
     @Test fun longPressSendOptionsKeepTheKeyboardAndDraftFocused() {
@@ -473,7 +780,15 @@ class ChatInteractionRegressionTest {
         waitForText(IMAGE_REPLY)
         val reads = server.historyReads.get()
         openFixtureChat()
-        compose.waitUntil(TIMEOUT) { server.historyReads.get() > reads && server.downloads.isNotEmpty() }
+        compose.waitUntil(TIMEOUT) { server.historyReads.get() > reads }
+        // Restored galleries load lazily; compose the user row before awaiting its download.
+        compose.onNodeWithTag("chat-history").performScrollToIndex(0)
+        try {
+            compose.waitUntil(TIMEOUT) { server.downloads.isNotEmpty() }
+        } catch (failure: Throwable) {
+            captureWaitFailure("Authenticated restored image download after the user gallery is composed", failure)
+            throw failure
+        }
         compose.waitUntil(TIMEOUT) {
             compose.onAllNodes(hasContentDescription(IMAGE_NAME).and(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Image)), useUnmergedTree = true)
                 .fetchSemanticsNodes().isNotEmpty()
@@ -523,6 +838,130 @@ class ChatInteractionRegressionTest {
         waitForText(renamed)
         compose.onNodeWithText(renamed).assertIsDisplayed()
         assertEquals(1, server.renameRequests.size)
+    }
+
+    @Test fun multiPickUploadsDistinctOriginalBytesAndSendsEveryManifest() {
+        server.history = JsonArray(emptyList())
+        val files = regressionMediaFiles()
+        server.mediaFiles = files
+        bridge.pickedImages = files.map { it.file }
+        launch(); openFixtureChat()
+        compose.onNodeWithContentDescription(strings.get("input.attach")).performClick()
+        compose.onNodeWithText(strings.get("input.photo")).performClick()
+        compose.waitUntil(TIMEOUT) { server.uploads.size == files.size && !controller.state.value.uploading }
+        assertEquals(listOf("photo"), bridge.pickerKinds.toList())
+        assertEquals(files.map { it.path }, controller.state.value.attachments.map { it.path })
+        files.forEachIndexed { index, media ->
+            val upload = server.uploads[index]
+            assertTrue(upload.contentType.orEmpty().startsWith("multipart/form-data;"))
+            assertTrue(upload.bytes.decodeToString().contains("filename=\"${media.file.name}\""))
+            assertTrue("Each selected original must reach its own multipart request", upload.bytes.containsBytes(media.file.bytes))
+            files.filterIndexed { other, _ -> other != index }.forEach { other ->
+                assertFalse("Uploads must not reuse another selected image's bytes", upload.bytes.containsBytes(other.file.bytes))
+            }
+        }
+        compose.onNodeWithContentDescription(strings.get("chat.send")).performClick()
+        compose.waitUntil(TIMEOUT) { server.submitted.isNotEmpty() }
+        val sent = server.submitted.single()
+        assertEquals("", sent.getValue("message").jsonPrimitive.content)
+        assertEquals(CHAT_ID, sent.getValue("session_id").jsonPrimitive.content)
+        assertEquals(JsonArray(files.map { it.manifest() }), sent.getValue("attachments"))
+        waitForText(IMAGE_REPLY)
+    }
+
+    @Test fun threeImageContactSheetPagesAndExportsSelectedOriginal() {
+        val files = regressionMediaFiles()
+        server.mediaFiles = files
+        server.history = JsonArray(listOf(buildJsonObject {
+            put("id", "gallery-human"); put("role", "user"); put("content", "Three saved images")
+            put("attachments", JsonArray(files.map { it.manifest() }))
+        }))
+        launch(); openFixtureChat()
+        compose.waitUntil(TIMEOUT) {
+            files.all { controller.state.value.attachmentThumbnails[it.path]?.contentEquals(it.file.bytes) == true }
+        }
+        val gallery = compose.onNodeWithTag("attachment-gallery").performScrollTo()
+        val sheet = gallery.getUnclippedBoundsInRoot()
+        val first = compose.onNodeWithTag("gallery:upload:${files[0].path}").getUnclippedBoundsInRoot()
+        val second = compose.onNodeWithTag("gallery:upload:${files[1].path}").getUnclippedBoundsInRoot()
+        val third = compose.onNodeWithTag("gallery:upload:${files[2].path}").getUnclippedBoundsInRoot()
+        assertTrue("Three images must share a compact contact sheet", sheet.height.value <= sheet.width.value + 4f)
+        assertEquals("The first two images must share a row", first.top.value, second.top.value, 2f)
+        assertEquals("The third image must share the compact three-column row", first.top.value, third.top.value, 2f)
+        screenshot("media-gallery-restored-three")
+        compose.onNodeWithTag("gallery:upload:${files[1].path}").performScrollTo().performClick()
+        fun awaitPage(media: RegressionMedia) {
+            compose.waitUntil(TIMEOUT) {
+                controller.state.value.previewPath == media.path && !controller.state.value.loading &&
+                    compose.onAllNodesWithTag("media-image:${media.path}").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("media-preview").assertIsDisplayed()
+            compose.onNodeWithTag("media-pages").assertIsDisplayed()
+            compose.onNodeWithTag("media-image:${media.path}").assertIsDisplayed()
+            assertArrayEquals(media.file.bytes, controller.state.value.previewBytes)
+        }
+        awaitPage(files[1])
+        screenshot("media-viewer-second-image")
+        val window = compose.onNode(isDialog()).getUnclippedBoundsInRoot()
+        val preview = compose.onNodeWithTag("media-preview").getUnclippedBoundsInRoot()
+        assertTrue("The viewer must use the full available window width", preview.width.value >= window.width.value - 2f)
+        compose.onNodeWithTag("media-pages").performTouchInput { swipeLeft(durationMillis = 400) }
+        awaitPage(files[2])
+        compose.onNodeWithText(strings.get("media.save")).assertIsEnabled().performClick()
+        compose.waitUntil(TIMEOUT) { bridge.savedFiles.size == 1 && !controller.state.value.previewExporting }
+        assertEquals(files[2].file.name, bridge.savedFiles.single().name)
+        assertEquals(files[2].file.mimeType, bridge.savedFiles.single().mimeType)
+        assertArrayEquals("Save must use the selected page's original bytes", files[2].file.bytes, bridge.savedFiles.single().bytes)
+        compose.onNodeWithContentDescription(strings.get("media.previous")).performClick()
+        awaitPage(files[1])
+        compose.onNodeWithContentDescription(strings.get("media.share")).assertIsEnabled().performClick()
+        compose.waitUntil(TIMEOUT) { bridge.sharedFiles.size == 1 && !controller.state.value.previewExporting }
+        assertEquals(files[1].file.name, bridge.sharedFiles.single().name)
+        assertEquals(files[1].file.mimeType, bridge.sharedFiles.single().mimeType)
+        assertArrayEquals("Share must export the newly selected original, not the previously saved page", files[1].file.bytes, bridge.sharedFiles.single().bytes)
+        assertTrue(server.downloads.all { it == "Bearer $DEVICE_TOKEN" })
+        assertTrue(server.submitted.isEmpty())
+    }
+
+    @Test fun generatedWorkspaceFileWaitsForToolCompletionThenPreviewsAndSaves() {
+        fun toolHistory(status: String): JsonArray {
+            val step = buildJsonObject {
+                put("id", "report-write"); put("label", "tools__workspace_write"); put("status", status)
+                put("input", buildJsonObject { put("path", WORK_FILE_PATH) })
+                if (status == "done") put("result", buildJsonObject { put("path", WORK_FILE_PATH); put("ok", true) })
+            }
+            return JsonArray(listOf(JsonObject(assistantMessage("The tool is preparing a report.") +
+                ("steps" to JsonArray(listOf(step))))))
+        }
+        server.history = toolHistory("running")
+        launch(); openFixtureChat()
+        waitForText(strings.get("media.creating", "name" to WORK_FILE_PATH.substringAfterLast('/')))
+        assertTrue(controller.state.value.messages.single().workFiles.single().active)
+        compose.onNodeWithTag("file:workspace:$WORK_FILE_PATH").assertDoesNotExist()
+        assertTrue("A running write must not trigger a workspace read", server.workspaceReads.isEmpty())
+        assertTrue("A running write must not trigger an original-byte download", server.workspaceDownloads.isEmpty())
+        val reads = server.historyReads.get()
+        server.history = toolHistory("done")
+        server.workspaceReady = true
+        openFixtureChat()
+        compose.waitUntil(TIMEOUT) {
+            server.historyReads.get() > reads && controller.state.value.messages.single().workFiles.singleOrNull()?.active == false
+        }
+        compose.onNodeWithTag("file:workspace:$WORK_FILE_PATH").performScrollTo().assertIsDisplayed().performClick()
+        waitForText(WORK_FILE_CONTENT)
+        compose.onNodeWithTag("media-preview").assertIsDisplayed()
+        assertEquals("workspace", controller.state.value.previewSource)
+        assertEquals(WORK_FILE_PATH, controller.state.value.previewPath)
+        screenshot("media-delivered-file-preview")
+        compose.onNodeWithText(strings.get("media.save")).assertIsEnabled().performClick()
+        compose.waitUntil(TIMEOUT) { bridge.savedFiles.size == 1 && !controller.state.value.previewExporting }
+        val saved = bridge.savedFiles.single()
+        assertEquals("generated-report.md", saved.name)
+        assertEquals("text/markdown", saved.mimeType)
+        assertArrayEquals("Export must preserve original line endings rather than substitute preview text", WORK_FILE_ORIGINAL.encodeToByteArray(), saved.bytes)
+        assertEquals("Text preview must use the workspace content route", listOf(WORK_FILE_PATH), server.workspaceReads.toList())
+        assertEquals("Export must use the authorized original-byte route", listOf(WORK_FILE_PATH), server.workspaceDownloads.toList())
+        assertTrue(server.submitted.isEmpty())
     }
 
     @Test fun technicalToolNamesAreLocalizedInSummaryRowsAndDetails() {
@@ -590,7 +1029,7 @@ class ChatInteractionRegressionTest {
                 }
                 compose.onNode(tableCellText(noteRowLabel(rows)), useUnmergedTree = true).assertIsDisplayed()
                 compose.onNodeWithText(noteTail(rows)).assertIsDisplayed()
-                compose.onNodeWithText(strings.get("chat.latest")).assertDoesNotExist()
+                compose.onNodeWithContentDescription(strings.get("chat.latest")).assertDoesNotExist()
             } catch (failure: Throwable) {
                 captureWaitFailure(noteTail(rows), failure)
                 throw failure
@@ -640,10 +1079,10 @@ class ChatInteractionRegressionTest {
             swipe(Offset(centerX, exposedTop + exposedHeight * .2f),
                 Offset(centerX, exposedTop + exposedHeight * .75f), durationMillis = 600)
         }
-        waitForText(strings.get("chat.latest"))
+        waitForText(strings.get("chat.latest"), hasContentDescription(strings.get("chat.latest")))
         publishNote(48)
         compose.onNodeWithText(noteTail(48)).assertIsNotDisplayed()
-        compose.onNodeWithText(strings.get("chat.latest")).assertIsDisplayed().performClick()
+        compose.onNodeWithContentDescription(strings.get("chat.latest")).assertIsDisplayed().performClick()
         awaitFollowedTail(48)
         publishNote(60)
         awaitFollowedTail(60)
@@ -662,6 +1101,24 @@ class ChatInteractionRegressionTest {
 
 private data class RegressionUpload(val bytes: ByteArray, val contentType: String?)
 
+private data class RegressionMedia(val path: String, val file: PickedFile) {
+    fun manifest() = buildJsonObject {
+        put("url", path); put("name", file.name); put("type", file.mimeType); put("size", file.bytes.size)
+    }
+}
+
+private fun regressionMediaFiles(): List<RegressionMedia> = listOf(
+    android.graphics.Color.RED, android.graphics.Color.GREEN, android.graphics.Color.BLUE,
+).mapIndexed { index, color ->
+    val bytes = ByteArrayOutputStream().use { output ->
+        val bitmap = Bitmap.createBitmap(8 + index, 8 + index, Bitmap.Config.ARGB_8888)
+        try { bitmap.eraseColor(color); check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)); output.toByteArray() }
+        finally { bitmap.recycle() }
+    }
+    val name = "gallery-${index + 1}.png"
+    RegressionMedia("/uploads/$name", PickedFile(name, "image/png", bytes))
+}
+
 /** Strict host routes exercise serialization, persisted history, and an actually open SSE body. */
 private class ChatRegressionHost {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -672,11 +1129,20 @@ private class ChatRegressionHost {
     val renameRequests = CopyOnWriteArrayList<JsonObject>()
     val uploads = CopyOnWriteArrayList<RegressionUpload>()
     val downloads = CopyOnWriteArrayList<String?>()
+    val workspaceReads = CopyOnWriteArrayList<String>()
+    val workspaceDownloads = CopyOnWriteArrayList<String>()
+    @Volatile var workspaceReady = false
+    @Volatile var mediaFiles = emptyList<RegressionMedia>()
     val historyReads = AtomicInteger()
+    val jobReads = AtomicInteger()
+    val streamRequests = AtomicInteger()
+    val runningFrames = AtomicInteger()
+    val firstStreamFrame = CompletableDeferred<Unit>()
     val nextStreamFrame = CompletableDeferred<Unit>()
     val completeStream = CompletableDeferred<Unit>()
     val noteRows = Channel<Int>(Channel.UNLIMITED)
     @Volatile var holdStream = false
+    @Volatile var holdFirstStreamFrame = false
     @Volatile var noteOnlyStream = false
     @Volatile var completed = false
     @Volatile var todayTitle = "Today conversation"
@@ -742,7 +1208,43 @@ private class ChatRegressionHost {
                         channel.readRemaining().readByteArray().also { writer.join() }
                     }
                     uploads += RegressionUpload(bytes, request.body.contentType?.toString())
-                    imageManifest.toString()
+                    if (mediaFiles.isEmpty()) imageManifest.toString() else {
+                        val matches = mediaFiles.filter { bytes.containsBytes(it.file.bytes) }
+                        check(matches.size == 1) { "Multipart upload must contain exactly one expected original" }
+                        matches.single().manifest().toString()
+                    }
+                }
+                mediaFiles.any { it.path == path } && request.method == HttpMethod.Get -> {
+                    val media = mediaFiles.single { it.path == path }
+                    check(request.headers[HttpHeaders.Authorization] == "Bearer $DEVICE_TOKEN")
+                    downloads += request.headers[HttpHeaders.Authorization]
+                    return@MockEngine respond(media.file.bytes, headers = headersOf(HttpHeaders.ContentType, media.file.mimeType))
+                }
+                path == "/api/workspace/file" && request.method == HttpMethod.Get -> {
+                    if (!workspaceReady) {
+                        unexpected += "Workspace read before tool completion"
+                        error("Running generated files must not be read")
+                    }
+                    check(request.url.parameters["path"] == WORK_FILE_PATH)
+                    check(request.url.parameters["session_id"] == CHAT_ID)
+                    check(request.headers[HttpHeaders.Authorization] == "Bearer $DEVICE_TOKEN")
+                    workspaceReads += WORK_FILE_PATH
+                    buildJsonObject {
+                        put("path", WORK_FILE_PATH); put("content", WORK_FILE_CONTENT); put("binary", false)
+                        put("mime_type", "text/markdown"); put("too_large", false); put("size", WORK_FILE_CONTENT.encodeToByteArray().size)
+                    }.toString()
+                }
+                path == "/api/mobile/workspace/download" && request.method == HttpMethod.Get -> {
+                    if (!workspaceReady) {
+                        unexpected += "Workspace download before tool completion"
+                        error("Running generated files must not be downloaded")
+                    }
+                    check(request.url.parameters["path"] == WORK_FILE_PATH)
+                    check(request.url.parameters["session_id"] == CHAT_ID)
+                    check(request.url.parameters.names() == setOf("path", "session_id"))
+                    check(request.headers[HttpHeaders.Authorization] == "Bearer $DEVICE_TOKEN")
+                    workspaceDownloads += WORK_FILE_PATH
+                    return@MockEngine respond(WORK_FILE_ORIGINAL.encodeToByteArray(), headers = headersOf(HttpHeaders.ContentType, "text/markdown"))
                 }
                 path == IMAGE_PATH && request.method == HttpMethod.Get -> {
                     downloads += request.headers[HttpHeaders.Authorization]
@@ -753,13 +1255,15 @@ private class ChatRegressionHost {
                     """{"id":"regression-job","session_id":"$CHAT_ID","state":"running"}"""
                 }
                 path == "/api/mobile/messages" && request.method == HttpMethod.Get -> {
-                    if (noteOnlyStream && submitted.isNotEmpty() && !completed) buildJsonObject {
+                    jobReads.incrementAndGet()
+                    if ((noteOnlyStream || holdFirstStreamFrame) && submitted.isNotEmpty() && !completed) buildJsonObject {
                         put("messages", JsonArray(listOf(JsonObject(submitted.single() + mapOf(
                             "id" to JsonPrimitive("regression-job"), "state" to JsonPrimitive("running"),
                         )))))
                     }.toString() else """{"messages":[]}"""
                 }
                 path == "/api/mobile/messages/regression-job/events" -> {
+                    streamRequests.incrementAndGet()
                     val channel = ByteChannel(autoFlush = true)
                     scope.launch {
                         try {
@@ -768,6 +1272,8 @@ private class ChatRegressionHost {
                                 channel.writeStringUtf8("id: ${++sequence}\nevent: $name\ndata: $payload\n\n")
                             }
                             event("mobile_state", buildJsonObject { put("state", "running") })
+                            runningFrames.incrementAndGet()
+                            if (holdFirstStreamFrame) firstStreamFrame.await()
                             val parts: List<JsonObject>
                             val reply: String
                             if (noteOnlyStream) {
@@ -841,7 +1347,7 @@ private class ChatRegressionHost {
 private class RegressionUiBridge : PlatformBridge {
     override val platformName = "android"
     override val systemLanguage = "en"
-    override val reducedMotion = true
+    override var reducedMotion = true
     override val foreground = MutableStateFlow(true)
     override val incomingPairing = MutableStateFlow<String?>(null)
     val preferences = mutableMapOf<String, String>()
@@ -849,6 +1355,9 @@ private class RegressionUiBridge : PlatformBridge {
     private val ids = AtomicInteger()
     val pickerKinds = CopyOnWriteArrayList<String>()
     var pickedImage: PickedFile? = null
+    var pickedImages: List<PickedFile>? = null
+    val savedFiles = CopyOnWriteArrayList<PickedFile>()
+    val sharedFiles = CopyOnWriteArrayList<PickedFile>()
     var copied: String? = null
     override fun readPreference(key: String) = preferences[key]
     override fun writePreference(key: String, value: String?) { if (value == null) preferences.remove(key) else preferences[key] = value }
@@ -856,6 +1365,12 @@ private class RegressionUiBridge : PlatformBridge {
     override fun writeSecret(key: String, value: String?) { if (value == null) secrets.remove(key) else secrets[key] = value }
     override fun scanQr(onResult: (String?) -> Unit) { onResult("claudebot://pair?server=https%3A%2F%2Fchat-regression.example&code=regression-pairing") }
     override fun pickFile(kind: String, onResult: (PickedFile?) -> Unit) { pickerKinds += kind; onResult(pickedImage) }
+    override fun pickFiles(kind: String, onResult: (List<PickedFile>) -> Unit) {
+        if (pickedImages == null) pickFile(kind) { onResult(listOfNotNull(it)) }
+        else { pickerKinds += kind; onResult(requireNotNull(pickedImages)) }
+    }
+    override fun saveFile(file: PickedFile, onResult: (Boolean) -> Unit) { savedFiles += file; onResult(true) }
+    override fun shareFile(file: PickedFile, onResult: (Boolean) -> Unit) { sharedFiles += file; onResult(true) }
     override fun startRecording(onAmplitude: (Float) -> Unit, onResult: (PickedFile?) -> Unit, onPartial: (PickedFile) -> Unit) = Unit
     override fun stopRecording() = Unit
     override fun cancelRecording() = Unit
@@ -904,6 +1419,9 @@ private const val TOOL_DETAIL = "Queried the project documentation."
 private const val IMAGE_NAME = "regression.png"
 private const val IMAGE_PATH = "/uploads/regression.png"
 private const val IMAGE_REPLY = "The selected image was received."
+private const val WORK_FILE_PATH = "reports/generated-report.md"
+private const val WORK_FILE_CONTENT = "Generated report keeps its complete original content, including the final export marker."
+private const val WORK_FILE_ORIGINAL = WORK_FILE_CONTENT + "\r\n"
 private const val LIVE_FIRST = "The first answer is already arriving."
 private const val LIVE_SECOND = "The corrected answer is visible before completion."
 private const val NOTE_FIRST = "I am checking the first source."

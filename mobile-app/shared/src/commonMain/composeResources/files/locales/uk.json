@@ -240,5 +240,21 @@
   "tool.exec": "Виконання команди",
   "tool.grep": "Пошук у файлах",
   "error.imageModel": "Ця модель не читає зображення. Обери модель із підтримкою зображень.",
-  "model.images": "Підтримує зображення"
+  "model.images": "Підтримує зображення",
+  "media.more": "+{count}",
+  "media.openFile": "Відкрити файл",
+  "media.creating": "Створює {name}…",
+  "media.position": "{index} із {count}",
+  "media.previous": "Попередній файл",
+  "media.next": "Наступний файл",
+  "media.save": "Зберегти",
+  "media.share": "Поділитися файлом",
+  "files.stillWriting": "Цей файл ще створюється.",
+  "files.shareIncomplete": "Не вдалося поділитися файлом.",
+  "files.saveIncomplete": "Файл не збережено.",
+  "attachments.selectionLimit": "Вибери до 10 файлів, разом не більше 20 МБ.",
+  "files.previewTruncated": "Це скорочений перегляд. Збережи файл, щоб прочитати повністю.",
+  "files.tooLarge": "Цей файл перевищує ліміт завантаження 20 МБ.",
+  "files.invalidPath": "Цей файл поза робочою текою агента.",
+  "files.binaryUnavailable": "Для завантаження цього файлу онови сервер."
 }

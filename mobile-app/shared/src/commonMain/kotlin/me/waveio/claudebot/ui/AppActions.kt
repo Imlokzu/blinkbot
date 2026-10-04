@@ -27,6 +27,10 @@ interface AppActions {
     fun removeAttachment(path: String)
     fun loadAttachmentThumbnail(path: String)
     fun previewAttachment(path: String)
+    fun previewWorkFile(path: String) {}
+    fun loadWorkFileThumbnail(path: String) {}
+    fun savePreview() {}
+    fun sharePreview() {}
     fun closePreview()
     fun startDictation()
     fun stopDictation()

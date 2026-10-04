@@ -240,5 +240,21 @@
   "tool.exec": "Run command",
   "tool.grep": "Search files",
   "error.imageModel": "This model cannot read images. Choose an image-capable model.",
-  "model.images": "Supports images"
+  "model.images": "Supports images",
+  "media.more": "+{count}",
+  "media.openFile": "Open file",
+  "media.creating": "Creating {name}…",
+  "media.position": "{index} of {count}",
+  "media.previous": "Previous file",
+  "media.next": "Next file",
+  "media.save": "Save",
+  "media.share": "Share file",
+  "files.stillWriting": "This file is still being created.",
+  "files.shareIncomplete": "The file could not be shared.",
+  "files.saveIncomplete": "The file was not saved.",
+  "attachments.selectionLimit": "Choose up to 10 files, 20 MB in total.",
+  "files.previewTruncated": "This preview is shortened. Save the file to read it in full.",
+  "files.tooLarge": "This file exceeds the 20 MB download limit.",
+  "files.invalidPath": "This file is outside the agent workspace.",
+  "files.binaryUnavailable": "This file needs a newer host to download."
 }

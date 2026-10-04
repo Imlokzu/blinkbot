@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
@@ -42,6 +43,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.semantics.*
@@ -61,9 +65,29 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
     val topPanel = headerHeight + with(density) { WindowInsets.safeDrawing.getTop(this).toDp() }
     var composerHeight by remember { mutableIntStateOf(0) }
     val bottomPanel = with(density) { composerHeight.toDp() }
+    val historyLayer = rememberGraphicsLayer()
+    var historyOrigin by remember { mutableStateOf(Offset.Zero) }
+    var scrollingToLatest by remember(state.sessionId) { mutableStateOf(false) }
     val seen = remember(state.sessionId) { mutableSetOf<String>() }
     var following by remember(state.sessionId) { mutableStateOf(true) }
     val fingerDown = remember(state.sessionId) { mutableStateOf(false) }
+    val bottomTolerance = with(density) { 2.dp.toPx() }
+    val tailVisible by remember(list, composerHeight, bottomTolerance) { derivedStateOf {
+        val layout = list.layoutInfo
+        val last = layout.visibleItemsInfo.lastOrNull()
+        layout.totalItemsCount == 0 || last != null && last.index == layout.totalItemsCount - 1 &&
+            last.offset + last.size <= layout.viewportEndOffset - composerHeight + bottomTolerance
+    } }
+    val waiting = (state.busy && state.messages.lastOrNull()?.let { it.role != "assistant" || it.text.isBlank() && it.parts.none { part -> part.text.isNotBlank() } } != false) ||
+        (state.pending.any { it.state == "queued" } && state.messages.lastOrNull()?.role == "user")
+    var showTyping by remember(state.sessionId) { mutableStateOf(false) }
+    LaunchedEffect(waiting, state.sessionId) {
+        showTyping = false
+        if (waiting) { delay(850); showTyping = true }
+    }
+    LaunchedEffect(tailVisible, fingerDown.value, list.isScrollInProgress) {
+        if (tailVisible && !fingerDown.value && !list.isScrollInProgress) following = true
+    }
     val scrollIntent = remember(state.sessionId) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -78,7 +102,7 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
     }
     LaunchedEffect(state.sessionId) { if (state.messages.isNotEmpty()) list.scrollToItem(state.messages.lastIndex) }
     LaunchedEffect(state.messages.size) {
-        if (following && list.layoutInfo.totalItemsCount > 0) list.scrollToItem(list.layoutInfo.totalItemsCount - 1)
+        if (following && !scrollingToLatest && list.layoutInfo.totalItemsCount > 0) list.scrollToItem(list.layoutInfo.totalItemsCount - 1)
     }
     LaunchedEffect(list, state.sessionId) {
         // Markdown measures after parsing. Follow that measured growth rather
@@ -88,15 +112,15 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
             listOf(layout.totalItemsCount, layout.visibleItemsInfo.lastOrNull()?.index ?: -1,
                 layout.visibleItemsInfo.lastOrNull()?.size ?: 0, layout.visibleItemsInfo.lastOrNull()?.offset ?: 0,
                 layout.viewportEndOffset, layout.afterContentPadding,
-                if (fingerDown.value) 1 else 0, if (following) 1 else 0)
+                if (fingerDown.value) 1 else 0, if (following) 1 else 0, if (scrollingToLatest) 1 else 0)
         }.collect { geometry ->
             val count = geometry[0]
-            if (following && count > 0) coroutineScope {
+            if (following && !scrollingToLatest && count > 0) coroutineScope {
                 // A user drag may cancel this mutation. Keep that cancellation
                 // inside a child so later growth can resume following.
                 launch {
                     snapshotFlow { !list.isScrollInProgress && !fingerDown.value }.first { it }
-                    if (!following) return@launch
+                    if (!following || scrollingToLatest) return@launch
                     if (geometry[1] != count - 1) list.scrollToItem(count - 1)
                     val layout = list.layoutInfo
                     val last = layout.visibleItemsInfo.lastOrNull() ?: return@launch
@@ -114,7 +138,8 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
                 }
             } else {
                 LazyColumn(state = list, overscrollEffect = null, modifier = Modifier.fillMaxSize().testTag("chat-history")
-                    .chatEdges(topPanel, bottomPanel).nestedScroll(scrollIntent).pointerInput(state.sessionId) {
+                    .onGloballyPositioned { historyOrigin = it.positionInRoot() }
+                    .chatEdges(topPanel, bottomPanel, historyLayer).nestedScroll(scrollIntent).pointerInput(state.sessionId) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                         fingerDown.value = true
@@ -123,15 +148,37 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
                         } finally { fingerDown.value = false }
                     }
                 }, contentPadding = PaddingValues(start = 18.dp, top = topPanel + 20.dp, end = 18.dp, bottom = bottomPanel + 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    items(state.messages, key = { it.id }) { message ->
-                        MessageContent(message, actions, reducedMotion, state.busy, state.attachmentThumbnails, seen.add(message.id) && (message.live || message.id.startsWith("u-")))
+                    items(state.messages, key = { it.presentationId ?: it.id }) { message ->
+                        MessageContent(message, actions, reducedMotion, state.busy, state.attachmentThumbnails, state.mediaGeneration, seen.add(message.presentationId ?: message.id) && (message.live || message.presentationId != null || message.id.startsWith("u-")))
                     }
-                    if (state.busy && state.messages.lastOrNull()?.let { it.role != "assistant" || it.text.isBlank() } != false || state.pending.any { it.state == "queued" } && state.messages.lastOrNull()?.role == "user") item { TypingIndicator() }
+                    if (showTyping && waiting) item(key = "typing") {
+                        EnterMotion(true) { motion -> Box(motion.testTag("chat-typing")) { TypingIndicator() } }
+                    }
                 }
             }
             if (state.loading) LoadingDots(Modifier.align(Alignment.Center))
-            if (!following && state.messages.isNotEmpty()) {
-                ActionButton(tr("chat.latest"), { following = true; scope.launch { list.animateScrollToItem((list.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)) } }, Modifier.align(Alignment.BottomCenter).padding(bottom = bottomPanel + 12.dp), icon = "down")
+            if (!tailVisible && state.messages.isNotEmpty()) {
+                GlassLatestButton(historyLayer, historyOrigin, Modifier.align(Alignment.BottomCenter).padding(bottom = bottomPanel + 12.dp)) {
+                    if (!scrollingToLatest) scope.launch {
+                        scrollingToLatest = true
+                        following = true
+                        try {
+                            val lastIndex = list.layoutInfo.totalItemsCount - 1
+                            if (lastIndex < 0) return@launch
+                            if (list.layoutInfo.visibleItemsInfo.lastOrNull()?.index != lastIndex) {
+                                if (reducedMotion) list.scrollToItem(lastIndex) else list.animateScrollToItem(lastIndex)
+                            }
+                            // A final bubble may be taller than the viewport. Its
+                            // measured tail, not its item start, is the destination.
+                            val layout = list.layoutInfo
+                            val last = layout.visibleItemsInfo.lastOrNull()
+                            if (last != null) {
+                                val distance = (last.offset + last.size + layout.afterContentPadding - layout.viewportEndOffset).coerceAtLeast(0).toFloat()
+                                if (reducedMotion) list.scrollBy(distance) else list.animateScrollBy(distance, tween(320, easing = FastOutSlowInEasing))
+                            }
+                        } finally { scrollingToLatest = false }
+                    }
+                }
             }
         }
         Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().testTag("chat-header").panelTouchBarrier()
@@ -170,7 +217,7 @@ private fun Welcome(modifier: Modifier, reducedMotion: Boolean) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MessageContent(message: MessageRow, actions: AppActions, reducedMotion: Boolean, busy: Boolean, thumbnails: Map<String, ByteArray>, animate: Boolean) {
+private fun MessageContent(message: MessageRow, actions: AppActions, reducedMotion: Boolean, busy: Boolean, thumbnails: Map<String, ByteArray>, mediaGeneration: Long, animate: Boolean) {
     val palette = LocalPalette.current
     val user = message.role == "user"
     var menuText by remember(message.id) { mutableStateOf<String?>(null) }
@@ -180,7 +227,7 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
     NativeBackHandler(menuText != null) { menuText = null }
     val lines = message.bubbles.filter { it.isNotBlank() }.ifEmpty { listOf(message.text).filter { it.isNotBlank() } }
     val parts = message.parts.ifEmpty { lines.map { ContentPart("text", it) } }
-    EnterMotion(animate) { motion ->
+    MessageArrival(animate, user) { motion ->
     Column(motion.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start, verticalArrangement = Arrangement.spacedBy(7.dp)) {
         for ((partIndex, part) in parts.withIndex()) {
             if (part.type == "steps") {
@@ -214,8 +261,16 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
                     .clickable(enabled = !user) { actions.reaction(message.id, bubbleIndex, null) }.padding(8.dp, 3.dp))
         }
         if (message.steps.isNotEmpty() && parts.none { it.type == "steps" }) ActivityTree(message.steps, message.live)
-        message.attachments.forEach { attachment ->
-            AttachmentThumbnail(attachment, thumbnails[attachment.path], actions)
+        val media = message.attachments.map { PreviewItem(it.path, it.name, it.mimeType, "upload") } +
+            message.workFiles.filterNot { it.active }.map { PreviewItem(it.path, it.name, it.mimeType, "workspace") }
+        key(mediaGeneration) {
+            AttachmentGallery(media, thumbnails, actions, message.workFiles.associate { "workspace:${it.path}" to it.revision })
+        }
+        message.workFiles.filter { it.active }.forEach { file ->
+            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                LoadingDots()
+                Text(tr("media.creating", "name" to file.name), color = palette.muted, fontSize = 12.sp)
+            }
         }
         if (!user && message.model.isNotBlank() && !message.live) Text(message.model.substringAfterLast('/'), color = palette.muted, fontSize = 10.sp, modifier = Modifier.padding(start = 6.dp, top = 2.dp))
     }

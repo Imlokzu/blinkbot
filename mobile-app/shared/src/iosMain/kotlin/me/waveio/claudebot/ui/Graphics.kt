@@ -19,7 +19,8 @@ private const val MAX_DECODED_DIMENSION = 2_048L
 
 /** ImageIO downsamples before Skia sees pixels, preserving first-frame orientation. */
 @OptIn(ExperimentalForeignApi::class)
-actual fun decodeImage(bytes: ByteArray): ImageBitmap? {
+private fun downsampledPng(bytes: ByteArray, maxDimension: Int): ByteArray? {
+    val limit = maxDimension.toLong().coerceIn(1L, MAX_DECODED_DIMENSION)
     if (bytes.isEmpty() || bytes.size > MAX_ENCODED_BYTES) return null
     return runCatching {
         val data = bytes.usePinned {
@@ -43,7 +44,7 @@ actual fun decodeImage(bytes: ByteArray): ImageBitmap? {
                     if (dimensions.first !in 1..MAX_SOURCE_DIMENSION || dimensions.second !in 1..MAX_SOURCE_DIMENSION ||
                         dimensions.first * dimensions.second > MAX_SOURCE_PIXELS) return null
                     val maximum = memScoped {
-                        val value = alloc<LongVar> { this.value = MAX_DECODED_DIMENSION }
+                        val value = alloc<LongVar> { this.value = limit }
                         CFNumberCreate(null, kCFNumberSInt64Type, value.ptr)
                     } ?: return null
                     maximum.useCF {
@@ -62,13 +63,7 @@ actual fun decodeImage(bytes: ByteArray): ImageBitmap? {
                             if (png.length == 0UL || png.length > MAX_ENCODED_BYTES.toULong()) return null
                             val thumbnailBytes = ByteArray(png.length.toInt())
                             thumbnailBytes.usePinned { memcpy(it.addressOf(0), png.bytes, png.length) }
-                            val image = Image.makeFromEncoded(thumbnailBytes)
-                            if (image.width !in 1..MAX_DECODED_DIMENSION.toInt() ||
-                                image.height !in 1..MAX_DECODED_DIMENSION.toInt()) {
-                                image.close()
-                                return null
-                            }
-                            image.toComposeImageBitmap()
+                            thumbnailBytes
                         }
                     }
                 }
@@ -76,6 +71,14 @@ actual fun decodeImage(bytes: ByteArray): ImageBitmap? {
         }
     }.getOrNull()
 }
+
+actual fun decodeImage(bytes: ByteArray, maxDimension: Int): ImageBitmap? = runCatching {
+    val encoded = downsampledPng(bytes, maxDimension) ?: return null
+    Image.makeFromEncoded(encoded).toComposeImageBitmap()
+}.getOrNull()
+
+actual fun thumbnailBytes(bytes: ByteArray): ByteArray? = downsampledPng(bytes, 512)
+    ?.takeIf { it.isNotEmpty() && it.size <= 8 * 1024 * 1024 }
 
 @OptIn(ExperimentalForeignApi::class)
 private fun dimension(properties: CFDictionaryRef, key: CFStringRef?): Long? = memScoped {
