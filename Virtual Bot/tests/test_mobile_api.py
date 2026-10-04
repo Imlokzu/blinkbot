@@ -102,10 +102,29 @@ def test_capabilities_publishes_version_gated_update_metadata(tmp_path, monkeypa
         "version_code": 9,
         "changelog": ["Better image previews", "Native Excalidraw viewer"],
         "url": "https://api.example.test/mobile/0.4.2.apk",
+        "ios_url": None,
         "sha256": None,
         "mandatory": False,
     }
     assert current["available"] is False
+
+
+def test_capabilities_builds_same_origin_android_download_and_serves_it_authenticated(tmp_path, monkeypatch):
+    apk = tmp_path / "ClaudeBot.apk"
+    apk.write_bytes(b"synthetic-apk")
+    monkeypatch.setenv("MOBILE_UPDATE_ANDROID_FILE", str(apk))
+    monkeypatch.setenv("MOBILE_UPDATE_ANDROID_VERSION", "0.4.2")
+    monkeypatch.setenv("MOBILE_UPDATE_ANDROID_VERSION_CODE", "9")
+    monkeypatch.setenv("MOBILE_API_ORIGIN", "https://api.example.test")
+    store = MobileStore(tmp_path / "mobile.db")
+    pairing = store.create_pairing("")
+    token = store.exchange(pairing["code"], "Fixture", "android")["token"]
+    with TestClient(make_app(store, server_origin="https://api.example.test")) as client:
+        auth = {"authorization": f"Bearer {token}"}
+        update = client.get("/api/mobile/capabilities?platform=android&version_code=8", headers=auth).json()["update"]
+        assert update["url"] == "https://api.example.test/api/mobile/update/download"
+        assert client.get("/api/mobile/update/download", headers=auth).content == b"synthetic-apk"
+        assert client.get("/api/mobile/update/download", headers={"x-owner": "other"}).status_code == 200
 
 
 def test_message_callback_receives_original_identity_explicit_model_and_generated_session(tmp_path):

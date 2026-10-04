@@ -24,7 +24,7 @@ from typing import Any, Literal
 from urllib.parse import urlencode, urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from mobile_store import MobileStore, StoreError, TERMINAL, TOKEN_PREFIX, _json
@@ -148,12 +148,16 @@ def _mobile_update(platform: str, version_code: int) -> dict[str, Any]:
         published_code = 0
     version_name = os.environ.get(f"{prefix}_VERSION", "").strip()
     changelog = [line.strip(" -*\t") for line in os.environ.get(f"{prefix}_CHANGELOG", "").splitlines() if line.strip()]
+    update_url = os.environ.get(f"{prefix}_URL", "").strip() or None
+    if platform == "android" and os.environ.get("MOBILE_UPDATE_ANDROID_FILE", "").strip() and not update_url:
+        origin = os.environ.get("MOBILE_API_ORIGIN", "https://api-bot.waveio.me").rstrip("/")
+        update_url = f"{origin}/api/mobile/update/download"
     return {
         "available": published_code > max(0, version_code) and bool(version_name),
         "version_name": version_name,
         "version_code": published_code,
         "changelog": changelog[:32],
-        "url": os.environ.get(f"{prefix}_URL", "").strip() or None,
+        "url": update_url,
         "ios_url": os.environ.get("MOBILE_UPDATE_IOS_URL", "").strip() or None,
         "sha256": os.environ.get(f"{prefix}_SHA256", "").strip() or None,
         "mandatory": os.environ.get(f"{prefix}_MANDATORY", "").lower() in {"1", "true", "yes"},
@@ -551,6 +555,20 @@ def router(require_user, require_operator, run_turn: RunTurn, *, store: MobileSt
     async def revoke(device_id: str, user_id: str = Depends(identity)):
         call(lambda: selected_store.revoke(user_id, device_id))
         return {"ok": True}
+
+    @routes.get("/update/download")
+    async def download_update(user_id: str = Depends(identity)):
+        if os.environ.get("MOBILE_UPDATE_ANDROID_FILE", "").strip() == "":
+            raise HTTPException(404, {"code": "update_unavailable"})
+        path = Path(os.environ["MOBILE_UPDATE_ANDROID_FILE"]).expanduser()
+        try:
+            path = path.resolve(strict=True)
+            if path.suffix.lower() != ".apk" or not path.is_file() or path.stat().st_size > 100 * 1024 * 1024:
+                raise ValueError
+        except (OSError, ValueError):
+            raise HTTPException(404, {"code": "update_unavailable"}) from None
+        return FileResponse(path, media_type="application/vnd.android.package-archive", filename=path.name,
+                            headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
 
     @routes.get("/capabilities")
     async def capabilities(
