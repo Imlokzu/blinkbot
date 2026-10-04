@@ -3,6 +3,9 @@ package me.waveio.claudebot.ui
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,6 +20,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.TileMode
@@ -32,9 +40,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.semantics.*
 import com.mikepenz.markdown.m3.Markdown
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import me.waveio.claudebot.state.*
 
 @Composable
@@ -42,29 +53,69 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean) {
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val palette = LocalPalette.current
+    val seen = remember(state.sessionId) { mutableSetOf<String>() }
     var following by remember(state.sessionId) { mutableStateOf(true) }
-    LaunchedEffect(list) {
-        var previous = list.firstVisibleItemIndex to list.firstVisibleItemScrollOffset
-        snapshotFlow { Triple(list.firstVisibleItemIndex, list.firstVisibleItemScrollOffset, list.canScrollForward) }.collect { (index, offset, canForward) ->
-            if (!canForward) following = true
-            else if (list.isScrollInProgress && (index < previous.first || index == previous.first && offset < previous.second)) following = false
-            previous = index to offset
+    val fingerDown = remember(state.sessionId) { mutableStateOf(false) }
+    val scrollIntent = remember(state.sessionId) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (fingerDown.value && source == NestedScrollSource.UserInput && available.y > 0f) following = false
+                return Offset.Zero
+            }
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (fingerDown.value && source == NestedScrollSource.UserInput && consumed.y < 0f && !list.canScrollForward) following = true
+                return Offset.Zero
+            }
         }
     }
     LaunchedEffect(state.sessionId) { if (state.messages.isNotEmpty()) list.scrollToItem(state.messages.lastIndex) }
-    LaunchedEffect(state.messages.lastOrNull()?.text, state.messages.size, state.messages.lastOrNull()?.steps, state.messages.lastOrNull()?.parts) {
+    LaunchedEffect(state.messages.size) {
         if (following && list.layoutInfo.totalItemsCount > 0) list.scrollToItem(list.layoutInfo.totalItemsCount - 1)
+    }
+    LaunchedEffect(list, state.sessionId) {
+        // Markdown measures after parsing. Follow that measured growth rather
+        // than jumping to the top of the same long bubble on every token.
+        snapshotFlow {
+            val layout = list.layoutInfo
+            listOf(layout.totalItemsCount, layout.visibleItemsInfo.lastOrNull()?.index ?: -1,
+                layout.visibleItemsInfo.lastOrNull()?.size ?: 0, layout.visibleItemsInfo.lastOrNull()?.offset ?: 0,
+                layout.viewportEndOffset, layout.afterContentPadding,
+                if (fingerDown.value) 1 else 0, if (following) 1 else 0)
+        }.collect { geometry ->
+            val count = geometry[0]
+            if (following && count > 0) coroutineScope {
+                // A user drag may cancel this mutation. Keep that cancellation
+                // inside a child so later growth can resume following.
+                launch {
+                    snapshotFlow { !list.isScrollInProgress && !fingerDown.value }.first { it }
+                    if (!following) return@launch
+                    if (geometry[1] != count - 1) list.scrollToItem(count - 1)
+                    val layout = list.layoutInfo
+                    val last = layout.visibleItemsInfo.lastOrNull() ?: return@launch
+                    val excess = last.offset + last.size + layout.afterContentPadding - layout.viewportEndOffset
+                    if (excess > 0) list.scrollBy(excess.toFloat())
+                }.join()
+            }
+        }
     }
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (state.messages.isEmpty() && !state.loading) {
                 Welcome(Modifier.align(Alignment.Center).padding(horizontal = 38.dp), reducedMotion)
             } else {
-                LazyColumn(state = list, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp, 20.dp, 18.dp, 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    items(state.messages, key = { it.id }) { message ->
-                        MessageContent(message, actions, reducedMotion, state.busy)
+                LazyColumn(state = list, overscrollEffect = null, modifier = Modifier.fillMaxSize().nestedScroll(scrollIntent).pointerInput(state.sessionId) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        fingerDown.value = true
+                        try {
+                            do { val event = awaitPointerEvent(PointerEventPass.Initial) } while (event.changes.any { it.pressed })
+                        } finally { fingerDown.value = false }
                     }
-                    if (state.busy || state.pending.any { it.state == "queued" } && state.messages.lastOrNull()?.role == "user") item { TypingIndicator() }
+                }, contentPadding = PaddingValues(18.dp, 20.dp, 18.dp, 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    items(state.messages, key = { it.id }) { message ->
+                        MessageContent(message, actions, reducedMotion, state.busy, state.attachmentThumbnails, seen.add(message.id) && (message.live || message.id.startsWith("u-")))
+                    }
+                    if (state.busy && state.messages.lastOrNull()?.let { it.role != "assistant" || it.text.isBlank() } != false || state.pending.any { it.state == "queued" } && state.messages.lastOrNull()?.role == "user") item { TypingIndicator() }
                 }
             }
             if (state.loading) LoadingDots(Modifier.align(Alignment.Center))
@@ -97,21 +148,18 @@ private fun Welcome(modifier: Modifier, reducedMotion: Boolean) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MessageContent(message: MessageRow, actions: AppActions, reducedMotion: Boolean, busy: Boolean) {
+private fun MessageContent(message: MessageRow, actions: AppActions, reducedMotion: Boolean, busy: Boolean, thumbnails: Map<String, ByteArray>, animate: Boolean) {
     val palette = LocalPalette.current
     val user = message.role == "user"
     var menuText by remember(message.id) { mutableStateOf<String?>(null) }
     var selection by remember(message.id) { mutableStateOf<String?>(null) }
-    var visible by remember(message.id) { mutableStateOf(!message.live || reducedMotion) }
-    LaunchedEffect(message.id) { visible = true }
-    val opacity by animateFloatAsState(if (visible) 1f else 0f, tween(if (reducedMotion) 0 else 220), label = "messageReveal")
+    var selectedBubble by remember(message.id) { mutableIntStateOf(0) }
+    var selectedNote by remember(message.id) { mutableStateOf(false) }
+    NativeBackHandler(menuText != null) { menuText = null }
     val lines = message.bubbles.filter { it.isNotBlank() }.ifEmpty { listOf(message.text).filter { it.isNotBlank() } }
     val parts = message.parts.ifEmpty { lines.map { ContentPart("text", it) } }
-    Column(Modifier.fillMaxWidth().graphicsLayer {
-        alpha = opacity
-        translationY = if (reducedMotion) 0f else (1f - opacity) * 12.dp.toPx()
-        renderEffect = if (!reducedMotion && opacity < 0.99f) BlurEffect(radiusX = (1f - opacity) * 9f, radiusY = (1f - opacity) * 9f, edgeTreatment = TileMode.Decal) else null
-    }, horizontalAlignment = if (user) Alignment.End else Alignment.Start, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+    EnterMotion(animate) { motion ->
+    Column(motion.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start, verticalArrangement = Arrangement.spacedBy(7.dp)) {
         for ((partIndex, part) in parts.withIndex()) {
             if (part.type == "steps") {
                 ActivityTree(message.steps.filter { it.id in part.stepIds }, message.live)
@@ -119,35 +167,51 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
             }
             val line = part.text
             if (line.isBlank()) continue
-            Box {
+            key(part.noteId, partIndex) {
+            EnterMotion(message.live) { bubbleMotion ->
+            Box(bubbleMotion) {
                 Surface(
-                    modifier = Modifier.widthIn(max = if (user) 320.dp else 600.dp).combinedClickable(onClick = {}, onLongClick = { menuText = line }),
+                    modifier = Modifier.widthIn(max = if (user) 320.dp else 600.dp).combinedClickable(onClick = {}, onLongClick = { selectedBubble = parts.take(partIndex).count { it.type == "text" }; selectedNote = part.note || part.noteId != null; menuText = line }),
                     shape = RoundedCornerShape(21.dp, 21.dp, if (user) 6.dp else 21.dp, if (user) 21.dp else 6.dp),
                     color = if (user) palette.userBubble else palette.botBubble,
                 ) {
                     Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         if (user) Text(line, color = palette.userInk, fontSize = 16.sp, lineHeight = 23.sp)
-                        else Markdown(line, modifier = Modifier.fillMaxWidth())
+                        else ChatMarkdown(line)
                     }
                 }
-
             }
+            }
+            }
+            val bubbleIndex = parts.take(partIndex).count { it.type == "text" }
+            val emoji = if (user) message.reaction else message.reactions[bubbleIndex.toString()]
+            val reactionLabel = emoji?.let { tr(if (user) "reaction.bot" else "reaction.yours", "emoji" to it) }.orEmpty()
+            if (emoji != null) Text(emoji, fontSize = 19.sp,
+                modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(palette.secondary)
+                    .semantics { contentDescription = reactionLabel }
+                    .clickable(enabled = !user) { actions.reaction(message.id, bubbleIndex, null) }.padding(8.dp, 3.dp))
         }
         if (message.steps.isNotEmpty() && parts.none { it.type == "steps" }) ActivityTree(message.steps, message.live)
         message.attachments.forEach { attachment ->
-            ActionButton(attachment.name, { actions.previewAttachment(attachment.path) }, icon = if (attachment.mimeType.startsWith("image/")) "photo" else "file")
+            AttachmentThumbnail(attachment, thumbnails[attachment.path], actions)
         }
         if (!user && message.model.isNotBlank() && !message.live) Text(message.model.substringAfterLast('/'), color = palette.muted, fontSize = 10.sp, modifier = Modifier.padding(start = 6.dp, top = 2.dp))
     }
-    if (menuText != null) BotDialog({ menuText = null }) {
-        Text(menuText.orEmpty(), color = palette.muted, fontSize = 13.sp, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(8.dp, 10.dp))
-        Hairline(Modifier.padding(vertical = 7.dp))
+    }
+    MotionPopup(menuText != null, { menuText = null }, Modifier.widthIn(max = 300.dp).fillMaxWidth(), alignment = Alignment.Center, focusable = false) {
+        if (!user && !message.live && !selectedNote) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.SpaceEvenly) {
+            listOf("👍", "❤️", "😂", "😮", "😢", "👎").forEach { emoji ->
+                Text(emoji, fontSize = 24.sp, modifier = Modifier.size(44.dp).clip(CircleShape).clickable {
+                    actions.reaction(message.id, selectedBubble, if (message.reactions[selectedBubble.toString()] == emoji) null else emoji); menuText = null
+                }.padding(6.dp))
+            }
+        }
         MenuRow("copy", tr("chat.copy"), { actions.copyContent(menuText.orEmpty()); menuText = null })
         MenuRow("select", tr("chat.select"), { selection = menuText; menuText = null })
         MenuRow("share", tr("chat.share"), { actions.shareContent(menuText.orEmpty()); menuText = null })
         if (user) MenuRow("edit", tr("chat.edit"), { menuText = null; actions.editMessage(message.id) }, enabled = !busy)
         else MenuRow("retry", tr("chat.regenerate"), { menuText = null; actions.regenerate(message.id) }, enabled = !busy)
-        QuietAction(tr("action.close"), { menuText = null }, Modifier.fillMaxWidth())
+
     }
     if (selection != null) BotDialog({ selection = null }) {
         SelectionContainer(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) { Text(selection.orEmpty(), color = palette.ink) }
@@ -162,7 +226,9 @@ private fun ActivityTree(steps: List<ActivityRow>, live: Boolean) {
     val p = LocalPalette.current
     val failed = steps.any { it.status in setOf("error", "failed") }
     val interrupted = !live && steps.any { it.status in setOf("running", "started", "stopped", "interrupted", "cancelled") }
-    val summary = steps.map { it.label }.filter { it.isNotBlank() }.distinct().take(2).joinToString(" · ")
+    val strings = LocalText.current
+    var details by remember { mutableStateOf<ActivityRow?>(null) }
+    val summary = steps.map { toolLabel(it.label, strings) }.filter { it.isNotBlank() }.distinct().take(2).joinToString(" · ")
     Column(Modifier.fillMaxWidth().padding(start = 5.dp)) {
         Row(Modifier.fillMaxWidth().clickable { expanded = !expanded }.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
             Glyph(when { failed -> "close"; interrupted -> "stop"; live -> "time"; else -> "check" }, modifier = Modifier.size(16.dp), tint = if (failed) MaterialTheme.colorScheme.error else p.muted)
@@ -172,7 +238,7 @@ private fun ActivityTree(steps: List<ActivityRow>, live: Boolean) {
         AnimatedVisibility(expanded, enter = if (LocalReducedMotion.current) EnterTransition.None else expandVertically() + fadeIn(), exit = if (LocalReducedMotion.current) ExitTransition.None else shrinkVertically() + fadeOut()) {
             Column {
                 steps.forEachIndexed { index, step ->
-                    Row(Modifier.fillMaxWidth().heightIn(min = 42.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { details = step }.heightIn(min = 42.dp), verticalAlignment = Alignment.CenterVertically) {
                         Canvas(Modifier.width(22.dp).height(42.dp)) {
                             val x = 5.dp.toPx(); val y = size.height / 2
                             drawLine(p.line, Offset(x, 0f), Offset(x, if (index == steps.lastIndex) y else size.height), 1.dp.toPx())
@@ -181,7 +247,7 @@ private fun ActivityTree(steps: List<ActivityRow>, live: Boolean) {
                         Glyph(when { step.label.contains("search", true) -> "search"; step.label.contains("edit", true) || step.label.contains("write", true) -> "edit"; else -> "file" }, modifier = Modifier.size(16.dp), tint = if (step.status == "error") MaterialTheme.colorScheme.error else p.muted)
                         Spacer(Modifier.width(8.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(step.label, fontSize = 12.sp, color = p.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(toolLabel(step.label), fontSize = 12.sp, color = p.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             if (step.detail.isNotBlank()) Text(step.detail, fontSize = 11.sp, color = p.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                         if (live && step.status in listOf("running", "started")) LoadingDots(Modifier.padding(8.dp))
@@ -190,6 +256,14 @@ private fun ActivityTree(steps: List<ActivityRow>, live: Boolean) {
             }
         }
     }
+    details?.let { step -> BotDialog({ details = null }) {
+        Text(toolLabel(step.label), color = p.ink, fontWeight = FontWeight.SemiBold)
+        SelectionContainer(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+            Text(step.detail.ifBlank { toolLabel(step.label) }, color = p.muted, modifier = Modifier.padding(vertical = 14.dp))
+        }
+        QuietAction(tr("action.done"), { details = null }, Modifier.align(Alignment.End))
+    } }
+
 }
 
 @Composable

@@ -30,12 +30,14 @@ fun RevealDrawer(open: Boolean, onOpenChange: (Boolean) -> Unit, enabled: Boolea
     val change by rememberUpdatedState(onOpenChange)
     BoxWithConstraints(Modifier.fillMaxSize().background(p.surface)) {
         val reveal = with(density) { maxWidth.toPx() * .65f }
-        val edge = with(density) { 28.dp.toPx() }
+        // Start inside the content, beyond Android's system-back edge zone.
+        // Horizontal children (tables/editors) can still consume their own drag.
+        val edge = with(density) { 128.dp.toPx() }
         var dragging by remember { mutableStateOf(false) }
         var offset by remember { mutableFloatStateOf(0f) }
         val position = animateFloatAsState(if (dragging) offset else if (open) reveal else 0f,
             if (dragging || reduced) snap() else spring(dampingRatio = .9f, stiffness = 460f), label = "drawerReveal")
-        val visible = open || dragging || position.value > .5f
+        val visible by remember { derivedStateOf { currentOpen || dragging || position.value > .5f } }
         if (visible) Box(Modifier.fillMaxHeight().fillMaxWidth(.65f).graphicsLayer {
             val fraction = (position.value / reveal).coerceIn(0f, 1f)
             alpha = .5f + .5f * fraction

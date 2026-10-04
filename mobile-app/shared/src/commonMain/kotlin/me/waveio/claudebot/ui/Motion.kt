@@ -1,0 +1,38 @@
+package me.waveio.claudebot.ui
+
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.IndicationNodeFactory
+import androidx.compose.foundation.interaction.InteractionSource
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.node.DelegatableNode
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.unit.dp
+
+/** Custom controls supply their own motion; don't paint platform press rectangles. */
+object QuietIndication : IndicationNodeFactory {
+    override fun create(interactionSource: InteractionSource): DelegatableNode = object : Modifier.Node(), DrawModifierNode {
+        override fun ContentDrawScope.draw() = drawContent()
+    }
+    override fun equals(other: Any?) = other === this
+    override fun hashCode() = 719
+}
+
+@Composable
+fun EnterMotion(animate: Boolean, modifier: Modifier = Modifier, content: @Composable (Modifier) -> Unit) {
+    val reduced = LocalReducedMotion.current
+    val progress = remember { Animatable(if (animate && !reduced) 0f else 1f) }
+    val blurSteps = remember { (1..4).map { BlurEffect(it.toFloat(), it.toFloat()) } }
+    LaunchedEffect(Unit) { if (progress.value < 1f) progress.animateTo(1f, tween(210, easing = FastOutSlowInEasing)) }
+    content(modifier.graphicsLayer {
+        val value = if (reduced) 1f else progress.value
+        alpha = value
+        translationY = (1f - value) * 10.dp.toPx()
+        scaleX = .985f + .015f * value; scaleY = scaleX
+        val step = ((1f - value) * 4f).toInt()
+        renderEffect = if (step > 0) blurSteps[step - 1] else null
+    })
+}

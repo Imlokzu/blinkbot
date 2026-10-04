@@ -81,7 +81,7 @@ def main():
                 error = str(failure)
             (args.output / f"{name}.log").write_text(log)
             match = re.search(r"OK \((\d+) tests?\)", log)
-            expected = 13 if name == "phone" else len(ADAPTIVE_TESTS)
+            expected = 14 if name == "phone" else len(ADAPTIVE_TESTS)
             passed = int(match.group(1)) if match else 0
             results.append({"case": name, "pixels": size, "density": int(density), "font_scale": float(scale),
                             "expected": expected, "passed": passed, "success": passed == expected and error is None,

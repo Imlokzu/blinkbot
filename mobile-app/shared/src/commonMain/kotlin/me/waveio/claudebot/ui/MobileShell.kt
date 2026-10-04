@@ -1,5 +1,7 @@
 package me.waveio.claudebot.ui
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,8 +31,10 @@ import me.waveio.claudebot.state.*
 @Composable
 fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
     val palette = LocalPalette.current
-    NativeBackHandler(state.dictationOpen || state.menuOpen || state.openFile != null || state.screen != Screen.Chat) {
+    NativeBackHandler(state.sendModeOpen || state.attachmentPickerOpen || state.dictationOpen || state.menuOpen || state.openFile != null || state.screen != Screen.Chat) {
         when {
+            state.sendModeOpen -> actions.sendModes(false)
+            state.attachmentPickerOpen -> actions.attachments(false)
             state.dictationOpen -> actions.cancelDictation()
             state.menuOpen -> actions.menu(false)
             state.openFile != null -> actions.closeFile()
@@ -41,25 +45,31 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(state.menuOpen) { if (state.menuOpen) { focus.clearFocus(); keyboard?.hide() } }
-    CompositionLocalProvider(LocalReducedMotion provides reducedMotion) {
+    CompositionLocalProvider(LocalReducedMotion provides reducedMotion, LocalIndication provides QuietIndication) {
     Box(Modifier.fillMaxSize().background(palette.background)) {
         if (!state.connected) {
             Wallpaper(state.preferences, state.customWallpaper, state.screen, state.connected)
             ConnectionScreen(state, actions)
         } else RevealDrawer(state.menuOpen, actions::menu, state.openFile == null && !state.dictationOpen,
-            menu = { DrawerContent(state, actions) }) {
+            menu = { ConversationDrawer(state, actions) }) {
             Box(Modifier.fillMaxSize()) {
                 Wallpaper(state.preferences, state.customWallpaper, state.screen, state.connected)
                 Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()) {
                     TopBar(state, actions)
                     Box(Modifier.weight(1f)) {
-                        when (state.screen) {
+                        AnimatedContent(state.screen, transitionSpec = {
+                            fadeIn(tween(if (reducedMotion) 0 else 160)) togetherWith fadeOut(tween(if (reducedMotion) 0 else 90))
+                        }, label = "screen") { screen ->
+                        EnterMotion(true) { transition -> Box(transition.fillMaxSize()) {
+                        when (screen) {
                             Screen.Chat -> ChatSurface(state, actions, reducedMotion)
                             Screen.Search -> SearchScreen(state, actions)
                             Screen.Files -> FilesScreen(state, actions)
                             Screen.Skills -> SkillsScreen(state, actions)
                             Screen.Agents -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { BotMark(); Spacer(Modifier.height(12.dp)); Text(tr("agents.empty"), color = palette.muted) } }
                             else -> SettingsScreen(state, actions)
+                        }
+                        } }
                         }
                     }
                 }
@@ -75,6 +85,7 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             }
         }
         ModelPicker(state, actions)
+        AttachmentMenu(state, actions)
         if (state.scheduling) SchedulePopup(actions)
         if (state.previewTitle != null) BotDialog(actions::closePreview) {
                 Column(Modifier.padding(18.dp).heightIn(max = 600.dp)) {
@@ -152,34 +163,6 @@ fun screenTitle(screen: Screen): String = tr(when (screen) {
     Screen.Queue -> "queue.title"
     Screen.Skills -> "input.skills"
 })
-
-@Composable
-private fun DrawerContent(state: AppState, actions: AppActions) {
-    val p = LocalPalette.current
-    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = 14.dp)) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) { BotMark(Modifier.size(34.dp)); Spacer(Modifier.width(7.dp)); Text(tr("app.name"), fontSize = 17.sp, fontWeight = FontWeight.Medium) }
-        DrawerLink("new", tr("nav.new"), actions::newChat)
-        DrawerLink("search", tr("nav.search")) { actions.navigate(Screen.Search) }
-        DrawerLink("bot", tr("nav.agents")) { actions.navigate(Screen.Agents) }
-        DrawerLink("folder", tr("nav.files")) { actions.navigate(Screen.Files) }
-        Text(tr("nav.chats"), fontSize = 12.sp, color = p.muted, modifier = Modifier.padding(start = 10.dp, top = 23.dp, bottom = 8.dp))
-        LazyColumn(Modifier.weight(1f)) {
-            items(state.conversations, key = { it.id }) { chat ->
-                Text(chat.title, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (chat.id == state.sessionId) p.line.copy(alpha = 0.6f) else androidx.compose.ui.graphics.Color.Transparent).clickable { actions.openChat(chat.id) }.padding(10.dp, 13.dp), color = p.ink, maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
-            }
-            if (state.conversations.isEmpty()) item { Text(tr("chat.historyEmpty"), fontSize = 12.sp, color = p.muted, modifier = Modifier.padding(10.dp)) }
-        }
-        HorizontalDivider(color = p.line)
-        DrawerLink("settings", tr("nav.profile")) { actions.navigate(Screen.Profile) }
-    }
-}
-
-@Composable
-private fun DrawerLink(icon: String, text: String, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).heightIn(min = 48.dp).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Glyph(icon, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(11.dp)); Text(text, fontSize = 14.sp)
-    }
-}
 
 @Composable
 private fun SearchScreen(state: AppState, actions: AppActions) {

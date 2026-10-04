@@ -30,7 +30,7 @@ class MatrixRunnerTests(unittest.TestCase):
             if args[:3] == ["shell", "am", "instrument"]:
                 if timeout:
                     raise subprocess.TimeoutExpired(command, 300, output=b"partial instrument output")
-                return "OK (13 tests)"
+                return "OK (14 tests)"
             if cleanup_failure and args == ["shell", "wm", "size", "800x1200"]:
                 raise subprocess.CalledProcessError(1, command)
             return ""

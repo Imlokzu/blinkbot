@@ -54,7 +54,8 @@ fun Composer(state: AppState, actions: AppActions) {
         if (state.attachments.isNotEmpty()) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             state.attachments.forEach { item ->
                 Row(Modifier.clip(RoundedCornerShape(12.dp)).background(p.secondary).padding(start = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Glyph(if (item.mimeType.startsWith("image/")) "photo" else "file", modifier = Modifier.size(17.dp), tint = p.muted)
+                    if (item.mimeType.startsWith("image/")) AttachmentThumbnail(item, state.attachmentThumbnails[item.path], actions, compact = true)
+                    else Glyph("file", modifier = Modifier.size(17.dp), tint = p.muted)
                     Text(item.name, maxLines = 1, overflow = TextOverflow.Ellipsis, color = p.ink, fontSize = 12.sp, modifier = Modifier.widthIn(max = 135.dp).padding(start = 7.dp))
                     IconAction("close", tr("input.removeAttachment"), { actions.removeAttachment(item.path) }, Modifier.size(36.dp))
                 }
@@ -76,7 +77,6 @@ fun Composer(state: AppState, actions: AppActions) {
             } else {
                 Box {
                     IconAction("attach", tr("input.attach"), { keyboard?.hide(); actions.attachments(!state.attachmentPickerOpen) }, enabled = !state.uploading)
-                    AttachmentMenu(state, actions)
                 }
                 if (state.uploading) LoadingDots(Modifier.padding(horizontal = 6.dp))
                 if (!landscape) Spacer(Modifier.weight(1f))
@@ -88,7 +88,7 @@ fun Composer(state: AppState, actions: AppActions) {
                         .combinedClickable(enabled = enabled, role = Role.Button, onClick = { actions.send() }, onLongClick = { actions.sendModes(true) }), contentAlignment = Alignment.Center) {
                         Glyph("send", modifier = Modifier.size(20.dp), tint = if (enabled) p.background else p.muted)
                     }
-                    MotionPopup(state.sendModeOpen, { actions.sendModes(false) }, Modifier.width(260.dp), Alignment.BottomEnd, IntOffset(0, popupRise)) {
+                    MotionPopup(state.sendModeOpen, { actions.sendModes(false) }, Modifier.width(260.dp), Alignment.BottomEnd, IntOffset(0, popupRise), focusable = false) {
                         MenuRow("time", tr("queue.title"), { actions.sendModes(false); actions.send("queue") })
                         if (state.steerAvailable) MenuRow("edit", tr("queue.steer"), { actions.sendModes(false); actions.send("steer") }, enabled = state.busy)
                         MenuRow("calendar", tr("queue.later"), { actions.sendModes(false); actions.schedule(true) })
@@ -148,10 +148,13 @@ fun LoadingDots(modifier: Modifier = Modifier, color: Color = LocalPalette.curre
 }
 
 @Composable
-private fun AttachmentMenu(state: AppState, actions: AppActions) {
+fun AttachmentMenu(state: AppState, actions: AppActions) {
     val p = LocalPalette.current
-    val popupRise = with(LocalDensity.current) { (-58).dp.roundToPx() }
-    MotionPopup(state.attachmentPickerOpen, { actions.attachments(false) }, Modifier.widthIn(max = 380.dp).fillMaxWidth().padding(horizontal = 4.dp), Alignment.BottomStart, IntOffset(0, popupRise)) {
+    val density = LocalDensity.current
+    val window = LocalWindowInfo.current.containerSize
+    val bottom = WindowInsets.safeDrawing.getBottom(density)
+    val height = with(density) { (window.height - WindowInsets.safeDrawing.getTop(density) - bottom).toDp() }
+    MotionPopup(state.attachmentPickerOpen, { actions.attachments(false) }, Modifier.fillMaxWidth().heightIn(max = height), Alignment.BottomCenter, IntOffset(0, -bottom), focusable = false) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Text(tr("input.attach"), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = p.ink, modifier = Modifier.padding(10.dp, 10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -46,6 +46,8 @@ class MobileUiTest {
     private val fixtureScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val completeStream = CompletableDeferred<Unit>()
     @Volatile private var slowStream = false
+    @Volatile private var tableStream = false
+    @Volatile private var streamChannel: ByteChannel? = null
     @Volatile private var slowCatalog = false
     private val catalogReady = CompletableDeferred<Unit>()
 
@@ -79,12 +81,16 @@ class MobileUiTest {
                         path.endsWith("/events") -> {
                             if (slowStream) {
                                 val body = ByteChannel(autoFlush = true)
+                                streamChannel = body
                                 fixtureScope.launch {
                                     try {
-                                        body.writeStringUtf8("id: 1\nevent: mobile_state\ndata: {\"state\":\"running\"}\n\nid: 2\nevent: delta\ndata: {\"chunk\":\"Already arriving\"}\n\n")
+                                        val initial = if (tableStream) "| Step | Details |\n| --- | --- |\n" else "Already arriving"
+                                        val data = buildJsonObject { put("chunk", initial) }
+                                        body.writeStringUtf8("id: 1\nevent: mobile_state\ndata: {\"state\":\"running\"}\n\nid: 2\nevent: delta\ndata: $data\n\n")
                                         completeStream.await()
                                         answered = true
-                                        body.writeStringUtf8("id: 3\nevent: done\ndata: {\"reply\":\"The full response\"}\n\nid: 4\nevent: mobile_state\ndata: {\"state\":\"completed\"}\n\n")
+                                        val finalId = if (tableStream) 1000 else 3
+                                        body.writeStringUtf8("id: $finalId\nevent: done\ndata: {\"reply\":\"The full response\"}\n\nid: ${finalId + 1}\nevent: mobile_state\ndata: {\"state\":\"completed\"}\n\n")
                                     } finally { body.close() }
                                 }
                                 return@MockEngine respond(body, headers = headersOf(HttpHeaders.ContentType, "text/event-stream"))
@@ -303,6 +309,46 @@ class MobileUiTest {
         val summary = if (samples.isEmpty()) "{\"frames\":0}" else "{\"frames\":${samples.size},\"medianMs\":${samples[samples.size / 2]},\"p95Ms\":${samples[(samples.lastIndex * .95).toInt()]}}"
         File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "motion-frame-metrics.json").writeText(summary)
         assertTrue("Window frame metrics must be captured", samples.isNotEmpty())
+    }
+
+    @Test fun growingStreamedTableRecordsFrameCostsBeforeCompletion() {
+        slowStream = true; tableStream = true
+        launch(motion = true)
+        waitFor("Scan QR code"); compose.onNodeWithText("Scan QR code").performClick()
+        waitFor("Claude Sonnet")
+        compose.onNode(hasSetTextAction()).performTextInput("Show a growing table")
+        compose.onNodeWithContentDescription("Send").performClick()
+        compose.waitUntil(10000) { streamChannel != null }
+        val frames = androidx.core.app.FrameMetricsAggregator(androidx.core.app.FrameMetricsAggregator.TOTAL_DURATION)
+        compose.activityRule.scenario.onActivity { frames.add(it) }
+        val halfway = CompletableDeferred<Unit>()
+        val resume = CompletableDeferred<Unit>()
+        val producer = fixtureScope.launch {
+            repeat(60) { index ->
+                val data = buildJsonObject { put("chunk", "| Row $index | A complete explanation for row $index that stays readable while more table rows arrive. |\n") }
+                streamChannel!!.writeStringUtf8("id: ${index + 3}\nevent: delta\ndata: $data\n\n")
+                if (index == 15) { halfway.complete(Unit); resume.await() }
+                delay(40)
+            }
+        }
+        compose.waitUntil(10000) { halfway.isCompleted }
+        waitFor("Row 15")
+        compose.onNodeWithText("Row 15", substring = true).assertIsDisplayed()
+        assertFalse(completeStream.isCompleted)
+        compose.onNodeWithContentDescription("Stop").assertIsDisplayed()
+        screenshot("mobile-streaming-table-halfway")
+        resume.complete(Unit)
+        compose.waitUntil(15000) { producer.isCompleted }
+        assertTrue(controller.state.value.messages.last().text.contains("Row 59"))
+        assertFalse(completeStream.isCompleted)
+        screenshot("mobile-streaming-table-final-frame")
+        val histogram = frames.remove(compose.activity)?.get(0)
+        val samples = buildList { if (histogram != null) for (i in 0 until histogram.size()) repeat(histogram.valueAt(i)) { add(histogram.keyAt(i)) } }.sorted()
+        assertTrue(samples.isNotEmpty())
+        val summary = "{\"frames\":${samples.size},\"medianMs\":${samples[samples.size / 2]},\"p95Ms\":${samples[(samples.lastIndex * .95).toInt()]},\"maximumMs\":${samples.last()}}"
+        File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "stream-frame-metrics.json").writeText(summary)
+        completeStream.complete(Unit)
+        waitFor("They are in your shared workspace.")
     }
 
     private fun assertTextFits(node: SemanticsNodeInteraction) {

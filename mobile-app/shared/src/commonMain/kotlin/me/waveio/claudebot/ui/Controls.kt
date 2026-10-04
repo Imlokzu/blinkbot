@@ -36,6 +36,7 @@ val LocalReducedMotion = staticCompositionLocalOf { false }
 fun MotionPopup(
     open: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier,
     alignment: Alignment = Alignment.TopCenter, offset: IntOffset = IntOffset.Zero,
+    focusable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val target = remember { MutableTransitionState(false) }
@@ -45,7 +46,7 @@ fun MotionPopup(
     val motion = updateTransition(target, label = "panel")
     val progress = motion.animateFloat(transitionSpec = { tween(if (reduced) 0 else 190, easing = FastOutSlowInEasing) }, label = "panelReveal") { if (it) 1f else 0f }
     if (target.currentState || target.targetState) {
-        Popup(alignment = alignment, offset = offset, onDismissRequest = onDismiss, properties = PopupProperties(focusable = true)) {
+        Popup(alignment = alignment, offset = offset, onDismissRequest = onDismiss, properties = PopupProperties(focusable = focusable)) {
             val palette = LocalPalette.current
             Column(modifier.graphicsLayer {
                 val value = progress.value
