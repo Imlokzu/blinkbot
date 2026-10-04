@@ -1832,3 +1832,26 @@ See `docs/mobile-app/RELEASE-0.3.2.md` for the exact scope.
   untracked IntegrationsSection.tsx and locales/integrations.ts drafts. The
   isolated build freezes those required files without changing or staging them;
   a clean checkout still requires that separate integration work to be finished.
+
+
+## Solar activity icons by 480 Design (2026-10-04)
+
+- The activity tree now uses 18 genuine Solar Linear glyphs for tool calls,
+  statuses and expand controls. Read/write/search imagery is distinct; tool
+  IDs, labels and outcomes retain their meaning. Unknown tools use Settings.
+- A local subset preserves upstream geometry at revision
+  44017167688b49109d88ae6a98979b23d8950db0. Original SVGs and checksums live in
+  dashboard/src/vendor/solar-icons/. The installed renderer is reused; no
+  Solar wrapper dependency or runtime icon requests are added.
+- The staged connector/icon/text animation and native reduced-motion fallback
+  remain. Filled question/warning dots use currentColor without inherited
+  stroke and stay out of dash drawing. All stroke gates still reset directly.
+- Settings > Appearance carries localized Solar/480 Design credit and a local
+  CC BY 4.0 notice with source, pinned revision and adaptation details. The
+  PWA precaches the notice. Raw artwork licensing is separate from code.
+- Verification includes pinned upstream byte/geometry review, rendering and
+  attribution unit tests, TypeScript, the activity-tree browser regression
+  and publication smoke. Independent native review found no blocking defect;
+  Fable is unavailable, so no Fable certification is claimed.
+- The first working-checkout Python run stalled at 15% and was terminated;
+  it is not counted as passing. A clean-source, isolated-state rerun follows.

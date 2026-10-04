@@ -799,3 +799,17 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   and text immediately and does not replay when the preference changes back.
 - `tests/activity-tree.browser.mjs` samples intermediate frames and guards
   progress identity, late data, history, focus and reduced preferences.
+
+
+## Solar activity iconography (2026-10-04)
+
+- The owner chose Solar Icons by 480 Design for activity branches, outcomes
+  and disclosure controls. This is an explicit exception to the Lucide-only
+  default above; other dashboard surfaces keep their established icons.
+- Use the local Linear subset in src/vendor/solar-icons. Preserve geometry,
+  theme ink and 1.75 stroke width. Reuse the installed SVG renderer and forward
+  its SVG ref so direct per-primitive stroke gates keep the staged reveal.
+- Filled punctuation stays stroke-free and follows the icon opacity reveal.
+  Read, write and search have distinct glyphs; unknown tools use Settings.
+- Keep the creator/license credit in Settings > Appearance and the offline
+  public notice. Attribution is separate from tool data and action labels.

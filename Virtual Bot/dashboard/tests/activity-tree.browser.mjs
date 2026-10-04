@@ -334,6 +334,9 @@ try {
   browser('wait', row('read-a'));
   browser('wait', row('read-b'));
   browser('wait', row('search'));
+  assert.equal(evaluate('document.querySelector("[data-tool-step=read-a] .chat-activity-tool-icon").dataset.solarIcon'), 'read');
+  assert.equal(evaluate('document.querySelector("[data-tool-step=search] .chat-activity-tool-icon").dataset.solarIcon'), 'search');
+  assert.equal(evaluate('document.querySelector("[data-activity-toggle] > svg").dataset.solarIcon'), 'chevron');
   browser('wait', '--fn', 'window.__activityArrivals.size === 3');
   const initialArrival = arrivalSnapshot('read-a');
   assert.equal(initialArrival.entering, true, 'only a newly discovered live branch enters');
@@ -461,6 +464,8 @@ try {
   emit('tool_done', { ...search, result:searchResult });
   browser('wait', '--fn', 'document.querySelectorAll("[data-tool-status=active]").length === 0');
   assert.deepEqual(['read-a','read-b','search'].map(state), ['done','failed','done']);
+  assert.equal(evaluate('document.querySelector("[data-tool-step=read-a] [data-tool-state] > svg").dataset.solarIcon'), 'check');
+  assert.equal(evaluate('document.querySelector("[data-tool-step=read-b] [data-tool-state] > svg").dataset.solarIcon'), 'alert');
   assert.equal(evaluate('document.querySelector(".chat-activity-tree").hasAttribute("data-running")'), false, 'reply streaming alone must not mark completed tools as running');
   assert.equal(controls('[data-activity-toggle]').expanded, 'true', 'completed calls remain open until the assistant reply settles');
   await browserAsync('wait', '--fn', 'document.querySelector(".chat-activity-sites [data-site-icon=\\"docs.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-activity-sites [data-site-icon=\\"lookup.example.org\\"]")?.dataset.iconState === "ready" && document.querySelector(".chat-activity-sites [data-site-icon=\\"failed.example.org\\"]")?.dataset.iconState === "fallback"');

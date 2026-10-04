@@ -33,7 +33,7 @@ export default defineConfig({
       // Панель живе поруч із рештою статики, тому маніфест і service worker
       // мають лежати в тій самій теці, що й бандл.
       manifestFilename: 'manifest.webmanifest',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'solar-icons-notice.txt'],
       manifest: {
         name: 'Клод Бот — панель',
         short_name: 'Клод Бот',

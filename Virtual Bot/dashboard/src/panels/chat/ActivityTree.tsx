@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
-import { Check, ChevronRight, CircleAlert, CircleDashed, CloudSun, Coins, FileText, Folder,
-  Image as ImageIcon, ListTodo, MessageCircleQuestion, Music, Play, Search, Terminal,
-  Wrench, type LucideIcon } from 'lucide-react';
+import { SolarCheck as Check, SolarChevron as ChevronRight, SolarAlert as CircleAlert,
+  SolarClock as CircleDashed, SolarWeather as CloudSun, SolarCurrency as Coins,
+  SolarDocument as FileText, SolarRead as Book, SolarWrite as Pen, SolarFolder as Folder,
+  SolarImage as ImageIcon, SolarTasks as ListTodo, SolarQuestion as MessageCircleQuestion,
+  SolarMusic as Music, SolarPlay as Play, SolarSearch as Search, SolarTerminal as Terminal,
+  SolarSettings as Wrench, type SolarIconComponent } from '@/vendor/solar-icons';
 import { t as activityT } from '@/lib/i18n';
 import { t, type ChatKey } from '@/locales/chat';
 import type { ToolStep } from './types';
@@ -15,14 +18,14 @@ function bareTool(label: string): string {
   return label.replace(/^(?:tools|workspace|emotions)__/, '');
 }
 
-const TOOL_ICONS: Record<string, LucideIcon> = {
+const TOOL_ICONS: Record<string, SolarIconComponent> = {
   web_search: Search, image_search: ImageIcon, facts: FileText, weather: CloudSun,
-  currency: Coins, memory_search: Search, workspace_read: FileText,
-  workspace_write: FileText, workspace_list: Folder, workspace_show: FileText,
+  currency: Coins, memory_search: Search, workspace_read: Book,
+  workspace_write: Pen, workspace_list: Folder, workspace_show: FileText,
   workspace_info: FileText, ask_question: MessageCircleQuestion, todo_list: ListTodo,
   show_choice: ListTodo, play_music: Music, stop_music: Music, play_video: Play,
-  listen_to_video: Play, video_control: Play, read: FileText, write: FileText,
-  edit: FileText, grep: Search, glob: Folder, bash: Terminal, exec: Terminal,
+  listen_to_video: Play, video_control: Play, read: Book, write: Pen,
+  edit: Pen, grep: Search, glob: Folder, bash: Terminal, exec: Terminal,
 };
 
 const TOOL_TITLES: Record<string, ChatKey> = {
@@ -100,9 +103,11 @@ function ToolBranch({ step, animateEntry }: { step: ToolStep; animateEntry: bool
   const sameEntryShape = entryShape.current.hasLog === hasLog && entryShape.current.Icon === Icon;
   const drawEntry = entering && sameEntryShape;
   const prepareIcon = useCallback((icon: SVGSVGElement | null) => {
-    // Normalize Lucide's mixed primitives. Gate each shape directly because
+    // Normalize Solar's stroke primitives. Gate each shape directly because
     // Chromium can retain SVG animations when only an ancestor selector changes.
     icon?.querySelectorAll('path, circle, line, polyline, polygon, rect, ellipse').forEach(shape => {
+      // Filled punctuation follows the icon fade and must retain its original dot.
+      if (shape.getAttribute('stroke') === 'none') return;
       shape.setAttribute('pathLength', '1');
       shape.toggleAttribute('data-activity-stroke', drawEntry);
     });

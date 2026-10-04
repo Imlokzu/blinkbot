@@ -397,5 +397,12 @@ export function ChatAppearanceSettings() {
   return <section className="chat-appearance-settings" aria-labelledby={id}>
     <header><h3 id={id}>{t('settingsTitle')}</h3><p>{t('settingsDescription')}</p></header>
     <ChatAppearanceControls />
+    <p className="chat-appearance-hint mt-4" data-solar-credit>
+      <a href="https://www.figma.com/community/file/1166831539721848736" target="_blank" rel="noreferrer noopener"
+        className="underline underline-offset-2">{t('solarCredit')}</a>
+      {' · '}
+      <a href="/static/dash/solar-icons-notice.txt" target="_blank" rel="noreferrer noopener"
+        className="underline underline-offset-2">{t('solarLicense')}</a>
+    </p>
   </section>;
 }
