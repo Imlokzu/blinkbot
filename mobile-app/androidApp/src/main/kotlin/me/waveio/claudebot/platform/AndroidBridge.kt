@@ -1,5 +1,6 @@
 package me.waveio.claudebot.platform
 
+import me.waveio.claudebot.BuildConfig
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -48,6 +49,8 @@ import me.waveio.claudebot.R
 class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, NativeAtomicPreferences, DefaultLifecycleObserver {
     override val platformName: String = "android"
     override val deviceName: String = "${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
+    override val appVersionCode: Int = BuildConfig.VERSION_CODE
+    override val appVersionName: String = BuildConfig.VERSION_NAME
     private val context = activity.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val active = MutableStateFlow(false)
