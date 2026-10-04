@@ -1994,3 +1994,18 @@ with no crash entries. iOS source changes remain uncompiled on this Mac.
 - Fresh-server smoke returned 200 for status, ASR status, screen, dashboard
   and referenced JS/CSS. The memory parent-path guard returned 400. The
   temporary smoke server was stopped; existing owner services stayed running.
+
+
+## Attachment menu release verification (2026-10-04)
+
+- Published the attachment menu dashboard from source revision `fabc3a38`.
+  The compiled browser fixture passed en/uk, light/dark and 1440/390/320px,
+  all actions and mock upload, keyboard/pointer focus, cramped/tall-draft
+  placement, selected glass, reduced motion and scoped accessibility.
+- The fixture now waits for Workbench's required close-focus restoration
+  before reopening. Twelve focused repetitions confirmed the runtime
+  behavior; final compiled coverage passed after that readiness assertion.
+- Smoke verification passed seven endpoints and all 296 release resources.
+  Memory/workspace traversal attempts returned 400; the local reference
+  JPEG remains in the service-worker precache. Independent native review
+  approved source, fixture and guarded release preservation.
