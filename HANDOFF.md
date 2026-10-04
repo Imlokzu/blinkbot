@@ -1982,3 +1982,15 @@ with no crash entries. iOS source changes remain uncompiled on this Mac.
 - Independent native source/visual review repaired focus/placement edge cases
   and approved the final result. Fable is unavailable; no Fable certification
   is claimed. Unrelated microphone and file-editor drafts are kept separate.
+
+
+## Chat dictation release verification (2026-10-04)
+
+- The compiled /dash regression passed on port 8100: early and normal
+  second-press completion, draft insertion, ASR error feedback, navigation
+  cleanup and AudioContext failure cleanup. Media/ASR remained browser fakes.
+- The source fix is 9bad2a30. The subsequent attachment-menu publication
+  inherits it; retained hashed ASR assets keep already-open tabs functional.
+- Fresh-server smoke returned 200 for status, ASR status, screen, dashboard
+  and referenced JS/CSS. The memory parent-path guard returned 400. The
+  temporary smoke server was stopped; existing owner services stayed running.
