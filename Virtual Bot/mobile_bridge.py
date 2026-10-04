@@ -134,7 +134,7 @@ def mobile_path_allowed(path: str) -> bool:
     return (
         path.startswith(("/api/mobile/", "/api/sessions/", "/uploads/"))
         or path in {
-            "/api/sessions", "/api/brain/models", "/api/setup", "/api/status",
+            "/api/sessions", "/api/brain/models", "/api/brain/intelligence", "/api/setup", "/api/status",
             "/api/workspace/list", "/api/workspace/file", "/api/chat/upload",
             "/api/chat/attachment-preview", "/api/asr", "/api/asr/partial",
             "/api/openclaw/settings",
