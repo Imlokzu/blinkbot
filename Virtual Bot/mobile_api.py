@@ -139,6 +139,26 @@ def _origin(server: str) -> str:
     return server.rstrip("/")
 
 
+def _mobile_update(platform: str, version_code: int) -> dict[str, Any]:
+    """Return operator-published update metadata without embedding binaries."""
+    prefix = "MOBILE_UPDATE_ANDROID" if platform == "android" else "MOBILE_UPDATE_IOS"
+    try:
+        published_code = int(os.environ.get(f"{prefix}_VERSION_CODE", "0"))
+    except ValueError:
+        published_code = 0
+    version_name = os.environ.get(f"{prefix}_VERSION", "").strip()
+    changelog = [line.strip(" -*\t") for line in os.environ.get(f"{prefix}_CHANGELOG", "").splitlines() if line.strip()]
+    return {
+        "available": published_code > max(0, version_code) and bool(version_name),
+        "version_name": version_name,
+        "version_code": published_code,
+        "changelog": changelog[:32],
+        "url": os.environ.get(f"{prefix}_URL", "").strip() or None,
+        "sha256": os.environ.get(f"{prefix}_SHA256", "").strip() or None,
+        "mandatory": os.environ.get(f"{prefix}_MANDATORY", "").lower() in {"1", "true", "yes"},
+    }
+
+
 class PairingRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     server: str = Field(default="", max_length=512)
@@ -532,10 +552,15 @@ def router(require_user, require_operator, run_turn: RunTurn, *, store: MobileSt
         return {"ok": True}
 
     @routes.get("/capabilities")
-    async def capabilities(user_id: str = Depends(identity)):
+    async def capabilities(
+        platform: Literal["android", "ios"] = Query(default="android"),
+        version_code: int = Query(default=0, ge=0, le=10_000_000),
+        user_id: str = Depends(identity),
+    ):
         return {"version": 1, "pairing": True, "queue": True, "steer": False,
                 "stop": True, "scheduled_send": True, "event_replay": True,
-                "idempotency": True, "history_fork": True, "push": False}
+                "idempotency": True, "history_fork": True, "push": False,
+                "update": _mobile_update(platform, version_code)}
 
     @routes.post("/messages")
     async def submit(req: MessageRequest, user_id: str = Depends(identity)):

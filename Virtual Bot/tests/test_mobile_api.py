@@ -87,6 +87,27 @@ def test_pairing_rejects_unapproved_or_non_https_origins(tmp_path):
             assert client.post("/api/mobile/pairings", json={"server": server}, headers={"x-operator": "yes"}).status_code == 422
 
 
+def test_capabilities_publishes_version_gated_update_metadata(tmp_path, monkeypatch):
+    monkeypatch.setenv("MOBILE_UPDATE_ANDROID_VERSION", "0.4.2")
+    monkeypatch.setenv("MOBILE_UPDATE_ANDROID_VERSION_CODE", "9")
+    monkeypatch.setenv("MOBILE_UPDATE_ANDROID_CHANGELOG", "Better image previews\nNative Excalidraw viewer")
+    monkeypatch.setenv("MOBILE_UPDATE_ANDROID_URL", "https://api.example.test/mobile/0.4.2.apk")
+    store = MobileStore(tmp_path / "mobile.db")
+    with TestClient(make_app(store)) as client:
+        newer = client.get("/api/mobile/capabilities?platform=android&version_code=8").json()["update"]
+        current = client.get("/api/mobile/capabilities?platform=android&version_code=9").json()["update"]
+    assert newer == {
+        "available": True,
+        "version_name": "0.4.2",
+        "version_code": 9,
+        "changelog": ["Better image previews", "Native Excalidraw viewer"],
+        "url": "https://api.example.test/mobile/0.4.2.apk",
+        "sha256": None,
+        "mandatory": False,
+    }
+    assert current["available"] is False
+
+
 def test_message_callback_receives_original_identity_explicit_model_and_generated_session(tmp_path):
     seen = []
 
