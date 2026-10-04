@@ -1677,3 +1677,14 @@ iOS metadata is aligned, but Apple compilation/runtime remains unverified.
 All UI host traffic was fixture-backed; production services and Cloudflare
 configuration were unchanged. The earlier incomplete broad backend run remains
 incomplete and is not counted as passing by this UI follow-up.
+
+
+## 2026-10-04 — Queue and event-delivery audit
+
+- Added `reports/repository-audit-2026-10-04/REPORT.md`, companion validation,
+  and isolated replay probes for five queue/storage/event findings. Proposed
+  fixes and five additions are recorded; product code is unchanged.
+- Working-checkout validation: 1,189 Python tests passed, 7 skipped and 178
+  subtests; 207 dashboard tests and TypeScript passed. Offline mobile unit
+  tasks passed 85 shared and 62 Android tests; no device/iOS certification.
+- See `VALIDATION.md` for independent review, smoke, and evidence limits.
