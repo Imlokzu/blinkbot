@@ -25,11 +25,27 @@ data class Preferences(
     val chatEfforts: Map<String, String> = emptyMap(),
 )
 
-data class ConversationRow(val id: String, val title: String)
-data class ModelRow(val id: String, val label: String, val provider: String, val brand: String, val available: Boolean = true, val efforts: List<String> = emptyList())
+/** History timestamps are Unix seconds; unknown dates remain unknown. */
+data class ConversationRow(val id: String, val title: String, val updatedAt: Long? = null)
+data class ModelRow(val id: String, val label: String, val provider: String, val brand: String, val available: Boolean = true, val efforts: List<String> = emptyList(), val vision: Boolean? = null)
 data class ActivityRow(val id: String, val label: String, val detail: String = "", val status: String = "running")
-data class ContentPart(val type: String, val text: String = "", val stepIds: List<String> = emptyList(), val noteId: String? = null)
-data class MessageRow(val id: String, val role: String, val text: String, val bubbles: List<String> = emptyList(), val steps: List<ActivityRow> = emptyList(), val model: String = "", val live: Boolean = false, val parts: List<ContentPart> = emptyList(), val attachments: List<DraftAttachment> = emptyList())
+data class ContentPart(val type: String, val text: String = "", val stepIds: List<String> = emptyList(), val noteId: String? = null, val note: Boolean = false)
+data class MessageRow(
+    val id: String,
+    val role: String,
+    val text: String,
+    val bubbles: List<String> = emptyList(),
+    val steps: List<ActivityRow> = emptyList(),
+    val model: String = "",
+    val live: Boolean = false,
+    val parts: List<ContentPart> = emptyList(),
+    val attachments: List<DraftAttachment> = emptyList(),
+    /** The bot's emoji on a human message. */
+    val reaction: String? = null,
+    /** The human's emojis on assistant bubbles, keyed by decimal bubble index. */
+    val reactions: Map<String, String> = emptyMap(),
+    val timestamp: Long? = null,
+)
 data class FileRow(val path: String, val name: String, val directory: Boolean, val size: Long = 0)
 @Serializable
 data class DraftAttachment(val path: String, val name: String, val mimeType: String, val size: Long)
@@ -75,6 +91,8 @@ data class AppState(
     val draft: String = "",
     val editingMessageId: String? = null,
     val attachments: List<DraftAttachment> = emptyList(),
+    /** Ephemeral encoded images; never serialized into preferences or the outbox. */
+    val attachmentThumbnails: Map<String, ByteArray> = emptyMap(),
     val uploading: Boolean = false,
     val models: List<ModelRow> = emptyList(),
     val modelsLoading: Boolean = false,

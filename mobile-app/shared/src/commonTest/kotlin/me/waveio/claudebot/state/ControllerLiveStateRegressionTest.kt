@@ -205,7 +205,8 @@ class ControllerLiveStateRegressionTest {
         assertEquals(listOf("lookup", "verify"), row.steps.map { it.id })
         assertEquals("done", row.steps.first().status)
         assertEquals("Source found", row.steps.first().detail)
-        assertEquals(listOf("note:preamble", "tools:lookup", "answer", "note:context", "tools:verify"), row.parts.map { part ->
+        assertEquals(listOf("Final answer.", "Verified detail."), row.parts.filter { it.type == "text" && !it.note }.map { it.text }, "Server bubble boundaries must survive cumulative replacement")
+        assertEquals(listOf("note:preamble", "tools:lookup", "answer", "answer", "note:context", "tools:verify"), row.parts.map { part ->
             when {
                 part.type == "steps" -> "tools:${part.stepIds.joinToString(",")}"
                 part.noteId != null -> "note:${part.noteId}"
