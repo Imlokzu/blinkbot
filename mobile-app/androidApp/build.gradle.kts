@@ -11,8 +11,8 @@ android {
         applicationId = "me.waveio.claudebot"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.2.1"
+        versionCode = 4
+        versionName = "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {
@@ -20,6 +20,26 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures { compose = true }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            // This owner-distributed build updates earlier development installs.
+            // Store distribution must use the owner's production signing setup.
+            signingConfig = signingConfigs.getByName("debug")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+        }
+        create("benchmark") {
+            initWith(getByName("release"))
+            // The external Compose fixture needs APIs that R8 legitimately
+            // removes from the shipped app. Benchmark without a debugger,
+            // retaining those APIs; smoke the optimized release separately.
+            isMinifyEnabled = false
+            isShrinkResources = false
+            matchingFallbacks += listOf("release")
+        }
+    }
+    testBuildType = providers.gradleProperty("uiTestBuildType").getOrElse("debug")
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 
@@ -35,9 +55,14 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    // Keep app/test runtime versions aligned for optimized instrumentation.
+    implementation("androidx.concurrent:concurrent-futures-ktx:1.2.0")
     androidTestImplementation("androidx.work:work-testing:2.12.0")
     // Compose Multiplatform 1.10.3 resolves Android UI artifacts to this version.
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.10.5")
     androidTestImplementation("io.ktor:ktor-client-mock:3.3.3")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.10.5")
+    if (providers.gradleProperty("uiTestBuildType").orNull == "benchmark") {
+        add("benchmarkImplementation", "androidx.compose.ui:ui-test-manifest:1.10.5")
+    }
 }
