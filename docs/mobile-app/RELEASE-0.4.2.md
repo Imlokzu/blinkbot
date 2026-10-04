@@ -14,7 +14,13 @@ their existing owner/session APIs. Failed image loads offer Retry in place.
 Portraits retain their aspect ratio. Tapping an image opens the existing native
 Compose viewer; Save and Share use the original bytes and MIME extension.
 Inline decoding is capped at 1024 pixels, while the full viewer uses its existing
-2048-pixel limit. No changes to provider routing, workbench editors or updates.
+2048-pixel limit. The update dialog now downloads Android packages through the
+authenticated same-origin API, verifies the published SHA-256 and opens the
+system installer. iOS opens the published TestFlight/App Store URL.
+
+Set `MOBILE_UPDATE_ANDROID_FILE`, version, version code, changelog and SHA-256 on
+the host. The API exposes `/api/mobile/update/download` only to authenticated
+mobile clients when that file is configured.
 
 ## Validation
 
