@@ -404,6 +404,7 @@ class MobileRuntime:
         iterator = None
         finished = False
         failed = False
+        failure_code = "turn_failed"
         state, error, pause = "failed", "incomplete_stream", True
         run_job = {**job["payload"], "id": job["id"], "user_id": job["user_id"]}
         context_token = _turn_options.set({"model": run_job["model"], "reasoning_effort": run_job["reasoning_effort"],
@@ -422,8 +423,10 @@ class MobileRuntime:
                     break
                 finished |= event == "done"
                 failed |= event == "error"
+                if event == "error" and data.get("error") == "mobile_image_model_unavailable":
+                    failure_code = "mobile_image_model_unavailable"
             if failed or not finished:
-                error = "turn_failed" if failed else "incomplete_stream"
+                error = failure_code if failed else "incomplete_stream"
             else:
                 state, error, pause = "completed", None, False
         except asyncio.CancelledError:
@@ -578,7 +581,12 @@ def router(require_user, require_operator, run_turn: RunTurn, *, store: MobileSt
                 batch = selected_store.events(user_id, job_id, cursor)
                 for entry in batch:
                     cursor = entry["seq"]
-                    yield f"id: {cursor}\nevent: {entry['event']}\ndata: {_json(entry['data'])}\n\n"
+                    data = entry["data"]
+                    if entry["event"] == "mobile_state" and data.get("state") == "failed":
+                        error = selected_store.get(user_id, job_id).get("error")
+                        if error == "mobile_image_model_unavailable":
+                            data = {**data, "error": error}
+                    yield f"id: {cursor}\nevent: {entry['event']}\ndata: {_json(data)}\n\n"
                 if batch:
                     continue  # Drain all committed events before closing.
                 if selected_store.get(user_id, job_id)["state"] in TERMINAL:

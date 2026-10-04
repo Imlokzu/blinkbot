@@ -142,6 +142,15 @@ def mobile_path_allowed(path: str) -> bool:
     )
 
 
+def turn_error_code(error: Exception) -> str:
+    """Only the typed image eligibility failure can cross the mobile boundary."""
+    import mobile_routing
+
+    if isinstance(error, mobile_routing.RoutingError) and error.code == "mobile_image_model_unavailable":
+        return error.code
+    return "mobile_turn_failed"
+
+
 def runner(chat_request_type, chat_turn):
     async def run(job: dict):
         # Attachment-only turns keep the legacy request's nonempty contract.
@@ -168,7 +177,8 @@ def runner(chat_request_type, chat_turn):
                     data = {**data, "model": effective_model}
                 if name == "error":
                     # Only the host diagnostics retain provider exception detail.
-                    data = {"error": "mobile_turn_failed", "steps": data.get("steps", [])}
+                    code = "mobile_image_model_unavailable" if data.get("error") == "mobile_image_model_unavailable" else "mobile_turn_failed"
+                    data = {"error": code, "steps": data.get("steps", [])}
                 yield name, data
         finally:
             # Closing an outer async generator does not close its async-for

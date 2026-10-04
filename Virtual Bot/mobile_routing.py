@@ -9,6 +9,7 @@ from typing import Any
 import mobile_api
 import jev_router
 import openclaw_control
+import openclaw_config
 import openclaw_models
 
 _model: ContextVar[str | None] = ContextVar("mobile_effective_model", default=None)
@@ -26,6 +27,10 @@ def seed_history() -> bool:
 class RoutingError(RuntimeError):
     """Only stable codes may travel into a user-visible streaming error."""
 
+    def __init__(self, code: str):
+        super().__init__(code)
+        self.code = code
+
 
 async def chat_gateway(message: str, system_prompt: str, history: list,
                        emit=None, images=None, session_key: str | None = None):
@@ -35,13 +40,19 @@ async def chat_gateway(message: str, system_prompt: str, history: list,
     selected = str(options.get("model") or "")
     catalog = await openclaw_models.catalog()
     by_id = {str(entry.get("id")): entry for entry in catalog if entry.get("id")}
-    if selected in {"auto", "jev", jev_router.JEV_ID}:
+    if images and selected in {"", "auto", "jev", jev_router.JEV_ID}:
+        # A blank/automatic choice inherits the gateway's image model, not its
+        # text default. Explicit choices retain their provider and capability.
+        selected = openclaw_config.image_model()
+    elif selected in {"auto", "jev", jev_router.JEV_ID}:
         _, selected, _, _ = await jev_router.route(message)
     elif not selected:
         selected = openclaw_models.default_model(catalog)
     entry = by_id.get(selected)
     if entry is None:
-        raise RoutingError("mobile_model_unavailable")
+        raise RoutingError("mobile_image_model_unavailable" if images else "mobile_model_unavailable")
+    if images and entry.get("vision") is not True:
+        raise RoutingError("mobile_image_model_unavailable")
     provider = str(entry.get("provider") or "")
     if not provider:
         raise RoutingError("mobile_model_provider_unknown")
@@ -50,7 +61,7 @@ async def chat_gateway(message: str, system_prompt: str, history: list,
     if images:
         candidates = [item for item in candidates if item.get("vision") is True]
     if not candidates:
-        raise RoutingError("mobile_model_unavailable")
+        raise RoutingError("mobile_image_model_unavailable" if images else "mobile_model_unavailable")
 
     observed_work = False
     observed_model = ""
@@ -112,4 +123,6 @@ async def chat_gateway(message: str, system_prompt: str, history: list,
                 raise RoutingError("mobile_turn_interrupted") from None
         finally:
             _model.reset(handle)
+    # Eligibility was checked before attempting any provider. Exhaustion here
+    # means eligible models failed to answer, not that images were unsupported.
     raise RoutingError("mobile_model_unavailable")

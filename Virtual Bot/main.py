@@ -47,7 +47,7 @@ from fastapi.responses import (
     StreamingResponse,
 )
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 import app_config as cfg
 import auth_clerk
@@ -843,6 +843,7 @@ async def api_brain_models(request: Request, refresh: bool = Query(default=False
         "models": [jev_router.catalog_entry(), *models] if models else [],
         "selected": openclaw_models.get_selected(),
         "default": openclaw_models.default_model(models),
+        "image_model": openclaw_config.image_model(),
         "thinking": await openclaw_models.get_thinking(),
         "thinking_levels": list(openclaw_models.THINKING_LEVELS),
         "available": True,
@@ -2025,6 +2026,7 @@ async def _autoname_chat(sid: str, user_message: str, reply: str) -> None:
     """
     if not chat_store.needs_title(sid):
         return
+    original_title = chat_store.load(sid).get("title")
     prompt = (
         "Придумай коротку назву цієї розмови — 2-4 слова, без лапок, без крапки в кінці, "
         "тією ж мовою, що й розмова. У відповідь напиши ЛИШЕ назву.\n\n"
@@ -2039,6 +2041,10 @@ async def _autoname_chat(sid: str, user_message: str, reply: str) -> None:
                 brains.chat(prompt, []), timeout=30
             )
             trace_log.end_turn(mode=_mode, model=brains.get_last_model())
+        # The owner may rename while the title provider is still running.
+        # Recheck its marker/title after the await, before any automatic write.
+        if not chat_store.needs_title(sid) or chat_store.load(sid).get("title") != original_title:
+            return
     except Exception as exc:  # noqa: BLE001 — назва не варта того, щоб щось ламати
         with trace_log.bind(turn_id):
             trace_log.end_turn(error=f"{type(exc).__name__}: {exc}")
@@ -2516,10 +2522,13 @@ async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str
                     return
                 if event.get("type") == "delta":
                     chunk = event.get("chunk") or ""
+                    if mobile_stream:
+                        # Native previews may arrive after the first HTTP
+                        # delta. Retain its prefix for later echo suppression.
+                        snapshot["http"] += chunk
                     if mobile_stream and snapshot["id"]:
                         # The gateway later repeats held snapshots on HTTP.
                         # Suppress that prefix; deliver only genuinely new text.
-                        snapshot["http"] += chunk
                         if snapshot["raw"].startswith(snapshot["http"]):
                             return
                         if not snapshot["http"].startswith(snapshot["raw"]):
@@ -2671,7 +2680,8 @@ async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str
                     events.publish_emotion("idle")
                 except Exception:  # noqa: BLE001
                     pass
-                yield f"event: error\ndata: {json.dumps({'error': str(exc), 'steps': activity.finish()})}\n\n"
+                error = mobile_bridge.turn_error_code(exc) if mobile_stream else str(exc)
+                yield f"event: error\ndata: {json.dumps({'error': error, 'steps': activity.finish()})}\n\n"
             finally:
                 # Disconnecting must not leave an orphaned agent or subscriber.
                 if not chat_task.done():
@@ -2958,6 +2968,35 @@ class SessionPinRequest(BaseModel):
 
 class SessionProjectRequest(BaseModel):
     project: str = Field(default="", max_length=50)
+
+
+class SessionRenameRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=chat_store.TITLE_LIMIT)
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def clean_title(cls, value):
+        return " ".join(value.split()) if isinstance(value, str) else value
+
+
+@app.post("/api/sessions/{session_id}/rename")
+async def api_session_rename(
+    session_id: str, request: Request, req: SessionRenameRequest, kind: str = Query(default=""),
+) -> dict:
+    """Rename a saved conversation in the same owner namespace as its history."""
+    clerk_uid = await _require_user(request)
+    with brain_context.set_clerk_user(clerk_uid), chat_store.set_kind(_chat_kind(kind)):
+        if not chat_store.is_valid_id(session_id):
+            raise HTTPException(status_code=400, detail={"code": "invalid_session_id"})
+        if not chat_store.load(session_id).get("messages"):
+            raise HTTPException(status_code=404, detail={"code": "session_not_found"})
+        chat_store.set_title(session_id, req.title)
+        if chat_store.load(session_id).get("title") != req.title:
+            raise HTTPException(status_code=500, detail={"code": "session_rename_failed"})
+        chat_store.mark_titled(session_id)
+        if chat_store.needs_title(session_id):
+            raise HTTPException(status_code=500, detail={"code": "session_rename_failed"})
+        return {"ok": True, "title": req.title}
 
 
 @app.post("/api/sessions/{session_id}/steps")

@@ -126,10 +126,10 @@ class GatewayActivity:
                 self.terminal.set()
             return
         if payload.get("stream") == "assistant":
-            # The HTTP adapter holds replaceable output until completion.
-            # Mobile can preview its real cumulative snapshots instead; web
-            # callers retain their existing append-only HTTP stream.
-            if not self.preview_assistant or data.get("replaceable") is not True:
+            # Native/ACP assistant frames need not declare replaceable. Read
+            # their actual cumulative text as well: HTTP finalization may lag
+            # behind the gateway's live output. Mobile owns echo suppression.
+            if not self.preview_assistant:
                 return
             if self.assistant_run != run_id:
                 self.assistant_run, self.assistant_parts = run_id, {}
