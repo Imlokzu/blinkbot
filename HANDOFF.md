@@ -1708,3 +1708,25 @@ pass is claimed; the prior interrupted broad run remains separate.
   fixture passed across desktop/phone, English/Ukrainian, reduced motion and
   reduced transparency. No chat writes or external source requests escaped
   the fixture.
+
+## Mobile image dispatch matches the web client (2026-10-04)
+
+The 0.3.0 mobile image gate incorrectly treated missing catalog `vision` metadata
+as lack of image support. All three live Sol entries lacked this optional badge.
+The phone now delegates image turns to the same `brains.chat_openclaw` image path
+as the web: the configured gateway image model is used, or the gateway chooses
+when unset. Selected text models, filtered catalog membership and vision badges
+cannot block this path. Image fallback stays owned by the shared gateway, and
+its actual model report is retained. Text-only mobile routing is unchanged.
+
+The image path takes precedence over request-local text overrides. Mobile
+thinking-level preferences remain session-local without pinning a text model.
+This supersedes the image eligibility policy recorded for 0.3.0. No APK update is
+needed; old failed image jobs can be retried through the installed app.
+
+Validation: 103 focused Python tests passed, including 15 independent parity
+regressions comparing web/mobile HTTP headers and full image payloads, configured
+and unset image models, missing/false metadata, model receipts and failure cleanup.
+Actual loopback transport tests also passed. No paid/live provider request was
+made. The registered host was restarted after confirming zero running/stopping
+mobile jobs; tunnel configuration was unchanged. Change: `381e495`.
