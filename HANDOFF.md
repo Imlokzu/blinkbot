@@ -1935,3 +1935,26 @@ using the existing device records. Backend image routing, dashboard metadata and
 mobile UI tests were run with fixtures; no provider calls or production messages
 were used. Android 0.4.1/code 8 release APK was cold-launched after installation
 with no crash entries. iOS source changes remain uncompiled on this Mac.
+
+
+## Chat microphone stop and ASR lifecycle (2026-10-04)
+
+- Second-press stop intent survives pending microphone permission/setup; both
+  early and ready-recording presses finish through final recorder events and
+  insert recognized text into the draft. The first focused fix is f5e6a87e.
+- Generation guards and teardown prevent old microphone, partial and final
+  ASR callbacks from reaching a replaced composer. Leaving chat or starting
+  a new conversation releases recorder, tracks, RAF and audio context.
+- Recorder/audio setup failures clean up and settle; microphone errors have
+  locale keys. Composer observes error state after rendering, so ASR failures
+  are visible instead of disappearing through an outdated async closure.
+- Independent review and mocked-media browser checks cover early/normal stop,
+  final audio event ordering, ASR error feedback, delayed permission after
+  navigation, active recording on New, and AudioContext setup failure. No
+  actual microphone or paid transcription was used for testing.
+- Validation: 215 frontend tests, TypeScript and guarded production build;
+  1,242 Python tests passed, 6 skipped and 178 subtests passed.
+- The clean build requires the existing local integrations component/locale
+  modules because committed Settings imports them. Their deployed UI was
+  verified unchanged; they are build support only and are not staged here.
+  Unrelated owner edits and staging remain intact.

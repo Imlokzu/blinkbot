@@ -11,6 +11,12 @@ const browser = (...args) => execFileSync('agent-browser', ['--session', session
 });
 const evaluate = (code) => JSON.parse(browser('--json', 'eval', `(() => eval(${JSON.stringify(code)}))()`)).data.result;
 const mic = '.prompt-bar__tool[aria-pressed]';
+const waitIdle = () => browser('wait', '--fn', 'document.querySelector(".prompt-bar__tool[aria-pressed]")?.getAttribute("aria-pressed") === "false"');
+const reset = () => {
+  browser('reload');
+  browser('wait', '.prompt-bar textarea');
+  browser('wait', mic);
+};
 
 const fixtures = {
   '/api/auth/config': { disabled: true },
@@ -33,6 +39,7 @@ const init = `(() => {
   const state = window.__dictationFixture = {
     asr: 0, getUserMedia: 0, recorderStarts: 0, recorderStops: 0, dataEvents: 0,
     holdMedia: false, releaseMedia: null, recorderReady: false,
+    trackStops: 0, failAsr: false, failAudio: false,
   };
   window.__dictationFixtureErrors = [];
   window.addEventListener('error', event => window.__dictationFixtureErrors.push(event.message));
@@ -53,18 +60,18 @@ const init = `(() => {
     if (method === 'GET' || method === 'HEAD') return Response.json(fixtures[url.pathname] || {});
     if (url.pathname === '/api/asr') {
       state.asr += 1;
+      if (state.failAsr) return Response.json({ detail: 'ASR fixture unavailable' }, { status: 503 });
       return Response.json({ text: 'fixture dictated text' });
     }
     if (url.pathname === '/api/asr/partial') return Response.json({ text: '' });
     return Response.json({});
   };
-  const track = { stop() {} };
-  const stream = { getTracks: () => [track], getAudioTracks: () => [track] };
   Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
     getUserMedia: async () => {
       state.getUserMedia += 1;
       if (state.holdMedia) await new Promise(resolve => { state.releaseMedia = resolve; });
-      return stream;
+      const track = { stop() { state.trackStops += 1; } };
+      return { getTracks: () => [track], getAudioTracks: () => [track] };
     },
   }});
   window.MediaRecorder = class {
@@ -76,20 +83,23 @@ const init = `(() => {
       this.state = 'recording';
       state.recorderStarts += 1;
       state.recorderReady = true;
-      state.dataEvents += 1;
-      this.ondataavailable?.({ data: new Blob(['fixture audio'], { type: 'audio/webm' }) });
     }
     stop() {
       if (this.state === 'inactive') return;
-      state.dataEvents += 1;
-      this.ondataavailable?.({ data: new Blob(['fixture audio'], { type: 'audio/webm' }) });
       this.state = 'inactive';
       state.recorderStops += 1;
-      queueMicrotask(() => this.onstop?.());
+      queueMicrotask(() => {
+        state.dataEvents += 1;
+        this.ondataavailable?.({ data: new Blob(['fixture audio'], { type: 'audio/webm' }) });
+        this.onstop?.();
+      });
     }
   };
   window.AudioContext = class {
     sampleRate = 48000;
+    constructor() {
+      if (state.failAudio) throw new Error('Audio fixture setup failed');
+    }
     createAnalyser() {
       return {
         fftSize: 1024,
@@ -165,7 +175,57 @@ try {
   assert.equal(evaluate('window.__dictationFixture.recorderStops'), 2, 'both presses stop their recorder');
   assert.equal(evaluate('document.querySelector(".prompt-bar textarea").value'), 'fixture dictated text fixture dictated text');
   assert.deepEqual(evaluate('window.__dictationFixtureErrors'), [], 'the mocked media flow has no uncaught errors');
-  console.log('PASS: delayed getUserMedia second press, immediate recorder stop, ASR insertion, and normal forced stop');
+
+  // Failed ASR must become a visible error instead of silently losing the phrase.
+  reset();
+  evaluate('window.__dictationFixture.failAsr = true; true');
+  browser('click', mic);
+  browser('wait', '--fn', 'window.__dictationFixture.recorderReady === true');
+  browser('click', mic);
+  waitIdle();
+  browser('wait', '--fn', 'document.querySelector(".toast-stack")?.textContent.includes("ASR fixture unavailable")');
+  assert.equal(evaluate('window.__dictationFixture.asr'), 1, 'a failed forced stop submits one ASR request');
+  assert.equal(evaluate('document.querySelector(".prompt-bar textarea").value'), '', 'failed ASR cannot insert stale text');
+  assert.ok(evaluate('window.__dictationFixture.trackStops') > 0, 'ASR failure releases the microphone');
+
+  // A permission prompt resolving after navigation cannot start a hidden recording.
+  reset();
+  evaluate('window.__dictationFixture.holdMedia = true; true');
+  browser('click', mic);
+  browser('wait', '--fn', 'typeof window.__dictationFixture.releaseMedia === "function"');
+  evaluate('location.hash = "#/settings"; true');
+  browser('wait', '--fn', '!document.querySelector(".prompt-bar textarea")');
+  evaluate('window.__dictationFixture.holdMedia = false; window.__dictationFixture.releaseMedia(); true');
+  browser('wait', '--fn', 'window.__dictationFixture.trackStops > 0');
+  assert.equal(evaluate('window.__dictationFixture.recorderStarts'), 0, 'late media permission cannot start after leaving chat');
+  assert.equal(evaluate('window.__dictationFixture.asr'), 0, 'cancelled pending setup never sends ASR');
+  evaluate('location.hash = "#/chat"; true');
+  browser('wait', '.prompt-bar textarea');
+  waitIdle();
+  assert.equal(evaluate('document.querySelector(".prompt-bar textarea").value'), '', 'cancelled pending text cannot enter a new chat');
+
+  // New conversation unmounts the active composer and must stop its recording.
+  reset();
+  browser('click', mic);
+  browser('wait', '--fn', 'window.__dictationFixture.recorderReady === true');
+  browser('click', '[data-chat-toolbar] button[aria-label="New conversation"], [data-chat-toolbar] button[aria-label="Нова розмова"]');
+  browser('wait', '--fn', 'window.__dictationFixture.trackStops > 0');
+  waitIdle();
+  assert.equal(evaluate('window.__dictationFixture.recorderStops'), 1, 'new conversation stops the old recorder');
+  assert.equal(evaluate('window.__dictationFixture.asr'), 0, 'composer cleanup does not recognize a cancelled phrase');
+  assert.equal(evaluate('document.querySelector(".prompt-bar textarea").value'), '', 'old dictation cannot overwrite the new draft');
+
+  // AudioContext setup failures must clean up acquired media and surface an error.
+  reset();
+  evaluate('window.__dictationFixture.failAudio = true; true');
+  browser('click', mic);
+  waitIdle();
+  browser('wait', '--fn', 'Boolean(document.querySelector(".toast-stack")?.textContent.trim())');
+  assert.ok(evaluate('window.__dictationFixture.trackStops') > 0, 'AudioContext failure releases acquired tracks');
+  assert.equal(evaluate('window.__dictationFixture.recorderStarts'), 0, 'AudioContext failure never starts a recorder');
+  assert.equal(evaluate('window.__dictationFixture.asr'), 0, 'AudioContext failure never sends incomplete audio');
+  assert.deepEqual(evaluate('window.__dictationFixtureErrors'), [], 'setup errors are handled without unhandled rejections');
+  console.log('PASS: delayed/normal forced stop, ASR error feedback, navigation/new-chat cleanup, and AudioContext error cleanup');
 } catch (error) {
   try { console.error('fixture state:', evaluate('JSON.stringify(window.__dictationFixture)')); } catch {}
   console.error(browser('snapshot', '-i'));

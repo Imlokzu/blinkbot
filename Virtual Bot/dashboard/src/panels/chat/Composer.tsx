@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { FileText, Globe, Paperclip } from '../../vendor/solar-icons/compat.ts';
 import VoiceBeam from 'voice-glow';
 import { PromptBar, type PromptBarControl } from '@/vendor/reactbits';
@@ -77,6 +77,9 @@ export function Composer({
   const brain = useBrainChoice();
   const dictation = useDictation();
   const toast = useToast();
+  useEffect(() => {
+    if (dictation.error) toast.error(t('composer.dictation'), dictation.error);
+  }, [dictation.error, toast]);
   const fileInput = useRef<HTMLInputElement>(null);
   const bar = useRef<PromptBarControl | null>(null);
   const plus = useRef<HTMLButtonElement>(null);
@@ -284,11 +287,7 @@ export function Composer({
              * there is nothing to keep it open for after "I'm done".
              */
             onDictateStop={dictation.finish}
-            onDictate={async () => {
-              const text = await dictation.listen();
-              if (!text && dictation.error) toast.error(t('composer.dictation'), dictation.error);
-              return text;
-            }}
+            onDictate={dictation.listen}
           />
           {uploading ? <p role="status" className="mt-1 text-[12px] text-ink-3">{uploadT('upload.busy')}</p> : null}
 
