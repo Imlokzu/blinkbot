@@ -178,10 +178,20 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val version = ++connectionVersion
         val connection = makeApi(server, token)
         try {
-            val capabilities = connection.capabilities()
+            val capabilities = connection.capabilities(platform.platformName, platform.appVersionCode)
+            val updateInfo = capabilities["update"]?.jsonObject?.let { value ->
+                if (value["available"]?.jsonPrimitive?.booleanOrNull != true) null else MobileUpdate(
+                    versionName = value["version_name"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                    versionCode = value["version_code"]?.jsonPrimitive?.intOrNull ?: 0,
+                    changelog = value["changelog"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
+                    url = value["url"]?.jsonPrimitive?.contentOrNull,
+                    sha256 = value["sha256"]?.jsonPrimitive?.contentOrNull,
+                    mandatory = value["mandatory"]?.jsonPrimitive?.booleanOrNull == true,
+                )
+            }
             if (version != connectionVersion) { connection.close(); return }
             api?.close(); api = connection
-            update { it.copy(baseUrl = connection.origin, connected = true, connecting = false, error = null, steerAvailable = capabilities["steer"]?.jsonPrimitive?.booleanOrNull == true) }
+            update { it.copy(baseUrl = connection.origin, connected = true, connecting = false, error = null, update = updateInfo, steerAvailable = capabilities["steer"]?.jsonPrimitive?.booleanOrNull == true) }
             loadCatalog(); loadSessions()
             runCatching { loadProfile() }
             retryOutbox()
@@ -1212,6 +1222,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         platform.writeSecret("device_token", null); update { AppState(preferences = it.preferences, baseUrl = it.baseUrl, customWallpaper = it.customWallpaper, mediaGeneration = it.mediaGeneration + 1) }
     }
     override fun dismissNotice() { update { it.copy(error = null, notice = null, noticeDetail = null) } }
+    override fun dismissUpdate() { update { it.copy(update = null) } }
     fun close() { platform.cancelRecording(); scope.cancel(); api?.close() }
 
     private fun <T> MutableList<T>.replaceAllInPlace(transform: (T) -> T) {
