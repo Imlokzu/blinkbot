@@ -13,14 +13,14 @@ full Xcode compilation and device testing.
 3. In the PC dashboard, open Settings / Devices / Connect your phone. Enter that
    HTTPS origin and create a QR. The code expires after five minutes and is
    single-use. The phone receives its own revocable device credential.
-4. Install the Android debug APK and scan the QR. Revoke a lost phone from the
+4. Install the Android APK and scan the QR. Revoke a lost phone from the
    same PC panel. Tokens are stored with Android Keystore or iOS Keychain.
 
 The client does not call model providers directly. Conversations, workspace,
 models and bot personalization come from the existing host and owner identity.
 Backend contract and deployment assumptions: [MOBILE-API.md](../Virtual%20Bot/docs/MOBILE-API.md).
 
-## Version 0.3.2
+## Version 0.4.0
 
 Custom model/effort picker, opaque bubbles, inline dictation with live transcript,
 large attachment tiles, a genuine installed-skills picker, and a drawer revealed
@@ -34,7 +34,15 @@ previews, and the drawer supports swipes from inside the chat. Chats are grouped
 by local day. Version 0.3.1 makes short bubbles fit their content and lets
 messages extend beneath the header/composer instead of hitting rectangular edges.
 Version 0.3.2 keeps them opaque with gentle, late shading and narrow softening
-directly under controls. See [RELEASE-0.3.2.md](../docs/mobile-app/RELEASE-0.3.2.md).
+directly under controls. Version 0.4 adds a glass Latest arrow driven by the
+rendered tail, smooth scrolling through tall final replies, short fast drawer
+swipes and a brief typing-indicator delay without delaying streamed text.
+
+Select multiple photos/files, browse a compact image contact sheet and page
+through the full viewer. Successful agent workspace tools expose their real
+outputs in the conversation. Save and Share use original file bytes through the
+native OS, including workspace images and PDFs. Large photos use bounded
+thumbnails. See [RELEASE-0.4.0.md](../docs/mobile-app/RELEASE-0.4.0.md).
 
 ## Implemented behavior
 

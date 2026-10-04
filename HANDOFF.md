@@ -1870,3 +1870,28 @@ See `docs/mobile-app/RELEASE-0.3.2.md` for the exact scope.
   subtests. Its single missing-issuer fixture failure passed a focused retry
   with a synthetic Clerk issuer; this is not an unqualified full-suite pass.
   The earlier working-checkout stalled run remains excluded from pass counts.
+
+## Mobile 0.4.0 chat motion and media delivery (2026-10-04)
+
+The Latest control is a glass arrow based on the rendered tail above the
+composer; it smoothly reaches tall final replies and respects reading flings.
+Stationary gesture coordinates enable short fast drawer swipes. Message entrance
+identity survives server reconciliation; waiting dots appear after 850 ms without
+holding real streamed output. Submit acknowledgment/outbox semantics are unchanged.
+
+Native multi-pick, compact galleries, paged previews and original-byte Save/Share
+are wired through the existing host. Completed workspace tools expose real files;
+active writes remain unread. Large images use bounded thumbnails, decoded tiles
+survive cache eviction without download loops, and navigation/account generations
+reset view-owned media state. Exports retain the selected file, not preview text.
+The new authenticated workspace download route uses descriptor-relative no-follow
+reads and a 20 MiB bound. The registered web host was restarted with zero active
+jobs; local capabilities returned 200 and public unauthenticated download 401.
+
+Validation: 154 shared and 78 native unit tests, 36 phone UI scenarios, 18 existing
+adaptive executions, four additional adaptive gallery/file scenarios, five QA
+runner tests, 34 focused Python tests and a real TCP smoke passed. Independent
+review findings were repaired. No paid bot-provider calls or production messages
+were sent. The optimized Android APK is version 0.4.0/code 7 with the prior signing
+identity; iOS source metadata is aligned but its framework/runtime remain untested.
+See docs/mobile-app/RELEASE-0.4.0.md for scope and test/build distinctions.
