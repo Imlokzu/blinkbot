@@ -850,3 +850,11 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
 - Desktop Panels uses the real right column and restores trigger focus;
   phone dialogs retain their modal focus behavior. Hidden picker inputs stay
   mounted independently of visible menu state.
+
+## Activity branch motion refinement (2026-10-04)
+
+- Branches reveal in sequence: connector stroke, Solar icon, then a quick
+  blurred-to-sharp label pass. Source evidence expands in a matching nested
+  zone, with source links and loaded marks easing in together.
+- Live source zones animate while restored history stays static. Reduced-motion
+  and reduced-transparency preferences continue to remove motion and blur.

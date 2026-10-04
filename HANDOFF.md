@@ -2009,3 +2009,18 @@ with no crash entries. iOS source changes remain uncompiled on this Mac.
   Memory/workspace traversal attempts returned 400; the local reference
   JPEG remains in the service-worker precache. Independent native review
   approved source, fixture and guarded release preservation.
+
+## Activity branch motion refinement (2026-10-04)
+
+- Live activity branches now reveal in a deliberate order: the connector
+  stroke and elbow draw first, the Solar tool mark follows, then the label and
+  follow-up content arrive in one quick pass with a small blur that resolves
+  to sharp text.
+- Website evidence gets its own source zone. It grows with a smooth grid-track
+  transition, source links enter with the same short lift, and loaded site
+  marks fade in without changing the reserved icon size. Restored history rows
+  keep their static state; reduced motion disables all of these effects.
+- Browser coverage samples the intermediate stroke, icon and blurred-label
+  phases, then verifies sharp settled text, source links, reduced motion,
+  accessibility and responsive 1440/390/320px layouts. Dashboard typecheck,
+  215 unit tests, activity browser coverage and disclosure-motion coverage pass.

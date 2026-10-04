@@ -41,6 +41,7 @@ const arrivalFrame = (id, time) => evaluate(`(() => {
   return { trunk:transform(branch, '::before'), elbow:transform(branch, '::after'),
     iconOpacity:Number(getComputedStyle(icon).opacity),
     strokes:[...icon.querySelectorAll('[pathLength]')].map(shape => ({ length:shape.getAttribute('pathLength'), offset:parseFloat(getComputedStyle(shape).strokeDashoffset) })),
+    textFilter:getComputedStyle(description).filter,
     text:text.map(node => ({ text:node.textContent, opacity:Number(getComputedStyle(description).opacity) * Number(getComputedStyle(node).opacity), ...transform(description) })),
     followup:{ opacity:Number(getComputedStyle(followup).opacity), ...transform(followup) } };
 })()`);
@@ -363,6 +364,7 @@ try {
   assert.equal(iconFrame.elbow.scaleX, 1);
   assert.ok(iconFrame.iconOpacity > 0 && iconFrame.iconOpacity < 1, 'the icon fades up after its connection');
   assert.ok(iconFrame.strokes.every(stroke => stroke.offset > 0 && stroke.offset < 1), 'the icon strokes draw through a real intermediate frame');
+  assert.match(iconFrame.textFilter, /blur\(/, 'the label waits behind a small soft blur before it resolves');
   assert.ok(iconFrame.text.every(text => text.opacity === 0), 'labels wait for the icon drawing');
   assert.equal(iconFrame.followup.opacity, 0, 'early results cannot appear ahead of their tool label');
   shot('activity-arrival-icon');
@@ -403,6 +405,7 @@ try {
   assert.equal(textFrame.iconOpacity, 1);
   assert.ok(textFrame.strokes.every(stroke => stroke.offset === 0));
   assert.ok(textFrame.text.every(text => text.opacity > 0 && text.opacity < 1 && text.y > 0), 'tool name, metadata and status fade together after drawing');
+  assert.match(textFrame.textFilter, /blur\(/, 'the fast label reveal clears its soft blur as it arrives');
   assert.equal(textFrame.followup.opacity, textFrame.text[0].opacity, 'followup content keeps the same reveal clock as its label');
   shot('activity-arrival-text');
   // Let CSS complete normally so its animationend cleanup is exercised too.
@@ -416,6 +419,7 @@ try {
   noArrival(['read-a','read-b','search'], 'completed entry phases release their CSS animation objects');
   const settledFrame = arrivalFrame('read-a', 800);
   assert.ok(settledFrame.text.every(text => text.opacity === 1 && text.y === 0));
+  assert.equal(settledFrame.textFilter, 'none', 'settled labels return to a sharp rendering');
   assert.ok(settledFrame.strokes.every(stroke => stroke.offset === 0));
   shot('activity-arrival-finished');
 

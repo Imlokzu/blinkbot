@@ -145,17 +145,23 @@ function ToolBranch({ step, animateEntry }: { step: ToolStep; animateEntry: bool
       onClick={toggleLog}>{content}</button>
       : <div className="chat-activity-row" data-tool-row>{content}</div>}
     <div className="chat-activity-followup">
-    {sites.length ? <div className="chat-activity-sites" role="group" aria-label={t('sources.label', { count: sites.length })}>
-      {sites.map(source => <a key={source.host} href={source.url} target="_blank" rel="noreferrer noopener"
-        className="chat-activity-site" title={source.title || source.host}>
-        <SiteIcon url={source.url} host={source.host} /><span>{source.host}</span>
-      </a>)}
-    </div> : null}
-    {signedOut ? <p className="chat-activity-sign-in">{t('tool.signIn')}</p> : null}
-    {hasLog ? <div ref={ref} id={detailsId} data-tool-details className="chat-activity-fold" data-phase={phase}
-      data-open={open ? '' : undefined} inert={!open} aria-hidden={!open}>
-      <div className="chat-activity-clip"><ToolDetails step={step} /></div>
-    </div> : null}
+      <div className="chat-activity-followup-content">
+        {sites.length || signedOut ? <div className="chat-activity-source-zone" data-activity-source-zone={animateEntry ? '' : undefined}>
+          <div className="chat-activity-source-zone-content">
+            {sites.length ? <div className="chat-activity-sites" role="group" aria-label={t('sources.label', { count: sites.length })}>
+              {sites.map(source => <a key={source.host} href={source.url} target="_blank" rel="noreferrer noopener"
+                className="chat-activity-site" title={source.title || source.host}>
+                <SiteIcon url={source.url} host={source.host} /><span>{source.host}</span>
+              </a>)}
+            </div> : null}
+            {signedOut ? <p className="chat-activity-sign-in">{t('tool.signIn')}</p> : null}
+          </div>
+        </div> : null}
+        {hasLog ? <div ref={ref} id={detailsId} data-tool-details className="chat-activity-fold" data-phase={phase}
+          data-open={open ? '' : undefined} inert={!open} aria-hidden={!open}>
+          <div className="chat-activity-clip"><ToolDetails step={step} /></div>
+        </div> : null}
+      </div>
     </div>
   </li>;
 }
