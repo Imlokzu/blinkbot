@@ -2033,3 +2033,25 @@ with no crash entries. iOS source changes remain uncompiled on this Mac.
   tree and the compiled dashboard, with typecheck and all 215 dashboard unit
   tests passing. The release contains 296 verified dashboard resources and
   retains the existing wallpaper precache and publication lock guarantees.
+## Mobile inline reply images (2026-10-04)
+
+Assistant Markdown images, linked images and direct raster URLs now render inside
+reply bubbles without opening a browser. Source ranges retain surrounding prose,
+complete Markdown references are supported, and unfinished streamed image URLs
+wait for their closing syntax. Image nodes in code blocks remain literal examples.
+Inline portraits retain their aspect ratio; tapping opens the existing paged
+viewer with original-byte Save/Share. Image errors stay local with explicit Retry.
+
+Foreign images use the authenticated `/api/mobile/images/fetch` route. The host
+pins public DNS destinations, validates every redirect, forwards no device
+credentials, and bounds bytes/types/time. Owned uploads and workspace image links
+continue through their own authenticated routes. Navigation/account guards and
+bounded caches cover late downloads and preserve current chat state.
+
+Validation: 168 shared tests, 78 Android unit tests, four new inline-image UI
+scenarios and four existing image/table/stream regressions passed. Backend checks
+passed 102 tests and eight subtests. A live public Wikimedia reference image
+returned 9022 original JPEG bytes after adding an identifying User-Agent. Other
+provider traffic remained mocked; no paid model calls or production messages.
+Independent reviews closed all concrete findings. Version 0.4.2/code 9 is built
+with R8 and separately installed/launch-smoked; iOS remains source-only.

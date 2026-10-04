@@ -20,7 +20,7 @@ The client does not call model providers directly. Conversations, workspace,
 models and bot personalization come from the existing host and owner identity.
 Backend contract and deployment assumptions: [MOBILE-API.md](../Virtual%20Bot/docs/MOBILE-API.md).
 
-## Version 0.4.0
+## Version 0.4.2
 
 Custom model/effort picker, opaque bubbles, inline dictation with live transcript,
 large attachment tiles, a genuine installed-skills picker, and a drawer revealed
@@ -43,6 +43,10 @@ through the full viewer. Successful agent workspace tools expose their real
 outputs in the conversation. Save and Share use original file bytes through the
 native OS, including workspace images and PDFs. Large photos use bounded
 thumbnails. See [RELEASE-0.4.0.md](../docs/mobile-app/RELEASE-0.4.0.md).
+
+Version 0.4.2 renders assistant image links directly in chat, with authenticated
+loading, portrait geometry and the native full viewer. See
+[RELEASE-0.4.2.md](../docs/mobile-app/RELEASE-0.4.2.md).
 
 ## Implemented behavior
 
