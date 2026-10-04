@@ -54,7 +54,9 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             menu = { ConversationDrawer(state, actions) }) {
             Box(Modifier.fillMaxSize()) {
                 Wallpaper(state.preferences, state.customWallpaper, state.screen, state.connected)
-                Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()) {
+                Column(Modifier.fillMaxSize().windowInsetsPadding(
+                    if (state.screen == Screen.Chat) WindowInsets.ime else WindowInsets.safeDrawing
+                ).imePadding()) {
                     if (state.screen != Screen.Chat) TopBar(state, actions)
                     Box(Modifier.weight(1f)) {
                         AnimatedContent(state.screen, transitionSpec = {

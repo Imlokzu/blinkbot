@@ -244,10 +244,13 @@ class ChatInteractionRegressionTest {
         fun assertPanelOverlap() {
             val viewport = history.getUnclippedBoundsInRoot()
             val surface = compose.onNodeWithTag("chat-surface").getUnclippedBoundsInRoot()
+            val window = compose.onRoot().getUnclippedBoundsInRoot()
             val topPanel = header.getUnclippedBoundsInRoot()
             val bottomPanel = composer.getUnclippedBoundsInRoot()
             assertEquals("History must extend to the safe viewport top", surface.top.value, viewport.top.value, 2f)
             assertEquals("History must extend to the safe viewport bottom", surface.bottom.value, viewport.bottom.value, 2f)
+            assertEquals("History must not expose a clipping line below the status bar", window.top.value, viewport.top.value, 2f)
+            assertEquals("History must reach the window edge behind navigation", window.bottom.value, viewport.bottom.value, 2f)
             assertEquals("The header must overlay the top of history", viewport.top.value, topPanel.top.value, 2f)
             assertEquals("The composer must overlay the bottom of history", viewport.bottom.value, bottomPanel.bottom.value, 2f)
             assertTrue("History must continue behind the header", viewport.top.value < topPanel.bottom.value)

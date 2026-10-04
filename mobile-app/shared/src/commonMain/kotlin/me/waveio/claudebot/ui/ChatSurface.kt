@@ -58,6 +58,7 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
     val scope = rememberCoroutineScope()
     val palette = LocalPalette.current
     val density = LocalDensity.current
+    val topPanel = headerHeight + with(density) { WindowInsets.safeDrawing.getTop(this).toDp() }
     var composerHeight by remember { mutableIntStateOf(0) }
     val bottomPanel = with(density) { composerHeight.toDp() }
     val seen = remember(state.sessionId) { mutableSetOf<String>() }
@@ -105,15 +106,15 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
             }
         }
     }
-    Box(Modifier.fillMaxSize().testTag("chat-surface")) {
+    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).testTag("chat-surface")) {
         Box(Modifier.fillMaxSize()) {
             if (state.messages.isEmpty() && !state.loading) {
-                Box(Modifier.fillMaxSize().padding(top = headerHeight, bottom = bottomPanel), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxSize().padding(top = topPanel, bottom = bottomPanel), contentAlignment = Alignment.Center) {
                     Welcome(Modifier.padding(horizontal = 38.dp), reducedMotion)
                 }
             } else {
                 LazyColumn(state = list, overscrollEffect = null, modifier = Modifier.fillMaxSize().testTag("chat-history")
-                    .chatEdges(headerHeight, bottomPanel).nestedScroll(scrollIntent).pointerInput(state.sessionId) {
+                    .chatEdges(topPanel, bottomPanel).nestedScroll(scrollIntent).pointerInput(state.sessionId) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                         fingerDown.value = true
@@ -121,7 +122,7 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
                             do { val event = awaitPointerEvent(PointerEventPass.Initial) } while (event.changes.any { it.pressed })
                         } finally { fingerDown.value = false }
                     }
-                }, contentPadding = PaddingValues(start = 18.dp, top = headerHeight + 20.dp, end = 18.dp, bottom = bottomPanel + 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                }, contentPadding = PaddingValues(start = 18.dp, top = topPanel + 20.dp, end = 18.dp, bottom = bottomPanel + 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     items(state.messages, key = { it.id }) { message ->
                         MessageContent(message, actions, reducedMotion, state.busy, state.attachmentThumbnails, seen.add(message.id) && (message.live || message.id.startsWith("u-")))
                     }
@@ -133,9 +134,11 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
                 ActionButton(tr("chat.latest"), { following = true; scope.launch { list.animateScrollToItem((list.layoutInfo.totalItemsCount - 1).coerceAtLeast(0)) } }, Modifier.align(Alignment.BottomCenter).padding(bottom = bottomPanel + 12.dp), icon = "down")
             }
         }
-        Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().testTag("chat-header").panelTouchBarrier()) { header() }
+        Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().testTag("chat-header").panelTouchBarrier()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))) { header() }
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().testTag("chat-composer")
-            .onSizeChanged { composerHeight = it.height }.panelTouchBarrier()) {
+            .onSizeChanged { composerHeight = it.height }.panelTouchBarrier()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))) {
         if (state.pending.size > 1 || state.pending.isNotEmpty() && state.busy || state.queuePaused) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Glyph("time", modifier = Modifier.size(15.dp), tint = palette.muted)

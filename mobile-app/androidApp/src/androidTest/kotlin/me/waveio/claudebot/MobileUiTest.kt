@@ -152,6 +152,10 @@ class MobileUiTest {
         screenshot("mobile-model-picker")
         compose.onNodeWithText("Done").performClick()
         compose.onNode(hasSetTextAction()).performTextInput("Find the project notes")
+        // Native IME motion runs outside the Compose clock; let the Send target
+        // settle before injecting a physical tap at its window coordinates.
+        android.os.SystemClock.sleep(300)
+        compose.waitForIdle()
         compose.onNodeWithContentDescription("Send").performClick()
         waitFor("They are in your shared workspace.")
         assertEquals("high", sent.single().getValue("reasoning_effort").jsonPrimitive.content)
