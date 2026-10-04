@@ -1790,3 +1790,20 @@ screenshots were inspected. The streaming emulator sample remained p95 23ms;
 this is not a physical-phone/120Hz claim. See `docs/mobile-app/RELEASE-0.3.1.md`
 for exact verification boundaries. Android version code5/version0.3.1 retains
 the prior signing identity; Apple metadata is aligned but runtime unverified.
+
+## Mobile 0.3.2 late, gentle panel shading (2026-10-04)
+
+Replaced the conspicuous early alpha fade with weak smootherstep shading and
+narrow softening directly under panel controls. On supported renderers,
+source-atop blending preserves the original bubble alpha; no broad washed-out
+band erases readable text. One content recording feeds only small panel blur
+buffers. History now reaches the physical window edges, while controls retain
+system-bar and IME safe insets; the clipping line below the clock is removed.
+
+Validation: 25 UI scenarios and 18 adaptive executions passed; actual screenshots
+were inspected and independent compositing/inset review completed. Updated the
+window-bound geometry assertion and let native IME animation settle before one
+fixture Send tap. The optimized release is separately installed and launch-tested.
+Version code6/version0.3.2 keeps the earlier signing identity. No backend changes;
+iOS runtime and physical-phone refresh-rate guarantees remain unverified.
+See `docs/mobile-app/RELEASE-0.3.2.md` for the exact scope.
