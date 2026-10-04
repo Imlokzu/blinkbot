@@ -1701,3 +1701,16 @@ incomplete and is not counted as passing by this UI follow-up.
 - Validation: 207 dashboard tests, TypeScript, whitespace checks and the new
   browser fixture passed. The focused change is limited to the shared table
   presentation CSS and its browser regression fixture.
+
+
+## Model-picker search affordance (2026-10-04)
+
+- The model picker search icon now uses the selected accent with a soft halo,
+  small spring lift/scale and an icon tilt. Active, hover and keyboard focus
+  share the accent treatment; reduced motion removes transforms and transitions.
+- Search hover keeps a short close grace period so the heading reflow cannot
+  collapse the field under the pointer. Existing click, keyboard and touch
+  search behavior is unchanged.
+- Validation: 207 frontend tests, TypeScript, full Python suite (1,213 passed,
+  6 skipped, 178 subtests) and dedicated search-icon browser checks in full and
+  reduced motion. Existing model-effort and mobile-picker fixtures passed.

@@ -61,7 +61,46 @@ html[data-popup="glass"] .model-effort-menu.popup-lens .brain-picker-group {
 
 .model-picker-search { display: flex; flex-direction: row-reverse; max-width: 100%; min-width: 0; align-items: center; border-radius: 6px; }
 .model-picker-search-button, .model-picker-clear { display: grid; width: 36px; height: 36px; flex-shrink: 0; place-items: center; border-radius: 6px; color: var(--c-text-3); outline: none; }
-.model-picker-search-button:hover, .model-picker-clear:hover { color: var(--c-text); }
+.model-picker-search-button {
+  position: relative;
+  isolation: isolate;
+  transition: color var(--t-base) var(--e-out), background-color var(--t-base) var(--e-out), transform var(--t-base) var(--e-spring);
+}
+.model-picker-search-button::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 5px;
+  border: 1px solid color-mix(in srgb, var(--c-accent) 48%, transparent);
+  border-radius: 50%;
+  background: var(--c-accent-soft);
+  opacity: 0;
+  transform: scale(.58);
+  transition: opacity var(--t-base) var(--e-out), transform var(--t-base) var(--e-spring);
+  pointer-events: none;
+}
+.model-picker-search-button > svg {
+  transition: transform var(--t-base) var(--e-spring), stroke-width var(--t-base) var(--e-out);
+}
+.model-picker-search-button:hover,
+.model-picker-search-button[aria-expanded="true"] {
+  color: var(--c-accent);
+  background: var(--c-accent-soft);
+  transform: translateY(-1px) scale(1.04);
+}
+.model-picker-search-button:hover::before,
+.model-picker-search-button[aria-expanded="true"]::before {
+  opacity: 1;
+  transform: scale(1);
+}
+.model-picker-search-button:hover > svg,
+.model-picker-search-button[aria-expanded="true"] > svg {
+  transform: scale(1.12) rotate(-8deg);
+  stroke-width: 2;
+}
+.model-picker-search-button:active { transform: translateY(0) scale(.96); }
+.model-picker-search-button:active > svg { transform: scale(1.04) rotate(0); }
+.model-picker-search-button:focus-visible { color: var(--c-accent); }
 .model-picker-search-button:focus-visible, .model-picker-clear:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -2px; }
 .model-picker-search-field { display: flex; width: 0; min-width: 0; overflow: hidden; opacity: 0; align-items: center; transition: width 180ms cubic-bezier(.2,.8,.2,1), opacity 180ms; }
 .model-picker-search-field input { width: 100%; min-width: 0; height: 36px; background: transparent; color: var(--c-text); font-size: 13px; outline: none; }
@@ -164,7 +203,16 @@ html[data-popup="glass"] .model-effort-menu.popup-lens .brain-picker-group {
 }
 @media (prefers-reduced-motion: reduce) {
   .brain-choice-trigger, .brain-picker-row { transition: none; }
-  .model-picker-search-field { transition: opacity 180ms; }
+  .model-picker-search-button,
+  .model-picker-search-button::before,
+  .model-picker-search-button > svg,
+  .model-picker-search-field { transition: none; }
+  .model-picker-search-button:hover,
+  .model-picker-search-button[aria-expanded="true"] { transform: none; }
+  .model-picker-search-button:hover::before,
+  .model-picker-search-button[aria-expanded="true"]::before { transform: none; }
+  .model-picker-search-button:hover > svg,
+  .model-picker-search-button[aria-expanded="true"] > svg { transform: none; }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   html[data-popup="glass"] .popup-lens .model-effort-menu .brain-picker-group,

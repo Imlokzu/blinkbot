@@ -80,6 +80,7 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
   };
   const input = useRef<HTMLInputElement>(null);
   const search = useRef<HTMLDivElement>(null);
+  const searchCloseTimer = useRef<number | undefined>(undefined);
   const modelsPane = useRef<HTMLElement>(null);
   const pickedFocus = useRef<string | null>(null);
   const base = useId();
@@ -161,6 +162,7 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
   }, [open, cursor, base, flat, brain.failed, brain.unavailable]);
 
   const changeOpen = (next: boolean) => {
+    window.clearTimeout(searchCloseTimer.current);
     setOpen(next);
     window.clearTimeout(detailTimer.current);
     setDetail(null);
@@ -170,6 +172,7 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
       setActive(0);
     }
   };
+  useEffect(() => () => window.clearTimeout(searchCloseTimer.current), []);
   const toggleIntel = () => {
     const next = !showIntel;
     setShowIntel(next);
@@ -238,13 +241,23 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
               <div
                 ref={search}
                 className="model-picker-search"
-                onPointerEnter={(event) => { if (event.pointerType === 'mouse') setSearchOpen(true); }}
-                onPointerLeave={() => { if (!query && !search.current?.contains(document.activeElement)) setSearchOpen(false); }}
+                onPointerEnter={(event) => {
+                  window.clearTimeout(searchCloseTimer.current);
+                  if (event.pointerType === 'mouse') setSearchOpen(true);
+                }}
+                onPointerLeave={() => {
+                  if (!query && !search.current?.contains(document.activeElement)) {
+                    window.clearTimeout(searchCloseTimer.current);
+                    searchCloseTimer.current = window.setTimeout(() => {
+                      if (!query && !search.current?.contains(document.activeElement)) setSearchOpen(false);
+                    }, 450);
+                  }
+                }}
                 onBlur={(event) => { if (!query && !event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }}
               >
                 <button type="button" aria-label={t('models.openSearch')} aria-expanded={searchOpen} aria-controls={`${base}-search`}
-                  className="model-picker-search-button" onFocus={() => setSearchOpen(true)}
-                  onClick={() => { setSearchOpen(true); input.current?.focus(); }}>
+                  className="model-picker-search-button" onFocus={() => { window.clearTimeout(searchCloseTimer.current); setSearchOpen(true); }}
+                  onClick={() => { window.clearTimeout(searchCloseTimer.current); setSearchOpen(true); input.current?.focus(); }}>
                   <Search aria-hidden="true" className="size-4" strokeWidth={1.75} />
                 </button>
                 <div className="model-picker-search-field">
