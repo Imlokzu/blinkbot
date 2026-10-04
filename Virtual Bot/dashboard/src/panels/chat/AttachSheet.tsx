@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
-import { Cable, Camera, ChevronRight, FileText, Image, ImagePlus, PanelRightOpen, Wrench, X } from '../../vendor/solar-icons/compat.ts';
+import { Cable, Camera, FileText, Image, ImagePlus, PanelRightOpen, Wrench, X } from '../../vendor/solar-icons/compat.ts';
 import { ContextMeter } from './ContextMeter';
 import { t } from '@/locales/chat';
 import { t as benchT } from '@/locales/workbench';
@@ -21,11 +21,12 @@ import './attach-sheet.css';
 const IMAGE_TYPES = 'image/png,image/jpeg,image/webp,image/gif';
 const FILE_TYPES = `${IMAGE_TYPES},.txt,.md,.json,.csv,.tsv,.pdf,.docx,.py,.js,.ts,.tsx,.jsx,.html,.css,.yaml,.yml,.xml,.sql,.log`;
 
-function Tile({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+function Tile({ icon, label, action, onClick }: { icon: React.ReactNode; label: string; action: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      data-attachment-action={action}
       className="attach-media-tile"
     >
       {icon}
@@ -34,16 +35,16 @@ function Tile({ icon, label, onClick }: { icon: React.ReactNode; label: string; 
   );
 }
 
-function Row({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }) {
+function Row({ icon, label, action, onClick }: { icon: React.ReactNode; label: string; action: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      data-attachment-action={action}
       className="attach-action-row"
     >
       {icon}
       <span>{label}</span>
-      <ChevronRight className="ml-auto size-4 text-ink-3" />
     </button>
   );
 }
@@ -63,7 +64,7 @@ export function AttachSheet({
 }: {
   open: boolean;
   onClose: () => void;
-  /** The "+" that toggles the sheet — a tap on it is not an outside tap. */
+  /** The attachment trigger is part of the menu's interaction area. */
   anchor: React.RefObject<HTMLElement | null>;
   onFiles: (files: File[]) => void;
   onTools: () => void;
@@ -75,6 +76,8 @@ export function AttachSheet({
   compact?: boolean;
 }) {
   const root = useRef<HTMLDivElement>(null);
+  const keyboardEntry = useRef(false);
+  const wasOpen = useRef(false);
   const camera = useRef<HTMLInputElement>(null);
   const photos = useRef<HTMLInputElement>(null);
   const files = useRef<HTMLInputElement>(null);
@@ -82,23 +85,61 @@ export function AttachSheet({
   useLayoutEffect(() => {
     const panel = root.current;
     const composer = panel?.parentElement;
-    if (!open || !panel || !composer) return;
+    if (!open) { keyboardEntry.current = false; wasOpen.current = false; return; }
+    if (!panel || !composer) return;
+    if (!wasOpen.current) {
+      const activation = anchor.current?.dataset.attachmentActivation;
+      keyboardEntry.current = activation === 'keyboard' || (!activation && Boolean(anchor.current?.matches(':focus-visible')));
+      wasOpen.current = true;
+    }
     const fit = () => {
-      // A tall draft, attachment row or on-screen keyboard can leave less room
-      // than a fixed viewport percentage. Scroll the menu within that space.
-      const available = composer.getBoundingClientRect().top - 68;
+      const bounds = composer.getBoundingClientRect();
+      const viewport = window.visualViewport;
+      const visibleTop = viewport?.offsetTop ?? 0;
+      const shellBottom = document.querySelector('.app-shell')?.getBoundingClientRect().bottom ?? innerHeight;
+      const visibleBottom = Math.min(shellBottom, visibleTop + (viewport?.height ?? innerHeight));
+      const headerBottom = Math.max(visibleTop, ...Array.from(document.querySelectorAll('[data-global-topbar], .chat-phone-toolbar, .chat-narrow-toolbar'))
+        .map(header => header.getBoundingClientRect().bottom));
+      const floor = headerBottom + 8;
+      const above = bounds.top - floor - 8;
+      const below = visibleBottom - bounds.bottom - 16;
+      // A short welcome window may fit neither side. Keep the menu usable
+      // inside that visible area without moving or remounting the draft.
+      const placement = above >= 180 ? 'above' : below >= 180 ? 'below' : 'viewport';
+      const available = placement === 'above' ? above : placement === 'below' ? below : visibleBottom - floor - 12;
+      panel.dataset.placement = placement;
+      panel.style.top = placement === 'above' ? 'auto' : placement === 'below' ? 'calc(100% + 8px)' : `${floor - bounds.top}px`;
+      panel.style.bottom = placement === 'above' ? 'calc(100% + 8px)' : 'auto';
       panel.style.maxHeight = `${Math.max(0, Math.min(480, available))}px`;
+      const focused = document.activeElement;
+      if (focused instanceof HTMLElement && focused !== panel && panel.contains(focused)) {
+        const action = focused.getBoundingClientRect();
+        const menu = panel.getBoundingClientRect();
+        if (action.top < menu.top + 6) panel.scrollTop -= menu.top + 6 - action.top;
+        else if (action.bottom > menu.bottom - 6) panel.scrollTop += action.bottom - menu.bottom + 6;
+      }
     };
     fit();
-    // The actions precede the trigger in DOM order. Start keyboard navigation
-    // inside the menu instead of sending Tab past it into the composer.
-    panel.querySelector<HTMLButtonElement>('.attach-media-rows button, .attach-media-grid button')?.focus({ preventScroll: true });
+    // Pointer opening does not put an orange focus frame on the first action.
+    // Keyboard opening still starts on a useful choice; both enter the dialog.
+    if (keyboardEntry.current) {
+      panel.querySelector<HTMLButtonElement>('.attach-media-rows button, .attach-media-grid button')?.focus({ preventScroll: true });
+    } else panel.focus({ preventScroll: true });
     const observer = new ResizeObserver(fit);
     observer.observe(composer);
+    const movement = new MutationObserver(fit);
+    const position = composer.closest('[data-chat-composer-position]');
+    if (position) movement.observe(position, { attributes: true, attributeFilter: ['style'] });
     window.addEventListener('resize', fit);
     window.visualViewport?.addEventListener('resize', fit);
-    return () => { observer.disconnect(); window.removeEventListener('resize', fit); window.visualViewport?.removeEventListener('resize', fit); };
-  }, [open]);
+    window.visualViewport?.addEventListener('scroll', fit);
+    return () => {
+      observer.disconnect(); movement.disconnect();
+      window.removeEventListener('resize', fit);
+      window.visualViewport?.removeEventListener('resize', fit);
+      window.visualViewport?.removeEventListener('scroll', fit);
+    };
+  }, [open, anchor, compact]);
 
   useEffect(() => {
     if (!open) return;
@@ -115,6 +156,7 @@ export function AttachSheet({
     // that and leaves the sheet — Radix handles the popover's own Escape
     // first, while its content is still in the DOM.
     const onKey = (event: KeyboardEvent) => {
+      if (root.current?.contains(document.activeElement)) keyboardEntry.current = true;
       if (event.key !== 'Escape') return;
       if (document.querySelector('[data-radix-popper-content-wrapper]')) return;
       onClose();
@@ -150,6 +192,7 @@ export function AttachSheet({
         <div
           ref={root}
           role="dialog"
+          tabIndex={-1}
           aria-label={t('composer.add')}
           id="chat-attachment-menu"
           data-attachment-menu=""
@@ -157,23 +200,26 @@ export function AttachSheet({
           data-state="open"
           className={`attach-sheet popup-shell u-pop ${compact ? 'is-compact' : ''}`}
         >
-          <header className="attach-sheet-heading"><div><p>{t('composer.add')}</p><span>{t('sheet.hint')}</span></div>
+          <header className="attach-sheet-heading"><p>{t('composer.add')}</p>
             <button type="button" aria-label={t('sheet.close')} onClick={() => { onClose(); anchor.current?.focus({ preventScroll: true }); }}><X size={16} /></button>
           </header>
           {compact ? <div className="attach-media-rows">
-            <Row icon={<Image />} label={t('sheet.photos')} onClick={() => photos.current?.click()} />
-            <Row icon={<FileText />} label={t('sheet.files')} onClick={() => files.current?.click()} />
+            <Row icon={<Image />} label={t('sheet.photos')} action="photos" onClick={() => photos.current?.click()} />
+            <Row icon={<FileText />} label={t('sheet.files')} action="files" onClick={() => files.current?.click()} />
           </div> : <div className="attach-media-grid">
-            <Tile icon={<Camera />} label={t('sheet.camera')} onClick={() => camera.current?.click()} />
-            <Tile icon={<Image />} label={t('sheet.photos')} onClick={() => photos.current?.click()} />
-            <Tile icon={<FileText />} label={t('sheet.files')} onClick={() => files.current?.click()} />
+            <Tile icon={<Camera />} label={t('sheet.camera')} action="camera" onClick={() => camera.current?.click()} />
+            <Tile icon={<Image />} label={t('sheet.photos')} action="photos" onClick={() => photos.current?.click()} />
+            <Tile icon={<FileText />} label={t('sheet.files')} action="files" onClick={() => files.current?.click()} />
           </div>}
           <div className="attach-sheet-options">
-          <Row icon={<ImagePlus />} label={imageT('title')} onClick={onImageGeneration} />
-          <Row icon={<Cable />} label={connectorT('connectors.title')} onClick={onConnectors} />
-          <Row icon={<Wrench />} label={t('sheet.tools')} onClick={onTools} />
-          <Row icon={<PanelRightOpen />} label={t('sheet.panels')} onClick={onPanels} />
-          {onWorkbench ? <Row icon={<PanelRightOpen />} label={benchT('wb.open')} onClick={onWorkbench} /> : null}
+          <Row icon={<ImagePlus />} label={imageT('title')} action="image" onClick={onImageGeneration} />
+          <Row icon={<Cable />} label={connectorT('connectors.title')} action="connectors" onClick={onConnectors} />
+          <Row icon={<Wrench />} label={t('sheet.tools')} action="tools" onClick={onTools} />
+          <Row icon={<PanelRightOpen />} label={t('sheet.panels')} action="panels" onClick={() => {
+            anchor.current?.focus({ preventScroll: true });
+            onPanels();
+          }} />
+          {onWorkbench ? <Row icon={<PanelRightOpen />} label={benchT('wb.open')} action="workbench" onClick={onWorkbench} /> : null}
           </div>
           {!compact ? <div className="attach-context"><ContextMeter {...context} variant="row" /></div> : null}
         </div>

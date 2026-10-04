@@ -246,7 +246,10 @@ export function Composer({
                 aria-controls="chat-attachment-menu"
                 aria-haspopup="dialog"
                 data-on={sheetOpen ? '' : undefined}
-                onClick={() => setSheetOpen((value) => !value)}
+                onClick={(event) => {
+                  event.currentTarget.dataset.attachmentActivation = event.detail === 0 ? 'keyboard' : 'pointer';
+                  setSheetOpen((value) => !value);
+                }}
               >
                 <Paperclip className="size-4" aria-hidden="true" />
               </button>

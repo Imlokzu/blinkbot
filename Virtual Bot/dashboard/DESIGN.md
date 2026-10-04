@@ -831,3 +831,22 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   phone/coarse targets, focus ring and the existing send/Stop transitions.
 - The attachment sheet opens from a Solar paperclip without plus-to-cross
   rotation. Keep the existing labelled toggle, expanded state and focus return.
+
+
+## Refined attachment menu (2026-10-04)
+
+- The paperclip menu uses one 312px desktop / up-to-344px phone surface with
+  quiet heading, two radius sizes and one media/actions separator. Remove
+  repeated per-row chevrons, boxed media cards and explanatory subtitle.
+- Photos/files sit side by side on desktop. Phones keep a flat three-option
+  camera/photos/files tray and 44px touch controls. All existing destinations
+  stay accessible, including phone Workbench and context details.
+- Preserve selected popup glass and shared motion. Fit against header, app
+  shell and visual viewport, including composer movement and viewport pan;
+  use a viewport placement in cramped windows without clearing the draft.
+- Pointer entry focuses the dialog without a first-action outline. Keyboard
+  entry focuses a media choice and survives compact resize. Record actual
+  activation instead of relying only on a previously focused trigger's CSS.
+- Desktop Panels uses the real right column and restores trigger focus;
+  phone dialogs retain their modal focus behavior. Hidden picker inputs stay
+  mounted independently of visible menu state.

@@ -417,7 +417,12 @@ export default function ChatPanel() {
                 key={chat.composerEpoch}
                 fileDrop={fileDrop.handler}
                 lean={!isDesk}
-                onOpenPanels={() => setPanelsOpen(true)}
+                onOpenPanels={() => {
+                  if (isDesk) {
+                    closeBench();
+                    setAppearance({ sidebarVisible: true });
+                  } else setPanelsOpen(true);
+                }}
                 onOpenWorkbench={isPhone ? toggleBench : undefined}
                 busy={chat.running || chat.queuedSend}
                 queued={chat.queuedSend}

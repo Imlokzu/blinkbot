@@ -1958,3 +1958,27 @@ with no crash entries. iOS source changes remain uncompiled on this Mac.
   modules because committed Settings imports them. Their deployed UI was
   verified unchanged; they are build support only and are not staged here.
   Unrelated owner edits and staging remain intact.
+
+
+## Cleaner attachment action menu (2026-10-04)
+
+- The paperclip menu uses a quieter one-line header, borderless media tray,
+  narrow single surface and icon/label actions without repeated chevrons.
+  Desktop photos/files share one row; phones retain camera/photos/files.
+  Solar artwork, all actions, context details and selected popup glass remain.
+- The menu fits above/below the composer when possible, and inside the visible
+  viewport when cramped. It refits during composer movement, viewport pan and
+  resize, keeping keyboard focus visible. Pointer versus keyboard entry is
+  captured from actual activation, so a previous keyboard focus cannot leave
+  an unwanted ring on pointer opening. Compact resize retains keyboard entry.
+- Desktop Panels now reveals the right column and closes Workbench; narrow
+  layouts keep their dialog. Focus returns to the paperclip before nonmodal
+  activation. Existing file inputs remain mounted and picker contracts stay.
+- Validation: 215 dashboard tests and TypeScript passed. The isolated backend
+  run passed 1,240 tests, 8 skipped and 178 subtests. New browser coverage passed
+  all locale/theme/1440/390/320 combinations, all actions/mock upload, keyboard,
+  pointer, resize/spring/short-window/tall-draft fit, glass/reduced motion and
+  scoped accessibility. Composer and popup glass regressions passed.
+- Independent native source/visual review repaired focus/placement edge cases
+  and approved the final result. Fable is unavailable; no Fable certification
+  is claimed. Unrelated microphone and file-editor drafts are kept separate.

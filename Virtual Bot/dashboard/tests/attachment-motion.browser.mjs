@@ -12,12 +12,14 @@ for (const reduced of [false, true]) {
     browser('open', 'about:blank');
     if (reduced) browser('set', 'media', 'light', 'reduced-motion');
     route('**/api/auth/config', { disabled: true });
+    route('**/api/setup', { configured:true, profile:{ configured:true, name:'Fixture', language:'en', persona:'friendly', reply_length:'balanced', use_emoji:true, spontaneous:false }, languages:[], personas:[], reply_lengths:[], models:[], selected_model:'', keys_set:{} });
     route('**/api/sessions', { sessions: [{ id: 'motion', title: 'Opening motion', count: 1 }] });
     route('**/api/sessions/motion', { id:'motion', messages:[{ role:'user', content:'A reference document.', attachments:[
       { url:'/uploads/motion-notes.md', name:'Motion notes.md', type:'text/markdown', size:80 },
     ] }] });
     route('**/api/chat/attachment-preview**', { text:'# A reference\n\nPreview text stays readable while opening.', truncated:false, type:'text/markdown', size:80 });
     route('**/api/brain/models', { models:[{id:'test',label:'Test',context:200000}], selected:'test', thinking:'high', thinking_levels:['high'] });
+    route('**/api/**', {});
     browser('open', `${origin}/static/dash/#/chat`);
     evaluate("localStorage.setItem('claudeBotLang','en')");
     browser('reload');
@@ -27,6 +29,18 @@ for (const reduced of [false, true]) {
     for (const [width, height] of [[1440,960],[390,844]]) {
       browser('set','viewport',String(width),String(height));
       browser('wait','.prompt-bar__send');
+      evaluate(`new Promise((resolve, reject) => {
+        const started = performance.now(); let previous, stable = 0;
+        const sample = () => {
+          const rect = document.querySelector('.prompt-bar').getBoundingClientRect();
+          const value = [rect.top, rect.left, rect.width, rect.height];
+          stable = previous && value.every((part, index) => Math.abs(part - previous[index]) < .1) ? stable + 1 : 0;
+          previous = value;
+          if (stable >= 6) resolve(true);
+          else if (performance.now() - started > 4000) reject(new Error('Composer did not settle after resize'));
+          else requestAnimationFrame(sample);
+        }; requestAnimationFrame(sample);
+      })`);
       const draftTop = evaluate('document.querySelector(".prompt-bar").getBoundingClientRect().top');
       for (let repeat = 0; repeat < 2; repeat++) {
         browser('click',trigger);
@@ -57,6 +71,11 @@ for (const reduced of [false, true]) {
           assert.ok(frames.rows.every(row => row.name === 'attach-action-open'));
           assert.ok(frames.rows.at(-1).delay > frames.rows[0].delay);
         }
+        // A nested popover owns its Escape before the attachment surface.
+        if (evaluate('Boolean(document.querySelector("[data-radix-popper-content-wrapper]"))')) {
+          browser('press','Escape');
+          browser('wait','--fn','!document.querySelector("[data-radix-popper-content-wrapper]")');
+        }
         browser('press','Escape');
         browser('wait','--fn','!document.querySelector("[data-attachment-menu]")');
         assert.equal(evaluate(`document.activeElement.matches(${JSON.stringify(trigger)})`),true);
@@ -64,7 +83,7 @@ for (const reduced of [false, true]) {
       browser('click','.attachment-card-open');
       browser('wait','.attachment-dialog');
       const preview = evaluate(`const panel = document.querySelector('.attachment-dialog');
-        const animation = panel.getAnimations().find(animation => animation.animationName.startsWith('attachment-'));
+        const animation = panel.getAnimations().find(animation => animation.animationName?.startsWith('attachment-'));
         const name = getComputedStyle(panel).animationName;
         const samples = [];
         if (animation) {
