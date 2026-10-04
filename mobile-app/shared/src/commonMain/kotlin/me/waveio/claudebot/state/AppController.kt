@@ -204,6 +204,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             api?.close(); api = connection
             update { it.copy(baseUrl = connection.origin, connected = true, connecting = false, error = null, update = updateInfo, steerAvailable = capabilities["steer"]?.jsonPrimitive?.booleanOrNull == true) }
             loadCatalog(); loadSessions()
+            scope.launch { loadIntelligence(version) }
             runCatching { loadProfile() }
             retryOutbox()
         } catch (failure: Exception) {
@@ -228,6 +229,21 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val current = state.value
         val normalized = supportedEffort(current.selectedModel, current.effort)
         if (normalized != current.effort) selectEffort(normalized)
+    }
+    private suspend fun loadIntelligence(version: Long) {
+        if (version != connectionVersion) return
+        update { it.copy(intelligenceLoading = true) }
+        try {
+            val catalog = requireApi().intelligence()
+            if (version != connectionVersion) return
+            val total = catalog.benchmarks.size
+            val entries = catalog.models.mapValues { (_, entry) ->
+                IntelligenceRow(entry.index.toFloat().coerceIn(0f, 100f), entry.scores.keys.count { key -> catalog.benchmarks.any { it.key == key } }, total)
+            }
+            update { it.copy(intelligence = entries, intelligenceLoading = false) }
+        } catch (_: Exception) {
+            if (version == connectionVersion) update { it.copy(intelligence = emptyMap(), intelligenceLoading = false) }
+        }
     }
     private fun brand(id: String): String = when {
         id.contains("claude", true) -> "anthropic"

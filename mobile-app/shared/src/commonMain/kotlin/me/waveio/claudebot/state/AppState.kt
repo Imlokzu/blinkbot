@@ -39,6 +39,7 @@ data class MobileUpdate(
     val mandatory: Boolean = false,
 )
 data class ModelRow(val id: String, val label: String, val provider: String, val brand: String, val available: Boolean = true, val efforts: List<String> = emptyList(), val vision: Boolean? = null)
+data class IntelligenceRow(val index: Float, val coverage: Int, val total: Int)
 data class ActivityRow(val id: String, val label: String, val detail: String = "", val status: String = "running", val input: JsonElement? = null, val result: JsonElement? = null)
 data class ContentPart(val type: String, val text: String = "", val stepIds: List<String> = emptyList(), val noteId: String? = null, val note: Boolean = false)
 data class MessageRow(
@@ -116,6 +117,8 @@ data class AppState(
     val uploading: Boolean = false,
     val models: List<ModelRow> = emptyList(),
     val modelsLoading: Boolean = false,
+    val intelligence: Map<String, IntelligenceRow> = emptyMap(),
+    val intelligenceLoading: Boolean = false,
     val selectedModel: String = "",
     val effort: String = "none",
     val busy: Boolean = false,

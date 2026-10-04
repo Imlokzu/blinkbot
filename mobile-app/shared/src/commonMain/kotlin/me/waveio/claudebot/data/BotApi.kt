@@ -91,6 +91,8 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
     suspend fun models(refresh: Boolean = false): ModelCatalog =
         get("brain", "models", query = mapOf("refresh" to refresh.toString()))
 
+    suspend fun intelligence(): IntelligenceCatalog = get("brain", "intelligence")
+
     suspend fun selectModel(model: String): String =
         post<ModelSelection>(listOf("brain", "model"), buildJsonObject { put("model", model) }).selected
 

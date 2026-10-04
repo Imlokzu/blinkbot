@@ -75,6 +75,24 @@ data class ModelCatalog(
     @SerialName("image_model") val imageModel: String? = null,
 )
 
+@Serializable
+data class IntelligenceSource(val name: String = "", val url: String = "", val license: String = "")
+
+@Serializable
+data class IntelligenceBenchmark(val key: String, val name: String, val top: Double = 0.0)
+
+@Serializable
+data class IntelligenceEntry(val index: Double = 0.0, val scores: Map<String, Double> = emptyMap())
+
+@Serializable
+data class IntelligenceCatalog(
+    val available: Boolean = false,
+    val updated: Long = 0,
+    val source: IntelligenceSource = IntelligenceSource(),
+    val benchmarks: List<IntelligenceBenchmark> = emptyList(),
+    val models: Map<String, IntelligenceEntry> = emptyMap(),
+)
+
 data class WorkspaceEntry(val path: String, val name: String, val isDirectory: Boolean, val size: Long?)
 
 @Serializable

@@ -242,6 +242,7 @@
   "tool.grep": "Search files",
   "error.imageModel": "This model cannot read images. Choose an image-capable model.",
   "model.images": "Supports images",
+  "model.intelligence": "Intelligence {score} out of 100, {coverage} of {total} benchmarks",
   "media.more": "+{count}",
   "media.openFile": "Open file",
   "media.creating": "Creating {name}…",

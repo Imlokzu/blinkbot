@@ -242,6 +242,7 @@
   "tool.grep": "Пошук у файлах",
   "error.imageModel": "Ця модель не читає зображення. Обери модель із підтримкою зображень.",
   "model.images": "Підтримує зображення",
+  "model.intelligence": "Індекс інтелекту {score} зі 100, бенчмарків: {coverage} з {total}",
   "media.more": "+{count}",
   "media.openFile": "Відкрити файл",
   "media.creating": "Створює {name}…",
