@@ -41,6 +41,8 @@ def main():
     args = parser.parse_args()
     if not re.fullmatch(r"emulator-\d+", args.serial):
         parser.error("Use a dedicated emulator, never a physical phone.")
+    if any((args.output / name).exists() for name in args.cases):
+        parser.error("Use a fresh output directory; existing screenshots must not be mixed with this run.")
     args.output.mkdir(parents=True, exist_ok=True)
 
     def adb(*command, timeout=30):
@@ -54,6 +56,7 @@ def main():
         subprocess.run(["osascript", "-e", "set volume output muted true"], check=True)
     original = (override("size"), override("density"), adb("shell", "settings", "get", "system", "font_scale"))
     results = []
+    cleanup_errors = []
     try:
         for name in args.cases:
             size, density, scale = CASES[name]
@@ -64,28 +67,47 @@ def main():
             time.sleep(1)
             tests = CLASS if name == "phone" else ",".join(f"{CLASS}#{method}" for method in ADAPTIVE_TESTS)
             print(f"Running {name}: {size}, density {density}, font scale {scale}", flush=True)
-            log = adb("shell", "am", "instrument", "-w", "-r", "-e", "class", tests,
-                      "-e", "screenshotDir", name,
-                      "me.waveio.claudebot.test/androidx.test.runner.AndroidJUnitRunner", timeout=300)
+            error = None
+            try:
+                log = adb("shell", "am", "instrument", "-w", "-r", "-e", "class", tests,
+                          "-e", "screenshotDir", name,
+                          "me.waveio.claudebot.test/androidx.test.runner.AndroidJUnitRunner", timeout=300)
+            except (subprocess.SubprocessError, OSError) as failure:
+                partial = getattr(failure, "output", None) or ""
+                log = partial.decode("utf-8", errors="replace") if isinstance(partial, bytes) else partial
+                error = str(failure)
             (args.output / f"{name}.log").write_text(log)
             match = re.search(r"OK \((\d+) tests?\)", log)
             expected = 13 if name == "phone" else len(ADAPTIVE_TESTS)
             passed = int(match.group(1)) if match else 0
             results.append({"case": name, "pixels": size, "density": int(density), "font_scale": float(scale),
-                            "expected": expected, "passed": passed, "success": passed == expected})
-            adb("pull", f"{REMOTE}/{name}", str(args.output / name))
+                            "expected": expected, "passed": passed, "success": passed == expected and error is None,
+                            "error": error})
             (args.output / "summary.json").write_text(json.dumps(results, indent=2) + "\n")
+            if error is not None:
+                break
+            try:
+                adb("pull", f"{REMOTE}/{name}", str(args.output / name))
+            except (subprocess.SubprocessError, OSError) as failure:
+                results[-1].update(success=False, error=str(failure))
+                (args.output / "summary.json").write_text(json.dumps(results, indent=2) + "\n")
             print(f"{name}: {passed}/{expected} passed", flush=True)
     finally:
         # Instrumentation may continue in the device after a host-side timeout.
-        adb("shell", "am", "force-stop", "me.waveio.claudebot")
-        adb("shell", "wm", "size", original[0])
-        adb("shell", "wm", "density", original[1])
-        if original[2] == "null":
-            adb("shell", "settings", "delete", "system", "font_scale")
-        else:
-            adb("shell", "settings", "put", "system", "font_scale", original[2])
-    return 0 if all(result["success"] for result in results) else 1
+        commands = [
+            ("shell", "am", "force-stop", "me.waveio.claudebot"),
+            ("shell", "wm", "size", original[0]),
+            ("shell", "wm", "density", original[1]),
+            ("shell", "settings", "delete", "system", "font_scale") if original[2] == "null" else
+            ("shell", "settings", "put", "system", "font_scale", original[2]),
+        ]
+        for command in commands:
+            try:
+                adb(*command)
+            except (subprocess.SubprocessError, OSError) as failure:
+                cleanup_errors.append(str(failure))
+        (args.output / "cleanup.json").write_text(json.dumps({"errors": cleanup_errors}, indent=2) + "\n")
+    return 0 if not cleanup_errors and all(result["success"] for result in results) else 1
 
 
 if __name__ == "__main__":
