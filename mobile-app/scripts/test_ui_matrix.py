@@ -63,6 +63,7 @@ class MatrixRunnerTests(unittest.TestCase):
             else:
                 self.assertTrue(summary[0]["success"])
             self.assertEqual(1 if cleanup_failure else 0, len(cleanup["errors"]))
+            return calls
 
     def test_success_restores_original_configuration(self):
         self.exercise()
@@ -75,6 +76,18 @@ class MatrixRunnerTests(unittest.TestCase):
 
     def test_existing_artifacts_are_rejected_before_touching_device(self):
         self.exercise(existing=True)
+
+    def test_remote_screenshots_are_isolated_from_previous_runs(self):
+        directories = []
+        for _ in range(2):
+            calls = self.exercise()
+            instrument = next(args for args in calls if args[:3] == ["shell", "am", "instrument"])
+            directory = instrument[instrument.index("screenshotDir") + 1]
+            self.assertRegex(directory, r"^phone-[a-f0-9]{32}$")
+            pull = next(args for args in calls if args[0] == "pull")
+            self.assertEqual(f"{runner.REMOTE}/{directory}", pull[1])
+            directories.append(directory)
+        self.assertNotEqual(*directories)
 
 
 if __name__ == "__main__":

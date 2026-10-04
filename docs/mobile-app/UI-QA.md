@@ -26,7 +26,8 @@ python3 scripts/android-ui-matrix.py --serial emulator-5556 --output /tmp/claude
 The runner requires an emulator serial and a fresh output directory, mutes the
 Mac, changes actual Android display/font settings, and captures logs/screenshots.
 It retains partial timeout output, attempts each restoration independently in
-`finally`, and records restoration errors in `cleanup.json`. Four host-side unit
+`finally`, and records restoration errors in `cleanup.json`. Each run has its
+own emulator screenshot directory to exclude old captures. Five host-side unit
 tests cover these failure paths (`python3 -m unittest discover -s scripts`).
 `--cases phone small` selects a subset. Do not use the
 emulator interactively while the runner owns its display configuration.

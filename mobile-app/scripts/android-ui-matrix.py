@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
+from uuid import uuid4
 
 
 CASES = {
@@ -57,9 +58,11 @@ def main():
     original = (override("size"), override("density"), adb("shell", "settings", "get", "system", "font_scale"))
     results = []
     cleanup_errors = []
+    run_id = uuid4().hex
     try:
         for name in args.cases:
             size, density, scale = CASES[name]
+            remote_case = f"{name}-{run_id}"
             adb("shell", "wm", "size", size)
             adb("shell", "wm", "density", density)
             adb("shell", "settings", "put", "system", "font_scale", scale)
@@ -70,7 +73,7 @@ def main():
             error = None
             try:
                 log = adb("shell", "am", "instrument", "-w", "-r", "-e", "class", tests,
-                          "-e", "screenshotDir", name,
+                          "-e", "screenshotDir", remote_case,
                           "me.waveio.claudebot.test/androidx.test.runner.AndroidJUnitRunner", timeout=300)
             except (subprocess.SubprocessError, OSError) as failure:
                 partial = getattr(failure, "output", None) or ""
@@ -87,7 +90,7 @@ def main():
             if error is not None:
                 break
             try:
-                adb("pull", f"{REMOTE}/{name}", str(args.output / name))
+                adb("pull", f"{REMOTE}/{remote_case}", str(args.output / name))
             except (subprocess.SubprocessError, OSError) as failure:
                 results[-1].update(success=False, error=str(failure))
                 (args.output / "summary.json").write_text(json.dumps(results, indent=2) + "\n")
