@@ -1934,3 +1934,21 @@ See docs/mobile-app/RELEASE-0.4.0.md for scope and test/build distinctions.
   400. Source and compiled artifacts are pushed with owner attribution.
 - Owned source imports are committed as import-only deltas. Preexisting
   FilesPanel, shared documentation and integration drafts remain intact.
+
+
+## Circular send and attachment trigger (2026-10-04)
+
+- The chat send/Stop control now has an opaque circular background: muted
+  surface for an empty draft and theme ink for ready/streaming states. Theme
+  text/background inversion keeps contrast independent of chat accent choices.
+- The attachment trigger now uses the existing Solar paperclip instead of a
+  rotated plus. The menu callback, localized label, focus/expanded state and
+  upload flow are retained; desktop targets stay compact and phones keep 44px.
+- Added tests/composer-buttons.browser.mjs for idle/ready/Stop fill, paperclip,
+  one local send, cancellation, keyboard menu/focus, both themes/locales,
+  desktop and phone fit. Native adversarial source review found no blocker;
+  Fable is unavailable and no Fable certification is claimed.
+- Validation passed: 215 dashboard tests, TypeScript, isolated production
+  build and the composer browser fixture. The isolated backend suite passed
+  1,242 tests, 8 skipped and 178 subtests. Six idle/ready/Stop screenshots were
+  inspected across desktop light and phone dark appearances.

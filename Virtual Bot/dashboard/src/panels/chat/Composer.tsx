@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { FileText, Globe, Paperclip, Plus } from '../../vendor/solar-icons/compat.ts';
+import { FileText, Globe, Paperclip } from '../../vendor/solar-icons/compat.ts';
 import VoiceBeam from 'voice-glow';
 import { PromptBar, type PromptBarControl } from '@/vendor/reactbits';
 import { useToast } from '@/components/ui/Toaster';
@@ -26,7 +26,7 @@ import type { FileDropHandler } from './useChatFileDrop';
  *
  * A home-made version of this row existed once and repeated it worse. We only
  * connect it to the backend and add what it lacks: the context meter, and on
- * narrow screens our own "+" sheet.
+ * narrow screens our own attachment sheet.
  *
  * THE MAIN THING about the model list. It used to be the Omni list from
  * config.yaml — and choosing from it CHANGED NOTHING: OpenClaw answers the
@@ -42,7 +42,7 @@ import type { FileDropHandler } from './useChatFileDrop';
  *   desk — inside the bar, in the slot the vendor pickers used to fill,
  *          with the context meter under the bar.
  *   lean — phone and tablet. The menu is the chat header's title, the meter
- *          and tools move into the "+" sheet, and the bar keeps only what you
+ *          and tools move into the attachment sheet, and the bar keeps only what you
  *          type with. On a phone the pickers squeezed the field to a few
  *          words.
  */
@@ -234,6 +234,7 @@ export function Composer({
             plusSlot={(
               <button
                 ref={plus}
+                data-attachment-trigger
                 data-workbench-trigger={onOpenWorkbench ? '' : undefined}
                 type="button"
                 className="prompt-bar__tool"
@@ -244,10 +245,7 @@ export function Composer({
                 data-on={sheetOpen ? '' : undefined}
                 onClick={() => setSheetOpen((value) => !value)}
               >
-                <Plus
-                  className="size-4 transition-transform duration-200 motion-reduce:transition-none"
-                  style={{ transform: sheetOpen ? 'rotate(45deg)' : undefined }}
-                />
+                <Paperclip className="size-4" aria-hidden="true" />
               </button>
             )}
             sources={[

@@ -831,3 +831,13 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   editor, file and navigation controls use Solar.
 - tests/solarUiIcons.test.mjs and tests/solar-dashboard.browser.mjs cover source
   provenance, API/color compatibility and cross-route/icon-family consistency.
+
+
+## Composer action buttons (2026-10-04)
+
+- Send and Stop share a filled circle, muted when disabled and inverted theme
+  ink when armed. Use theme text/background tokens rather than accent ink so
+  custom chat accents cannot reduce contrast. Preserve 34px desktop and 44px
+  phone/coarse targets, focus ring and the existing send/Stop transitions.
+- The attachment sheet opens from a Solar paperclip without plus-to-cross
+  rotation. Keep the existing labelled toggle, expanded state and focus return.

@@ -62,8 +62,9 @@ html[data-chat-material="solid"] .chat-conversation .liquid-glass-plate { backgr
 .chat-conversation .prompt-bar__tool,
 .chat-conversation .prompt-bar__send { background: transparent; border: 0; box-shadow: none; }
 .chat-conversation .prompt-bar__tool[aria-pressed] { order: 3; color: var(--c-accent); background: transparent; }
-.chat-conversation .prompt-bar__send { order: 4; }
-.chat-conversation .prompt-bar__send[data-armed] { background: transparent; color: var(--c-accent); }
+.chat-conversation .prompt-bar__send { order: 4; background: var(--c-surface-3); color: var(--c-text-3); }
+/* Theme ink keeps the circular send/stop control readable with every chat accent. */
+.chat-conversation .prompt-bar__send[data-armed] { background: var(--c-text); color: var(--c-bg); }
 .chat-conversation .prompt-bar__tool[aria-pressed="true"] { color: var(--c-err); }
 .chat-conversation .prompt-bar__tool svg { stroke-width: 1.75; }
 .chat-narrow-toolbar { z-index: 2; background: color-mix(in srgb, var(--c-surface) 88%, transparent); }
