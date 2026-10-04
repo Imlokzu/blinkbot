@@ -4502,6 +4502,8 @@ app.include_router(mobile_content.router(
     _require_user, read_file=api_workspace_file, save_file=api_workspace_save,
     write_guard=workspace_write_guard.mobile_reservation,
 ))
+import mobile_workspace
+app.include_router(mobile_workspace.router(_require_user, resolve_file=workspace._resolve))
 
 
 @app.get("/{asset_path:path}", include_in_schema=False)

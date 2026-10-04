@@ -304,3 +304,18 @@ tests/test_mobile_api.py -q` from `Virtual Bot`. Tests use temporary databases,
 an isolated FastAPI app, and fake callbacks. They never start the real backend,
 provider jobs, or integrations. Mute the Mac before testing. Parent integration
 and provider behavior require a separate review after the surgical hooks land.
+
+## Original workspace downloads
+
+`GET /api/mobile/workspace/download?path=<relative-path>&session_id=<chat-id>`
+returns original file bytes for native previews, Save and Share. It uses the same
+user and session workspace resolver as the editor. Device credentials are
+required; paths are relative to that workspace. The response is capped at
+20 MiB and uses no-store, attachment disposition and nosniff headers. Descriptor
+traversal rejects symlinks on every component after resolution. Missing files
+return 404, invalid destinations 400, and oversized files 413.
+
+The mobile chat derives delivered files from actual successful workspace tool
+results, including MCP wrappers. Running writes are not downloaded. Text editor
+previews still use `/api/workspace/file`; extracted preview text is never used
+as the original export payload.
