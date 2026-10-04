@@ -136,23 +136,61 @@ final class NativeBridge: NSObject, IosNativeDelegate, UNUserNotificationCenterD
     }
 
     func pickFile(kind: String, onResult: @escaping (PickedFile?) -> KotlinUnit) {
+        startPicker(kind: kind, multiple: false) { _ = onResult($0.first) }
+    }
+
+    func pickFiles(kind: String, onResult: @escaping ([PickedFile]) -> KotlinUnit) {
+        startPicker(kind: kind, multiple: true) { _ = onResult($0) }
+    }
+
+    private func startPicker(kind: String, multiple: Bool, onResult: @escaping ([PickedFile]) -> Void) {
         onMain { [weak self] in
             guard let self, let presenter = self.availablePresenter() else {
-                _ = onResult(nil); return
+                onResult([]); return
             }
             let picker = NativePicker(presenter: presenter)
             picker.onError = { [weak self] in self?.showError($0) }
-            picker.onResult = { [weak self, weak picker] result in
+            picker.onFilesResult = { [weak self, weak picker] result in
                 guard let self, let picker, self.operation === picker else { return }
                 self.operation = nil
-                _ = onResult(result)
+                onResult(result)
                 self.flushErrors()
             }
             self.operation = picker
             self.recording.cancel()
             guard self.operation === picker, self.controller === presenter,
                   UIApplication.shared.applicationState == .active else { picker.cancel(); return }
-            picker.start(kind: kind)
+            picker.start(kind: kind, multiple: multiple)
+        }
+    }
+
+    func saveFile(file: PickedFile, onResult: @escaping (KotlinBoolean) -> KotlinUnit) {
+        exportFile(file, sharing: false, onResult: onResult)
+    }
+
+    func shareFile(file: PickedFile, onResult: @escaping (KotlinBoolean) -> KotlinUnit) {
+        exportFile(file, sharing: true, onResult: onResult)
+    }
+
+    private func exportFile(_ file: PickedFile, sharing: Bool,
+                            onResult: @escaping (KotlinBoolean) -> KotlinUnit) {
+        onMain { [weak self] in
+            guard let self, let presenter = self.availablePresenter(),
+                  let data = IosBridgeKt.iosFileData(file: file) else {
+                _ = onResult(KotlinBoolean(bool: false)); return
+            }
+            let exporter = NativeFileExport(presenter: presenter, name: file.name, mime: file.mimeType, data: data)
+            exporter.onResult = { [weak self, weak exporter] success in
+                guard let self, let exporter, self.operation === exporter else { return }
+                self.operation = nil
+                _ = onResult(KotlinBoolean(bool: success))
+                self.flushErrors()
+            }
+            self.operation = exporter
+            self.recording.cancel()
+            guard self.operation === exporter, self.controller === presenter,
+                  UIApplication.shared.applicationState == .active else { exporter.cancel(); return }
+            exporter.start(sharing: sharing)
         }
     }
 

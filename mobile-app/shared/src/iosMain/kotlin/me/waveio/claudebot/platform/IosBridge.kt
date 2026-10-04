@@ -10,6 +10,7 @@ import me.waveio.claudebot.data.PairingCode
 import platform.Foundation.NSData
 import platform.Foundation.NSDate
 import platform.Foundation.NSUUID
+import platform.Foundation.create
 import platform.Foundation.timeIntervalSince1970
 import platform.posix.memcpy
 
@@ -26,6 +27,9 @@ interface IosNativeDelegate {
     fun writeSecret(key: String, value: String?): String?
     fun scanQr(onResult: (String?) -> Unit)
     fun pickFile(kind: String, onResult: (PickedFile?) -> Unit)
+    fun pickFiles(kind: String, onResult: (List<PickedFile>) -> Unit)
+    fun saveFile(file: PickedFile, onResult: (Boolean) -> Unit)
+    fun shareFile(file: PickedFile, onResult: (Boolean) -> Unit)
     fun startRecording(onAmplitude: (Float) -> Unit, onResult: (PickedFile?) -> Unit, onPartial: (PickedFile) -> Unit)
     fun stopRecording()
     fun cancelRecording()
@@ -66,6 +70,9 @@ class IosBridge(private val delegate: IosNativeDelegate) : PlatformBridge {
     }
     override fun scanQr(onResult: (String?) -> Unit) = delegate.scanQr(onResult)
     override fun pickFile(kind: String, onResult: (PickedFile?) -> Unit) = delegate.pickFile(kind, onResult)
+    override fun pickFiles(kind: String, onResult: (List<PickedFile>) -> Unit) = delegate.pickFiles(kind, onResult)
+    override fun saveFile(file: PickedFile, onResult: (Boolean) -> Unit) = delegate.saveFile(file, onResult)
+    override fun shareFile(file: PickedFile, onResult: (Boolean) -> Unit) = delegate.shareFile(file, onResult)
     override fun startRecording(onAmplitude: (Float) -> Unit, onResult: (PickedFile?) -> Unit, onPartial: (PickedFile) -> Unit) =
         delegate.startRecording(onAmplitude, onResult, onPartial)
     override fun stopRecording() = delegate.stopRecording()
@@ -88,4 +95,13 @@ fun iosPickedFile(name: String, mimeType: String, data: NSData): PickedFile? {
     val bytes = ByteArray(size.toInt())
     bytes.usePinned { memcpy(it.addressOf(0), data.bytes, size) }
     return PickedFile(name, mimeType, bytes)
+}
+
+/** Keep export conversion bounded and avoid per-byte Swift-to-Kotlin calls. */
+@OptIn(ExperimentalForeignApi::class)
+fun iosFileData(file: PickedFile): NSData? {
+    if (file.bytes.size > PickedFileLimits.MAX_BYTES) return null
+    // Empty exports have no addressOf(0), but still represent a valid OS document.
+    if (file.bytes.isEmpty()) return NSData()
+    return file.bytes.usePinned { NSData.create(bytes = it.addressOf(0), length = file.bytes.size.toULong()) }
 }

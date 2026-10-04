@@ -63,12 +63,16 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
     private var destroyed = false
     private var stopped = false
     private var qrResult: ((String?) -> Unit)? = null
-    private var fileResult: ((PickedFile?) -> Unit)? = null
+    private var fileResult: ((List<PickedFile>) -> Unit)? = null
     private var fileJob: Job? = null
     private var fileKind: String? = null
     private var fileGeneration = 0L
     private var cameraFile: File? = null
     private var cameraUri: Uri? = null
+    private var exportResult: ((Boolean) -> Unit)? = null
+    private var exportFile: PickedFile? = null
+    private var exportJob: Job? = null
+    private var exportGeneration = 0L
     private var permissionResult: ((Boolean) -> Unit)? = null
     private var permissionInFlight = false
     private var recordingResult: ((PickedFile?) -> Unit)? = null
@@ -92,6 +96,17 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
     private val photoLauncher = activity.registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (fileKind == "photo" || fileKind == "wallpaper") receiveFile(uri)
     }
+    private val documentsLauncher = activity.registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (fileKind == "documents") receiveFiles(uris)
+    }
+    private val photosLauncher = activity.registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(PickedFileLimits.MAX_SELECTION)) { uris ->
+        if (fileKind == "photos") receiveFiles(uris)
+    }
+    private val saveLauncher = activity.registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (exportFile != null) {
+            receiveSave(if (result.resultCode == android.app.Activity.RESULT_OK) result.data?.data else null)
+        }
+    }
     private val cameraLauncher = activity.registerForActivityResult(object : ActivityResultContracts.TakePicture() {
         override fun createIntent(context: Context, input: Uri): Intent = super.createIntent(context, input).apply {
             addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -101,6 +116,7 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
 
     init {
         if (temporaryFilesCleaned.compareAndSet(false, true)) {
+            NativeFileTransfers.removeExpiredShares(context.cacheDir)
             NativeTemporaryFiles.removeAbandoned(context.cacheDir) { file ->
                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.native-files", file)
                 context.revokeUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
@@ -125,7 +141,9 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
         // All resources must be cleaned even when a client callback throws.
         try { cancelRecording() } finally {
             try { finishFile(null) } finally {
-                try { qrCallback?.invoke(null) } finally { permissionCallback?.invoke(false) }
+                try { finishExport(false) } finally {
+                    try { qrCallback?.invoke(null) } finally { permissionCallback?.invoke(false) }
+                }
             }
         }
     }
@@ -150,7 +168,7 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
         if (key == "device_token") NativeOutboxWork.credentialsChanged(context)
     }
 
-    private fun nativeBusy() = destroyed || stopped || activity.isFinishing || qrResult != null || fileResult != null || recordingResult != null || permissionInFlight
+    private fun nativeBusy() = destroyed || stopped || activity.isFinishing || qrResult != null || fileResult != null || exportResult != null || recordingResult != null || permissionInFlight
 
     private fun requestPermission(permission: String, callback: (Boolean) -> Unit) {
         if (destroyed) { callback(false); return }
@@ -182,7 +200,15 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
     }
 
     override fun pickFile(kind: String, onResult: (PickedFile?) -> Unit) {
-        if (nativeBusy()) { onResult(null); return }
+        launchPicker(kind) { onResult(it.firstOrNull()) }
+    }
+
+    override fun pickFiles(kind: String, onResult: (List<PickedFile>) -> Unit) {
+        launchPicker(when (kind) { "photo" -> "photos"; "document" -> "documents"; else -> kind }, onResult)
+    }
+
+    private fun launchPicker(kind: String, onResult: (List<PickedFile>) -> Unit) {
+        if (nativeBusy()) { onResult(emptyList()); return }
         fileResult = onResult
         fileKind = kind
         val generation = ++fileGeneration
@@ -190,6 +216,8 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
             when (kind) {
                 "photo", "wallpaper" -> photoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 "document" -> documentLauncher.launch(arrayOf("*/*"))
+                "photos" -> photosLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                "documents" -> documentsLauncher.launch(arrayOf("*/*"))
                 "camera" -> requestPermission(Manifest.permission.CAMERA) { allowed ->
                     if (generation != fileGeneration) return@requestPermission
                     if (!allowed || fileResult == null) { finishFile(null); return@requestPermission }
@@ -208,25 +236,33 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
         }
     }
 
-    private fun receiveFile(uri: Uri?) {
-        if (uri == null || fileResult == null || destroyed) { finishFile(null); return }
+    private fun receiveFile(uri: Uri?) = receiveFiles(listOfNotNull(uri))
+
+    private fun receiveFiles(uris: List<Uri>) {
+        if (fileResult == null) return
+        if (uris.isEmpty() || destroyed) { finishFile(null); return }
         val generation = fileGeneration
         fileJob?.cancel()
         fileJob = scope.launch(start = CoroutineStart.LAZY) {
-            val file = try {
+            val files = try {
                 withContext(Dispatchers.IO) {
                     val readingContext = currentCoroutineContext()
-                    readUri(uri) { readingContext.ensureActive() }
+                    NativeFileTransfers.readSelection(uris.take(PickedFileLimits.MAX_SELECTION).distinct(),
+                        checkCancelled = { readingContext.ensureActive() }) { uri, limit ->
+                        try { readUri(uri, limit) { readingContext.ensureActive() } }
+                        catch (cancelled: CancellationException) { throw cancelled }
+                        catch (_: Exception) { null }
+                    }
                 }
             }
             catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { null }
-            if (!destroyed && generation == fileGeneration) finishFile(file)
+            catch (_: Exception) { emptyList() }
+            if (!destroyed && generation == fileGeneration) finishFiles(files)
         }
         fileJob?.start()
     }
 
-    private fun readUri(uri: Uri, checkCancelled: () -> Unit): PickedFile? {
+    private fun readUri(uri: Uri, limit: Int, checkCancelled: () -> Unit): PickedFile? {
         checkCancelled()
         val resolver = context.contentResolver
         var name: String? = null
@@ -235,11 +271,11 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
                 val nameColumn = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                 if (nameColumn >= 0) name = cursor.getString(nameColumn)
                 val sizeColumn = cursor.getColumnIndex(OpenableColumns.SIZE)
-                if (sizeColumn >= 0 && !cursor.isNull(sizeColumn) && cursor.getLong(sizeColumn) > BoundedFiles.MAX_BYTES) return null
+                if (sizeColumn >= 0 && !cursor.isNull(sizeColumn) && cursor.getLong(sizeColumn) > limit) return null
             }
         }
         checkCancelled()
-        val bytes = resolver.openInputStream(uri)?.use { BoundedFiles.read(it, checkCancelled = checkCancelled) } ?: return null
+        val bytes = resolver.openInputStream(uri)?.use { BoundedFiles.read(it, limit, checkCancelled) } ?: return null
         if (bytes.isEmpty()) return null
         val mime = resolver.getType(uri) ?: "application/octet-stream"
         val safeName = name?.substringAfterLast('/')?.substringAfterLast('\\')?.takeIf { it.isNotBlank() } ?: "attachment-${newId()}"
@@ -247,6 +283,10 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
     }
 
     private fun finishFile(file: PickedFile?) {
+        finishFiles(listOfNotNull(file))
+    }
+
+    private fun finishFiles(files: List<PickedFile>) {
         val callback = fileResult
         fileResult = null
         fileKind = null
@@ -261,7 +301,94 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
             runCatching { context.revokeUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION) }
         }
         runCatching { temporaryFile?.delete() }
-        callback?.invoke(file)
+        callback?.invoke(files)
+    }
+
+    override fun saveFile(file: PickedFile, onResult: (Boolean) -> Unit) {
+        if (nativeBusy() || !NativeFileTransfers.valid(file)) { onResult(false); return }
+        exportResult = onResult
+        // Snapshot bytes because callers may reuse or mutate their buffer while the picker is open.
+        exportFile = file.copy(bytes = file.bytes.copyOf())
+        val generation = ++exportGeneration
+        try {
+            saveLauncher.launch(Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = NativeFileTransfers.mimeType(file.mimeType)
+                putExtra(Intent.EXTRA_TITLE, NativeFileTransfers.safeName(file.name))
+            })
+        } catch (_: RuntimeException) { if (generation == exportGeneration) finishExport(false) }
+    }
+
+    private fun receiveSave(uri: Uri?) {
+        val file = exportFile ?: return
+        if (uri == null || destroyed) { finishExport(false); return }
+        val generation = exportGeneration
+        exportJob = scope.launch(start = CoroutineStart.LAZY) {
+            val success = try {
+                withContext(Dispatchers.IO) {
+                    val writingContext = currentCoroutineContext()
+                    context.contentResolver.openOutputStream(uri, "wt")?.use { output ->
+                        var offset = 0
+                        while (offset < file.bytes.size) {
+                            writingContext.ensureActive()
+                            val count = minOf(8192, file.bytes.size - offset)
+                            output.write(file.bytes, offset, count)
+                            offset += count
+                        }
+                        output.flush()
+                        writingContext.ensureActive()
+                        true
+                    } ?: false
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { false }
+            if (!destroyed && generation == exportGeneration) finishExport(success)
+        }
+        exportJob?.start()
+    }
+
+    override fun shareFile(file: PickedFile, onResult: (Boolean) -> Unit) {
+        if (nativeBusy() || !NativeFileTransfers.valid(file)) { onResult(false); return }
+        exportResult = onResult
+        val snapshot = file.copy(bytes = file.bytes.copyOf())
+        val generation = ++exportGeneration
+        exportJob = scope.launch(start = CoroutineStart.LAZY) {
+            var temporary: File? = null
+            var handedOff = false
+            var success = false
+            try {
+                // Assign before resuming Main so cancellation cannot orphan a newly written file.
+                withContext(Dispatchers.IO) { temporary = NativeFileTransfers.prepareShare(context.cacheDir, snapshot) }
+                val shared = temporary
+                if (shared != null && !destroyed && !stopped && !activity.isFinishing && generation == exportGeneration) {
+                    val uri = FileProvider.getUriForFile(context, "${context.packageName}.native-files", shared,
+                        NativeFileTransfers.safeName(snapshot.name))
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = NativeFileTransfers.mimeType(snapshot.mimeType)
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        clipData = ClipData.newRawUri("", uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    activity.startActivity(Intent.createChooser(intent, activity.getString(R.string.native_share)))
+                    handedOff = true
+                    success = true
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { success = false }
+            finally { if (!handedOff) temporary?.parentFile?.deleteRecursively() }
+            if (!destroyed && generation == exportGeneration) finishExport(success)
+        }
+        exportJob?.start()
+    }
+
+    private fun finishExport(success: Boolean) {
+        val callback = exportResult
+        exportResult = null
+        exportFile = null
+        exportGeneration++
+        exportJob?.cancel()
+        exportJob = null
+        callback?.invoke(success)
     }
 
     override fun startRecording(
