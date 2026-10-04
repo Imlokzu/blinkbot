@@ -117,18 +117,13 @@ html[data-popup="glass"] .model-effort-menu.popup-lens .brain-picker-group {
    The dial is its own button laid over the row's right end (a button inside
    the radio would be invalid); the row keeps an empty slot under it and a
    fixed check slot, so a selected row no longer shifts its number. */
-.model-picker-intel-toggle { display: grid; width: 36px; height: 36px; flex-shrink: 0; place-items: center; border-radius: 6px; color: var(--c-text-3); outline: none; }
-.model-picker-intel-toggle:hover, .model-picker-intel-toggle[aria-pressed="true"] { color: var(--c-text); }
-.model-picker-intel-toggle[aria-pressed="true"] { background: var(--c-surface-2); }
-.model-picker-intel-toggle:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -2px; }
-.model-picker-heading[data-search-open] .model-picker-intel-toggle { display: none; }
-
 .model-picker-line { --line-pad: 7px; --line-gap: 8px; --intel-slot: 46px; position: relative; }
 .model-picker-line:hover > .brain-picker-row { background: var(--c-surface-2); }
 .brain-picker-check-slot { display: grid; width: 14px; flex-shrink: 0; place-items: center; }
 .model-intel-slot { width: var(--intel-slot, 46px); flex-shrink: 0; }
 .model-intel { position: absolute; top: 0; bottom: 0; right: calc(var(--line-pad) + 14px + var(--line-gap)); display: flex; width: var(--intel-slot); align-items: center; justify-content: flex-end; gap: 5px; color: var(--c-text-2); font-family: var(--f-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
-.model-intel-button { border-radius: 6px; outline: none; cursor: help; }
+.model-intel-button { border-radius: 6px; outline: none; cursor: help; padding: 0 2px; }
+.model-intel-button:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -2px; }
 .model-intel-button:hover .model-intel-value, .model-intel-button[aria-expanded="true"] .model-intel-value { color: var(--c-text); }
 .model-intel-missing { pointer-events: none; color: var(--c-text-3); }
 .model-intel-value { min-width: 2ch; text-align: right; }
@@ -146,6 +141,10 @@ html[data-popup="glass"] .model-effort-menu.popup-lens .brain-picker-group {
    is never blocked by the card of the row above. */
 .intel-card-pop { width: 248px; padding: 12px 12px 10px; }
 .intel-card-pop:not([data-pinned]) { pointer-events: none; }
+.intel-card-source { margin: 8px 0 0; padding-top: 8px; border-top: 1px solid var(--c-border); color: var(--c-text-3); font-size: 10.5px; line-height: 1.4; }
+.intel-card-source a { color: var(--c-text-2); text-decoration: underline; text-decoration-color: var(--c-border); text-underline-offset: 2px; }
+.intel-card-source a:hover { color: var(--c-text); }
+.intel-card-source a:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 1px; border-radius: 2px; }
 .intel-card-model { margin: 0; overflow: hidden; color: var(--c-text); font-family: var(--f-mono); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
 .intel-card-dial { display: grid; justify-items: center; margin-top: 8px; }
 .intel-card-readout { display: flex; align-items: baseline; gap: 2px; margin: 2px 0 0; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
@@ -193,12 +192,12 @@ html[data-popup="glass"] .model-effort-menu.popup-lens .brain-picker-group {
   .model-picker-row svg:not(.brain-picker-check) { width: 14px; height: 14px; }
   .brain-picker-status button { min-height: 44px; }
   .model-picker-search-field input { height: 44px; font-size: 16px; }
-  .model-picker-search-button, .model-picker-clear, .model-picker-intel-toggle { width: 44px; height: 44px; }
+  .model-picker-search-button, .model-picker-clear { width: 44px; height: 44px; }
 }
 @media (pointer: coarse) {
   .brain-choice-trigger-bar, .brain-picker-heading, .brain-picker-status button { min-height: 44px; }
   .brain-picker-row { min-height: 44px; padding-top: 7px; padding-bottom: 7px; }
-  .model-picker-search-button, .model-picker-clear, .model-picker-intel-toggle { width: 44px; height: 44px; }
+  .model-picker-search-button, .model-picker-clear { width: 44px; height: 44px; }
   .model-picker-search-field input { height: 44px; font-size: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {

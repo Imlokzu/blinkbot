@@ -139,3 +139,19 @@ export function gaugeArc(from: number, to: number, cx: number, cy: number, r: nu
 export function againstLeader(score: number, top: number): number {
   return top > 0 ? Math.min(1, Math.max(0, score / top)) : 0;
 }
+
+const INTEL_STORAGE_KEY = 'claudeBotModelIntel';
+
+/**
+ * Whether the picker's index is shown. It defaults to ON — the number is why
+ * the picker exists for the owner; Settings → Appearance turns it off. A
+ * legacy "1"/"0" from the brain toggle reads the same as the new value.
+ */
+export function loadShowIntel(storage: Pick<Storage, 'getItem'> = localStorage): boolean {
+  try { return storage.getItem(INTEL_STORAGE_KEY) !== '0'; } catch { return true; }
+}
+
+/** Persist first: a blocked browser keeps the current in-memory choice. */
+export function saveShowIntel(value: boolean, storage: Pick<Storage, 'setItem'> = localStorage): void {
+  try { storage.setItem(INTEL_STORAGE_KEY, value ? '1' : '0'); } catch { /* Optional storage. */ }
+}

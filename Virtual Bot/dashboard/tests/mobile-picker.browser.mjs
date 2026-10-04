@@ -138,7 +138,7 @@ try {
   browser('set', 'device', 'iPhone 12');
   browser('open', `${origin}${path}#/chat`);
   browser('wait', '[data-brain-choice-trigger]');
-  evaluate(`localStorage.setItem('claudeBotLang', 'en'); localStorage.removeItem('claudeBotRecentModels');
+  evaluate(`localStorage.setItem('claudeBotLang', 'en'); localStorage.removeItem('claudeBotRecentModels'); localStorage.setItem('claudeBotModelIntel', '0');
     localStorage.removeItem('claude-bot:brain-models:v6');`);
   browser('open', `${origin}${path}#/chat`);
   browser('wait', '[data-brain-choice-trigger]');

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ZONES, againstLeader, coverage, gaugeArc, gaugePoint, parseIntelligence, scoreLine, tierOf } from '../src/panels/chat/modelIntelligence.ts';
+import { ZONES, againstLeader, coverage, gaugeArc, gaugePoint, loadShowIntel, parseIntelligence, saveShowIntel, scoreLine, tierOf } from '../src/panels/chat/modelIntelligence.ts';
 
 const benchmarks = [
   { key: 'gpqa', name: 'GPQA Diamond' },
@@ -98,4 +98,21 @@ test('a missing or broken leader score parses as unknown', () => {
     { key: 'gpqa', name: 'GPQA Diamond', top: 0.96 }, { key: 'aime', name: 'AIME', top: 'x' }, { key: 'critpt', name: 'CritPt' },
   ] });
   assert.deepEqual(reply.benchmarks.map(b => b.top), [0.96, 0, 0]);
+});
+
+test('the index defaults to shown; the settings switch turns it off', () => {
+  const storage = (seed = {}) => ({ values: { ...seed },
+    getItem(key) { return this.values[key] ?? null; },
+    setItem(key, value) { this.values[key] = value; } });
+  assert.equal(loadShowIntel(storage()), true, 'never touched: on');
+  assert.equal(loadShowIntel(storage({ claudeBotModelIntel: '1' })), true, 'legacy brain toggle "1" reads on');
+  assert.equal(loadShowIntel(storage({ claudeBotModelIntel: '0' })), false, 'switch off persists');
+  const kept = storage();
+  saveShowIntel(false, kept);
+  assert.equal(loadShowIntel(kept), false);
+  saveShowIntel(true, kept);
+  assert.equal(loadShowIntel(kept), true);
+  const blocked = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } };
+  assert.equal(loadShowIntel(blocked), true, 'a blocked browser still shows it');
+  saveShowIntel(false, blocked); // must not throw
 });

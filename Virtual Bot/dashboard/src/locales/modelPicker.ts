@@ -33,6 +33,8 @@ const uk = {
   areaArc: 'Головоломки',
   areaSimpleqa: 'Факти',
   areaCritpt: 'Фізика',
+  intelWhy: 'Звідки ці бали: {count} публічних бенчмарків, зведених в один індекс 0–100.',
+  intelMore: 'Більше на',
 };
 
 const en: Record<keyof typeof uk, string> = {
@@ -69,6 +71,8 @@ const en: Record<keyof typeof uk, string> = {
   areaArc: 'Puzzles',
   areaSimpleqa: 'Facts',
   areaCritpt: 'Physics',
+  intelWhy: 'Where this comes from: {count} public benchmarks folded into one 0–100 index.',
+  intelMore: 'More at',
 };
 
 export function t(key: keyof typeof uk, values: Record<string, string | number> = {}): string {

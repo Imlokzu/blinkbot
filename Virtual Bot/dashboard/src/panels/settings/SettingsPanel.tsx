@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouteParam } from '@/app/useRoute';
-import { AudioLines, Brain, Compass, Palette, Plug, Puzzle, Search, Smartphone, Sparkles, User, Wrench } from 'lucide-react';
+import { AudioLines, Brain, Cable, Compass, Palette, Plug, Puzzle, Search, Smartphone, Sparkles, User, Wrench } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input, Select, Textarea } from '@/components/ui/Field';
@@ -15,6 +15,7 @@ import { glue } from '@/lib/glue';
 import { t } from '@/locales/settings';
 import { ACCENTS, THEMES, useTheme } from '@/hooks/useTheme';
 import { ChatAppearanceSettings } from '@/panels/chat/ChatAppearance';
+import { loadShowIntel, saveShowIntel } from '@/panels/chat/modelIntelligence';
 import { PopupGlassSettings } from './PopupGlassSettings';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useSendBubblePreference } from '@/hooks/useSendBubblePreference';
@@ -22,6 +23,7 @@ import { t as effectsT } from '@/locales/effects';
 import { JellyRadio } from '@/vendor/reactbits';
 import { useCssVar } from '@/hooks/useAccentRgb';
 import { DiscoverSection } from './DiscoverSection';
+import { IntegrationsSection } from './IntegrationsSection';
 import { McpSection } from './McpSection';
 import { SkillsSection } from './SkillsSection';
 import { ToolsSection } from './ToolsSection';
@@ -41,7 +43,7 @@ import './settings-surfaces.css';
  * row is marked and sits next to the local row it belongs with.
  */
 
-type SectionId = 'connectors' | 'profile' | 'style' | 'brain' | 'voice' | 'look' | 'devices' | 'tools' | 'mcp' | 'skills' | 'discover';
+type SectionId = 'connectors' | 'profile' | 'style' | 'brain' | 'voice' | 'look' | 'devices' | 'integrations' | 'tools' | 'mcp' | 'skills' | 'discover';
 
 const SECTIONS: { id: SectionId; label: `settings.section.${SectionId}`; icon: LucideIcon; local: string }[] = [
   { id: 'connectors', label: 'settings.section.connectors', icon: BookOpen, local: 'connector notebooklm sources' },
@@ -51,6 +53,7 @@ const SECTIONS: { id: SectionId; label: `settings.section.${SectionId}`; icon: L
   { id: 'voice', label: 'settings.section.voice', icon: AudioLines, local: 'голос мікрофон темп voice' },
   { id: 'look', label: 'settings.section.look', icon: Palette, local: 'тема попап скло акцент theme popup glass accent' },
   { id: 'devices', label: 'settings.section.devices', icon: Smartphone, local: 'phone mobile device pairing qr' },
+  { id: 'integrations', label: 'settings.section.integrations', icon: Cable, local: 'telegram телеграм discord діскорд google гугл gmail календар calendar месенджер messenger інтеграції integrations' },
   { id: 'tools', label: 'settings.section.tools', icon: Wrench, local: 'інструмент дозвіл tool' },
   { id: 'mcp', label: 'settings.section.mcp', icon: Plug, local: 'mcp сервер server міст bridge' },
   { id: 'skills', label: 'settings.section.skills', icon: Puzzle, local: 'уміння скіл skill' },
@@ -302,6 +305,7 @@ export default function SettingsPanel() {
                   <OpenClawFields section="brain" skipGroups={['models']} query={narrowed('brain') ? needle : ''} />
                 </div>
               ) : null}
+              {current?.id === 'integrations' ? <IntegrationsSection /> : null}
               {current?.id === 'mcp' ? <McpSection onDiscover={() => setSection('discover')} /> : null}
               {current?.id === 'skills' ? <SkillsSection onDiscover={() => setSection('discover')} /> : null}
               {current?.id === 'discover' ? <DiscoverSection /> : null}
@@ -337,6 +341,7 @@ function SaveBar({ saving, onSave }: { saving: boolean; onSave: () => void }) {
 function LookSection() {
   const { theme, accent, setTheme, setAccent } = useTheme();
   const [lang, setLang] = useLanguage();
+  const [showIntel, setShowIntel] = useState(loadShowIntel);
   const [sendBubble, setSendBubble] = useSendBubblePreference();
   const accentColor = useCssVar('--c-accent', '#b95f3d');
   const accentInk = useCssVar('--c-accent-ink', '#fff');
@@ -408,6 +413,21 @@ function LookSection() {
         </SettingRow>
       </SettingGroup>
       <ChatAppearanceSettings />
+      <SettingGroup label={t('settings.look.intel')}>
+        <SettingRow label={t('settings.look.intel')} hint={glue(t('settings.look.intelHint'))}>
+          <Switch
+            checked={showIntel}
+            onChange={(next) => {
+              setShowIntel(next);
+              saveShowIntel(next);
+              // Open pickers in this tab hear the change; other tabs hear it
+              // through the storage event.
+              window.dispatchEvent(new Event('claudeBotModelIntelChange'));
+            }}
+            label={t('settings.look.intel')}
+          />
+        </SettingRow>
+      </SettingGroup>
     </div>
   );
 }

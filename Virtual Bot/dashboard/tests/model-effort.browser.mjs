@@ -89,7 +89,7 @@ const assertStructure = lang => {
       modelScroll: document.querySelector('${models}').scrollHeight > document.querySelector('${models}').clientHeight,
       effortScroll: getComputedStyle(document.querySelector('${effort}')).overflowY,
       traits: document.querySelectorAll('${models} [role=radio] :is(.lucide-eye, .lucide-zap, .lucide-brain, .lucide-life-buoy)').length,
-      intelToggle: document.querySelector('${menu} .model-picker-intel-toggle')?.getAttribute('aria-pressed'),
+      intelShown: (() => { try { return localStorage.getItem("claudeBotModelIntel") } catch { return null } })(),
       intelScores: document.querySelectorAll('${models} .model-intel').length,
       comparison: Boolean(document.querySelector('${menu} a')),
       radios: document.querySelectorAll('${models} [role=radio]').length,
@@ -111,8 +111,9 @@ const assertStructure = lang => {
   assert.equal(state.effortScroll, 'auto');
   assert.equal(state.traits, 0, 'model rows have no capability/status badges');
   assert.equal(state.comparison, false, 'the comparison footer is removed');
-  // The benchmark index is opt-in: off until the heading toggle is pressed.
-  assert.equal(state.intelToggle, 'false');
+  // The benchmark index is off in these fixtures only because they turn it
+  // off in localStorage first; the default for everyone else is on.
+  assert.equal(state.intelShown, '0');
   assert.equal(state.intelScores, 0, 'rows carry no index while it is hidden');
   assert.equal(state.radios, catalog.models.length, 'recents move models without duplicating radio choices');
   assert.equal(state.checked, 1);
@@ -157,7 +158,7 @@ try {
   route('**/api/brain/model', { ok: true, selected: catalog.selected });
   route('**/api/brain/thinking', { ok: true, thinking: catalog.thinking });
   browser('open', `${origin}/docs`);
-  evaluate(`localStorage.setItem('claudeBotLang', 'en'); localStorage.removeItem('claudeBotRecentModels');
+  evaluate(`localStorage.setItem('claudeBotLang', 'en'); localStorage.removeItem('claudeBotRecentModels'); localStorage.setItem('claudeBotModelIntel', '0');
     localStorage.removeItem('claude-bot:brain-models:v6');`);
   browser('open', `${origin}${path}#/chat`);
   browser('wait', '[data-brain-choice-trigger]');

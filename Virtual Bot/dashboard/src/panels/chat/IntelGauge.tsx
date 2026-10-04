@@ -1,7 +1,7 @@
 import { t as pickerText } from '@/locales/modelPicker';
 import {
   SOLID_COVERAGE, ZONES, againstLeader, coverage, gaugeArc, gaugePoint, tierOf,
-  type IntelBenchmark, type IntelEntry,
+  type IntelBenchmark, type IntelEntry, type IntelligenceResponse,
 } from './modelIntelligence';
 
 /*
@@ -63,7 +63,10 @@ const AREA = {
 const TIER = ['intelTier0', 'intelTier1', 'intelTier2', 'intelTier3'] as const;
 
 /** What the hover card shows: the dial, the level in words, and where it comes from. */
-export function IntelCard({ label, entry, benchmarks }: { label: string; entry: IntelEntry; benchmarks: IntelBenchmark[] }) {
+export function IntelCard({ label, entry, benchmarks, source }: {
+  label: string; entry: IntelEntry; benchmarks: IntelBenchmark[];
+  source: IntelligenceResponse['source'];
+}) {
   const index = Math.round(entry.index);
   const tier = tierOf(entry.index);
   const count = coverage(entry, benchmarks);
@@ -102,6 +105,14 @@ export function IntelCard({ label, entry, benchmarks }: { label: string; entry: 
         })}
       </ul>
       <p className="intel-card-hint">{pickerText('intelBarHint')}</p>
+      <p className="intel-card-source">
+        {pickerText('intelWhy', { count: benchmarks.length })}{' '}
+        {source.url
+          ? <a href={source.url} target="_blank" rel="noopener noreferrer">
+              {pickerText('intelMore')} {source.name} ({source.license}) ↗
+            </a>
+          : null}
+      </p>
     </div>
   );
 }

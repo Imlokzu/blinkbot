@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
-import { Brain, Check, ChevronDown, Search, X } from 'lucide-react';
+import { Check, ChevronDown, Search, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { t } from '@/locales/chat';
 import { t as pickerText } from '@/locales/modelPicker';
@@ -8,13 +8,12 @@ import { useBrainIntelligence, type BrainModel } from '@/lib/queries';
 import { BrandLogo } from './BrandLogo';
 import { EffortOptions } from './EffortMenu';
 import { BRAND_NAMES, arrange, parseRecent, remember } from './modelCatalog';
-import { coverage, scoreLine, type IntelBenchmark, type IntelEntry, type IntelligenceResponse } from './modelIntelligence';
+import { coverage, loadShowIntel, scoreLine, type IntelBenchmark, type IntelEntry, type IntelligenceResponse } from './modelIntelligence';
 import { IntelCard, IntelGauge } from './IntelGauge';
 import { thinkingLabel, useBrainChoice } from './useBrainChoice';
 import './model-menu.css';
 
 const RECENT_KEY = 'claudeBotRecentModels';
-const INTEL_KEY = 'claudeBotModelIntel';
 
 /** Storage is optional: a blocked browser still has a fully working picker. */
 function loadRecent(fallback: string[] = []): string[] {
@@ -22,10 +21,6 @@ function loadRecent(fallback: string[] = []): string[] {
     const raw = localStorage.getItem(RECENT_KEY);
     return raw ? parseRecent(JSON.parse(raw)) : fallback;
   } catch { return fallback; }
-}
-
-function loadShowIntel(): boolean {
-  try { return localStorage.getItem(INTEL_KEY) === '1'; } catch { return false; }
 }
 
 /** Hover-card state: which row's card is open, and whether a click pinned it. */
@@ -66,17 +61,29 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
   const [recent, setRecent] = useState(() => loadRecent());
   const [active, setActive] = useState(0);
   const [showIntel, setShowIntel] = useState(loadShowIntel);
+  useEffect(() => {
+    const sync = () => setShowIntel(loadShowIntel());
+    window.addEventListener('storage', sync);
+    window.addEventListener('claudeBotModelIntelChange', sync);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('claudeBotModelIntelChange', sync);
+    };
+  }, []);
   const intel = useBrainIntelligence(open && showIntel);
   const [detail, setDetail] = useState<Detail>(null);
   const detailTimer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(detailTimer.current), []);
   // Hover opens a card after a short rest and swaps quickly between rows; a
   // click on the dial pins it, so it survives the pointer leaving.
+  // Hover opens the card only on the dial itself; rows stay inert, so a
+  // phone scroll and a quick mouse pass never flash a card. The dial is
+  // pointer-events-enabled while its row is keyboard-focused too.
   const hoverDetail = (id: string | null) => {
     window.clearTimeout(detailTimer.current);
     detailTimer.current = window.setTimeout(() => {
       setDetail(current => current?.pinned ? current : id ? { id, pinned: false } : null);
-    }, id ? (detail ? 60 : 220) : 120);
+    }, id ? (detail ? 60 : 220) : 160);
   };
   const input = useRef<HTMLInputElement>(null);
   const search = useRef<HTMLDivElement>(null);
@@ -173,12 +180,6 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
     }
   };
   useEffect(() => () => window.clearTimeout(searchCloseTimer.current), []);
-  const toggleIntel = () => {
-    const next = !showIntel;
-    setShowIntel(next);
-    setDetail(null);
-    try { localStorage.setItem(INTEL_KEY, next ? '1' : '0'); } catch { /* Optional storage. */ }
-  };
   const intelData = intel.data;
   const intelShown = Boolean(showIntel && intelData?.available);
   // Beside the row on the desk (over the thinking column); below it on a
@@ -234,10 +235,6 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
           <section ref={modelsPane} className="brain-picker-pane model-picker-pane" aria-label={t('composer.models')}>
             <div className="brain-picker-heading model-picker-heading" data-search-open={searchOpen ? '' : undefined}>
               <h2 className="u-label model-picker-title">{t('composer.models')}</h2>
-              <button type="button" aria-pressed={showIntel} aria-label={pickerText(showIntel ? 'intelHide' : 'intelShow')}
-                title={pickerText(showIntel ? 'intelHide' : 'intelShow')} className="model-picker-intel-toggle" onClick={toggleIntel}>
-                <Brain aria-hidden="true" className="size-4" strokeWidth={1.75} />
-              </button>
               <div
                 ref={search}
                 className="model-picker-search"
@@ -297,13 +294,7 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
                         <button key={`${group.key}-${model.id}`} id={`${base}-${index}`} type="button" role="radio"
                           data-model={model.id} data-index={index} aria-checked={current} aria-disabled={unavailable}
                           tabIndex={index === cursor ? 0 : -1} title={model.label}
-                          onFocus={(event) => {
-                            setActive(index);
-                            if (intelShown && event.currentTarget.matches(':focus-visible')) {
-                              setDetail(shown => shown?.pinned ? shown : { id: model.id, pinned: false });
-                            }
-                          }}
-                          onBlur={() => setDetail(shown => shown && !shown.pinned && shown.id === model.id ? null : shown)}
+                          onFocus={() => setActive(index)}
                           onPointerEnter={() => { if (document.activeElement === input.current) setActive(index); }}
                           onClick={() => { void pick(model); }}
                           className={cn('brain-picker-row model-picker-row', unavailable && 'is-disabled', index === cursor && query && 'is-search-active')}>
@@ -377,12 +368,14 @@ function IntelLine({ model, entry, data, open, pinned, narrow, onHover, onToggle
   return (
     <Popover.Root open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
       <Popover.Anchor asChild>
-        <div className="model-picker-line" data-intel-line={model.id}
-          onPointerEnter={(event) => { if (event.pointerType === 'mouse') onHover(model.id); }}
-          onPointerLeave={(event) => { if (event.pointerType === 'mouse') onHover(null); }}>
+        <div className="model-picker-line" data-intel-line={model.id}>
           {children}
-          <button type="button" tabIndex={-1} className="model-intel model-intel-button"
-            aria-label={intelSummary(entry, data.benchmarks)} aria-expanded={open} onClick={onToggle}>
+          <button type="button" className="model-intel model-intel-button"
+            aria-label={intelSummary(entry, data.benchmarks)} aria-expanded={open}
+            onPointerEnter={(event) => { if (event.pointerType === 'mouse') onHover(model.id); }}
+            onPointerLeave={(event) => { if (event.pointerType === 'mouse') onHover(null); }}
+            onFocus={() => onHover(model.id)} onBlur={() => onHover(null)}
+            onClick={onToggle}>
             <IntelScore entry={entry} />
           </button>
         </div>
@@ -397,7 +390,7 @@ function IntelLine({ model, entry, data, open, pinned, narrow, onHover, onToggle
             const line = (event.target as Element | null)?.closest?.('[data-intel-line]');
             if (line?.getAttribute('data-intel-line') === model.id) event.preventDefault();
           }}>
-          <IntelCard label={model.label} entry={entry} benchmarks={data.benchmarks} />
+          <IntelCard label={model.label} entry={entry} benchmarks={data.benchmarks} source={data.source} />
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
