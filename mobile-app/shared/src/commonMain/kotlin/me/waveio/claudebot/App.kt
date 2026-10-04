@@ -12,13 +12,21 @@ import me.waveio.claudebot.state.AppController
 import me.waveio.claudebot.ui.*
 
 @Composable
-fun App(platform: PlatformBridge, createController: (PlatformBridge) -> AppController = { AppController(it) }) {
+fun App(
+    platform: PlatformBridge,
+    onSystemBarAppearance: (darkStatusIcons: Boolean, darkNavigationIcons: Boolean) -> Unit = { _, _ -> },
+    createController: (PlatformBridge) -> AppController = { AppController(it) },
+) {
     val controller = remember(platform) { createController(platform) }
     val state by controller.state.collectAsState()
     val language = state.preferences.language.takeUnless { it == "system" } ?: platform.systemLanguage
     val strings by produceState<LocaleText?>(null, language) { value = LocaleText.load(language) }
     DisposableEffect(controller) { onDispose { controller.close() } }
     val dark = when (state.preferences.theme) { "dark" -> true; "light" -> false; else -> isSystemInDarkTheme() }
+    val wallpaperVisible = state.preferences.wallpaper && !state.menuOpen &&
+        (state.screen.name in state.preferences.wallpaperScreens || "all" in state.preferences.wallpaperScreens || !state.connected)
+    val darkStatusIcons = !dark && !wallpaperVisible
+    LaunchedEffect(darkStatusIcons, dark) { onSystemBarAppearance(darkStatusIcons, !dark) }
     MobileTheme(dark) {
         val local = strings
         if (local == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingDots() }

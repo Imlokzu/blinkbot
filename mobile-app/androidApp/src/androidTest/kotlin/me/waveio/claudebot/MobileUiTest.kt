@@ -56,7 +56,7 @@ class MobileUiTest {
         compose.activityRule.scenario.onActivity { it.enableEdgeToEdge(); it.window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE) }
         bridge.preferences["preferences.v1"] = """{"language":"$language","theme":"$theme","haptics":false}"""
         compose.setContent {
-            App(bridge) { platform -> AppController(platform, makeApi = { server, token ->
+            App(bridge, onSystemBarAppearance = compose.activity::systemBarAppearance) { platform -> AppController(platform, makeApi = { server, token ->
                 val client = HttpClient(MockEngine { request ->
                     val path = request.url.encodedPath
                     val json = when {
@@ -177,6 +177,9 @@ class MobileUiTest {
         compose.onNodeWithText("Profile").performClick()
         compose.onNodeWithText("Appearance").performClick()
         compose.onNodeWithText("Dark", substring = false).performClick()
+        compose.runOnIdle {
+            assertFalse(androidx.core.view.WindowCompat.getInsetsController(compose.activity.window, compose.activity.window.decorView).isAppearanceLightStatusBars)
+        }
         screenshot("mobile-appearance-dark")
         compose.onNodeWithContentDescription("New chat").performClick()
         screenshot("mobile-new-chat-dark")
@@ -431,6 +434,9 @@ class MobileUiTest {
         compose.onNodeWithContentDescription(uk.get("nav.menu")).performClick()
         compose.onNodeWithText(uk.get("nav.profile")).performClick()
         compose.onNodeWithText(uk.get("profile.appearance")).performClick()
+        compose.runOnIdle {
+            assertTrue(androidx.core.view.WindowCompat.getInsetsController(compose.activity.window, compose.activity.window.decorView).isAppearanceLightStatusBars)
+        }
         compose.onNodeWithText(uk.get("appearance.change")).performScrollTo()
         assertTextFits(compose.onNodeWithText(uk.get("appearance.change")))
         compose.onNodeWithText(uk.get("appearance.reset")).performScrollTo()

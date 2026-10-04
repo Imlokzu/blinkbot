@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.view.WindowCompat
 import me.waveio.claudebot.platform.AndroidBridge
 
 class MainActivity : ComponentActivity() {
@@ -15,7 +16,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         bridge = AndroidBridge(this)
         deliverPairingIntent(intent)
-        setContent { App(bridge) }
+        setContent { App(bridge, onSystemBarAppearance = ::systemBarAppearance) }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -26,5 +27,13 @@ class MainActivity : ComponentActivity() {
 
     private fun deliverPairingIntent(intent: Intent?) {
         if (intent?.action == Intent.ACTION_VIEW) intent.dataString?.let(bridge::deliverIncomingPairing)
+    }
+}
+
+/** Keep system icons readable when the app theme differs from the phone theme. */
+internal fun ComponentActivity.systemBarAppearance(darkStatusIcons: Boolean, darkNavigationIcons: Boolean) {
+    WindowCompat.getInsetsController(window, window.decorView).apply {
+        isAppearanceLightStatusBars = darkStatusIcons
+        isAppearanceLightNavigationBars = darkNavigationIcons
     }
 }
