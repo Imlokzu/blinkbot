@@ -47,6 +47,7 @@ import me.waveio.claudebot.R
 /** Activity-owned, registered before STARTED, and stable across recompositions. */
 class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, NativeAtomicPreferences, DefaultLifecycleObserver {
     override val platformName: String = "android"
+    override val deviceName: String = "${android.os.Build.MODEL} · Android ${android.os.Build.VERSION.RELEASE}"
     private val context = activity.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val active = MutableStateFlow(false)

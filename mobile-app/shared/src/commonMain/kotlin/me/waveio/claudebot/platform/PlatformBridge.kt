@@ -13,6 +13,8 @@ object PickedFileLimits {
 /** Native integrations keep shared UI independent of platform controllers. */
 interface PlatformBridge {
     val platformName: String
+    /** Human-readable model and OS label shown in the owner dashboard. */
+    val deviceName: String get() = platformName
     val systemLanguage: String
     val foreground: StateFlow<Boolean>
     val incomingPairing: StateFlow<String?>

@@ -45,7 +45,16 @@ fun ModelPicker(state: AppState, actions: AppActions) {
     val inset = safeTop + with(density) { (if (compact) 8.dp else 60.dp).roundToPx() }
     val availableHeight = with(density) { (windowHeight - inset - safeBottom).toDp() - 14.dp }.coerceAtLeast(0.dp)
     val selected = state.models.firstOrNull { it.id == state.selectedModel }
-    MotionPopup(state.modelPickerOpen, { actions.modelPicker(false) }, Modifier.padding(horizontal = 16.dp).widthIn(max = if (landscape) 600.dp else 440.dp).fillMaxWidth().heightIn(max = availableHeight), offset = IntOffset(0, inset)) {
+    MotionPopup(
+        state.modelPickerOpen,
+        { actions.modelPicker(false) },
+        Modifier.fillMaxWidth().heightIn(max = availableHeight),
+        offset = IntOffset(0, inset),
+        surfacePadding = 0.dp,
+        drawBorder = false,
+        surfaceShape = RoundedCornerShape(0.dp),
+        blurEntrance = false,
+    ) {
         if (!landscape || effortPage) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (effortPage) IconAction("back", tr("nav.back"), { effortPage = false })
             Text(tr(if (effortPage) "model.effort" else "model.title"), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.ink, modifier = Modifier.weight(1f).padding(start = if (effortPage) 0.dp else 10.dp))

@@ -12,6 +12,7 @@ import platform.Foundation.NSDate
 import platform.Foundation.NSUUID
 import platform.Foundation.create
 import platform.Foundation.timeIntervalSince1970
+import platform.UIKit.UIDevice
 import platform.posix.memcpy
 
 /** Swift owns native controllers; Kotlin owns coroutine state and the fixed shared contract. */
@@ -42,6 +43,7 @@ interface IosNativeDelegate {
 
 class IosBridge(private val delegate: IosNativeDelegate) : PlatformBridge {
     override val platformName: String = "ios"
+    override val deviceName: String = "${UIDevice.currentDevice.model} · iOS ${UIDevice.currentDevice.systemVersion}"
     private val active = MutableStateFlow(false)
     override val foreground: StateFlow<Boolean> = active.asStateFlow()
     private val pairing = MutableStateFlow<String?>(null)

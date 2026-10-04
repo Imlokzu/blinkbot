@@ -161,7 +161,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                 update { it.copy(connecting = true, error = null) }
                 val pairing = PairingCode.parse(payload)
                 val pairingApi = makeApi(pairing.server, "")
-                val credentials = try { pairingApi.exchangePairing(pairing.code, text?.get("app.name").orEmpty() + " · " + platform.platformName, platform.platformName) } finally { pairingApi.close() }
+                val credentials = try { pairingApi.exchangePairing(pairing.code, platform.deviceName, platform.platformName) } finally { pairingApi.close() }
                 if (attempt != pairingVersion || epoch != connectionVersion) return@run
                 disconnect()
                 accountScope = credentials.deviceId

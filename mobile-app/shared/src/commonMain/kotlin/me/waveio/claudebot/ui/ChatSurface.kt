@@ -53,6 +53,7 @@ import com.mikepenz.markdown.m3.Markdown
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.flow.first
 import me.waveio.claudebot.state.*
 
@@ -72,6 +73,11 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
     var following by remember(state.sessionId) { mutableStateOf(true) }
     val fingerDown = remember(state.sessionId) { mutableStateOf(false) }
     val bottomTolerance = with(density) { 2.dp.toPx() }
+    val reactionSignature = remember(state.messages) {
+        state.messages.joinToString("|") { message ->
+            "${message.id}:${message.reaction}:${message.reactions.entries.sortedBy { it.key }.joinToString(",")}"
+        }
+    }
     val tailVisible by remember(list, composerHeight, bottomTolerance) { derivedStateOf {
         val layout = list.layoutInfo
         val last = layout.visibleItemsInfo.lastOrNull()
@@ -103,6 +109,12 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
     LaunchedEffect(state.sessionId) { if (state.messages.isNotEmpty()) list.scrollToItem(state.messages.lastIndex) }
     LaunchedEffect(state.messages.size) {
         if (following && !scrollingToLatest && list.layoutInfo.totalItemsCount > 0) list.scrollToItem(list.layoutInfo.totalItemsCount - 1)
+    }
+    LaunchedEffect(reactionSignature) {
+        if (following && !scrollingToLatest && list.layoutInfo.totalItemsCount > 0) {
+            yield()
+            list.scrollToItem(list.layoutInfo.totalItemsCount - 1)
+        }
     }
     LaunchedEffect(list, state.sessionId) {
         // Markdown measures after parsing. Follow that measured growth rather
@@ -237,7 +249,7 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
             val line = part.text
             if (line.isBlank()) continue
             key(part.noteId, partIndex) {
-            EnterMotion(message.live) { bubbleMotion ->
+            EnterMotion(message.live, streaming = message.live) { bubbleMotion ->
             Box(bubbleMotion) {
                 Surface(
                     modifier = Modifier.widthIn(max = if (user) 320.dp else 600.dp).testTag("message-bubble:${message.id}:$partIndex").combinedClickable(onClick = {}, onLongClick = { selectedBubble = parts.take(partIndex).count { it.type == "text" }; selectedNote = part.note || part.noteId != null; menuText = line }),
@@ -255,10 +267,16 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
             val bubbleIndex = parts.take(partIndex).count { it.type == "text" }
             val emoji = if (user) message.reaction else message.reactions[bubbleIndex.toString()]
             val reactionLabel = emoji?.let { tr(if (user) "reaction.bot" else "reaction.yours", "emoji" to it) }.orEmpty()
-            if (emoji != null) Text(emoji, fontSize = 19.sp,
-                modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(palette.secondary)
+            if (emoji != null) Surface(
+                modifier = Modifier.padding(start = if (user) 0.dp else 8.dp, top = 1.dp)
                     .semantics { contentDescription = reactionLabel }
-                    .clickable(enabled = !user) { actions.reaction(message.id, bubbleIndex, null) }.padding(8.dp, 3.dp))
+                    .clickable(enabled = !user) { actions.reaction(message.id, bubbleIndex, null) },
+                shape = RoundedCornerShape(12.dp),
+                color = palette.secondary,
+                tonalElevation = 0.dp,
+            ) {
+                Text(emoji, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
+            }
         }
         if (message.steps.isNotEmpty() && parts.none { it.type == "steps" }) ActivityTree(message.steps, message.live)
         val media = message.attachments.map { PreviewItem(it.path, it.name, it.mimeType, "upload") } +

@@ -28,6 +28,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.graphics.Shape
 
 val LocalReducedMotion = staticCompositionLocalOf { false }
 
@@ -37,6 +38,10 @@ fun MotionPopup(
     open: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier,
     alignment: Alignment = Alignment.TopCenter, offset: IntOffset = IntOffset.Zero,
     focusable: Boolean = true,
+    surfacePadding: Dp = 12.dp,
+    drawBorder: Boolean = true,
+    surfaceShape: Shape = RoundedCornerShape(24.dp),
+    blurEntrance: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val target = remember { MutableTransitionState(false) }
@@ -55,8 +60,10 @@ fun MotionPopup(
                 translationY = (1f - value) * -5.dp.toPx()
                 transformOrigin = TransformOrigin(0.5f, 0f)
                 val blur = ((1f - value) * 5f).toInt()
-                renderEffect = if (!reduced && value in 0.02f..0.97f && blur > 0) blurSteps[blur - 1] else null
-            }.clip(RoundedCornerShape(24.dp)).background(palette.surface).border(1.dp, palette.line, RoundedCornerShape(24.dp)).padding(12.dp), content = content)
+                renderEffect = if (blurEntrance && !reduced && value in 0.02f..0.97f && blur > 0) blurSteps[blur - 1] else null
+            }.clip(surfaceShape).background(palette.surface)
+                .then(if (drawBorder) Modifier.border(1.dp, palette.line, surfaceShape) else Modifier)
+                .padding(surfacePadding), content = content)
         }
     }
 }
@@ -147,12 +154,14 @@ fun Hairline(modifier: Modifier = Modifier) = Box(modifier.fillMaxWidth().height
 fun BotToggle(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     val p = LocalPalette.current
     val position by animateFloatAsState(if (checked) 1f else 0f, tween(if (LocalReducedMotion.current) 0 else 140), label = "toggle")
+    val track by animateColorAsState(if (checked) p.ink else p.line, tween(if (LocalReducedMotion.current) 0 else 180), label = "toggleTrack")
+    val thumb by animateColorAsState(if (checked) p.background else p.surface, tween(if (LocalReducedMotion.current) 0 else 180), label = "toggleThumb")
     Row(Modifier.fillMaxWidth().heightIn(min = 54.dp).semantics { toggleableState = if (checked) androidx.compose.ui.state.ToggleableState.On else androidx.compose.ui.state.ToggleableState.Off }
         .clickable(role = Role.Switch) { onChange(!checked) }, verticalAlignment = Alignment.CenterVertically) {
         Text(label, color = p.ink, fontSize = 14.sp, modifier = Modifier.weight(1f).padding(end = 12.dp))
         Canvas(Modifier.size(46.dp, 28.dp)) {
-            drawRoundRect(if (checked) p.ink else p.line, cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2))
-            drawCircle(if (checked) p.background else p.surface, radius = 10.dp.toPx(), center = Offset(14.dp.toPx() + position * 18.dp.toPx(), size.height / 2))
+            drawRoundRect(track, cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2))
+            drawCircle(thumb, radius = 10.dp.toPx(), center = Offset(14.dp.toPx() + position * 18.dp.toPx(), size.height / 2))
         }
     }
 }

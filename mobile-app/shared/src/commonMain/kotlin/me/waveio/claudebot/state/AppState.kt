@@ -12,7 +12,7 @@ data class Preferences(
     val theme: String = "system",
     val language: String = "system",
     val wallpaper: Boolean = true,
-    val fullWallpaper: Boolean = false,
+    val fullWallpaper: Boolean = true,
     val wallpaperScreens: Set<String> = setOf("Chat"),
     val wallpaperDim: Float = 0.16f,
     val wallpaperBlur: Float = 22f,
