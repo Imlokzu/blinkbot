@@ -1688,3 +1688,16 @@ incomplete and is not counted as passing by this UI follow-up.
   subtests; 207 dashboard tests and TypeScript passed. Offline mobile unit
   tasks passed 85 shared and 62 Android tests; no device/iOS certification.
 - See `VALIDATION.md` for independent review, smoke, and evidence limits.
+
+## Chat markdown tables stay readable (2026-10-04)
+
+- Fixed long assistant tables that showed an ellipsis with no way to read the
+  hidden cell value. Markdown table cells now wrap their complete content;
+  wide tables retain an inner horizontal scroll surface on narrow screens.
+  Page-level horizontal overflow remains disabled.
+- Added `tests/markdown-table.browser.mjs`, which sends a real fixture reply
+  through the chat renderer and checks full text, wrapped cells, table scrolling,
+  phone fit and local-only writes.
+- Validation: 207 dashboard tests, TypeScript, whitespace checks and the new
+  browser fixture passed. The focused change is limited to the shared table
+  presentation CSS and its browser regression fixture.

@@ -288,6 +288,9 @@ scrolling past all of it.
 - Navigation and icon actions use unfenced glyphs with hover colour and
   keyboard focus. The right rail can close and reopen without changing pins;
   its visibility persists independently of the conversations list.
+- Markdown tables preserve the full value of every cell. Text wraps inside
+  columns, while tables wider than the chat keep their own horizontal scroll;
+  no cell uses an ellipsis that hides content without a reading path.
 - Regression coverage: `tests/chatAppearance.test.mjs`,
   `tests/wallpaperSources.test.mjs`, `tests/remoteWallpaperSource.test.mjs`,
   `tests/brandColors.test.mjs`, `tests/popupGlass.test.mjs`,
