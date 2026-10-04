@@ -20,12 +20,16 @@ The client does not call model providers directly. Conversations, workspace,
 models and bot personalization come from the existing host and owner identity.
 Backend contract and deployment assumptions: [MOBILE-API.md](../Virtual%20Bot/docs/MOBILE-API.md).
 
-## Version 0.2.0
+## Version 0.2.1
 
 Custom model/effort picker, opaque bubbles, inline dictation with live transcript,
 large attachment tiles, a genuine installed-skills picker, and a drawer revealed
 beneath the foreground conversation. Real gateway snapshots stream before final
 completion. Waiting indicators, context menus and settings share the custom UI.
+
+The 0.2.1 refinement keeps controls reachable on compact screens and at 200%
+font scale: adaptive model search, scrolling attachment/pairing surfaces, readable
+calendar digits, wrapped wallpaper actions, and theme-aware Android system icons.
 
 ## Implemented behavior
 
@@ -75,11 +79,11 @@ AGP8.11.1, Gradle8.14.3; minimum Android26. Set `sdk.dir` in the ignored
 APK: `androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
 Apple build instructions: [iosApp/README.md](iosApp/README.md).
 
-Validation on 2026-10-04: 85 shared state/transport tests, 62 Android unit tests,
-44 native instrumentation tests, and seven end-to-end Compose/controller flows
-passed. The UI flows use a deterministic host fixture and silent OS boundary;
-native permission/storage/worker checks run separately. Screenshots were
-inspected for chat, model picker, drawer, dictation, editor, and both themes.
+Validation on 2026-10-04: 85 shared tests, 62 Android unit tests, and 31 UI
+scenario executions across four display/font configurations passed. The 13 UI
+scenarios use a deterministic host fixture and silent OS boundary. The previous
+0.2.0 baseline also passed 44 native instrumentation cases. Reproduction,
+screenshot coverage and limits: [UI-QA.md](../docs/mobile-app/UI-QA.md).
 
 Architecture: [ARCHITECTURE.md](../docs/mobile-app/ARCHITECTURE.md).
 Product decisions: [DESIGN.md](../docs/mobile-app/DESIGN.md).

@@ -1656,3 +1656,24 @@ rerun with a synthetic issuer, with zero network calls. See
 
 The registered backend was restarted after confirming no active mobile jobs;
 new streaming/skills code is loaded and public API authentication remains intact.
+
+## Mobile 0.2.1 adaptive visual QA (2026-10-04)
+
+Preserved the approved 0.2.0 custom appearance and corrected measured layout
+failures: model results hidden by the keyboard, unreachable QR pairing on large
+text, clipped calendar digits/time controls, missing wallpaper reset action, and
+short-window attachment/composer controls. Android system icons now follow the
+app surface instead of remaining white on plain light screens.
+
+Added six regression scenarios and a reproducible emulator-only display matrix:
+31 UI executions passed across 411x914dp/100%, 360x640dp/160%, 320x568dp/200%, and
+640x360dp/100%. The existing seven UI scenarios remain. Shared tests passed 85/85;
+Android unit tests passed 62/62. Screenshots checked independently of semantic
+assertions; no exact Figma/pixel-diff score is claimed. See
+`docs/mobile-app/UI-QA.md` for commands, evidence scope and limitations.
+
+Android version code 3 / version 0.2.1 retains the previous signing identity.
+iOS metadata is aligned, but Apple compilation/runtime remains unverified.
+All UI host traffic was fixture-backed; production services and Cloudflare
+configuration were unchanged. The earlier incomplete broad backend run remains
+incomplete and is not counted as passing by this UI follow-up.
