@@ -53,11 +53,7 @@ export function parseIntelligence(raw: unknown): IntelligenceResponse {
   const url = typeof source.url === 'string' && /^https?:\/\//.test(source.url) ? source.url : '';
   const benchmarks = Array.isArray(raw.benchmarks)
     ? raw.benchmarks.filter((b): b is IntelBenchmark => isRecord(b) && typeof b.key === 'string' && typeof b.name === 'string')
-      .map(({ key, name, top }) => ({
-        key,
-        name,
-        top: finite(top) && top > 0 ? Math.min(1, top) : 0,
-      }))
+      .map(({ key, name, top }) => ({ key, name, top: finite(top) && top > 0 ? top : 0 }))
     : [];
   const models: Record<string, IntelEntry> = {};
   if (isRecord(raw.models)) {
@@ -65,9 +61,7 @@ export function parseIntelligence(raw: unknown): IntelligenceResponse {
       if (!isRecord(entry) || !finite(entry.index)) continue;
       const scores: Record<string, number> = {};
       if (isRecord(entry.scores)) {
-        for (const [key, value] of Object.entries(entry.scores)) {
-          if (finite(value)) scores[key] = Math.min(1, Math.max(0, value));
-        }
+        for (const [key, value] of Object.entries(entry.scores)) if (finite(value)) scores[key] = value;
       }
       models[id] = { index: Math.min(100, Math.max(0, entry.index)), scores };
     }

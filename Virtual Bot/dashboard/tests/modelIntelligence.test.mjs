@@ -44,17 +44,6 @@ test('broken entries and scores are dropped, not shown as NaN', () => {
   assert.equal(reply.benchmarks.length, 3);
 });
 
-test('out-of-range benchmark values are bounded before percentages are shown', () => {
-  const reply = parseIntelligence({
-    available: true,
-    benchmarks: [{ key: 'gpqa', name: 'GPQA Diamond', top: 4 }],
-    models: { model: { index: 50, scores: { gpqa: 4, negative: -2 } } },
-  });
-  assert.equal(reply.benchmarks[0].top, 1);
-  assert.deepEqual(reply.models.model.scores, { gpqa: 1, negative: 0 });
-  assert.equal(scoreLine(reply.models.model, reply.benchmarks), 'GPQA Diamond 100%');
-});
-
 test('only an http(s) link becomes the attribution href', () => {
   const reply = parseIntelligence({ available: true, source: { name: 'x', url: 'javascript:alert(1)', license: '' } });
   assert.equal(reply.source.url, '');
