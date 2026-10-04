@@ -157,8 +157,18 @@ fun AttachmentMenu(state: AppState, actions: AppActions) {
     val window = LocalWindowInfo.current.containerSize
     val bottom = WindowInsets.safeDrawing.getBottom(density)
     val height = with(density) { (window.height - WindowInsets.safeDrawing.getTop(density) - bottom).toDp() }
-    MotionPopup(state.attachmentPickerOpen, { actions.attachments(false) }, Modifier.fillMaxWidth().heightIn(max = height), Alignment.BottomCenter, IntOffset(0, -bottom), focusable = false) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
+    MotionPopup(
+        state.attachmentPickerOpen,
+        { actions.attachments(false) },
+        Modifier.fillMaxWidth().heightIn(max = height),
+        Alignment.BottomCenter,
+        IntOffset(0, -bottom),
+        focusable = false,
+        surfacePadding = 0.dp,
+        drawBorder = false,
+        surfaceShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp).verticalScroll(rememberScrollState())) {
             Text(tr("input.attach"), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = p.ink, modifier = Modifier.padding(10.dp, 10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf("camera" to "camera", "photo" to "photo", "document" to "file").forEach { (kind, icon) ->

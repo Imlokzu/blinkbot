@@ -48,12 +48,12 @@ fun ModelPicker(state: AppState, actions: AppActions) {
     MotionPopup(
         state.modelPickerOpen,
         { actions.modelPicker(false) },
-        Modifier.fillMaxWidth().heightIn(max = availableHeight),
+        Modifier.padding(horizontal = 16.dp).widthIn(max = 440.dp).fillMaxWidth().heightIn(max = availableHeight),
         offset = IntOffset(0, inset),
-        surfacePadding = 0.dp,
-        drawBorder = false,
-        surfaceShape = RoundedCornerShape(0.dp),
-        blurEntrance = false,
+        surfacePadding = 12.dp,
+        drawBorder = true,
+        surfaceShape = RoundedCornerShape(24.dp),
+        blurEntrance = true,
     ) {
         if (!landscape || effortPage) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (effortPage) IconAction("back", tr("nav.back"), { effortPage = false })
