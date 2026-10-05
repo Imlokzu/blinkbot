@@ -7,6 +7,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import me.waveio.claudebot.platform.PlatformBridge
 import me.waveio.claudebot.state.AppController
 import me.waveio.claudebot.ui.*
@@ -30,7 +32,9 @@ fun App(
     MobileTheme(dark) {
         val local = strings
         if (local == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingDots() }
-        else CompositionLocalProvider(LocalText provides local) {
+        else CompositionLocalProvider(LocalText provides local, LocalUriHandler provides remember(controller) {
+            object : UriHandler { override fun openUri(uri: String) = controller.openLink(uri) }
+        }) {
             SideEffect { controller.strings(local) }
             MobileShell(state, controller, platform.reducedMotion)
         }

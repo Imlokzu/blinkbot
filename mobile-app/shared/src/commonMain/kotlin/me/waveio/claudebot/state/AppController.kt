@@ -29,6 +29,7 @@ internal fun updateChecksumMatches(expected: String?, actual: String?): Boolean 
 class AppController(private val platform: PlatformBridge, private val makeApi: (String, String) -> BotApi = { server, token -> BotApi(server, token) }, dispatcher: CoroutineDispatcher = Dispatchers.Main, private val makeThumbnail: (ByteArray) -> ByteArray? = { thumbnailBytes(it) }) : AppActions {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
+    private val uiDispatcher = dispatcher
     private val mutable = MutableStateFlow(AppState())
     val state: StateFlow<AppState> = mutable.asStateFlow()
     private var api: BotApi? = null
@@ -74,9 +75,20 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     private var retrying = false
     private val fileMutex = Mutex()
     private var fileDebounce: Job? = null
-    private val fileDrafts = mutableMapOf<String, String>()
-    private val fileBaselines = mutableMapOf<String, String>()
-    private val fileRevisions = mutableMapOf<String, String>()
+    private data class FileTarget(val path: String, val session: String = "") {
+        // Canonical workspace paths identify the same file across entry points;
+        // retain the captured session only for transport and unresolved aliases.
+        private val identitySession get() = session.takeIf { path.startsWith("session/") }.orEmpty()
+        override fun equals(other: Any?) = other is FileTarget && path == other.path && identitySession == other.identitySession
+        override fun hashCode() = 31 * path.hashCode() + identitySession.hashCode()
+    }
+    private val fileDrafts = mutableMapOf<FileTarget, String>()
+    private val fileBaselines = mutableMapOf<FileTarget, String>()
+    private val fileRevisions = mutableMapOf<FileTarget, String>()
+    private var fileReturnScreen: Screen? = null
+    private fun editorTarget(): FileTarget? = state.value.openFile?.let { FileTarget(it, state.value.fileSessionId) }
+    private fun fileKey(target: FileTarget, prefix: String): String = if (target.session.isBlank() || !target.path.startsWith("session/")) "$prefix.${target.path}"
+        else "$prefix.session.v1:${target.session}:${target.path}"
     private var beforeEdit: String? = null
     private var profileEditVersion = 0L
 
@@ -122,6 +134,12 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     private fun writeScoped(key: String, value: String?) = platform.writePreference("$accountScope.$key", value)
     private fun update(block: (AppState) -> AppState) = mutable.update(block)
     private fun initialModel(p: Preferences) = if (p.defaultModelMode == "fixed") p.defaultModel else p.lastModel
+    private fun modelForChat(id: String): String {
+        val p = state.value.preferences
+        return p.chatModels[id]?.takeIf { it.isNotBlank() }
+            ?: if (p.chatModels.containsKey(id) && p.defaultModelMode != "fixed") catalogDefaultModel.ifBlank { state.value.selectedModel }
+            else initialModel(p).ifBlank { catalogDefaultModel.ifBlank { state.value.selectedModel } }
+    }
     private fun requireApi(): BotApi = api ?: throw ApiFailure(401, "not_connected")
     private fun run(isCurrent: () -> Boolean = { true }, block: suspend () -> Unit) {
         val epoch = connectionVersion
@@ -323,6 +341,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
 
     override fun refresh() = run { if (state.value.screen == Screen.Skills) loadSkills() else { loadSessions(); loadCatalog(); loadAllJobs(); state.value.sessionId.takeIf { it.isNotBlank() }?.let { loadJobs(it) } } }
     override fun navigate(screen: Screen) {
+        if (screen != state.value.screen && state.value.openFile != null) closeFile()
         if (screen != Screen.Chat && state.value.dictationOpen) cancelDictation()
         if (screen != state.value.screen) closePreview()
         feedback(); update { it.copy(screen = screen, menuOpen = false) }
@@ -348,6 +367,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         feedback()
     }
     override fun newChat() {
+        if (state.value.openFile != null) closeFile()
         if (state.value.editingMessageId != null) cancelEdit()
         cancelDictation()
         clearAttachmentPreviews()
@@ -359,6 +379,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         feedback()
     }
     override fun openChat(id: String) {
+        if (state.value.openFile != null) closeFile()
         if (state.value.editingMessageId != null) cancelEdit()
         cancelDictation()
         clearAttachmentPreviews()
@@ -368,9 +389,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val connection = api ?: return
         val epoch = connectionVersion
         val p = state.value.preferences
-        val model = p.chatModels[id]?.takeIf { it.isNotBlank() }
-            ?: if (p.chatModels.containsKey(id) && p.defaultModelMode != "fixed") catalogDefaultModel.ifBlank { state.value.selectedModel }
-            else initialModel(p).ifBlank { catalogDefaultModel.ifBlank { state.value.selectedModel } }
+        val model = modelForChat(id)
         val effort = supportedEffort(model, p.chatEfforts[id] ?: "none")
         if (p.chatEfforts[id] != null && effort != p.chatEfforts[id]) preferences(p.copy(chatEfforts = p.chatEfforts + (id to effort)))
         update { it.copy(screen = Screen.Chat, menuOpen = false, sessionId = id, messages = emptyList(), draft = readScoped("draft.$id").orEmpty(), editingMessageId = null, attachments = emptyList(), uploading = false, loading = true, busy = false, activeJobId = null, pending = emptyList(), queuePaused = false, selectedModel = model, effort = effort) }
@@ -1056,34 +1075,50 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         if (file.active) { update { it.copy(error = "files.stillWriting") }; return }
         preview(PreviewItem(path, file.name, file.mimeType, "workspace"))
     }
-    private fun preview(item: PreviewItem) {
+    private fun preview(item: PreviewItem, sessionOverride: String? = null, single: Boolean = false) {
         val connection = api
         if (connection == null) { update { it.copy(error = "error.auth") }; return }
         val version = ++previewVersion
         val epoch = connectionVersion
         val navigation = navigationVersion
-        val session = state.value.sessionId
+        val session = sessionOverride ?: state.value.sessionId
+        val webCandidate = item.source == "workspace" && (item.mimeType == "text/html" || '.' !in item.path.substringAfterLast('/'))
         val key = if (item.source == "workspace") "workspace:" + item.path else item.path
         update { it.copy(previewTitle = item.name, previewPath = item.path, previewSource = item.source,
-            previewMimeType = item.mimeType, previewItems = previewItems(item.path, item.source),
+            previewMimeType = item.mimeType, previewItems = if (single || webCandidate) listOf(item) else previewItems(item.path, item.source),
+            previewSessionId = session, previewWorkspacePath = null, previewRevision = version, previewEditable = false, previewWeb = null, previewWebError = false,
             previewBytes = null, previewText = "", previewTruncated = false, previewExporting = false, loading = true, error = null) }
-        if (item.mimeType.startsWith("image/") && item.source != "remote" && key !in reducedThumbnails) state.value.attachmentThumbnails[key]?.let { bytes ->
+        if (session == state.value.sessionId && item.mimeType.startsWith("image/") && item.source != "remote" && key !in reducedThumbnails) state.value.attachmentThumbnails[key]?.let { bytes ->
             update { it.copy(previewBytes = bytes, loading = false) }; return
         }
         fun current() = version == previewVersion && epoch == connectionVersion && navigation == navigationVersion
         run(isCurrent = ::current) {
-            if (item.mimeType.startsWith("image/")) {
+            if (webCandidate) {
+                val web = connection.webPreview(item.path, session)
+                if (web.projectPath.isNotBlank()) checkedWorkspacePath(web.projectPath)
+                if (web.root.isNotBlank()) checkedWorkspacePath(web.root)
+                if (web.ready) checkedWorkspacePath(web.entry ?: throw ApiFailure(200, "invalid_response"))
+                if (web.kind == "web") {
+                    if (current()) update { it.copy(previewWeb = web, loading = false,
+                        previewEditable = item.mimeType == "text/html") }
+                } else {
+                    val file = connection.readWorkspace(item.path, session)
+                    val canonical = checkedWorkspacePath(file.path)
+                    if (current()) update { it.copy(previewText = file.content.takeUnless { file.binary }.orEmpty(), loading = false, previewWorkspacePath = canonical,
+                        previewTruncated = file.tooLarge, previewEditable = !file.binary && !file.tooLarge) }
+                }
+            } else if (item.mimeType.startsWith("image/")) {
                 val download = downloadImage(connection, item.path, item.source, session)
                 val bytes = download.bytes
                 if (current()) {
-                    cacheThumbnail(key, bytes, ::current)
+                    if (session == state.value.sessionId) cacheThumbnail(key, bytes, ::current)
                     if (current()) update { it.copy(previewBytes = bytes, previewMimeType = download.mimeType, loading = false) }
                 }
             } else if (item.source == "workspace") {
                 val result = connection.readWorkspace(item.path, session)
-                if (result.tooLarge) throw ApiFailure(413, "workspace_file_too_large")
-                if (result.binary) throw ApiFailure(501, "workspace_binary_unavailable")
-                if (current()) update { it.copy(previewText = result.content, loading = false) }
+                val canonical = checkedWorkspacePath(result.path)
+                if (current()) update { it.copy(previewText = result.content.takeUnless { result.binary }.orEmpty(), loading = false, previewWorkspacePath = canonical,
+                    previewTruncated = result.tooLarge, previewEditable = !result.binary && !result.tooLarge) }
             } else {
                 val result = connection.attachmentPreview(item.path)
                 if (current()) update { it.copy(previewText = result.text, previewTruncated = result.truncated, loading = false) }
@@ -1093,7 +1128,54 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     override fun closePreview() {
         previewVersion++
         update { it.copy(previewTitle = null, previewPath = null, previewSource = null, previewMimeType = "",
-            previewItems = emptyList(), previewBytes = null, previewText = "", previewTruncated = false, previewExporting = false, loading = false) }
+            previewItems = emptyList(), previewBytes = null, previewText = "", previewSessionId = "", previewWorkspacePath = null, previewEditable = false,
+            previewWeb = null, previewWebError = false, previewTruncated = false, previewExporting = false, loading = false) }
+    }
+    override fun reloadPreview() {
+        val current = state.value
+        val path = current.previewPath ?: return
+        preview(PreviewItem(path, current.previewTitle.orEmpty(), current.previewMimeType, current.previewSource ?: return),
+            current.previewSessionId, single = current.previewItems.size <= 1)
+    }
+    override fun editPreview() {
+        val current = state.value
+        if (!current.previewEditable || current.previewSource != "workspace" || current.loading) return
+        val target = FileTarget(current.previewPath ?: return, current.previewSessionId)
+        closePreview()
+        openEditor(target)
+    }
+    override suspend fun loadWebPreviewResource(revision: Long, path: String): WebPreviewResource? = withContext(uiDispatcher) {
+        val current = state.value
+        val web = current.previewWeb?.takeIf { it.ready } ?: return@withContext null
+        if (!scope.isActive || revision != previewVersion || current.previewTitle == null) return@withContext null
+        val connection = api ?: return@withContext null
+        val epoch = connectionVersion
+        val result = connection.webPreviewResource(web.root, path.removePrefix("/"), web.entry ?: return@withContext null, current.previewSessionId)
+        result.takeIf { scope.isActive && epoch == connectionVersion && revision == previewVersion && api === connection }
+    }
+    override fun webPreviewFailed(revision: Long) {
+        scope.launch { if (revision == previewVersion && state.value.previewWeb != null) update { it.copy(previewWebError = true) } }
+    }
+    override fun buildPreviewProject() {
+        val current = state.value
+        val web = current.previewWeb?.takeIf { it.buildable } ?: return
+        if (current.loading || api == null) return
+        val message = text?.get("files.buildPrompt", "path" to web.projectPath.ifBlank { "." }) ?: return
+        val session = current.previewSessionId.ifBlank { current.sessionId.ifBlank { platform.newId() } }
+        val model = if (session == current.sessionId || current.previewSessionId.isBlank()) current.selectedModel else modelForChat(session)
+        val effort = if (session == current.sessionId) current.effort else supportedEffort(model, current.preferences.chatEfforts[session] ?: "none")
+        val item = OutboxItem(platform.newId(), session, message, model, effort)
+        outbox.add(item)
+        try { persistOutbox() } catch (_: Exception) { outbox.remove(item); update { it.copy(error = "error.storage") }; return }
+        // A build action is its own chat request; never replace the user's draft.
+        if (current.sessionId.isBlank() && current.previewSessionId.isBlank()) {
+            writeScoped("draft.$session", current.draft)
+            writeScoped("draft.new", null)
+        }
+        closePreview()
+        if (session != current.sessionId && current.previewSessionId.isNotBlank()) openChat(session)
+        else update { it.copy(sessionId = session, screen = Screen.Chat, menuOpen = false) }
+        run { submit(item, askOnFailure = false) }
     }
     override fun savePreview() { exportPreview(share = false) }
     override fun sharePreview() { exportPreview(share = true) }
@@ -1106,7 +1188,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val version = previewVersion
         val epoch = connectionVersion
         val navigation = navigationVersion
-        val session = snapshot.sessionId
+        val session = snapshot.previewSessionId
         fun current() = version == previewVersion && epoch == connectionVersion && navigation == navigationVersion &&
             state.value.previewPath == path && state.value.previewSource == source
         update { it.copy(previewExporting = true, error = null) }
@@ -1233,7 +1315,25 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     override fun copyContent(text: String) { platform.copyText(text); feedback(); update { it.copy(notice = "chat.copied") } }
     override fun shareContent(text: String) { platform.shareText(text) }
     override fun openLink(url: String) {
-        if (url.startsWith("https://", ignoreCase = true)) platform.openExternalUrl(url)
+        try {
+            val current = state.value
+            val inWorkspacePreview = current.previewTitle != null && current.previewSource == "workspace"
+            val target = fileLinkTarget(url, current.baseUrl,
+                if (inWorkspacePreview) current.previewSessionId else current.sessionId,
+                (current.previewWorkspacePath ?: current.previewPath).takeIf { inWorkspacePreview })
+            if (target != null) {
+                if (target.source == "workspace" && target.sessionId == current.sessionId && workFile(target.path)?.active == true) {
+                    update { it.copy(error = "files.stillWriting") }; return
+                }
+                val known = attachment(target.path)
+                preview(PreviewItem(target.path, known?.name ?: target.path.substringAfterLast('/'),
+                    known?.mimeType ?: workspaceMimeType(target.path), target.source), target.sessionId, single = true)
+            } else {
+                val external = io.ktor.http.Url(url)
+                if (external.protocol.name == "https" && external.user == null && external.password == null && url.none(Char::isISOControl))
+                    platform.openExternalUrl(url)
+            }
+        } catch (failure: Exception) { error(failure) }
     }
     override fun copyMessage(id: String) { state.value.messages.firstOrNull { it.id == id }?.let { platform.copyText(it.text); update { current -> current.copy(notice = "chat.copied") } } }
     override fun shareMessage(id: String) { state.value.messages.firstOrNull { it.id == id }?.let { platform.shareText(it.text) } }
@@ -1253,70 +1353,100 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     override fun search(value: String) { update { it.copy(search = value) } }
 
     override fun openDirectory(path: String) {
+        val closing = editorTarget()
+        fileReturnScreen = null
+        if (closing != null && closing in fileDrafts) run { saveFile(closing) }
         val connection = api ?: return
         val epoch = connectionVersion
         val version = ++directoryVersion
         fileReadVersion++
-        update { it.copy(directory = path, files = emptyList(), openFile = null, loading = true) }
+        update { it.copy(directory = path, files = emptyList(), openFile = null, fileSessionId = "", loading = true) }
         run(isCurrent = { version == directoryVersion }) {
             val files = connection.listWorkspace(path).map { FileRow(it.path, it.name, it.isDirectory, it.size ?: 0) }
             if (epoch == connectionVersion && version == directoryVersion) update { it.copy(files = files, loading = false) }
         }
     }
-    override fun openFile(path: String) {
+    override fun openFile(path: String) = openEditor(FileTarget(path))
+    private fun openEditor(target: FileTarget) {
+        try { checkedWorkspacePath(target.path) } catch (failure: ApiFailure) { error(failure); return }
         val connection = api ?: return
         val epoch = connectionVersion
         val readVersion = ++fileReadVersion
-        update { it.copy(openFile = path, loading = true, fileText = "", fileSaveState = "saved") }
+        if (state.value.screen != Screen.Files) fileReturnScreen = state.value.screen
+        update { it.copy(screen = Screen.Files, menuOpen = false, openFile = target.path, fileSessionId = target.session,
+            loading = true, fileText = "", fileEditable = false, fileSaveState = "saved") }
         run(isCurrent = { readVersion == fileReadVersion }) {
-            val file = connection.readMobileWorkspace(path)
+            val file = connection.readMobileWorkspace(target.path, target.session)
             if (epoch != connectionVersion || readVersion != fileReadVersion) return@run
-            file.revision?.let { fileRevisions[path] = it }
-            val recovered = readScoped("file.$path")
-            fileBaselines[path] = if (recovered != null) readScoped("fileBaseline.$path").orEmpty() else file.content
-            if (recovered != null) fileDrafts[path] = recovered
-            if (state.value.openFile == path) update { it.copy(loading = false, fileText = recovered ?: file.content, fileEditable = !file.binary && !file.tooLarge, fileSaveState = if (recovered != null) "failed" else "saved") }
+            val resolved = FileTarget(checkedWorkspacePath(file.path), target.session)
+            file.revision?.let { fileRevisions[resolved] = it }
+            val recoveryTarget = if (readScoped(fileKey(resolved, "file")) != null) resolved else target
+            val recovered = readScoped(fileKey(recoveryTarget, "file"))
+            fileBaselines[resolved] = if (recovered != null) readScoped(fileKey(recoveryTarget, "fileBaseline")).orEmpty() else file.content
+            if (recovered != null) {
+                fileDrafts[resolved] = recovered
+                if (fileKey(recoveryTarget, "file") != fileKey(resolved, "file")) {
+                    writeScoped(fileKey(resolved, "fileBaseline"), fileBaselines[resolved])
+                    writeScoped(fileKey(resolved, "file"), recovered)
+                    writeScoped(fileKey(recoveryTarget, "file"), null)
+                    writeScoped(fileKey(recoveryTarget, "fileBaseline"), null)
+                }
+            }
+            if (editorTarget() == target) update { it.copy(openFile = resolved.path, loading = false, fileText = recovered ?: file.content,
+                fileEditable = !file.binary && !file.tooLarge, fileSaveState = if (recovered != null) "failed" else "saved") }
         }
     }
-    override fun closeFile() { fileReadVersion++; val path = state.value.openFile; update { it.copy(openFile = null) }; if (path != null && path in fileDrafts) run { saveFile(path) } }
-    override fun fileText(value: String) {
-        val path = state.value.openFile ?: return
-        writeScoped("fileBaseline.$path", fileBaselines[path])
-        fileDrafts[path] = value; writeScoped("file.$path", value)
-        update { it.copy(fileText = value, fileSaveState = "saving") }
-        fileDebounce?.cancel(); fileDebounce = scope.launch { delay(650); run { saveFile(path) } }
+    override fun closeFile() {
+        fileReadVersion++
+        val target = editorTarget()
+        val back = fileReturnScreen
+        fileReturnScreen = null
+        update { it.copy(openFile = null, fileSessionId = "", screen = back ?: it.screen,
+            loading = if (target != null) false else it.loading) }
+        if (target != null && target in fileDrafts) run { saveFile(target) }
     }
-    private suspend fun saveFile(path: String) {
+    override fun fileText(value: String) {
+        val target = editorTarget() ?: return
+        if (!state.value.fileEditable) return
+        writeScoped(fileKey(target, "fileBaseline"), fileBaselines[target])
+        fileDrafts[target] = value; writeScoped(fileKey(target, "file"), value)
+        update { it.copy(fileText = value, fileSaveState = "saving") }
+        fileDebounce?.cancel(); fileDebounce = scope.launch { delay(650); run { saveFile(target) } }
+    }
+    private suspend fun saveFile(target: FileTarget) {
         val connection = api ?: return
         val owner = accountScope
         val version = connectionVersion
         fileMutex.withLock {
             try {
-                while (path in fileDrafts && owner == accountScope) {
-                    val content = fileDrafts.getValue(path)
-                    val remote = connection.readMobileWorkspace(path)
-                    if (owner != accountScope) return
-                    if (fileBaselines[path] != remote.content && remote.content != content) throw ApiFailure(409, "file_conflict")
+                while (target in fileDrafts && owner == accountScope && version == connectionVersion) {
+                    val content = fileDrafts.getValue(target)
+                    val remote = connection.readMobileWorkspace(target.path, target.session)
+                    if (owner != accountScope || version != connectionVersion) return
+                    if (fileBaselines[target] != remote.content && remote.content != content) throw ApiFailure(409, "file_conflict")
                     val revision = remote.revision ?: throw ApiFailure(501, "revision_unavailable")
-                    val result = connection.writeMobileWorkspace(path, content, revision)
+                    val result = connection.writeMobileWorkspace(target.path, content, revision, target.session)
                     if (!result.ok) throw ApiFailure(500, "workspace_write_failed")
-                    if (owner != accountScope) return
-                    result.revision?.let { fileRevisions[path] = it }
-                    fileBaselines[path] = content
-                    if (fileDrafts[path] == content) { fileDrafts.remove(path); writeScoped("file.$path", null); writeScoped("fileBaseline.$path", null) }
-                    else writeScoped("fileBaseline.$path", content)
+                    if (owner != accountScope || version != connectionVersion) return
+                    result.revision?.let { fileRevisions[target] = it }
+                    fileBaselines[target] = content
+                    if (fileDrafts[target] == content) {
+                        fileDrafts.remove(target); writeScoped(fileKey(target, "file"), null); writeScoped(fileKey(target, "fileBaseline"), null)
+                    } else writeScoped(fileKey(target, "fileBaseline"), content)
                 }
-                if (state.value.openFile == path) update { it.copy(fileSaveState = "saved") }
+                if (editorTarget() == target) update { it.copy(fileSaveState = "saved") }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) {
                 if (owner == accountScope && version == connectionVersion) {
-                    if (state.value.openFile == path) update { it.copy(fileSaveState = "failed") }
-                    error(failure)
+                    if (editorTarget() == target) {
+                        update { it.copy(fileSaveState = "failed") }
+                        error(failure)
+                    }
                 }
             }
         }
     }
-    override fun retryFileSave() { state.value.openFile?.let { path -> run { saveFile(path) } } }
+    override fun retryFileSave() { editorTarget()?.let { target -> run { saveFile(target) } } }
     override fun preferences(value: Preferences) {
         try { platform.writePreference("preferences.v1", json.encodeToString(value)); update { it.copy(preferences = value) } }
         catch (_: Exception) { update { it.copy(error = "error.storage") } }
@@ -1347,7 +1477,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         presentationIds.clear(); replyImageCache.clear(); uploadVersion++; activeUploadVersion = null
         chatActionVersions.clear(); chatActionLocks.clear(); deletingChats.clear(); reactionLocks.clear(); reactionVersions.clear(); reactionBaselines.clear()
         sessionsVersion++; messageMutationVersion++
-        outbox.clear(); permitted.clear(); outboxSnapshot = emptyList(); allowedSnapshot = emptySet(); fileDrafts.clear(); fileBaselines.clear(); fileRevisions.clear(); cursors.clear(); sessionStreamVersions.clear(); observedJobStates.clear(); reportedJobErrors.clear(); cachedProfile = null; catalogDefaultModel = ""; beforeEdit = null
+        outbox.clear(); permitted.clear(); outboxSnapshot = emptyList(); allowedSnapshot = emptySet(); fileDrafts.clear(); fileBaselines.clear(); fileRevisions.clear(); cursors.clear(); sessionStreamVersions.clear(); observedJobStates.clear(); reportedJobErrors.clear(); cachedProfile = null; catalogDefaultModel = ""; beforeEdit = null; fileReturnScreen = null
         platform.writeSecret("device_token", null); update { AppState(preferences = it.preferences, baseUrl = it.baseUrl, customWallpaper = it.customWallpaper, mediaGeneration = it.mediaGeneration + 1) }
     }
     override fun dismissNotice() { update { it.copy(error = null, notice = null, noticeDetail = null) } }

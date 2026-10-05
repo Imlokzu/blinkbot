@@ -35,6 +35,7 @@ internal class FakePlatformBridge : PlatformBridge {
     var recordingPartial: ((PickedFile) -> Unit)? = null
     var recordingAmplitude: ((Float) -> Unit)? = null
     val notifications = mutableListOf<Triple<String, String, String>>()
+    val openedLinks = mutableListOf<String>()
     var beforePreferenceWrite: ((String, String?) -> Unit)? = null
     private var nextId = 0
 
@@ -55,6 +56,7 @@ internal class FakePlatformBridge : PlatformBridge {
     override fun haptic() = Unit
     override fun copyText(value: String) = Unit
     override fun shareText(value: String) = Unit
+    override fun openExternalUrl(url: String) { openedLinks += url }
     override fun requestNotifications(onResult: (Boolean) -> Unit) { onResult(true) }
     override fun notifyReply(title: String, body: String, conversationId: String) { notifications += Triple(title, body, conversationId) }
     override fun nowMillis(): Long = 1_791_043_200_000

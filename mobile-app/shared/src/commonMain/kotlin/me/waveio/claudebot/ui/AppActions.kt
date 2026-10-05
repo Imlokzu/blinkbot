@@ -2,6 +2,7 @@ package me.waveio.claudebot.ui
 
 import me.waveio.claudebot.state.Preferences
 import me.waveio.claudebot.state.Screen
+import me.waveio.claudebot.data.WebPreviewResource
 
 interface AppActions {
     fun connect()
@@ -38,6 +39,11 @@ interface AppActions {
     fun savePreview() {}
     fun sharePreview() {}
     fun closePreview()
+    fun editPreview()
+    fun reloadPreview()
+    fun buildPreviewProject()
+    suspend fun loadWebPreviewResource(revision: Long, path: String): WebPreviewResource?
+    fun webPreviewFailed(revision: Long)
     fun startDictation()
     fun stopDictation()
     fun cancelDictation()

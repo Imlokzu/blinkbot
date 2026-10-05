@@ -3,6 +3,7 @@ package me.waveio.claudebot.state
 import kotlinx.serialization.Serializable
 import me.waveio.claudebot.data.MobileSkill
 import me.waveio.claudebot.data.WorkFile
+import me.waveio.claudebot.data.WebPreview
 import kotlinx.serialization.json.JsonElement
 
 enum class Screen { Chat, Search, Files, Agents, Profile, Appearance, Models, Notifications, Personalization, Queue, Skills }
@@ -140,6 +141,7 @@ data class AppState(
     val directory: String = "",
     val files: List<FileRow> = emptyList(),
     val openFile: String? = null,
+    val fileSessionId: String = "",
     val fileText: String = "",
     val fileEditable: Boolean = false,
     val fileSaveState: String = "saved",
@@ -153,6 +155,12 @@ data class AppState(
     val previewPath: String? = null,
     /** Workspace-relative files and /uploads/ manifests use different APIs. */
     val previewSource: String? = null,
+    val previewSessionId: String = "",
+    val previewWorkspacePath: String? = null,
+    val previewRevision: Long = 0,
+    val previewEditable: Boolean = false,
+    val previewWeb: WebPreview? = null,
+    val previewWebError: Boolean = false,
     val previewItems: List<PreviewItem> = emptyList(),
     val previewMimeType: String = "",
     val previewExporting: Boolean = false,

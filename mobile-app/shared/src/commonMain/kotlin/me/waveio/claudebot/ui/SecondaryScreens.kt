@@ -36,7 +36,8 @@ fun FilesScreen(state: AppState, actions: AppActions) {
                 if (state.fileSaveState == "failed") QuietAction(tr("files.failed"), actions::retryFileSave)
                 else Text(tr("files.${state.fileSaveState}"), fontSize = 12.sp, color = p.muted)
             }
-            if (state.fileEditable) BasicTextField(state.fileText, actions::fileText, modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, color = p.ink, lineHeight = 22.sp), cursorBrush = SolidColor(p.accent))
+            if (state.loading && state.fileText.isEmpty()) LoadingDots(Modifier.padding(16.dp))
+            else if (state.fileEditable) BasicTextField(state.fileText, actions::fileText, modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, color = p.ink, lineHeight = 22.sp), cursorBrush = SolidColor(p.accent))
             else Text(state.fileText.ifBlank { tr("files.previewUnavailable") }, color = p.ink, modifier = Modifier.verticalScroll(rememberScrollState()))
         }
     } else Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
