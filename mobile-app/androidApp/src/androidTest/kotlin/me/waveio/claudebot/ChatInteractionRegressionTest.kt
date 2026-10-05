@@ -1175,6 +1175,7 @@ private class ChatRegressionHost {
                 path == "/api/mobile/pair/exchange" && request.method == HttpMethod.Post ->
                     """{"token":"$DEVICE_TOKEN","device_id":"regression-device","expires_at":1999999999}"""
                 path == "/api/mobile/capabilities" -> """{"steer":false,"queue":true,"event_replay":true}"""
+                path == "/api/brain/intelligence" && request.method == HttpMethod.Get -> """{"available":false}"""
                 path == "/api/brain/models" -> """{"models":[{"id":"fixture/claude","label":"$MODEL_LABEL","provider":"fixture","brand":"anthropic","efforts":["none"]}],"selected":"fixture/claude"}"""
                 path == "/api/setup" -> """{"profile":{"name":"Claude Bot","language":"en","persona":"friendly","persona_custom":"Keep things clear.","greeting":"Hello"}}"""
                 path == "/api/sessions" && request.method == HttpMethod.Get -> sessions().toString()
