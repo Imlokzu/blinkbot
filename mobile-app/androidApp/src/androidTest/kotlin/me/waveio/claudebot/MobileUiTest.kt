@@ -39,6 +39,8 @@ class MobileUiTest {
     private val bridge = SilentUiBridge()
     private val clients = CopyOnWriteArrayList<HttpClient>()
     private val sent = CopyOnWriteArrayList<JsonObject>()
+    private val paired = CopyOnWriteArrayList<JsonObject>()
+    @Volatile private var rejectPairing = false
     @Volatile private var answered = false
     @Volatile private var sessionId = "conversation"
     @Volatile private var fileText = "# Shared workspace\nA note from the computer."
@@ -62,7 +64,13 @@ class MobileUiTest {
                 val client = HttpClient(MockEngine { request ->
                     val path = request.url.encodedPath
                     val json = when {
-                        path == "/api/mobile/pair/exchange" -> """{"token":"test-device-token","device_id":"test-device","expires_at":1999999999}"""
+                        path == "/api/mobile/pair/exchange" -> {
+                            assertNull(request.headers[HttpHeaders.Authorization])
+                            paired += Json.parseToJsonElement((request.body as TextContent).text).jsonObject
+                            if (rejectPairing) return@MockEngine respond("""{"detail":"invalid_pairing"}""",
+                                HttpStatusCode.Unauthorized, headersOf(HttpHeaders.ContentType, "application/json"))
+                            """{"token":"test-device-token","device_id":"test-device","expires_at":1999999999}"""
+                        }
                         path == "/api/mobile/capabilities" -> """{"steer":false,"queue":true,"event_replay":true}"""
                         path == "/api/brain/models" -> {
                             if (slowCatalog) catalogReady.await()
@@ -138,6 +146,55 @@ class MobileUiTest {
         bitmap.recycle()
     }
     private fun back() { InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK) }
+
+    @Test fun connectionCodePairsWithoutCameraAndDoesNotPersistCode() {
+        launch()
+        waitFor("Enter connection code")
+        compose.onNodeWithText("Enter connection code").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Connection code").performTextInput("abcd-efgh")
+        compose.onNodeWithContentDescription("Your server").performTextReplacement("https://typed.example/api/")
+        screenshot("connection-code-filled")
+        compose.onNodeWithText("Connect", substring = false).performScrollTo().performClick()
+        waitFor("Claude Sonnet")
+        assertEquals("ABCDEFGH", paired.single().getValue("code").jsonPrimitive.content)
+        assertEquals("https://typed.example", bridge.preferences["server"])
+        assertEquals("", controller.state.value.pairingCode)
+        assertFalse(bridge.preferences.values.any { it.contains("ABCD", ignoreCase = true) })
+    }
+
+    @Test fun connectionCodeRejectionStaysVisibleAndAllowsRetry() {
+        rejectPairing = true
+        launch(theme = "light")
+        waitFor("Enter connection code")
+        compose.onNodeWithText("Enter connection code").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Connection code").performTextInput("ABCD-EFGH")
+        compose.onNodeWithText("Connect", substring = false).performScrollTo().performClick()
+        val en = runBlocking { LocaleText.load("en") }
+        waitFor(en.get("connect.invalidCode"))
+        compose.mainClock.advanceTimeBy(3000)
+        compose.onNodeWithText(en.get("connect.invalidCode")).performScrollTo().assertIsDisplayed()
+        assertEquals("ABCD-EFGH", controller.state.value.pairingCode)
+        screenshot("connection-code-error")
+        rejectPairing = false
+        compose.onNodeWithText("Connect", substring = false).performScrollTo().performClick()
+        waitFor("Claude Sonnet")
+        assertEquals(2, paired.size)
+    }
+
+    @Test fun ukrainianCodeFormCancelsBackToWorkingQr() {
+        launch("uk")
+        val uk = runBlocking { LocaleText.load("uk") }
+        waitFor(uk.get("connect.enterCode"))
+        compose.onNodeWithText(uk.get("connect.enterCode")).performScrollTo().performClick()
+        compose.onNodeWithContentDescription(uk.get("connect.codeLabel")).performTextInput("ABCD-EFGH")
+        screenshot("connection-code-uk")
+        compose.onNodeWithText(uk.get("connect.cancel")).performScrollTo().performClick()
+        assertEquals("", controller.state.value.pairingCode)
+        assertTrue(paired.isEmpty())
+        compose.onNodeWithText(uk.get("connect.scan")).performScrollTo().performClick()
+        waitFor("Claude Sonnet")
+        assertEquals("test-pairing", paired.single().getValue("code").jsonPrimitive.content)
+    }
 
     @Test fun pairedChatModelDrawerFilesAndAppearance() {
         launch()

@@ -1,7 +1,7 @@
 {
   "app.name": "Claude Bot",
   "connect.title": "Your bot. Always close.",
-  "connect.body": "Open your bot on the computer and scan its connection QR. Your conversations and files will be here.",
+  "connect.body": "Open Devices in your bot’s dashboard to connect with a QR or one-time code. Your conversations and files will be here.",
   "connect.scan": "Scan QR code",
   "connect.connecting": "Connecting…",
   "connect.server": "Your server",
@@ -272,5 +272,14 @@
   "update.checksum": "The update package failed verification.",
   "media.photo": "Image",
   "media.imageLoading": "Loading image…",
-  "media.imageFailed": "Could not load this image."
+  "media.imageFailed": "Could not load this image.",
+  "connect.enterCode": "Enter connection code",
+  "connect.codeHelp": "On the computer, open Devices in the dashboard and create a connection code. It works once and expires after 5 minutes.",
+  "connect.codeLabel": "Connection code",
+  "connect.codePlaceholder": "ABCD-EFGH",
+  "connect.submit": "Connect",
+  "connect.cancel": "Back to QR",
+  "connect.invalidCode": "This code is invalid, expired, or already used. Create a new one in Devices.",
+  "connect.invalidServer": "Enter your server’s HTTPS address, without a page path.",
+  "connect.rateLimited": "Too many attempts. Wait 5 minutes, then create a new code."
 }

@@ -157,29 +157,78 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     }
 
     override fun connect() {
+        if (state.value.connecting) return
         val version = ++pairingVersion
+        update { it.copy(codePairingOpen = false, pairingCode = "", pairingError = null) }
         platform.scanQr { payload ->
             if (payload == null || version != pairingVersion) return@scanQr
             processPairing(payload)
         }
     }
 
-    private fun processPairing(payload: String) {
+    override fun codePairing(open: Boolean) {
+        if (state.value.connected) return
+        pairingVersion++
+        update { it.copy(codePairingOpen = open, pairingCode = "", pairingServer = it.baseUrl,
+            pairingError = null, connecting = false, error = null) }
+    }
+
+    override fun pairingCode(value: String) {
+        if (!state.value.codePairingOpen || state.value.connected) return
+        pairingVersion++
+        update { it.copy(pairingCode = value.take(64), connecting = false, pairingError = null) }
+    }
+
+    override fun pairingServer(value: String) {
+        if (!state.value.codePairingOpen || state.value.connected) return
+        pairingVersion++
+        update { it.copy(pairingServer = value.take(512), connecting = false, pairingError = null) }
+    }
+
+    override fun connectWithCode() {
+        val current = state.value
+        if (!current.codePairingOpen || current.connected || current.connecting) return
+        exchangePairing(manual = true) { PairingCode.manual(current.pairingServer, current.pairingCode) }
+    }
+
+    private fun processPairing(payload: String) = exchangePairing(manual = false) { PairingCode.parse(payload) }
+
+    private fun exchangePairing(manual: Boolean, parse: () -> PairingCode) {
         val attempt = ++pairingVersion
         val epoch = connectionVersion
+        // Publish synchronously so two taps cannot redeem the same one-time code.
+        update { it.copy(connecting = true, pairingError = null, error = null) }
         run(isCurrent = { attempt == pairingVersion }) {
-                update { it.copy(connecting = true, error = null) }
-                val pairing = PairingCode.parse(payload)
+            val pairing: PairingCode
+            val credentials: PairingCredentials
+            try {
+                pairing = parse()
                 val pairingApi = makeApi(pairing.server, "")
-                val credentials = try { pairingApi.exchangePairing(pairing.code, platform.deviceName, platform.platformName) } finally { pairingApi.close() }
+                credentials = try { pairingApi.exchangePairing(pairing.code, platform.deviceName, platform.platformName) }
+                finally { pairingApi.close() }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) {
                 if (attempt != pairingVersion || epoch != connectionVersion) return@run
-                disconnect()
-                accountScope = credentials.deviceId
-                platform.writePreference("device_id", accountScope)
-                outbox = mutableListOf(); permitted.clear()
-                platform.writeSecret("device_token", credentials.token)
-                platform.writePreference("server", pairing.server)
-                establish(pairing.server, credentials.token)
+                if (manual) {
+                    val key = when {
+                        failure is ApiFailure && failure.code == "invalid_server" -> "connect.invalidServer"
+                        failure is ApiFailure && (failure.status == 429 || failure.code == "pairing_rate_limited") -> "connect.rateLimited"
+                        failure is ApiFailure && (failure.status in listOf(400, 401, 404, 410) || failure.code == "invalid_pairing") -> "connect.invalidCode"
+                        failure is ApiFailure && failure.status != 0 -> "error.service"
+                        else -> "error.network"
+                    }
+                    update { it.copy(connecting = false, pairingError = key) }
+                } else error(failure)
+                return@run
+            }
+            if (attempt != pairingVersion || epoch != connectionVersion) return@run
+            disconnect()
+            accountScope = credentials.deviceId
+            platform.writePreference("device_id", accountScope)
+            outbox = mutableListOf(); permitted.clear()
+            platform.writeSecret("device_token", credentials.token)
+            platform.writePreference("server", pairing.server)
+            establish(pairing.server, credentials.token)
         }
     }
 

@@ -9,6 +9,15 @@ data class PairingCode(val server: String, val code: String) {
     override fun toString(): String = "PairingCode(redacted)"
 
     companion object {
+        /** The human code is ephemeral; QR secrets keep their original case. */
+        fun manual(server: String, value: String): PairingCode {
+            val code = value.filterNot { it.isWhitespace() || it == '-' }.uppercase()
+            if (value.length > 64 || code.length != 8 || code.any { it !in "23456789ABCDEFGHJKLMNPQRSTUVWXYZ" }) {
+                throw ApiFailure(0, "invalid_pairing")
+            }
+            return PairingCode(normalizeApiOrigin(server.trim()), code)
+        }
+
         fun parse(qr: String): PairingCode = try {
             val url = Url(qr)
             if (qr != qr.trim() || qr.any(Char::isISOControl) || url.protocol.name != "claudebot" || url.host != "pair" ||

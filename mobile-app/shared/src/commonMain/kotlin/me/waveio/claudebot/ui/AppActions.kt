@@ -5,6 +5,10 @@ import me.waveio.claudebot.state.Screen
 
 interface AppActions {
     fun connect()
+    fun codePairing(open: Boolean)
+    fun pairingCode(value: String)
+    fun pairingServer(value: String)
+    fun connectWithCode()
     fun navigate(screen: Screen)
     fun newChat()
     fun openChat(id: String)

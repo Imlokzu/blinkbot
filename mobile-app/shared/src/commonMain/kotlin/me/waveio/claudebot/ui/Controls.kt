@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -120,6 +122,8 @@ fun ChoicePill(text: String, selected: Boolean, onClick: () -> Unit, modifier: M
 fun BotField(
     value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier,
     placeholder: String = "", label: String? = null, singleLine: Boolean = true, icon: String? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
     val p = LocalPalette.current
     Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -129,6 +133,7 @@ fun BotField(
             BasicTextField(value, onChange, Modifier.weight(1f).heightIn(min = 46.dp).padding(vertical = 13.dp)
                 .semantics { contentDescription = label ?: placeholder },
                 singleLine = singleLine, textStyle = MaterialTheme.typography.bodyMedium.copy(color = p.ink, fontSize = 15.sp), cursorBrush = SolidColor(p.accent),
+                keyboardOptions = keyboardOptions, keyboardActions = keyboardActions,
                 decorationBox = { field -> Box { if (value.isEmpty()) Text(placeholder, color = p.muted, fontSize = 15.sp); field() } })
         }
     }

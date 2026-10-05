@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +21,12 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -141,15 +149,46 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
 @Composable
 private fun ConnectionScreen(state: AppState, actions: AppActions) {
     val p = LocalPalette.current
-    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
+    NativeBackHandler(state.codePairingOpen) { actions.codePairing(false) }
+    val submit = {
+        focus.clearFocus()
+        keyboard?.hide()
+        actions.connectWithCode()
+    }
+    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight).padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
             BotMark(Modifier.size(76.dp))
             Spacer(Modifier.height(22.dp))
             Text(tr("connect.title"), fontSize = 30.sp, lineHeight = 35.sp, fontWeight = FontWeight.Medium, color = p.ink)
             Spacer(Modifier.height(16.dp))
-            Text(tr("connect.body"), color = p.muted, lineHeight = 23.sp)
+            Text(tr(if (state.codePairingOpen) "connect.codeHelp" else "connect.body"), color = p.muted, lineHeight = 23.sp)
             Spacer(Modifier.height(30.dp))
-            ActionButton(tr(if (state.connecting) "connect.connecting" else "connect.scan"), actions::connect, Modifier.fillMaxWidth().heightIn(min = 54.dp), primary = true, enabled = !state.connecting, icon = "phone")
+            if (state.codePairingOpen) {
+                BotField(state.pairingCode, actions::pairingCode, Modifier.fillMaxWidth(),
+                    label = tr("connect.codeLabel"), placeholder = tr("connect.codePlaceholder"),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters,
+                        autoCorrectEnabled = false, keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { submit() }))
+                Spacer(Modifier.height(14.dp))
+                BotField(state.pairingServer, actions::pairingServer, Modifier.fillMaxWidth(),
+                    label = tr("connect.server"),
+                    keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { submit() }))
+                state.pairingError?.let { key ->
+                    Text(tr(key), color = MaterialTheme.colorScheme.error, fontSize = 13.sp,
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp).semantics { liveRegion = LiveRegionMode.Polite })
+                }
+                Spacer(Modifier.height(20.dp))
+                ActionButton(tr(if (state.connecting) "connect.connecting" else "connect.submit"), submit,
+                    Modifier.fillMaxWidth().heightIn(min = 54.dp), primary = true,
+                    enabled = !state.connecting && state.pairingCode.isNotBlank() && state.pairingServer.isNotBlank())
+                QuietAction(tr("connect.cancel"), { actions.codePairing(false) }, Modifier.fillMaxWidth().padding(top = 6.dp))
+            } else {
+                ActionButton(tr(if (state.connecting) "connect.connecting" else "connect.scan"), actions::connect, Modifier.fillMaxWidth().heightIn(min = 54.dp), primary = true, enabled = !state.connecting, icon = "phone")
+                QuietAction(tr("connect.enterCode"), { actions.codePairing(true) }, Modifier.fillMaxWidth().padding(top = 6.dp), enabled = !state.connecting)
+            }
             Spacer(Modifier.height(16.dp))
             Text(state.baseUrl.removePrefix("https://"), color = p.muted, fontSize = 12.sp)
         }
