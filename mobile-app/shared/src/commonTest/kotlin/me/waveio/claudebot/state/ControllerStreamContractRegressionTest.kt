@@ -92,6 +92,20 @@ class ControllerStreamContractRegressionTest {
         assertEquals(0L, testScheduler.currentTime)
     }
 
+    @Test fun trimmedSnapshotLabelsDoNotMergeLiveBubblesOrDropTheNextDeltaSpace() = controllerTest {
+        val (fixture, channel) = streamingChat()
+        event(channel, 1, "reply_snapshot", """{"text":"First bubble.  \n\nSecond par ","bubbles":["First bubble.","Second par"]}""")
+        var answer = fixture.controller.state.value.messages.single { it.role == "assistant" }
+        assertTrue(answer.live)
+        assertEquals(listOf("First bubble.  ", "Second par "), answer.parts.map { it.text })
+        assertEquals(answer.text, answer.parts.joinToString("\n\n") { it.text })
+        event(channel, 2, "delta", """{"chunk":"t."}""")
+        answer = fixture.controller.state.value.messages.single { it.role == "assistant" }
+        assertEquals(listOf("First bubble.  ", "Second par t."), answer.parts.map { it.text })
+        assertTrue(answer.live)
+        assertEquals(0L, testScheduler.currentTime)
+    }
+
     @Test fun inconsistentSnapshotBubblesCannotRewriteTheAuthoritativeText() = controllerTest {
         val (fixture, channel) = streamingChat()
         event(channel, 1, "reply_snapshot", """{"text":"Correct table text","bubbles":["Incorrect split","Other text"]}""")

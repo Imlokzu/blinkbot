@@ -755,8 +755,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                     ?: data["bubbles"]?.jsonArray?.joinToString("\n\n") { it.jsonPrimitive.content }.orEmpty()
                 if (snapshot.isBlank()) return
                 val bubbles = data["bubbles"]?.jsonArray?.map { it.jsonPrimitive.content }.orEmpty()
-                val answer = bubbles.takeIf { it.isNotEmpty() && it.joinToString("\n\n") == snapshot }
-                    ?: listOf(snapshot)
+                val answer = snapshotBubbles(snapshot, bubbles)
                 val insertAt = old.parts.indexOfFirst { it.type == "text" && it.noteId == null && !it.note }.let { if (it < 0) old.parts.size else it }
                 val prefix = old.parts.take(insertAt)
                 val preserved = old.parts.drop(insertAt).filterNot { it.type == "text" && it.noteId == null && !it.note }
