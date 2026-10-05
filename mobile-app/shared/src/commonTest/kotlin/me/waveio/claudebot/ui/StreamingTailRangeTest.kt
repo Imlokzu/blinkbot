@@ -8,12 +8,108 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class StreamingTailRangeTest {
-    @Test fun revealAdvancesByCodePointsWithoutWaitingForWordBoundaries() {
+    @Test fun revealAdvancesInsideWordsWithoutSplittingGraphemes() {
         val text = "token stream 🌊 keeps moving"
         assertEquals(4, nextStreamRevealIndex(text, 0, 4))
         val emojiStart = text.indexOf("🌊")
         assertEquals(emojiStart + 2, nextStreamRevealIndex(text, emojiStart, 1))
         assertEquals("token", text.substring(0, nextStreamRevealIndex(text, 0, 5)))
+    }
+
+    @Test fun everyRevealBoundaryPreservesJoinedUnicodeGlyphs() {
+        val glyphs = listOf(
+            "e\u0301", "\u0915\u093F", "1\uFE0F\u20E3", "\u2764\uFE0F",
+            "\uD83D\uDC4D\uD83C\uDFFD", "\uD83D\uDC69\u200D\uD83D\uDCBB",
+            "\uD83C\uDDFA\uD83C\uDDF8", "\uD834\uDD5F\uD834\uDD65",
+            "\u1100\u1161\u11A8", "\r\n",
+            "\uD83C\uDFF4\uDB40\uDC67\uDB40\uDC62\uDB40\uDC7F",
+        )
+        val text = glyphs.joinToString("")
+        var offset = 0
+        for (glyph in glyphs) {
+            assertEquals(offset + glyph.length, nextStreamRevealIndex(text, offset, 1), glyph)
+            offset += glyph.length
+        }
+        // A new snapshot may extend the last already visible glyph.
+        assertEquals(2, nextStreamRevealIndex("e\u0301x", 1, 1))
+        val flag = "\uD83C\uDDFA\uD83C\uDDF8"
+        assertEquals(flag.length, nextStreamRevealIndex(flag + flag, 2, 1))
+    }
+
+    @Test fun revealStartsFromTheSuppliedSnapshotAndOnlyQueuesLiveAppends() {
+        val history = "A long existing answer. ".repeat(100)
+        val reveal = StreamTextReveal(history, true)
+        assertEquals(history, reveal.rendered)
+        assertFalse(reveal.pending)
+        assertFalse(reveal.animateTail)
+        reveal.update(history + "microfragment", true)
+        assertEquals(history, reveal.rendered)
+        assertEquals(history + "mi", reveal.advance(0))
+        assertTrue(reveal.pending)
+        assertEquals(history + "micr", reveal.advance(16))
+        assertTrue(reveal.animateTail)
+        reveal.advance(StreamRevealDeadlineMillis)
+        assertEquals(reveal.target, reveal.rendered)
+    }
+
+    @Test fun largeAndRepeatedBurstsCannotExtendTheOriginalDeadline() {
+        val reveal = StreamTextReveal("Prefix ", true)
+        reveal.update("Prefix " + "a".repeat(4000), true)
+        assertTrue(reveal.target.length - reveal.rendered.length <= 16)
+        assertTrue(reveal.rendered.startsWith("Prefix "))
+        reveal.advance(1000)
+        for (elapsed in listOf(16L, 32L, 64L, 80L)) {
+            val previous = reveal.rendered
+            reveal.update(reveal.target + "b".repeat(32), true)
+            assertTrue(reveal.rendered.startsWith(previous))
+            reveal.advance(1000 + elapsed)
+        }
+        reveal.advance(1000 + StreamRevealDeadlineMillis)
+        assertEquals(reveal.target, reveal.rendered)
+        assertFalse(reveal.pending)
+    }
+
+    @Test fun correctionsTruncationsCompletionAndReducedMotionClearPendingTextImmediately() {
+        val updates = listOf("Prefix micro", "Corrected answer", "", "Prefix microfragment", "Prefix final answer")
+        for (text in updates) for (enabled in listOf(true, false)) {
+            val reveal = StreamTextReveal("Prefix ", true)
+            reveal.update("Prefix microfragment pending", true)
+            reveal.advance(0)
+            // Includes a truncation which still extends the visible prefix.
+            reveal.update(text, enabled)
+            assertEquals(text, reveal.rendered)
+            assertFalse(reveal.pending)
+            assertFalse(reveal.animateTail)
+            assertEquals(text, reveal.advance(1000), "Old queued suffix must never return")
+        }
+        val inactive = StreamTextReveal("History", false)
+        inactive.update("History with a snapshot", true)
+        assertEquals(inactive.target, inactive.rendered)
+        assertFalse(inactive.animateTail)
+    }
+
+    @Test fun settledModeChangesPreserveMarkdownIdentityButPendingTextStillFlushes() {
+        val reveal = StreamTextReveal("Settled", true)
+        reveal.update("Settled reply", true)
+        reveal.advance(0)
+        reveal.advance(StreamRevealDeadlineMillis)
+        assertFalse(reveal.pending)
+        assertTrue(reveal.animateTail)
+        val revision = reveal.revision
+        for (enabled in listOf(false, true, false, true)) {
+            reveal.update("Settled reply", enabled)
+            assertEquals(revision, reveal.revision, "A mode-only change must not remount Markdown")
+            assertEquals("Settled reply", reveal.rendered)
+            assertFalse(reveal.pending)
+            assertFalse(reveal.animateTail)
+        }
+        reveal.update("Settled reply continues", true)
+        assertTrue(reveal.pending)
+        reveal.update(reveal.target, false)
+        assertEquals(revision + 1, reveal.revision, "Flushing pending text still invalidates stale parsing")
+        assertEquals("Settled reply continues", reveal.rendered)
+        assertFalse(reveal.pending)
+        assertFalse(reveal.animateTail)
     }
 
     @Test fun appendedTextKeepsTheExistingPrefixSharpAndCapsLargeChunks() {

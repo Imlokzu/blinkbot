@@ -37,28 +37,32 @@ private val LocalStreamTail = compositionLocalOf { false }
 @Composable
 fun ChatMarkdown(text: String, streaming: Boolean = false) {
     val renderedText = rememberStreamingText(text, streaming)
-    val state = rememberMarkdownState(renderedText, retainState = true)
-    val components = remember {
-        markdownComponents(
-            paragraph = { StreamingMarkdownText(it, it.typography.paragraph) },
-            text = { StreamingMarkdownText(it, it.typography.text, plain = true) },
-            heading1 = { StreamingMarkdownText(it, it.typography.h1, MarkdownTokenTypes.ATX_CONTENT) },
-            heading2 = { StreamingMarkdownText(it, it.typography.h2, MarkdownTokenTypes.ATX_CONTENT) },
-            heading3 = { StreamingMarkdownText(it, it.typography.h3, MarkdownTokenTypes.ATX_CONTENT) },
-            heading4 = { StreamingMarkdownText(it, it.typography.h4, MarkdownTokenTypes.ATX_CONTENT) },
-            heading5 = { StreamingMarkdownText(it, it.typography.h5, MarkdownTokenTypes.ATX_CONTENT) },
-            heading6 = { StreamingMarkdownText(it, it.typography.h6, MarkdownTokenTypes.ATX_CONTENT) },
-            setextHeading1 = { StreamingMarkdownText(it, it.typography.h1, MarkdownTokenTypes.SETEXT_CONTENT) },
-            setextHeading2 = { StreamingMarkdownText(it, it.typography.h2, MarkdownTokenTypes.SETEXT_CONTENT) },
-            table = { ChatTable(it) },
-        )
-    }
-    CompositionLocalProvider(LocalStreamTail provides streaming) {
-    // Layout follows the real text immediately. Only fresh glyph drawing animates.
-    Markdown(state, modifier = Modifier.wrapContentWidth(), components = components,
-        animations = markdownAnimations(animateTextSize = { this }),
-        loading = { Text(renderedText, color = LocalPalette.current.ink) },
-        error = { Text(renderedText, color = LocalPalette.current.ink) })
+    // Recreate parsing state only for authoritative replacements, so retained
+    // Markdown cannot show an obsolete snapshot while the replacement parses.
+    key(renderedText.revision) {
+        val state = rememberMarkdownState(renderedText.text, retainState = true)
+        val components = remember {
+            markdownComponents(
+                paragraph = { StreamingMarkdownText(it, it.typography.paragraph) },
+                text = { StreamingMarkdownText(it, it.typography.text, plain = true) },
+                heading1 = { StreamingMarkdownText(it, it.typography.h1, MarkdownTokenTypes.ATX_CONTENT) },
+                heading2 = { StreamingMarkdownText(it, it.typography.h2, MarkdownTokenTypes.ATX_CONTENT) },
+                heading3 = { StreamingMarkdownText(it, it.typography.h3, MarkdownTokenTypes.ATX_CONTENT) },
+                heading4 = { StreamingMarkdownText(it, it.typography.h4, MarkdownTokenTypes.ATX_CONTENT) },
+                heading5 = { StreamingMarkdownText(it, it.typography.h5, MarkdownTokenTypes.ATX_CONTENT) },
+                heading6 = { StreamingMarkdownText(it, it.typography.h6, MarkdownTokenTypes.ATX_CONTENT) },
+                setextHeading1 = { StreamingMarkdownText(it, it.typography.h1, MarkdownTokenTypes.SETEXT_CONTENT) },
+                setextHeading2 = { StreamingMarkdownText(it, it.typography.h2, MarkdownTokenTypes.SETEXT_CONTENT) },
+                table = { ChatTable(it) },
+            )
+        }
+        CompositionLocalProvider(LocalStreamTail provides renderedText.animateTail) {
+            // The reveal window is bounded; only its fresh suffix drawing is softened.
+            Markdown(state, modifier = Modifier.wrapContentWidth(), components = components,
+                animations = markdownAnimations(animateTextSize = { this }),
+                loading = { Text(renderedText.text, color = LocalPalette.current.ink) },
+                error = { Text(renderedText.text, color = LocalPalette.current.ink) })
+        }
     }
 }
 
