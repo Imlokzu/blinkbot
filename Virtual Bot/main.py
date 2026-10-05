@@ -4506,6 +4506,8 @@ app.include_router(mobile_content.router(
 ))
 import mobile_workspace
 app.include_router(mobile_workspace.router(_require_user, resolve_file=workspace._resolve))
+import mobile_web_preview
+app.include_router(mobile_web_preview.router(_require_user, resolve_file=workspace._resolve))
 
 
 @app.get("/{asset_path:path}", include_in_schema=False)

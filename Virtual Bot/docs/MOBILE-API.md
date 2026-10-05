@@ -340,3 +340,67 @@ The mobile chat derives delivered files from actual successful workspace tool
 results, including MCP wrappers. Running writes are not downloaded. Text editor
 previews still use `/api/workspace/file`; extracted preview text is never used
 as the original export payload.
+
+## Private static web-app previews
+
+The parent includes `mobile_web_preview.router(_require_user,
+resolve_file=workspace._resolve)` before the static catch-all. Both routes reuse
+the existing owner authentication, workspace and session context. They start no
+server, subprocess or agent job, and publish no public preview URL.
+
+`GET /api/mobile/workspace/web-preview?path=<workspace-relative>&session_id=<chat-id>`
+accepts a standalone HTML file or directory. A ready response contains
+`{ready:true, root, entry, project_path, kind:"web", buildable}`. `root` and
+`project_path` are canonical workspace-relative paths: `session/app` expands to
+`sessions/<session-slug>/app`. `entry` is relative to `root`. An empty `root`
+means the workspace root. Static pages have `buildable:false`.
+
+An existing regular non-HTML file, including an extensionless `README`, returns
+`{ready:false, kind:"file", root:<parent>, entry:<filename>,
+project_path:<parent>, buildable:false}` without reading its contents. The parent
+falls back to its existing native file reader. Empty parent paths are valid for
+files and standalone HTML at the workspace root.
+
+Vite/React projects detected from package dependencies or scripts prefer
+`dist/index.html`, then `build/index.html`. Their source HTML is not treated as
+a built application. Without either output, the response is
+`{ready:false, reason:"build_required", project_path, root:project_path,
+kind:"web", buildable:true}`. Built projects retain `buildable:true`, so the
+parent can offer Rebuild. The parent sends its localized build request through
+the existing chat/agent queue using `project_path` and the same session, then
+refreshes this descriptor. There is no command execution endpoint.
+`buildable:true` requires a detected package project with a nonempty canonical
+`project_path`. A package directly at the workspace root retains `project_path:""`
+and `buildable:false` because the parent's build target validator rejects empty
+paths; its existing built assets can still be previewed.
+
+`GET /api/mobile/workspace/web-resource?root=<root>&path=<relative-asset>&entry=<entry>&session_id=<chat-id>`
+uses query parameters, not a wildcard URL path. The native client removes the
+virtual origin's leading slash and query/fragment, then query-encodes each
+parameter once. Each successful resource response preserves original bytes,
+with explicit MIME types and the existing 20 MiB download limit. HTML, JS/MJS,
+CSS, JSON/web manifests, images, fonts and WASM are allowed. Directory requests
+try `index.html` and `index.htm`; extensionless SPA routes fall back to `entry`.
+Missing assets such as `missing.js` return 404, not HTML.
+
+Paths reject traversal, absolute paths, dotfiles, symlinks (including internal
+aliases), control characters and residual percent escapes. Source directories,
+dependency trees, source maps, package manifests and known configuration/secret
+filenames are forbidden resources. An empty `root` permits only its single
+top-level HTML entry and the `assets/` subtree; other workspace files and route
+paths are forbidden. Nonempty session IDs use `[A-Za-z0-9_-]{1,64}`, retaining
+the shared workspace's session-slug mapping. Invalid paths return 400, forbidden
+assets 403, missing files 404, unbuilt resource roots 409, oversized files 413,
+and invalid query/session fields 422. Authentication failures retain 401.
+
+Responses have `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, and
+`Access-Control-Allow-Origin: *` without credentialed CORS. CSP permits self and
+inline scripts/styles, self/data/blob images and fonts, and same-origin
+connections; objects, workers, frames and forms are denied. The native parent
+owns a disposable virtual origin, forwards only GET static-resource requests,
+blocks requests outside that origin, and never exposes the transport token to
+page JavaScript. It keeps `root`, `entry` and `session_id` fixed in the resource
+callback rather than accepting these values from page URLs.
+
+Fixture validation (no real server or integrations):
+`PYTHONPATH="$PWD" .venv/bin/pytest tests/test_mobile_web_preview.py tests/test_mobile_workspace.py -q`.
