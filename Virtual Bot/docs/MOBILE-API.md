@@ -285,6 +285,18 @@ Ignore comment keepalives. A listener disconnect does not cancel the turn.
 Terminal streams drain all stored events and then close. Clients must tolerate
 duplicate delivery after reconnect and deduplicate using the sequence ID.
 
+Paired-device credentials are revalidated before each replay batch and each
+event. Revoking or expiring a device closes its open job listener; an idle
+listener closes at the next polling interval. A new request with that credential
+returns HTTP 401. Closing the listener does not stop the accepted job or another
+authorized device's stream. These checks also apply to the empty local-owner
+identity. Nonmobile listeners retain the parent authentication policy.
+
+After SSE headers have been sent, invalid credentials cause EOF, rather than an
+HTTP status change or a private error event. Frames already yielded to the HTTP
+transport or buffered by a proxy cannot be recalled. Each subsequent credential
+check observes committed revocations before yielding another event.
+
 ## Steering and remaining integration limits
 
 Steer submissions return HTTP 501 with

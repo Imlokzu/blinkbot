@@ -612,6 +612,21 @@ def router(require_user, require_operator, run_turn: RunTurn, *, store: MobileSt
     @routes.get("/messages/{job_id}/events")
     async def events(job_id: str, request: Request, after: int = Query(default=0, ge=0), user_id: str = Depends(identity)):
         call(lambda: selected_store.get(user_id, job_id))
+        stream_token = _token(request)
+
+        def still_authorized() -> bool:
+            # Retain this device's credential, not just its owner: revoking one
+            # phone must close its listener without affecting the owner's job
+            # or another device. Nonmobile listeners retain the parent policy.
+            if not stream_token.startswith(TOKEN_PREFIX):
+                return True
+            try:
+                return authenticate_token(stream_token, store=selected_store) == user_id
+            except HTTPException as exc:
+                if exc.status_code == 401:
+                    return False  # Headers are sent already; close without private data.
+                raise
+
         if "after" not in request.query_params and request.headers.get("last-event-id"):
             try:
                 after = int(request.headers["last-event-id"])
@@ -623,8 +638,14 @@ def router(require_user, require_operator, run_turn: RunTurn, *, store: MobileSt
         async def stream():
             cursor = after
             while True:
+                if not still_authorized():
+                    break
                 batch = selected_store.events(user_id, job_id, cursor)
                 for entry in batch:
+                    # Each yield can suspend while a client consumes a replay
+                    # batch. Recheck before sending the next buffered event.
+                    if not still_authorized():
+                        return
                     cursor = entry["seq"]
                     data = entry["data"]
                     if entry["event"] == "mobile_state" and data.get("state") == "failed":
