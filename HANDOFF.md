@@ -2060,3 +2060,15 @@ with R8 and separately installed/launch-smoked; iOS remains source-only.
 
 - Android in-app APK installation now requires a complete 64-hex SHA-256 digest from the update metadata and an exact match from the downloaded bytes. Missing, malformed and mismatched digests never reach the native installer; iOS external update links are unchanged.
 - Validation: 32 focused Python mobile tests, shared/Android Gradle unit tests, and new checksum regressions passed. Independent adversarial review approved the scoped change. Details: `reports/night-agent-mobile-update-2026-10-04.md`.
+
+
+## 2026-10-05 — Privacy and operation-lifecycle audit
+
+- Added `reports/repository-audit-2026-10-05/REPORT.md`, validation notes,
+  and guarded probes for four reproduced stream/publication/reservation
+  findings plus one source-based APK-size contract mismatch.
+- Five proposed additions and fix examples are recorded; product code and
+  published assets remain unchanged. Deployment/native-runtime limits are
+  explicit in `VALIDATION.md`.
+- Backend checks passed 1,317 tests, 8 skipped and 178 subtests; 215 dashboard
+  tests and TypeScript passed. Mobile unit tasks succeeded from cache.
