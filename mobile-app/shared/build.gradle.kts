@@ -31,6 +31,7 @@ kotlin {
         androidMain.dependencies {
             implementation("io.ktor:ktor-client-okhttp:3.3.3")
             implementation("androidx.activity:activity-compose:1.10.1")
+            implementation("androidx.webkit:webkit:1.16.0")
         }
         iosMain.dependencies { implementation("io.ktor:ktor-client-darwin:3.3.3") }
         commonTest.dependencies {

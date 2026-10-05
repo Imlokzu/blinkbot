@@ -1,0 +1,6 @@
+{
+  "name": "native-react-preview-fixture",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "vite build --base ./" }
+}
