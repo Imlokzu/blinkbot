@@ -2072,3 +2072,44 @@ with R8 and separately installed/launch-smoked; iOS remains source-only.
   explicit in `VALIDATION.md`.
 - Backend checks passed 1,317 tests, 8 skipped and 178 subtests; 215 dashboard
   tests and TypeScript passed. Mobile unit tasks succeeded from cache.
+## Phone pairing codes and agent follow-ups (2026-10-05)
+
+- Dashboard Devices creates both the existing QR and an eight-character,
+  copyable `XXXX-XXXX` code. Both expire after five minutes and consume the
+  same one-time pairing atomically. Short codes are stored only as hashes;
+  a durable host-wide budget permits ten short-code attempts per five minutes,
+  with `429 pairing_rate_limited` and `Retry-After`. QR exchange remains
+  case-sensitive and available when the short-code budget is exhausted.
+- Mobile connection offers Enter connection code, a prefilled HTTPS server,
+  localized validation/retry feedback, and Back to QR. Input stays ephemeral.
+  Editing or closing the form invalidates late responses, duplicate submit is
+  suppressed synchronously, and successful pairing uses existing secure device
+  credential storage. The existing QR flow remains covered.
+- Android release 0.4.4 / code 11 built from the current absolute mobile source
+  snapshot. SHA-256:
+  `7c2f15161951f88b64837085865dc77d6e4238f902a08d1c9a828d3ff6a3be95`.
+  The optimized APK was installed/launched on the Pixel 8 API 35 emulator;
+  the code form opened successfully. iOS version metadata was aligned, but
+  iOS compilation, TestFlight and physical-device checks were not performed.
+- Validation: 1,350 Python tests passed, 8 skipped, 178 subtests passed in the
+  offline run with repository dotenv reads blocked; 69 focused backend tests;
+  180 shared and 78 Android unit tests; three new real Compose instrumentation
+  cases; 215 dashboard tests, typecheck, isolated production build and the
+  expanded mocked browser fixture. Actual loopback HTTP smoke covered issuance,
+  typed exchange, authenticated capabilities and device listing using a temporary
+  store. No production pairing credential or provider request was used.
+- Independent workers reviewed mobile and backend pairing and the follow-up
+  index. Dashboard screenshots in both locales and native screenshots were
+  inspected. Normal Gitleaks/TruffleHog hooks passed for scoped commits; unrelated
+  worktree/index edits were preserved without shared stashing.
+- The registered backend was restarted after confirming zero running/stopping
+  jobs. Tunnel configuration was untouched. Dashboard source revision
+  `e87baa5837c0a0455ff426ac662225cc8675c25f` was published through the guarded
+  publisher; the served entry and ten direct assets returned 200. The isolated
+  build used committed dashboard sources plus the two pre-existing untracked
+  integrations modules already imported by tracked SettingsPanel; those modules
+  and other unrelated pending files were not committed by this task.
+- Reviewed daily/night reports and added `reports/AGENT-FOLLOWUPS.md` with fix
+  evidence, prioritized open bugs and proposed product work. These remaining
+  items, including active-stream revocation and the updater size mismatch,
+  are recorded follow-ups, not claimed fixed by code pairing.
