@@ -275,6 +275,16 @@ class MobileUiTest {
         waitFor("Scan QR code"); compose.onNodeWithText("Scan QR code").performClick()
         waitFor("Claude Sonnet")
         compose.onNode(hasSetTextAction()).performTextInput("Show live progress")
+        // Android animates the IME outside Compose's clock. Wait for the real
+        // tap target to settle before asserting streamed provider progress.
+        var previousBounds = compose.onNodeWithContentDescription("Send").fetchSemanticsNode().boundsInRoot
+        var stableSince = android.os.SystemClock.uptimeMillis()
+        compose.waitUntil(5000) {
+            val bounds = compose.onNodeWithContentDescription("Send").fetchSemanticsNode().boundsInRoot
+            val now = android.os.SystemClock.uptimeMillis()
+            if (bounds != previousBounds) { previousBounds = bounds; stableSince = now }
+            now - stableSince >= 300
+        }
         compose.onNodeWithContentDescription("Send").performClick()
         waitFor("Already arriving")
         compose.onNodeWithContentDescription("Stop").assertIsDisplayed()
@@ -489,7 +499,7 @@ class MobileUiTest {
         screenshot("pixel-attachments-large-uk")
         listOf("input.camera", "input.photo", "input.document", "input.skills", "files.root", "queue.later").forEach { key ->
             compose.onNodeWithText(uk.get(key)).performScrollTo()
-            assertTextFits(compose.onNodeWithText(uk.get(key), useUnmergedTree = true))
+            assertTextFits(compose.onNode(hasText(uk.get(key)).and(hasAnyAncestor(isPopup())), useUnmergedTree = true))
         }
         compose.onNodeWithText(uk.get("input.photo")).performScrollTo().performClick()
         assertEquals("photo", bridge.lastPicker)

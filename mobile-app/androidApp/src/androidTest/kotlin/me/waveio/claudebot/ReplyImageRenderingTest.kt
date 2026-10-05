@@ -263,6 +263,8 @@ class ReplyImageRenderingTest {
         assertIncomplete(STREAM_UNCLOSED)
         server.closeMarkdown.complete(Unit)
 
+        waitFor(imageMatcher("Streaming portrait"))
+        readEarlierReplyContent()
         awaitImage("Streaming portrait")
         assertCaption(STREAM_CAPTION)
         assertEquals(listOf(STREAM_IMAGE_URL), server.imageRequests.toList())
@@ -344,6 +346,7 @@ private class ReplyImageHost {
                     query(mapOf("platform" to "android", "version_code" to "0"))
                     """{"steer":false,"queue":true,"event_replay":true}"""
                 }
+                path == "/api/brain/intelligence" && method == HttpMethod.Get -> { query(); """{"available":false}""" }
                 path == "/api/brain/models" && method == HttpMethod.Get -> {
                     query(mapOf("refresh" to "false"))
                     """{"models":[{"id":"fixture/claude","label":"$IMAGE_MODEL_LABEL","provider":"fixture","brand":"anthropic","efforts":["none"]}],"selected":"fixture/claude"}"""
