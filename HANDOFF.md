@@ -2113,3 +2113,51 @@ with R8 and separately installed/launch-smoked; iOS remains source-only.
   evidence, prioritized open bugs and proposed product work. These remaining
   items, including active-stream revocation and the updater size mismatch,
   are recorded follow-ups, not claimed fixed by code pairing.
+## Tablet layout and the missing Sol image input (2026-10-05)
+
+- The reported image loss was below the phone transport: a completed job carried
+  one JPEG and the requested/effective `openai/gpt-6-sol` model. Its configured
+  OpenClaw model entry omitted `input`. The installed gateway defaults that entry
+  to text-only and silently drops images before provider serialization. The web
+  image path instead used the configured Qwen image model, explaining the
+  different results without blaming upload serialization or the Sol selection.
+- Corrected only the local GPT Sol input declaration to `["text", "image"]`
+  using the installed CLI's dry-run and a separate conditional absent-field
+  write, after checking zero running/stopping mobile jobs. Compared other model,
+  gateway, agent/default, auth and environment sections before/after: unchanged.
+  The gateway logged hot-reload applied at 09:38:46.748 on 2026-10-05, and the
+  host model catalog now reports Sol vision support. No provider request,
+  credential change, gateway restart or fallback substitution was performed.
+- Added twelve source-backed regression cases against the installed Gateway HTTP
+  parser, prompt-image loader and Responses serializer. Missing/text-only input
+  reproduces the loss; text+image preserves exact PNG/JPEG hashes. These tests
+  verify transport preparation, not a paid model's real image interpretation.
+  They skip when the installed OpenClaw/Node dependency is unavailable.
+- Tablet windows at 840dp and above use a persistent 280dp conversation sidebar.
+  The conversation/composer is capped at 760dp, forms at 640dp, and connection
+  inputs and popups remain compact. Phone windows retain the reveal drawer and
+  edge-to-edge attachment sheet. Window resizing preserves the same composition,
+  draft, active conversation and middle-history reading position. Media uses the
+  dialog's own constraints and keeps original aspect ratios.
+- Broad native validation also caught generated file tiles opening an invisible
+  editor state while still in Chat. Restored the shared preview and original-byte
+  export; Files-screen editing remains available. Refreshed strict fixture routes
+  for the existing intelligence endpoint and used native gesture/IME readiness
+  where semantics scrolling or premature physical taps fought real UI behavior.
+  Existing assertion coverage and streaming completion gates remain intact.
+- Validation: 1,362 Python tests passed, 8 skipped, 178 subtests passed in the
+  offline suite; 180 shared and 78 Android unit tests passed; final native runs
+  passed all 87 phone cases and five tablet cases. The tablet fixture exercised
+  1100dp, 720dp and 390dp host widths on an API 35 emulator. Screenshots were
+  inspected. There was no physical tablet/phone or iOS runtime validation.
+- Independent workers reviewed the tablet UI, gateway regression evidence,
+  generated-file fix and strengthened UI assertions. Scoped commits used the
+  required author/committer identity and normal secret-scanning hooks without
+  stashing unrelated work. `reports/AGENT-FOLLOWUPS.md` records the cause and a
+  separate rejected-edit recovery finding that was not folded into this fix.
+- Android 0.4.5 / code 12 was built with R8 from the current isolated source
+  snapshot. Final APK SHA-256:
+  `24b74af9f205c38069a0b429a5ed1a1092e620cba7cac64985d98f125f7424e8`.
+  iOS version metadata was aligned and its project regenerated only. The APK is
+  delivered directly; this does not claim automatic update publication or iOS
+  distribution. Previously lost images must be resent after the gateway repair.

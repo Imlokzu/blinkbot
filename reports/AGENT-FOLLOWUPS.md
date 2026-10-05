@@ -52,5 +52,27 @@ Recheck the owning source and deployment assumptions before scheduling a fix.
 5. **Visible background-work health.** Explain queued, paused, scheduled,
    retryable and terminal states, including whether the runner can accept work.
 
-Manual one-time code pairing is the current implementation task. These items
-remain follow-up work unless their status above links to a verified fix.
+Manual one-time code pairing shipped in mobile 0.4.4. The proposed items above
+remain follow-up work unless their status links to a verified fix.
+
+## Tablet and image follow-up (2026-10-05)
+
+- Fixed the reported missing image on the selected `openai/gpt-6-sol` route.
+  Its local OpenClaw declaration omitted `input`, which the installed gateway
+  resolves to text-only. The gateway accepted the HTTP image but removed it
+  before provider serialization. The web image route used a different model
+  with image input declared. A conditional CLI write added `["text", "image"]`
+  to only the Sol entry; gateway reload and the host's vision metadata were
+  verified. No provider, default model, credential, or other model was changed.
+  `test_mobile_image_parity.py` exercises the installed parser/loader/serializer
+  with synthetic PNG/JPEG data, including exact byte hashes. Live provider
+  recognition was not tested.
+- Fixed generated-file tiles opening an invisible editor state from Chat;
+  they now open the shared preview and original-byte export. Editing remains
+  available in Files. Regression evidence includes a generated Markdown file
+  withheld while its tool runs, then previewed and saved byte-for-byte.
+- Separately reported, not fixed here: a rejected edit fork can restore text
+  without its edit target in `AppController.submit`. Preserve the original
+  fork target and inherited image manifest if that recovery flow is revised;
+  add a rejected-edit regression before changing behavior. This was a bounded
+  source finding, not a reproduced cause of the reported Sol image failure.
