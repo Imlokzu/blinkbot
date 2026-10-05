@@ -100,7 +100,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         permitted += runCatching { readScoped("outbox.allowed")?.let { json.decodeFromString<List<String>>(it) } }.getOrNull().orEmpty()
         outboxSnapshot = outbox.toList()
         allowedSnapshot = permitted.toSet()
-        mutable.value = AppState(preferences = preferences, baseUrl = server, customWallpaper = wallpaper, draft = readScoped("draft.new").orEmpty(), selectedModel = initialModel(preferences))
+        mutable.value = AppState(preferences = preferences, baseUrl = server, customWallpaper = wallpaper, draft = readScoped("draft.new").orEmpty(), selectedModel = initialModel(preferences), installedVersion = platform.appVersionName)
         val token = runCatching { platform.readSecret("device_token") }.getOrNull()
         if (!token.isNullOrBlank()) run { establish(server, token) }
         scope.launch {
@@ -142,7 +142,9 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     }
     private fun requireApi(): BotApi = api ?: throw ApiFailure(401, "not_connected")
     private fun updateFromCapabilities(capabilities: JsonObject): MobileUpdate? = capabilities["update"]?.jsonObject?.let { value ->
-        if (value["available"]?.jsonPrimitive?.booleanOrNull != true) null else MobileUpdate(
+        if (value["available"]?.jsonPrimitive?.booleanOrNull != true ||
+            (value["version_code"]?.jsonPrimitive?.intOrNull ?: 0) <= platform.appVersionCode ||
+            value["version_name"]?.jsonPrimitive?.contentOrNull.isNullOrBlank()) null else MobileUpdate(
             versionName = value["version_name"]?.jsonPrimitive?.contentOrNull.orEmpty(),
             versionCode = value["version_code"]?.jsonPrimitive?.intOrNull ?: 0,
             changelog = value["changelog"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
@@ -151,6 +153,11 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             sha256 = value["sha256"]?.jsonPrimitive?.contentOrNull,
             mandatory = value["mandatory"]?.jsonPrimitive?.booleanOrNull == true,
         )
+    }
+    private fun updateStatus(capabilities: JsonObject, available: MobileUpdate?): String = when {
+        available != null -> "update.ready"
+        capabilities["update"]?.jsonObject?.get("version_name")?.jsonPrimitive?.contentOrNull.isNullOrBlank() -> "update.noRelease"
+        else -> "update.current"
     }
     private fun run(isCurrent: () -> Boolean = { true }, block: suspend () -> Unit) {
         val epoch = connectionVersion
@@ -270,7 +277,9 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             val updateInfo = updateFromCapabilities(capabilities)
             if (version != connectionVersion) { connection.close(); return }
             api?.close(); api = connection
-            update { it.copy(baseUrl = connection.origin, connected = true, connecting = false, error = null, update = updateInfo, updateChecking = false, steerAvailable = capabilities["steer"]?.jsonPrimitive?.booleanOrNull == true) }
+            update { it.copy(baseUrl = connection.origin, connected = true, connecting = false, error = null, update = updateInfo,
+                updateChecking = false, updatePromptOpen = updateInfo != null, updateStatus = updateStatus(capabilities, updateInfo),
+                steerAvailable = capabilities["steer"]?.jsonPrimitive?.booleanOrNull == true) }
             loadCatalog(); loadSessions()
             scope.launch { loadIntelligence(version) }
             runCatching { loadProfile() }
@@ -350,6 +359,10 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         if (screen == Screen.Personalization) run { loadProfile() }
         if (screen == Screen.Queue) run { loadAllJobs() }
         if (screen == Screen.Skills) run { loadSkills() }
+        if (screen == Screen.Updates) {
+            update { it.copy(updatePromptOpen = false) }
+            checkForUpdate()
+        }
     }
     private suspend fun loadSkills() {
         val version = connectionVersion
@@ -1478,25 +1491,30 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         chatActionVersions.clear(); chatActionLocks.clear(); deletingChats.clear(); reactionLocks.clear(); reactionVersions.clear(); reactionBaselines.clear()
         sessionsVersion++; messageMutationVersion++
         outbox.clear(); permitted.clear(); outboxSnapshot = emptyList(); allowedSnapshot = emptySet(); fileDrafts.clear(); fileBaselines.clear(); fileRevisions.clear(); cursors.clear(); sessionStreamVersions.clear(); observedJobStates.clear(); reportedJobErrors.clear(); cachedProfile = null; catalogDefaultModel = ""; beforeEdit = null; fileReturnScreen = null
-        platform.writeSecret("device_token", null); update { AppState(preferences = it.preferences, baseUrl = it.baseUrl, customWallpaper = it.customWallpaper, mediaGeneration = it.mediaGeneration + 1) }
+        platform.writeSecret("device_token", null); update { AppState(preferences = it.preferences, baseUrl = it.baseUrl, customWallpaper = it.customWallpaper, mediaGeneration = it.mediaGeneration + 1, installedVersion = platform.appVersionName) }
     }
     override fun dismissNotice() { update { it.copy(error = null, notice = null, noticeDetail = null) } }
-    override fun dismissUpdate() { update { it.copy(update = null) } }
+    override fun dismissUpdate() { update { it.copy(updatePromptOpen = false) } }
     override fun checkForUpdate() {
+        if (state.value.updateChecking || state.value.updateInstalling) return
         val connection = api ?: return
         val version = connectionVersion
         update { it.copy(updateChecking = true, updateError = null) }
         run(isCurrent = { version == connectionVersion }) {
             try {
-                val updateInfo = updateFromCapabilities(connection.capabilities(platform.platformName, platform.appVersionCode))
+                val capabilities = connection.capabilities(platform.platformName, platform.appVersionCode)
+                val updateInfo = updateFromCapabilities(capabilities)
                 if (version != connectionVersion) return@run
-                update { it.copy(update = updateInfo, updateChecking = false, notice = if (updateInfo == null) "update.current" else null) }
-            } catch (_: Exception) {
-                if (version == connectionVersion) update { it.copy(updateChecking = false, updateError = "update.failed") }
+                update { it.copy(update = updateInfo, updateChecking = false, updateStatus = updateStatus(capabilities, updateInfo),
+                    updatePromptOpen = updateInfo != null && it.screen != Screen.Updates) }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) {
+                if (version == connectionVersion) update { it.copy(updateChecking = false, updateError = "update.checkFailed") }
             }
         }
     }
     override fun installUpdate() {
+        if (state.value.updateInstalling || state.value.updateChecking) return
         val available = state.value.update ?: return
         val target = if (platform.platformName == "ios") available.iosUrl ?: available.url else available.url
         if (target.isNullOrBlank()) { update { it.copy(updateError = "update.unavailable") }; return }
@@ -1510,14 +1528,20 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         run(isCurrent = { version == connectionVersion }) {
             try {
                 val bytes = connection.downloadUpdate(target)
+                if (version != connectionVersion || api !== connection) return@run
                 if (bytes.isEmpty()) throw ApiFailure(0, "update.empty")
                 if (!updateChecksumMatches(available.sha256, platform.sha256(bytes))) {
                     throw ApiFailure(0, "update.checksum")
                 }
                 val accepted = CompletableDeferred<Boolean>()
                 platform.installPackage(PickedFile("ClaudeBot-${available.versionName}.apk", "application/vnd.android.package-archive", bytes)) { accepted.complete(it) }
-                if (accepted.await() && version == connectionVersion) update { it.copy(update = null) }
-            } catch (failure: ApiFailure) {
+                val opened = accepted.await()
+                if (version == connectionVersion) update {
+                    if (opened) it.copy(updatePromptOpen = false, updateStatus = "update.installerOpened")
+                    else it.copy(updateError = "update.failed")
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: ApiFailure) {
                 val code = if (failure.code == "update.empty" || failure.code == "update.checksum") failure.code else "update.failed"
                 if (version == connectionVersion) update { it.copy(updateError = code) }
             } catch (_: Exception) {

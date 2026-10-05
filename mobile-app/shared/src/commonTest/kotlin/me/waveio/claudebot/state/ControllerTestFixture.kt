@@ -23,6 +23,8 @@ import me.waveio.claudebot.platform.PlatformBridge
 /** A silent native boundary. Retained callbacks intentionally model late OS results. */
 internal class FakePlatformBridge : PlatformBridge {
     override val platformName = "android"
+    override var appVersionCode: Int = 0
+    override var appVersionName: String = "0.0.0"
     override val systemLanguage = "en"
     override val reducedMotion = true
     override val foreground = MutableStateFlow(true)
@@ -36,6 +38,9 @@ internal class FakePlatformBridge : PlatformBridge {
     var recordingAmplitude: ((Float) -> Unit)? = null
     val notifications = mutableListOf<Triple<String, String, String>>()
     val openedLinks = mutableListOf<String>()
+    val installedPackages = mutableListOf<PickedFile>()
+    var packageDigest: String? = null
+    var packageAccepted: Boolean = true
     var beforePreferenceWrite: ((String, String?) -> Unit)? = null
     private var nextId = 0
 
@@ -57,6 +62,8 @@ internal class FakePlatformBridge : PlatformBridge {
     override fun copyText(value: String) = Unit
     override fun shareText(value: String) = Unit
     override fun openExternalUrl(url: String) { openedLinks += url }
+    override fun sha256(bytes: ByteArray): String? = packageDigest
+    override fun installPackage(file: PickedFile, onResult: (Boolean) -> Unit) { installedPackages += file; onResult(packageAccepted) }
     override fun requestNotifications(onResult: (Boolean) -> Unit) { onResult(true) }
     override fun notifyReply(title: String, body: String, conversationId: String) { notifications += Triple(title, body, conversationId) }
     override fun nowMillis(): Long = 1_791_043_200_000

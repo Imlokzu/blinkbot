@@ -6,7 +6,7 @@ import me.waveio.claudebot.data.WorkFile
 import me.waveio.claudebot.data.WebPreview
 import kotlinx.serialization.json.JsonElement
 
-enum class Screen { Chat, Search, Files, Agents, Profile, Appearance, Models, Notifications, Personalization, Queue, Skills }
+enum class Screen { Chat, Search, Files, Agents, Profile, Appearance, Models, Notifications, Personalization, Queue, Skills, Updates }
 
 @Serializable
 data class Preferences(
@@ -107,6 +107,9 @@ data class AppState(
     val notice: String? = null,
     val noticeDetail: String? = null,
     val update: MobileUpdate? = null,
+    val installedVersion: String = "",
+    val updatePromptOpen: Boolean = false,
+    val updateStatus: String = "update.notChecked",
     val updateChecking: Boolean = false,
     val updateInstalling: Boolean = false,
     val updateError: String? = null,

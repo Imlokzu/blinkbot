@@ -291,5 +291,13 @@
   "files.build": "Build with the bot",
   "files.rebuild": "Rebuild with the bot",
   "files.webFailed": "The app preview could not load. Refresh it or ask the bot to rebuild.",
-  "files.buildPrompt": "Build and run the web app in workspace path \"{path}\". Use workspace_info to resolve the workspace directory. Use the existing Vite/React project and its package manager, build with a relative asset base (for Vite, --base ./), and keep outputs in dist/ or build/. Do not replace the project or change unrelated files. When the build succeeds, send a /preview/ link to the built index.html with this conversation’s session_id. Report actual build failures instead of claiming success."
+  "files.buildPrompt": "Build and run the web app in workspace path \"{path}\". Use workspace_info to resolve the workspace directory. Use the existing Vite/React project and its package manager, build with a relative asset base (for Vite, --base ./), and keep outputs in dist/ or build/. Do not replace the project or change unrelated files. When the build succeeds, send a /preview/ link to the built index.html with this conversation’s session_id. Report actual build failures instead of claiming success.",
+  "update.installed": "Installed version: {version}",
+  "update.notChecked": "Check for a new version.",
+  "update.check": "Check for updates",
+  "update.checking": "Checking for updates…",
+  "update.ready": "A newer version is available.",
+  "update.noRelease": "No update has been published on this server yet.",
+  "update.checkFailed": "Could not check for updates. Check your connection and try again.",
+  "update.installerOpened": "The system installer is open. Finish installation there."
 }

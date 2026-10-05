@@ -79,7 +79,7 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
                 SettingsLink("edit", "profile.personalization") { actions.navigate(Screen.Personalization) }
                 SettingsLink("phone", "profile.notifications") { actions.navigate(Screen.Notifications) }
                 SettingsLink("time", "queue.title") { actions.navigate(Screen.Queue) }
-                SettingsLink(if (state.updateChecking) "time" else "download", "profile.update", actions::checkForUpdate)
+                SettingsLink("download", "profile.update") { actions.navigate(Screen.Updates) }
                 Hairline()
                 Text(tr("profile.language"), color = p.muted, fontSize = 12.sp)
                 Choices(listOf("system" to "profile.system", "uk" to "profile.ukrainian", "en" to "profile.english"), preferences.language) { actions.preferences(preferences.copy(language = it)) }
@@ -122,6 +122,7 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
                 ToggleRow("notifications.preview", preferences.notificationPreview) { actions.preferences(preferences.copy(notificationPreview = it)) }
                 Text(tr("notifications.limited"), color = p.muted, fontSize = 12.sp)
             }
+            Screen.Updates -> UpdateSettingsContent(state, actions)
             Screen.Personalization -> {
                 BotField(state.profileName, actions::profileName, label = tr("profile.name"), modifier = Modifier.fillMaxWidth())
                 BotField(state.profilePersona, actions::profilePersona, label = tr("profile.persona"), modifier = Modifier.fillMaxWidth().heightIn(min = 170.dp), singleLine = false)

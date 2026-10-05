@@ -49,7 +49,7 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             state.dictationOpen -> actions.cancelDictation()
             modalMenuOpen -> actions.menu(false)
             state.openFile != null -> actions.closeFile()
-            state.screen in listOf(Screen.Appearance, Screen.Models, Screen.Notifications, Screen.Personalization, Screen.Queue) -> actions.navigate(Screen.Profile)
+            state.screen in listOf(Screen.Appearance, Screen.Models, Screen.Notifications, Screen.Personalization, Screen.Queue, Screen.Updates) -> actions.navigate(Screen.Profile)
             else -> actions.navigate(Screen.Chat)
         }
     }
@@ -131,7 +131,7 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             ActionButton(tr("queue.allow"), { actions.offlineDelivery(true) }, Modifier.fillMaxWidth(), primary = true)
             QuietAction(tr("queue.keepDraft"), { actions.offlineDelivery(false) }, Modifier.fillMaxWidth())
         }
-        state.update?.let { update -> BotDialog({ if (!update.mandatory) actions.dismissUpdate() }) {
+        state.update?.takeIf { state.updatePromptOpen }?.let { update -> BotDialog({ if (!update.mandatory) actions.dismissUpdate() }) {
             Text(tr("update.title"), fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = palette.ink)
             Text(tr("update.available", "version" to update.versionName), color = palette.muted, modifier = Modifier.padding(top = 6.dp, bottom = 14.dp))
             Text(tr("update.changelog"), color = palette.ink, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
@@ -246,6 +246,7 @@ fun screenTitle(screen: Screen): String = tr(when (screen) {
     Screen.Personalization -> "profile.personalization"
     Screen.Queue -> "queue.title"
     Screen.Skills -> "input.skills"
+    Screen.Updates -> "profile.update"
 })
 
 @Composable
