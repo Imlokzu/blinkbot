@@ -18,8 +18,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import kotlin.math.ceil
 import kotlin.math.max
+
+private const val StreamRevealCodePoints = 4
+private const val StreamRevealDelayMillis = 12L
 
 internal expect fun isStreamCombiningMark(codePoint: Int): Boolean
 
@@ -58,6 +62,39 @@ internal fun changedStreamTail(previous: String?, current: String, limit: Int = 
 }
 
 internal class StreamingTail(val modifier: Modifier, val onTextLayout: (TextLayoutResult) -> Unit)
+
+/** Advance by a few Unicode code points, deliberately ignoring word boundaries. */
+internal fun nextStreamRevealIndex(text: String, start: Int, codePoints: Int = StreamRevealCodePoints): Int {
+    var index = start.coerceIn(0, text.length)
+    repeat(codePoints.coerceAtLeast(1)) {
+        if (index >= text.length) return index
+        index += if (text[index].isHighSurrogate() && index + 1 < text.length && text[index + 1].isLowSurrogate()) 2 else 1
+    }
+    return index
+}
+
+/** Reveal provider chunks in short code-point frames while Markdown parses them. */
+@Composable
+internal fun rememberStreamingText(text: String, streaming: Boolean): String {
+    val reduced = LocalReducedMotion.current
+    var rendered by remember { mutableStateOf("") }
+    LaunchedEffect(text, streaming, reduced) {
+        if (!streaming || reduced) {
+            rendered = text
+            return@LaunchedEffect
+        }
+        val prefix = rendered.takeIf { text.startsWith(it) } ?: ""
+        if (prefix.length == text.length) return@LaunchedEffect
+        rendered = prefix
+        var index = prefix.length
+        while (index < text.length) {
+            index = nextStreamRevealIndex(text, index)
+            rendered = text.substring(0, index)
+            delay(StreamRevealDelayMillis)
+        }
+    }
+    return rendered
+}
 
 /** Blur only fresh glyphs, then go completely idle even if the provider is still running. */
 @Composable

@@ -8,6 +8,14 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class StreamingTailRangeTest {
+    @Test fun revealAdvancesByCodePointsWithoutWaitingForWordBoundaries() {
+        val text = "token stream 🌊 keeps moving"
+        assertEquals(4, nextStreamRevealIndex(text, 0, 4))
+        val emojiStart = text.indexOf("🌊")
+        assertEquals(emojiStart + 2, nextStreamRevealIndex(text, emojiStart, 1))
+        assertEquals("token", text.substring(0, nextStreamRevealIndex(text, 0, 5)))
+    }
+
     @Test fun appendedTextKeepsTheExistingPrefixSharpAndCapsLargeChunks() {
         val previous = "Earlier text stays sharp: "
         val chunks = listOf(

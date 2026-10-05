@@ -36,7 +36,8 @@ private val LocalStreamTail = compositionLocalOf { false }
 /** Keep the last parsed frame visible while real streamed text is being parsed. */
 @Composable
 fun ChatMarkdown(text: String, streaming: Boolean = false) {
-    val state = rememberMarkdownState(text, retainState = true)
+    val renderedText = rememberStreamingText(text, streaming)
+    val state = rememberMarkdownState(renderedText, retainState = true)
     val components = remember {
         markdownComponents(
             paragraph = { StreamingMarkdownText(it, it.typography.paragraph) },
@@ -56,8 +57,8 @@ fun ChatMarkdown(text: String, streaming: Boolean = false) {
     // Layout follows the real text immediately. Only fresh glyph drawing animates.
     Markdown(state, modifier = Modifier.wrapContentWidth(), components = components,
         animations = markdownAnimations(animateTextSize = { this }),
-        loading = { Text(text, color = LocalPalette.current.ink) },
-        error = { Text(text, color = LocalPalette.current.ink) })
+        loading = { Text(renderedText, color = LocalPalette.current.ink) },
+        error = { Text(renderedText, color = LocalPalette.current.ink) })
     }
 }
 
