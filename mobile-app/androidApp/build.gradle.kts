@@ -11,8 +11,8 @@ android {
         applicationId = "me.waveio.claudebot"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
-        versionName = "0.4.4"
+        versionCode = 12
+        versionName = "0.4.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {
@@ -60,6 +60,7 @@ dependencies {
     androidTestImplementation("androidx.work:work-testing:2.12.0")
     // Compose Multiplatform 1.10.3 resolves Android UI artifacts to this version.
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.10.5")
+    androidTestImplementation("androidx.compose.foundation:foundation-layout:1.10.5")
     androidTestImplementation("io.ktor:ktor-client-mock:3.3.3")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.10.5")
     if (providers.gradleProperty("uiTestBuildType").orNull == "benchmark") {

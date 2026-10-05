@@ -18,8 +18,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,8 +30,7 @@ import me.waveio.claudebot.state.*
 @Composable
 fun Composer(state: AppState, actions: AppActions) {
     val p = LocalPalette.current
-    val window = LocalWindowInfo.current.containerSize
-    val landscape = window.width > window.height
+    val landscape = LocalAdaptiveLayout.current.compactHeight
     val keyboard = LocalSoftwareKeyboardController.current
     val popupRise = with(LocalDensity.current) { (-58).dp.roundToPx() }
     val sendLabel = tr("chat.send")
@@ -65,10 +64,14 @@ fun Composer(state: AppState, actions: AppActions) {
             } }
         }
         val input: @Composable (Modifier) -> Unit = { modifier ->
-        BasicTextField(shownDraft, actions::draft, modifier.heightIn(min = if (dictating && !landscape) 78.dp else 48.dp, max = if (landscape) 96.dp else 190.dp).padding(11.dp, 11.dp),
+        BasicTextField(shownDraft, actions::draft, modifier.testTag("composer-input").heightIn(min = if (dictating && !landscape) 78.dp else 48.dp, max = if (landscape) 96.dp else 190.dp).padding(11.dp, 11.dp),
             readOnly = dictating, textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.ink, fontSize = 16.sp), cursorBrush = SolidColor(p.accent),
             decorationBox = { field -> Box { if (shownDraft.isEmpty()) Text(tr(if (dictating) "input.dictationHelp" else "chat.placeholder"), color = p.muted, fontSize = 15.sp, lineHeight = 22.sp); field() } })
         }
+        // Preserve field focus, selection and IME composition when the host
+        // becomes short enough to put controls beside the input.
+        val currentInput by rememberUpdatedState(input)
+        val stableInput = remember { movableContentOf<Modifier> { currentInput(it) } }
         val controls: @Composable RowScope.() -> Unit = {
             if (dictating) {
                 IconAction("close", tr("input.cancel"), actions::cancelDictation)
@@ -101,10 +104,10 @@ fun Composer(state: AppState, actions: AppActions) {
             }
         }
         if (landscape) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            input(Modifier.weight(1f))
+            stableInput(Modifier.weight(1f))
             controls()
         } else {
-            input(Modifier.fillMaxWidth())
+            stableInput(Modifier.fillMaxWidth())
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, content = controls)
         }
     }
@@ -154,19 +157,21 @@ fun LoadingDots(modifier: Modifier = Modifier, color: Color = LocalPalette.curre
 fun AttachmentMenu(state: AppState, actions: AppActions) {
     val p = LocalPalette.current
     val density = LocalDensity.current
-    val window = LocalWindowInfo.current.containerSize
+    val adaptive = LocalAdaptiveLayout.current
     val bottom = WindowInsets.safeDrawing.getBottom(density)
-    val height = with(density) { (window.height - WindowInsets.safeDrawing.getTop(density) - bottom).toDp() }
+    val gap = if (adaptive.insetPanels) 16.dp else 0.dp
+    val height = (adaptive.height - with(density) { (WindowInsets.safeDrawing.getTop(density) + bottom).toDp() } - gap * 2).coerceAtLeast(0.dp)
+    val panelWidth = if (adaptive.insetPanels) (adaptive.contentWidth - gap * 2).coerceAtLeast(0.dp).coerceAtMost(CompactPanelMaxWidth) else adaptive.contentWidth
     MotionPopup(
         state.attachmentPickerOpen,
         { actions.attachments(false) },
-        Modifier.fillMaxWidth().heightIn(max = height),
+        Modifier.width(panelWidth).heightIn(max = height).testTag("attachment-menu"),
         Alignment.BottomCenter,
-        IntOffset(0, -bottom),
+        IntOffset(0, -bottom - with(density) { gap.roundToPx() }),
         focusable = false,
         surfacePadding = 0.dp,
-        drawBorder = false,
-        surfaceShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        drawBorder = adaptive.insetPanels,
+        surfaceShape = if (adaptive.insetPanels) RoundedCornerShape(24.dp) else RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
     ) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp).verticalScroll(rememberScrollState())) {
             Text(tr("input.attach"), fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = p.ink, modifier = Modifier.padding(10.dp, 10.dp))

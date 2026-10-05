@@ -27,6 +27,8 @@ import kotlin.math.sin
 @Composable
 fun FilesScreen(state: AppState, actions: AppActions) {
     val p = LocalPalette.current
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Box(Modifier.widthIn(max = if (state.openFile != null) MediaContentMaxWidth else ChatContentMaxWidth).fillMaxSize()) {
     if (state.openFile != null) {
         Column(Modifier.fillMaxSize().padding(18.dp)) {
             Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -55,13 +57,16 @@ fun FilesScreen(state: AppState, actions: AppActions) {
             if (!state.loading && state.files.isEmpty()) item { Text(tr("files.empty"), color = p.muted, modifier = Modifier.padding(vertical = 40.dp)) }
         }
     }
+    }
+    }
 }
 
 @Composable
 fun SettingsScreen(state: AppState, actions: AppActions) {
     val preferences = state.preferences
     val p = LocalPalette.current
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Column(Modifier.widthIn(max = FormContentMaxWidth).fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         when (state.screen) {
             Screen.Profile -> {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 20.dp)) {
@@ -139,6 +144,7 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
             else -> Unit
         }
     }
+    }
 }
 
 @Composable
@@ -159,7 +165,8 @@ private fun Choices(options: List<Pair<String, String>>, selected: String, onSel
 fun SkillsScreen(state: AppState, actions: AppActions) {
     val p = LocalPalette.current
     var query by remember { mutableStateOf("") }
-    Column(Modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Column(Modifier.widthIn(max = FormContentMaxWidth).fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(tr("skills.help"), color = p.muted, fontSize = 13.sp)
         BotField(query, { query = it }, placeholder = tr("skills.search"), icon = "search")
         if (state.skillsLoading) LoadingDots(Modifier.padding(16.dp))
@@ -177,5 +184,6 @@ fun SkillsScreen(state: AppState, actions: AppActions) {
             }
             if (!state.skillsLoading && !state.skillsError && matches.isEmpty()) item { Text(tr("skills.empty"), color = p.muted, modifier = Modifier.padding(vertical = 22.dp)) }
         }
+    }
     }
 }

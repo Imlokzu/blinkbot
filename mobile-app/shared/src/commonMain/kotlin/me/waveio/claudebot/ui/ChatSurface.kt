@@ -144,6 +144,7 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
         }
     }
     Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).testTag("chat-surface")) {
+        Box(Modifier.align(Alignment.TopCenter).widthIn(max = ChatContentMaxWidth).fillMaxSize().testTag("chat-column")) {
         Box(Modifier.fillMaxSize()) {
             if (state.messages.isEmpty() && !state.loading) {
                 Box(Modifier.fillMaxSize().padding(top = topPanel, bottom = bottomPanel), contentAlignment = Alignment.Center) {
@@ -208,6 +209,7 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
             }
         }
         Composer(state, actions)
+        }
         }
     }
 }

@@ -10,6 +10,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -36,7 +38,10 @@ fun ConversationDrawer(state: AppState, actions: AppActions) {
     var editing by remember { mutableStateOf<ConversationRow?>(null) }
     var deleting by remember { mutableStateOf<ConversationRow?>(null) }
     var title by remember { mutableStateOf("") }
-    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = 14.dp)) {
+    val persistent = LocalAdaptiveLayout.current.persistentSidebar
+    Column(Modifier.fillMaxSize().drawBehind {
+        if (persistent) drawLine(p.line, Offset(size.width, 0f), Offset(size.width, size.height), 1.dp.toPx())
+    }.windowInsetsPadding(WindowInsets.safeDrawing).padding(horizontal = 14.dp)) {
         LazyColumn(Modifier.weight(1f)) {
             item {
                 Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -15,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -40,12 +39,15 @@ import me.waveio.claudebot.state.*
 @Composable
 fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
     val palette = LocalPalette.current
-    NativeBackHandler(state.sendModeOpen || state.attachmentPickerOpen || state.dictationOpen || state.menuOpen || state.openFile != null || state.screen != Screen.Chat) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    val adaptive = AdaptiveLayout(maxWidth, maxHeight, state.connected)
+    val modalMenuOpen = state.menuOpen && !adaptive.persistentSidebar
+    NativeBackHandler(state.sendModeOpen || state.attachmentPickerOpen || state.dictationOpen || modalMenuOpen || state.openFile != null || state.screen != Screen.Chat) {
         when {
             state.sendModeOpen -> actions.sendModes(false)
             state.attachmentPickerOpen -> actions.attachments(false)
             state.dictationOpen -> actions.cancelDictation()
-            state.menuOpen -> actions.menu(false)
+            modalMenuOpen -> actions.menu(false)
             state.openFile != null -> actions.closeFile()
             state.screen in listOf(Screen.Appearance, Screen.Models, Screen.Notifications, Screen.Personalization, Screen.Queue) -> actions.navigate(Screen.Profile)
             else -> actions.navigate(Screen.Chat)
@@ -53,13 +55,17 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
     }
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
-    LaunchedEffect(state.menuOpen) { if (state.menuOpen) { focus.clearFocus(); keyboard?.hide() } }
-    CompositionLocalProvider(LocalReducedMotion provides reducedMotion, LocalIndication provides QuietIndication) {
+    LaunchedEffect(modalMenuOpen) { if (modalMenuOpen) { focus.clearFocus(); keyboard?.hide() } }
+    LaunchedEffect(adaptive.persistentSidebar, state.menuOpen) {
+        if (adaptive.persistentSidebar && state.menuOpen) actions.menu(false)
+    }
+    CompositionLocalProvider(LocalReducedMotion provides reducedMotion, LocalIndication provides QuietIndication,
+        LocalAdaptiveLayout provides adaptive) {
     Box(Modifier.fillMaxSize().background(palette.background)) {
         if (!state.connected) {
             Wallpaper(state.preferences, state.customWallpaper, state.screen, state.connected)
             ConnectionScreen(state, actions)
-        } else RevealDrawer(state.menuOpen, actions::menu, state.openFile == null && !state.dictationOpen,
+        } else RevealDrawer(modalMenuOpen, actions::menu, state.openFile == null && !state.dictationOpen,
             menu = { ConversationDrawer(state, actions) }) {
             Box(Modifier.fillMaxSize()) {
                 Wallpaper(state.preferences, state.customWallpaper, state.screen, state.connected)
@@ -113,8 +119,10 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
                 }
             }
         }
-        ModelPicker(state, actions)
-        AttachmentMenu(state, actions)
+        Box(Modifier.matchParentSize().padding(start = adaptive.sidebarWidth)) {
+            ModelPicker(state, actions)
+            AttachmentMenu(state, actions)
+        }
         if (state.scheduling) SchedulePopup(actions)
         if (state.previewTitle != null) MediaPreview(state, actions)
         if (state.offlineQuestion) BotDialog({ actions.offlineDelivery(false) }) {
@@ -144,6 +152,7 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
         } }
     }
     }
+    }
 }
 
 @Composable
@@ -158,7 +167,7 @@ private fun ConnectionScreen(state: AppState, actions: AppActions) {
         actions.connectWithCode()
     }
     BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding()) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight).padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.align(Alignment.TopCenter).widthIn(max = CompactPanelMaxWidth).fillMaxWidth().verticalScroll(rememberScrollState()).heightIn(min = maxHeight).padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
             BotMark(Modifier.size(76.dp))
             Spacer(Modifier.height(22.dp))
             Text(tr("connect.title"), fontSize = 30.sp, lineHeight = 35.sp, fontWeight = FontWeight.Medium, color = p.ink)
@@ -197,8 +206,7 @@ private fun ConnectionScreen(state: AppState, actions: AppActions) {
 
 @Composable
 private fun topBarHeight(): androidx.compose.ui.unit.Dp {
-    val window = LocalWindowInfo.current.containerSize
-    return if (window.width > window.height) 48.dp else 58.dp
+    return if (LocalAdaptiveLayout.current.compactHeight) 48.dp else 58.dp
 }
 
 @Composable
@@ -207,7 +215,8 @@ private fun TopBar(state: AppState, actions: AppActions) {
     Row(Modifier.fillMaxWidth().height(topBarHeight()).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
         if (state.openFile != null) IconAction("back", tr("nav.back"), actions::closeFile)
         else if (state.screen !in listOf(Screen.Chat, Screen.Files, Screen.Agents, Screen.Search, Screen.Profile)) IconAction("back", tr("nav.back"), { actions.navigate(if (state.screen == Screen.Skills) Screen.Chat else Screen.Profile) })
-        else IconAction("menu", tr("nav.menu"), { actions.menu(true) })
+        else if (!LocalAdaptiveLayout.current.persistentSidebar) IconAction("menu", tr("nav.menu"), { actions.menu(true) })
+        else Spacer(Modifier.size(44.dp))
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
             if (state.screen == Screen.Chat) {
                 val model = state.models.firstOrNull { it.id == state.selectedModel }
@@ -242,7 +251,8 @@ fun screenTitle(screen: Screen): String = tr(when (screen) {
 @Composable
 private fun SearchScreen(state: AppState, actions: AppActions) {
     val p = LocalPalette.current
-    Column(Modifier.fillMaxSize().padding(18.dp)) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Column(Modifier.widthIn(max = FormContentMaxWidth).fillMaxSize().padding(18.dp)) {
         BotField(state.search, actions::search, modifier = Modifier.fillMaxWidth(), placeholder = tr("chat.searchPlaceholder"), icon = "search")
         Spacer(Modifier.height(12.dp))
         val results = state.conversations.filter { it.title.contains(state.search, true) }
@@ -250,5 +260,6 @@ private fun SearchScreen(state: AppState, actions: AppActions) {
             items(results, key = { it.id }) { chat -> Text(chat.title, color = p.ink, modifier = Modifier.fillMaxWidth().clickable { actions.openChat(chat.id) }.padding(vertical = 18.dp), maxLines = 2) }
             if (results.isEmpty()) item { Text(tr("chat.noResults"), color = p.muted, modifier = Modifier.padding(vertical = 20.dp)) }
         }
+    }
     }
 }

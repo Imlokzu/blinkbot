@@ -14,7 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.*
@@ -32,9 +32,9 @@ fun ModelPicker(state: AppState, actions: AppActions) {
     val density = LocalDensity.current
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
-    val windowSize = LocalWindowInfo.current.containerSize
-    val windowHeight = windowSize.height
-    val landscape = windowSize.width > windowSize.height
+    val adaptive = LocalAdaptiveLayout.current
+    val windowHeight = with(density) { adaptive.height.roundToPx() }
+    val landscape = adaptive.compactHeight && adaptive.contentWidth >= 600.dp
     val keyboardHeight = WindowInsets.ime.getBottom(density)
     val safeTop = WindowInsets.safeDrawing.getTop(density)
     val safeBottom = maxOf(keyboardHeight, WindowInsets.safeDrawing.getBottom(density))
@@ -48,7 +48,7 @@ fun ModelPicker(state: AppState, actions: AppActions) {
     MotionPopup(
         state.modelPickerOpen,
         { actions.modelPicker(false) },
-        Modifier.padding(horizontal = 16.dp).widthIn(max = 440.dp).fillMaxWidth().heightIn(max = availableHeight),
+        Modifier.width(adaptive.contentWidth.coerceAtMost(472.dp)).padding(horizontal = 16.dp).heightIn(max = availableHeight).testTag("model-picker"),
         offset = IntOffset(0, inset),
         surfacePadding = 12.dp,
         drawBorder = true,
@@ -123,16 +123,23 @@ fun ModelPicker(state: AppState, actions: AppActions) {
                         }
                     }
                 }
-                // Keep the search field in the same composition while the IME
-                // animates. Landscape uses the available width for two columns.
+                val search: @Composable (Modifier) -> Unit = { modifier ->
+                    BotField(query, { query = it }, modifier, placeholder = tr("model.search"), icon = "search")
+                }
+                val currentSearch by rememberUpdatedState(search)
+                val currentChoices by rememberUpdatedState(choices)
+                val stableSearch = remember { movableContentOf<Modifier> { currentSearch(it) } }
+                val stableChoices = remember { movableContentOf<Modifier> { currentChoices(it) } }
+                // Moving these slots keeps focus and list position during host
+                // resizes. Only short, wide panes need the compact two columns.
                 if (landscape) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-                    BotField(query, { query = it }, Modifier.weight(.45f), placeholder = tr("model.search"), icon = "search")
-                    choices(Modifier.weight(.55f))
+                    stableSearch(Modifier.weight(.45f))
+                    stableChoices(Modifier.weight(.55f))
                     IconAction("close", tr("action.close"), { actions.modelPicker(false) })
                 } else Column(Modifier.fillMaxWidth()) {
-                    BotField(query, { query = it }, placeholder = tr("model.search"), icon = "search")
+                    stableSearch(Modifier.fillMaxWidth())
                     Spacer(Modifier.height(10.dp))
-                    choices(Modifier.weight(1f, fill = false))
+                    stableChoices(Modifier.weight(1f, fill = false))
                 }
             }
         }
