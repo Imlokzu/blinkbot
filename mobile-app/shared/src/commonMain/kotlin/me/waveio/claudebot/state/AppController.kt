@@ -141,6 +141,17 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             else initialModel(p).ifBlank { catalogDefaultModel.ifBlank { state.value.selectedModel } }
     }
     private fun requireApi(): BotApi = api ?: throw ApiFailure(401, "not_connected")
+    private fun updateFromCapabilities(capabilities: JsonObject): MobileUpdate? = capabilities["update"]?.jsonObject?.let { value ->
+        if (value["available"]?.jsonPrimitive?.booleanOrNull != true) null else MobileUpdate(
+            versionName = value["version_name"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+            versionCode = value["version_code"]?.jsonPrimitive?.intOrNull ?: 0,
+            changelog = value["changelog"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
+            url = value["url"]?.jsonPrimitive?.contentOrNull,
+            iosUrl = value["ios_url"]?.jsonPrimitive?.contentOrNull,
+            sha256 = value["sha256"]?.jsonPrimitive?.contentOrNull,
+            mandatory = value["mandatory"]?.jsonPrimitive?.booleanOrNull == true,
+        )
+    }
     private fun run(isCurrent: () -> Boolean = { true }, block: suspend () -> Unit) {
         val epoch = connectionVersion
         scope.launch {
@@ -256,20 +267,10 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val connection = makeApi(server, token)
         try {
             val capabilities = connection.capabilities(platform.platformName, platform.appVersionCode)
-            val updateInfo = capabilities["update"]?.jsonObject?.let { value ->
-                if (value["available"]?.jsonPrimitive?.booleanOrNull != true) null else MobileUpdate(
-                    versionName = value["version_name"]?.jsonPrimitive?.contentOrNull.orEmpty(),
-                    versionCode = value["version_code"]?.jsonPrimitive?.intOrNull ?: 0,
-                    changelog = value["changelog"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
-                    url = value["url"]?.jsonPrimitive?.contentOrNull,
-                    iosUrl = value["ios_url"]?.jsonPrimitive?.contentOrNull,
-                    sha256 = value["sha256"]?.jsonPrimitive?.contentOrNull,
-                    mandatory = value["mandatory"]?.jsonPrimitive?.booleanOrNull == true,
-                )
-            }
+            val updateInfo = updateFromCapabilities(capabilities)
             if (version != connectionVersion) { connection.close(); return }
             api?.close(); api = connection
-            update { it.copy(baseUrl = connection.origin, connected = true, connecting = false, error = null, update = updateInfo, steerAvailable = capabilities["steer"]?.jsonPrimitive?.booleanOrNull == true) }
+            update { it.copy(baseUrl = connection.origin, connected = true, connecting = false, error = null, update = updateInfo, updateChecking = false, steerAvailable = capabilities["steer"]?.jsonPrimitive?.booleanOrNull == true) }
             loadCatalog(); loadSessions()
             scope.launch { loadIntelligence(version) }
             runCatching { loadProfile() }
@@ -1482,6 +1483,20 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     }
     override fun dismissNotice() { update { it.copy(error = null, notice = null, noticeDetail = null) } }
     override fun dismissUpdate() { update { it.copy(update = null) } }
+    override fun checkForUpdate() {
+        val connection = api ?: return
+        val version = connectionVersion
+        update { it.copy(updateChecking = true, updateError = null) }
+        run(isCurrent = { version == connectionVersion }) {
+            try {
+                val updateInfo = updateFromCapabilities(connection.capabilities(platform.platformName, platform.appVersionCode))
+                if (version != connectionVersion) return@run
+                update { it.copy(update = updateInfo, updateChecking = false, notice = if (updateInfo == null) "update.current" else null) }
+            } catch (_: Exception) {
+                if (version == connectionVersion) update { it.copy(updateChecking = false, updateError = "update.failed") }
+            }
+        }
+    }
     override fun installUpdate() {
         val available = state.value.update ?: return
         val target = if (platform.platformName == "ios") available.iosUrl ?: available.url else available.url

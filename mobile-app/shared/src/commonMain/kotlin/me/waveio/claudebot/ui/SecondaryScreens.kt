@@ -79,6 +79,7 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
                 SettingsLink("edit", "profile.personalization") { actions.navigate(Screen.Personalization) }
                 SettingsLink("phone", "profile.notifications") { actions.navigate(Screen.Notifications) }
                 SettingsLink("time", "queue.title") { actions.navigate(Screen.Queue) }
+                SettingsLink(if (state.updateChecking) "time" else "download", "profile.update", actions::checkForUpdate)
                 Hairline()
                 Text(tr("profile.language"), color = p.muted, fontSize = 12.sp)
                 Choices(listOf("system" to "profile.system", "uk" to "profile.ukrainian", "en" to "profile.english"), preferences.language) { actions.preferences(preferences.copy(language = it)) }

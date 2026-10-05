@@ -41,6 +41,22 @@ class AppControllerTest {
         }
     }
 
+    @Test fun profileUpdateCheckRefreshesTheInstallDialogFromTheCurrentConnection() = controllerTest {
+        val fixture = fixture(StandardTestDispatcher(testScheduler))
+        fixture.handler = { request ->
+            if (request.url.encodedPath == "/api/mobile/capabilities") jsonResponse(
+                """{"update":{"available":true,"version_name":"0.4.9","version_code":16,"changelog":["Smoother live text"],"url":"https://old.example/api/mobile/update/download","sha256":"${"a".repeat(64)}"}}"""
+            ) else null
+        }
+        runCurrent()
+        fixture.controller.dismissUpdate()
+        fixture.controller.checkForUpdate()
+        runCurrent()
+        assertEquals("0.4.9", fixture.controller.state.value.update?.versionName)
+        assertEquals(listOf("Smoother live text"), fixture.controller.state.value.update?.changelog)
+        assertFalse(fixture.controller.state.value.updateChecking)
+    }
+
     @Test fun initialNetworkFailureIsReportedWithoutAnUncaughtCoroutineException() = controllerTest {
         val fixture = fixture(StandardTestDispatcher(testScheduler))
         fixture.handler = { request ->
