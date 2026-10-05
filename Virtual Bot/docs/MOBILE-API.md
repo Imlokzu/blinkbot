@@ -155,7 +155,7 @@ no-store`. Auth is required except for one-time code exchange.
 
 | Method/path | Request | Response |
 | --- | --- | --- |
-| POST `/pairings` | Operator auth; `{server?: "https://origin"}` | `{code,expires_at,qr_payload}` |
+| POST `/pairings` | Operator auth; `{server?: "https://origin"}` | `{code,pairing_code,expires_at,qr_payload,qr_svg}` |
 | POST `/pair/exchange` | `{code,device_name,platform:"android"|"ios"}` | `{token,device_id,expires_at}` |
 | GET `/devices` | Owner auth | `{devices:[{device_id,device_name,platform,created_at,expires_at,revoked_at}]}` |
 | DELETE `/devices/{device_id}` | Owner auth | `{ok:true}` |
@@ -173,9 +173,30 @@ Every job summary (submit, retry, stop, fork) includes `id`, `session_id`,
 endpoint includes these fields plus the full delivery projection described
 below, so queued work can be reconstructed after reconnect.
 
-Pairing codes expire after five minutes and can be exchanged once. Device
-tokens expire after 90 days and start with `cbm_`. Only SHA-256 hashes of
-codes/tokens are stored. The QR payload is
+Each pairing has two credentials sharing the same five-minute `expires_at`:
+the original case-sensitive `code` used in the QR and a human-readable
+`pairing_code` formatted as `XXXX-XXXX`. Its eight characters are chosen from
+`23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (40 bits). Submit either credential in the
+exchange request's existing `code` field. Typed codes ignore whitespace and
+hyphens and accept lowercase; QR tokens retain their exact original spelling.
+Exchanging either credential atomically consumes both and creates one device
+for the original owner. An invalid, expired, or consumed credential returns
+HTTP 401 with `{"detail":{"code":"invalid_pairing"}}`.
+
+Short-code exchanges share a durable host-wide rolling budget of ten attempts
+per 300 seconds, including successful exchanges. Subsequent attempts return
+HTTP 429 with `{"detail":{"code":"pairing_rate_limited"}}` and a `Retry-After`
+header in whole seconds. Restarting the host, creating a new pairing, or
+changing the supplied code does not reset this budget. A throttled request
+does not consume the pairing. Original QR exchanges remain available during
+the short-code cooldown. The host-wide budget may temporarily delay another
+owner's typed-code pairing; that owner can still use the QR. If issuance cannot
+allocate a unique code after bounded retries, it returns HTTP 503 with
+`{"detail":{"code":"pairing_unavailable"}}`.
+
+Device tokens expire after 90 days and start with `cbm_`. Only SHA-256 hashes of
+both pairing credentials and device tokens are stored. Existing QR pairings and
+devices survive the additive database migration. The QR payload remains
 `claudebot://pair?server=<percent-encoded-https-origin>&code=<code>`.
 The optional server request must match the configured approved origin. Without
 an explicitly configured origin, an operator must supply a valid HTTPS origin.
@@ -300,7 +321,7 @@ before serving an unbounded production workload.
 ## Validation
 
 Run `PYTHONPATH="$PWD" .venv/bin/pytest tests/test_mobile_store.py
-tests/test_mobile_api.py -q` from `Virtual Bot`. Tests use temporary databases,
+tests/test_mobile_api.py tests/test_mobile_pairing_code.py -q` from `Virtual Bot`. Tests use temporary databases,
 an isolated FastAPI app, and fake callbacks. They never start the real backend,
 provider jobs, or integrations. Mute the Mac before testing. Parent integration
 and provider behavior require a separate review after the surgical hooks land.

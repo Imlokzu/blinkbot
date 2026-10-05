@@ -528,7 +528,8 @@ def router(require_user, require_operator, run_turn: RunTurn, *, store: MobileSt
         try:
             return operation()
         except StoreError as exc:
-            raise HTTPException(exc.status, {"code": exc.code}) from None
+            headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else None
+            raise HTTPException(exc.status, {"code": exc.code}, headers=headers) from None
 
     @routes.post("/pairings", dependencies=[Depends(require_operator)])
     async def pairing(req: PairingRequest, user_id: str = Depends(identity)):
@@ -538,7 +539,7 @@ def router(require_user, require_operator, run_turn: RunTurn, *, store: MobileSt
             raise HTTPException(422, {"code": "invalid_server_origin"}) from None
         if configured_origin and origin != configured_origin:
             raise HTTPException(422, {"code": "server_origin_mismatch"})
-        result = selected_store.create_pairing(user_id)
+        result = call(lambda: selected_store.create_pairing(user_id))
         from mobile_pair_qr import svg
         payload = "claudebot://pair?" + urlencode({"server": origin, "code": result["code"]})
         return {**result, "qr_payload": payload, "qr_svg": svg(payload)}

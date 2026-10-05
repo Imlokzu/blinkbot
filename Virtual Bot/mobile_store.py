@@ -8,6 +8,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -18,6 +19,9 @@ from typing import Any, Callable, Iterator
 import uuid
 
 TOKEN_PREFIX = "cbm_"
+PAIRING_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+PAIRING_ATTEMPT_LIMIT = 10
+PAIRING_ATTEMPT_WINDOW = 300
 TERMINAL = frozenset({"completed", "failed", "stopped", "interrupted", "unsupported"})
 _EVENT_NAME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
 _SESSION_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -26,9 +30,10 @@ _SESSION_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 class StoreError(Exception):
     """An API error code safe to expose without runtime exception text."""
 
-    def __init__(self, code: str, status: int = 400):
+    def __init__(self, code: str, status: int = 400, *, retry_after: int | None = None):
         super().__init__(code)
         self.code, self.status = code, status
+        self.retry_after = retry_after
 
 
 def _json(value: Any) -> str:
@@ -55,6 +60,14 @@ class MobileStore:
                 CREATE TABLE IF NOT EXISTS pairings (
                     code_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL,
                     expires_at REAL NOT NULL, consumed_at REAL
+                );
+                CREATE TABLE IF NOT EXISTS pairing_aliases (
+                    code_hash TEXT PRIMARY KEY,
+                    pairing_hash TEXT NOT NULL UNIQUE
+                        REFERENCES pairings(code_hash) ON DELETE CASCADE
+                );
+                CREATE TABLE IF NOT EXISTS pairing_attempts (
+                    attempted_at REAL NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS devices (
                     id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
@@ -127,23 +140,60 @@ class MobileStore:
         return os.fdopen(fd, "w")
 
     def create_pairing(self, user_id: str, *, ttl: int = 300) -> dict:
-        code = secrets.token_urlsafe(24)
-        expires = self.clock() + ttl
         with self._write() as db:
-            db.execute("DELETE FROM pairings WHERE expires_at <= ?", (self.clock(),))
-            db.execute("INSERT INTO pairings VALUES (?, ?, ?, NULL)", (_hash(code), user_id, expires))
-        return {"code": code, "expires_at": expires}
+            now = self.clock()
+            expires = now + ttl
+            db.execute("DELETE FROM pairings WHERE expires_at <= ?", (now,))
+            # Keep consumed aliases reserved until expiry, so a retry cannot
+            # accidentally consume a different owner's newly issued pairing.
+            for _ in range(16):
+                code = secrets.token_urlsafe(24)
+                short = "".join(secrets.choice(PAIRING_ALPHABET) for _ in range(8))
+                code_hash, short_hash = _hash(code), _hash(short)
+                if (db.execute("SELECT 1 FROM pairings WHERE code_hash = ?", (code_hash,)).fetchone()
+                        or db.execute("SELECT 1 FROM pairing_aliases WHERE code_hash = ?", (short_hash,)).fetchone()):
+                    continue
+                db.execute("INSERT INTO pairings VALUES (?, ?, ?, NULL)", (code_hash, user_id, expires))
+                db.execute("INSERT INTO pairing_aliases VALUES (?, ?)", (short_hash, code_hash))
+                break
+            else:
+                raise StoreError("pairing_unavailable", 503)
+        return {"code": code, "pairing_code": short[:4] + "-" + short[4:], "expires_at": expires}
 
     def exchange(self, code: str, device_name: str, platform: str, *, ttl: int = 90 * 86400) -> dict:
-        now = self.clock()
-        token, device_id = TOKEN_PREFIX + secrets.token_urlsafe(32), uuid.uuid4().hex
+        normalized = "".join(ch for ch in code if ch != "-" and not ch.isspace()).upper()
+        short = len(normalized) <= 8
+        error = None
         with self._write() as db:
-            pairing = db.execute("SELECT * FROM pairings WHERE code_hash = ?", (_hash(code),)).fetchone()
+            # Read the clock after acquiring the lock: a waiting exchange must
+            # not accept a pairing that expired while another writer held it.
+            now = self.clock()
+            if short:
+                # One host-wide rolling budget, independent of guessed codes,
+                # owners and untrusted proxy headers. At most ten rows survive.
+                db.execute("DELETE FROM pairing_attempts WHERE attempted_at <= ?", (now - PAIRING_ATTEMPT_WINDOW,))
+                attempts = db.execute("SELECT COUNT(*), MIN(attempted_at) FROM pairing_attempts").fetchone()
+                if attempts[0] >= PAIRING_ATTEMPT_LIMIT:
+                    raise StoreError("pairing_rate_limited", 429,
+                                     retry_after=max(1, math.ceil(attempts[1] + PAIRING_ATTEMPT_WINDOW - now)))
+                db.execute("INSERT INTO pairing_attempts VALUES (?)", (now,))
+                pairing = db.execute(
+                    "SELECT p.* FROM pairings p JOIN pairing_aliases a ON a.pairing_hash = p.code_hash "
+                    "WHERE a.code_hash = ?", (_hash(normalized),),
+                ).fetchone()
+            else:
+                # QR tokens are case-sensitive and must never be normalized.
+                pairing = db.execute("SELECT * FROM pairings WHERE code_hash = ?", (_hash(code),)).fetchone()
             if pairing is None or pairing["consumed_at"] is not None or pairing["expires_at"] <= now:
-                raise StoreError("invalid_pairing", 401)
-            db.execute("UPDATE pairings SET consumed_at = ? WHERE code_hash = ?", (now, _hash(code)))
-            db.execute("INSERT INTO devices VALUES (?, ?, ?, ?, ?, ?, ?, NULL)",
-                       (device_id, pairing["user_id"], device_name, platform, _hash(token), now, now + ttl))
+                error = StoreError("invalid_pairing", 401)
+            else:
+                token, device_id = TOKEN_PREFIX + secrets.token_urlsafe(32), uuid.uuid4().hex
+                db.execute("UPDATE pairings SET consumed_at = ? WHERE code_hash = ?", (now, pairing["code_hash"]))
+                db.execute("INSERT INTO devices VALUES (?, ?, ?, ?, ?, ?, ?, NULL)",
+                           (device_id, pairing["user_id"], device_name, platform, _hash(token), now, now + ttl))
+        # An invalid guess must commit its attempt before returning an error.
+        if error is not None:
+            raise error
         return {"token": token, "device_id": device_id, "expires_at": now + ttl}
 
     def authenticate_token(self, token: str) -> str | None:
