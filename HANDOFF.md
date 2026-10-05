@@ -2202,3 +2202,42 @@ with R8 and separately installed/launch-smoked; iOS remains source-only.
   aligned; the iOS compilation attempt was blocked because the pinned Kotlin
   Native compiler was not cached for offline mode. No iOS runtime claim is made.
   Backend, tunnel and provider configuration were untouched by this UI change.
+## Model image delivery and picker cleanup (2026-10-05)
+
+- Removed the mobile model picker image badge and badge-based image sorting.
+  A fixture with `vision=true` now confirms the misleading icon is absent while
+  model search, effort selection and image upload remain operational.
+- Rechecked actual installed model resolution: seven non-authored GPT models
+  already accept images, so their definitions were not rewritten. Luna's missing
+  authored input field was corrected from explicit provider evidence. Sol's
+  existing repair was preserved. Regolo text-only definitions were not changed.
+- A real GPT-6.1 Sol trial exposed an unknown-model failure before inference;
+  prior mobile text receipts confirmed fallback to Astra. Registered only that
+  missing model from its exact provider-cache metadata and installed adapter
+  conventions, including separate 872k maximum/272k runtime context budgets.
+  Conditional provider merges and before/after comparisons preserved all other
+  configuration. Gateway hot reload applied the corrections.
+- Real synthetic recognition now passed on GPT-6 Sol, GPT-6 Luna and GPT-6.1 Sol:
+  each read a random six-character code that existed only in the image, recorded
+  the requested model, and used zero tools. A further actual mobile PNG upload,
+  queued job and SSE completion also passed with GPT-6.1 Sol and unchanged image
+  bytes. All owned temporary chats, gateway sessions and image files were
+  cleaned up; the completed synthetic queue receipt remains diagnostic history.
+  CLI-only incognito/idempotent/policy preflight attempts were rejected before
+  any inference; normal temporary sessions used supported API parameters.
+- Added a read-only-by-default operator reconciliation tool with exact modality
+  evidence, no model-family guesses or automatic discovered-model additions.
+  Apply requires the reviewed evidence fingerprint, separate CLI validation,
+  a condition covering the full public provider, and preservation checks. A
+  separate reviewer found and verified the fix for a provider-routing race;
+  58 final synthetic tool tests passed. Usage: docs/mobile-app/MODEL-IMAGE-INPUTS.md.
+- Final validation: 1,420 Python tests passed, 8 skipped, 178 subtests passed;
+  183 shared and 78 Android unit tests; three targeted native picker/upload
+  tests. An earlier full Python run encountered an existing empty-PID-file
+  readiness race; its bounded rerun passed, and the final complete run was clean.
+  Source changes passed independent review and normal secret-scanning hooks.
+- Android release 0.4.7 / code 14 was built with R8 from the current isolated
+  snapshot. SHA-256:
+  `9866eb294068047765ec2e8ddc3470de7ea0a7839b58b98d0cbf3224bd65ff14`.
+  iOS version metadata was aligned; iOS compilation and runtime were not checked.
+  This is direct APK delivery, not a claim of automatic update publication.
