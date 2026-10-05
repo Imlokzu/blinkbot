@@ -242,6 +242,7 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
     NativeBackHandler(menuText != null) { menuText = null }
     val lines = message.bubbles.filter { it.isNotBlank() }.ifEmpty { listOf(message.text).filter { it.isNotBlank() } }
     val parts = message.parts.ifEmpty { lines.map { ContentPart("text", it) } }
+    val lastTextPart = parts.indexOfLast { it.type != "steps" && it.text.isNotBlank() }
     MessageArrival(animate, user) { motion ->
     Column(motion.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start, verticalArrangement = Arrangement.spacedBy(7.dp)) {
         for ((partIndex, part) in parts.withIndex()) {
@@ -252,8 +253,6 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
             val line = part.text
             if (line.isBlank()) continue
             key(part.noteId, partIndex) {
-            EnterMotion(message.live, streaming = message.live) { bubbleMotion ->
-            Box(bubbleMotion) {
                 Surface(
                     modifier = Modifier.widthIn(max = if (user) 320.dp else 600.dp).testTag("message-bubble:${message.id}:$partIndex").combinedClickable(onClick = {}, onLongClick = { selectedBubble = parts.take(partIndex).count { it.type == "text" }; selectedNote = part.note || part.noteId != null; menuText = line }),
                     shape = RoundedCornerShape(21.dp, 21.dp, if (user) 6.dp else 21.dp, if (user) 21.dp else 6.dp),
@@ -261,11 +260,10 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
                 ) {
                     Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         if (user) Text(line, color = palette.userInk, fontSize = 16.sp, lineHeight = 23.sp)
-                        else ReplyMarkdown(line, origin, message.live, mediaGeneration, thumbnails, imageFailures, actions)
+                        else ReplyMarkdown(line, origin, message.live, mediaGeneration, thumbnails, imageFailures, actions,
+                            animateTail = message.live && partIndex == lastTextPart)
                     }
                 }
-            }
-            }
             }
             val bubbleIndex = parts.take(partIndex).count { it.type == "text" }
             val emoji = if (user) message.reaction else message.reactions[bubbleIndex.toString()]

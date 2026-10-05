@@ -19,9 +19,10 @@ import me.waveio.claudebot.state.PreviewItem
 /** Render Markdown image nodes where they occur, retaining surrounding prose. */
 @Composable
 internal fun ReplyMarkdown(text: String, origin: String, live: Boolean, generation: Long,
-                           thumbnails: Map<String, ByteArray>, failures: Set<String>, actions: AppActions) {
+                           thumbnails: Map<String, ByteArray>, failures: Set<String>, actions: AppActions,
+                           animateTail: Boolean = live) {
     val images = remember(text, origin, live) { replyImages(text, origin, live) }
-    if (images.isEmpty()) { ChatMarkdown(text); return }
+    if (images.isEmpty()) { ChatMarkdown(text, animateTail); return }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         var offset = 0
         for (image in images) {
@@ -33,7 +34,7 @@ internal fun ReplyMarkdown(text: String, origin: String, live: Boolean, generati
             offset = image.end
         }
         val after = text.substring(offset).trim()
-        if (after.isNotEmpty()) ChatMarkdown(after)
+        if (after.isNotEmpty()) ChatMarkdown(after, animateTail)
     }
 }
 

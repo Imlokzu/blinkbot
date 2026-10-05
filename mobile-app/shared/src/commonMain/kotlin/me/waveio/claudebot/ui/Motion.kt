@@ -24,22 +24,12 @@ object QuietIndication : IndicationNodeFactory {
 @Composable
 fun EnterMotion(
     animate: Boolean,
-    streaming: Boolean = false,
     modifier: Modifier = Modifier,
     content: @Composable (Modifier) -> Unit,
 ) {
     val reduced = LocalReducedMotion.current
     val progress = remember { Animatable(if (animate && !reduced) 0f else 1f) }
     val blurSteps = remember { (1..4).map { BlurEffect(it.toFloat(), it.toFloat()) } }
-    val streamPhase = if (streaming && !reduced) {
-        val streamMotion = rememberInfiniteTransition(label = "streamMotion")
-        streamMotion.animateFloat(
-            0f,
-            1f,
-            infiniteRepeatable(tween(760, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-            label = "streamPhase",
-        ).value
-    } else 0f
     LaunchedEffect(Unit) { if (progress.value < 1f) progress.animateTo(1f, tween(210, easing = FastOutSlowInEasing)) }
     content(modifier.graphicsLayer {
         val value = if (reduced) 1f else progress.value
@@ -49,7 +39,6 @@ fun EnterMotion(
         val step = ((1f - value) * 4f).toInt()
         renderEffect = when {
             step > 0 -> blurSteps[step - 1]
-            streaming && !reduced -> BlurEffect(.25f + streamPhase * .75f, .25f + streamPhase * .75f)
             else -> null
         }
     })
@@ -73,6 +62,6 @@ fun MessageArrival(animate: Boolean, human: Boolean, content: @Composable (Modif
         scaleX = if (human) .72f + .28f * value else .96f + .04f * value
         scaleY = if (human) .72f + .28f * value else .96f + .04f * value
         val blur = ((1f - value) * 4f).toInt()
-        renderEffect = if (blur > 0) blurSteps[blur - 1] else null
+        renderEffect = if (human && blur > 0) blurSteps[blur - 1] else null
     })
 }
