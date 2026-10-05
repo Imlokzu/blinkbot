@@ -2241,3 +2241,12 @@ with R8 and separately installed/launch-smoked; iOS remains source-only.
   `9866eb294068047765ec2e8ddc3470de7ea0a7839b58b98d0cbf3224bd65ff14`.
   iOS version metadata was aligned; iOS compilation and runtime were not checked.
   This is direct APK delivery, not a claim of automatic update publication.
+
+### Requested GPT Astra verification (2026-10-05)
+
+After the owner clarified GPT rather than Regolo, a real GPT-6 Astra check also
+passed through mobile upload, the queued job and SSE completion. It recognized
+a fresh image-only code, retained the exact requested model, used no tools, and
+preserved upload bytes. The owned chat, gateway session and image were removed.
+No Astra configuration change was needed. Live image recognition now covers
+Sol, Luna, Astra and GPT-6.1 Sol; it is not a claim about every catalog entry.

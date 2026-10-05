@@ -24,13 +24,13 @@ a successful web image answer does not prove that the selected text model ran.
 - Sol, Luna and GPT-6.1 Sol each recognized a newly generated six-character
   image code in a separate real gateway session. Requested and recorded models
   matched, and no tools ran. Owned temporary sessions were removed.
-- A further real GPT-6.1 Sol check used the actual mobile upload endpoint,
+- Further real GPT-6.1 Sol and GPT-6 Astra checks used the actual mobile upload endpoint,
   queued message endpoint and SSE response. Uploaded bytes were unchanged,
   the job completed, the image code was recognized and the final model matched.
-  Its temporary chat, gateway session and image were removed. The completed
-  synthetic queue receipt remains as ordinary diagnostic history.
+  Their temporary chats, gateway sessions and images were removed. Completed
+  synthetic queue receipts remain as ordinary diagnostic history.
 
-These observations cover those three live models. They are not an assertion
+These observations cover those four live models. They are not an assertion
 that every advertised model or every provider supports native image input.
 Regolo's explicitly text-only GPT-OSS declarations were not relabeled. Seven
 other GPT entries resolved as image-capable in isolated installed-resolver
