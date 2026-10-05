@@ -2161,3 +2161,44 @@ with R8 and separately installed/launch-smoked; iOS remains source-only.
   iOS version metadata was aligned and its project regenerated only. The APK is
   delivered directly; this does not claim automatic update publication or iOS
   distribution. Previously lost images must be resent after the gateway repair.
+## Streaming text tail reveal (2026-10-05)
+
+- Replaced the infinite blur applied to an entire live assistant bubble with a
+  220ms reveal on freshly appended visible glyphs only. Already-rendered text,
+  the bubble surface, previous paragraphs and previous bubbles stay sharp.
+  Pauses in provider output go fully idle instead of pulsing. Network events,
+  cumulative snapshot replacement, note ordering and stored text are unchanged.
+- The effect normally covers at most the last 16 UTF-16 units of the changed
+  suffix, expanding a boundary to preserve combining marks, surrogate pairs,
+  emoji modifiers, ZWJ sequences and one regional-indicator flag pair. It uses
+  measured text paths, including line wraps and RTL layout, and records only
+  the suffix crop. Crops above 524,288 RGBA pixels fall back to clear drawing.
+- Markdown keeps its annotated text and links. Tail motion applies to prose,
+  headings and the final table cell; images and code fences remain clear.
+  Removed the renderer's default text-size animation so incoming words are not
+  temporarily clipped by an older width/height. Reduced motion and completed
+  messages bypass the effect. Human message entrance motion is retained.
+- Validation: 183 shared and 78 Android unit tests passed. Three native pixel
+  regressions confirm that only tail pixels change, unchanged text and surface
+  pixels are identical, wrapped Markdown preserves bold formatting, live text
+  stays settled after one second, and reduced/completed text does not pulse.
+  These passed both focused and in the final phone run. Final tablet cases also
+  passed at 1100dp, 720dp and 390dp host widths.
+- The broad phone run completed 90 cases: 89 passed, with one timeout in the
+  existing Ukrainian code-form-to-QR test. Its saved screenshot remained on the
+  QR screen after a physical tap during native keyboard/layout transition; an
+  isolated rerun passed unchanged. This is recorded as a timing limitation of
+  the broad run, not claimed as a clean 90/90 run. No unrelated auth code or test
+  assertion was changed to hide it.
+- An independent reviewer authored the range regressions, found the regional
+  indicator over-expansion and requested the crop budget; both were fixed and
+  reviewed. Native pixel testing also caught default Markdown size animation
+  under reduced motion, leading to the immediate-layout correction. No new
+  dependency or user-visible string was introduced.
+- Android 0.4.6 / code 13 built with R8 from the current absolute-source isolated
+  snapshot. SHA-256:
+  `f92833eab42fc8fdeb359842997e04573981ab0cad894c1b74a241add309e5f7`.
+  iOS version metadata and its Foundation combining-mark counterpart are source
+  aligned; the iOS compilation attempt was blocked because the pinned Kotlin
+  Native compiler was not cached for offline mode. No iOS runtime claim is made.
+  Backend, tunnel and provider configuration were untouched by this UI change.
