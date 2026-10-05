@@ -74,7 +74,7 @@ class MobileUiTest {
                         path == "/api/mobile/capabilities" -> """{"steer":false,"queue":true,"event_replay":true}"""
                         path == "/api/brain/models" -> {
                             if (slowCatalog) catalogReady.await()
-                            """{"models":[{"id":"fixture/claude","label":"Claude Sonnet","provider":"fixture","brand":"anthropic","efforts":["none","low","high"]},{"id":"fixture/gpt","label":"$alternateModelLabel","provider":"fixture","brand":"openai","efforts":["none","high"]}],"selected":"fixture/claude"}"""
+                            """{"models":[{"id":"fixture/claude","label":"Claude Sonnet","provider":"fixture","brand":"anthropic","vision":true,"efforts":["none","low","high"]},{"id":"fixture/gpt","label":"$alternateModelLabel","provider":"fixture","brand":"openai","efforts":["none","high"]}],"selected":"fixture/claude"}"""
                         }
                         path == "/api/sessions" -> """{"sessions":[{"id":"$sessionId","title":"A shared conversation","updated":1791043200}]}"""
                         path.startsWith("/api/sessions/") -> if (answered) """{"messages":[{"id":"u1","role":"user","content":"Find the project notes"},{"id":"a1","role":"assistant","content":"I found the project notes.\n\nThey are in your shared workspace.","model":"fixture/claude","steps":[{"id":"s1","label":"Search workspace","detail":"Found notes.md","status":"done"}],"parts":[{"type":"text","text":"I found the project notes."},{"type":"steps","ids":["s1"]},{"type":"text","text":"They are in your shared workspace."}]}]}""" else """{"messages":[]}"""
@@ -204,6 +204,7 @@ class MobileUiTest {
         screenshot("mobile-new-chat")
         compose.onNodeWithText("Claude Sonnet").performClick()
         waitFor("Effort")
+        compose.onAllNodesWithContentDescription("Supports images").assertCountEquals(0)
         compose.onNodeWithText("Effort").performClick()
         compose.onNodeWithText("High").performClick()
         screenshot("mobile-model-picker")
