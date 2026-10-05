@@ -66,6 +66,11 @@ loading, portrait geometry and the native full viewer. See
 
 ## Current limits
 
+- Owned file links now open in-app with revision-checked text editing. Built
+  HTML/Vite/React outputs run in an isolated native preview. Build with the bot
+  uses the normal chat queue. Preview networking and browser storage are limited;
+  see [RELEASE-0.4.8.md](../docs/mobile-app/RELEASE-0.4.8.md).
+
 - The installed gateway cannot guarantee updating the current task through its
   exported API. Steer is disabled by capability rather than emulated as another
   turn. Queue, Stop and scheduled sends work independently.

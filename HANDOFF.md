@@ -2250,3 +2250,39 @@ a fresh image-only code, retained the exact requested model, used no tools, and
 preserved upload bytes. The owned chat, gateway session and image were removed.
 No Astra configuration change was needed. Live image recognition now covers
 Sol, Luna, Astra and GPT-6.1 Sol; it is not a claim about every catalog entry.
+
+## Mobile file editing and built app previews (2026-10-05)
+
+- Owned file/preview/upload links now open inside the app. Markdown is formatted;
+  text edits use revision-checked autosave and retain the linked conversation.
+  Canonical file identities prevent an older alias save from erasing a newer
+  draft opened through Files. Relative links use the server-resolved path.
+- HTML and built Vite/React outputs run in an isolated native preview. Build or
+  Rebuild with the bot submits a normal queued job, preserving both chat drafts
+  and the target chat's model. The backend serves bounded original resources;
+  it adds no subprocess or arbitrary command endpoint.
+- Preview pages cannot access app credentials, host cookies, external networking,
+  nested frames, workers, or browser storage. HTML partial fetches and live HMR
+  are unsupported. Source-aligned iOS code remains uncompiled/runtime-unverified.
+- Final validation: 1,551 Python tests passed, 8 skipped, 178 subtests passed;
+  215 shared and 78 Android JVM tests passed. All 11 native-preview tests passed,
+  including a real Vite/React bundle. Both integration cases passed on phone and
+  tablet; all five existing tablet cases passed. Screenshots were inspected.
+  The wider phone batch was 37/38; its existing note-follow test stopped before
+  any submit/stream request, then passed its single unchanged isolated rerun.
+  This is not a claim of a clean combined phone run. The new integration fixture
+  now supports the tablet sidebar instead of requiring a phone menu button.
+- Independent reviews resolved canonical draft recovery races, linked model and
+  relative-path selection, reserved session IDs, native renderer termination,
+  frame isolation, and failed script/style handling. Final post-review loopback
+  smoke passed 31 checks and shut down its temporary server/workspace.
+- Backend deployed via its existing launchagent after zero active jobs; readiness
+  returned 200 and both new routes were registered. The tunnel was untouched.
+- R8 Android release 0.4.8 / code 15 installed and cold-launched successfully,
+  showed the pairing screen, and produced no crash-buffer entries. APK is
+  2,876,935 bytes, SHA-256
+  `4eed9c9be9f642f42abcf31fceb4be227a89d1ee6fc0c0b376373daa03f86bb3`.
+  This is direct APK delivery, not automatic update publication. No paid provider
+  calls or production chat submissions were made for this task.
+- Reproduction, preview limits and detailed evidence:
+  `docs/mobile-app/RELEASE-0.4.8.md`.
