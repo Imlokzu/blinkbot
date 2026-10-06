@@ -1,0 +1,101 @@
+name: Mobile Android release
+
+on:
+  push:
+    tags: ['mobile-v*']
+  workflow_dispatch:
+    inputs:
+      version-name:
+        description: 'Version name, e.g. 0.4.13'
+        required: true
+        default: '0.4.13'
+      version-code:
+        description: 'Version code (integer, must increase)'
+        required: true
+        default: '20'
+      changelog:
+        description: 'One-line release notes'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  release-android:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.ref_name }}" == mobile-v* ]]; then
+            NAME="${GITHUB_REF_NAME#mobile-v}"
+          else
+            NAME="${{ inputs.version-name }}"
+          fi
+          CODE="${{ inputs.version-code }}"
+          : "${CODE:=0}"
+          if [[ "$CODE" == "0" ]]; then
+            CURRENT=$(python3 - <<'PY'
+          import re
+          text = open('mobile-app/androidApp/build.gradle.kts').read()
+          print(re.search(r'versionCode\s*=\s*(\d+)', text).group(1))
+          PY
+          )
+            CODE=$((CURRENT + 1))
+          fi
+          CURRENT="$(
+            python3 - <<'PY'
+          import re
+          text = open('mobile-app/androidApp/build.gradle.kts').read()
+          print(re.search(r'versionName\s*=\s*"([^"]+)"', text).group(1))
+          PY
+          )"
+          python3 - "$NAME" "$CODE" <<'PY'
+          import re, sys
+          name, code = sys.argv[1], sys.argv[2]
+          path = 'mobile-app/androidApp/build.gradle.kts'
+          text = open(path).read()
+          text = re.sub(r'versionCode\s*=\s*\d+', f'versionCode = {code}', text)
+          text = re.sub(r'versionName\s*=\s*"[^"]*"', f'versionName = "{name}"', text)
+          open(path, 'w').write(text)
+          PY
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+
+      - name: Build signed release APK
+        working-directory: mobile-app
+        run: ./gradlew :androidApp:assembleRelease :shared:testDebugUnitTest
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: mobile-app
+        run: |
+          APK="androidApp/build/outputs/apk/release/androidApp-release.apk"
+          TAG="mobile-v${{ steps.version.outputs.name }}"
+          NOTES="${{ inputs.changelog }}"
+          if [[ -z "$NOTES" && "${{ github.event_name }}" == "push" ]]; then
+            NOTES="${{ github.event.head_commit.message }}"
+          fi
+          NOTES="${NOTES:-Mobile app update}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "$TAG" --yes --repo "$GITHUB_REPOSITORY"
+          fi
+          gh release create "$TAG" "$APK#ClaudeBot-${{ steps.version.outputs.name }}.apk" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Claude Bot ${{ steps.version.outputs.name }}" \
+            --notes "$NOTES"
