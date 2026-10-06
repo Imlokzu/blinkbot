@@ -39,6 +39,8 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     private val sessionStreamVersions = mutableMapOf<String, Long>()
     private val observedJobStates = mutableMapOf<String, Pair<Long, String>>()
     private val reportedJobErrors = mutableSetOf<String>()
+    private val seenQuestions = mutableSetOf<String>()
+    private val handledQuestions = mutableSetOf<String>()
     private var navigationVersion = 0L
     private var connectionVersion = 0L
     private var previewVersion = 0L
@@ -269,6 +271,9 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     }
 
     private suspend fun establish(server: String, token: String) {
+        handledQuestions.clear()
+        handledQuestions += readScoped("questions.handled.v1")?.let { json.decodeFromString<Set<String>>(it) }.orEmpty()
+        handledQuestions += outbox.mapNotNull { it.questionId }
         update { it.copy(connecting = true) }
         val version = ++connectionVersion
         val connection = makeApi(server, token)
@@ -550,6 +555,64 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         run { submit(item, askOnFailure = true) }
     }
 
+    override fun answerQuestion(id: String, answer: String) {
+        val current = state.value
+        if (api == null || !current.connected || current.sessionId in deletingChats) return
+        val question = current.questions.firstOrNull { it.id == id && it.sessionId == current.sessionId } ?: return
+        val value = answer.trim()
+        if (value.isEmpty() || value.length > 8000 || (!question.allowCustom && value !in question.options)) return
+        // Answer as a separate queued turn, preserving the composer's draft,
+        // attachments and edit target. The existing outbox owns retry safety.
+        val item = OutboxItem(platform.newId(), question.sessionId, value, current.selectedModel, current.effort, "queue", questionId = id)
+        outbox.add(item)
+        try { persistOutbox() } catch (_: Exception) {
+            outbox.remove(item)
+            update { it.copy(error = "error.storage") }
+            return
+        }
+        handledQuestions += id
+        update { it.copy(questions = it.questions.filterNot { q -> q.id == id }, error = null) }
+        feedback()
+        run { submit(item, askOnFailure = true) }
+    }
+
+    override fun dismissQuestion(id: String) {
+        if (state.value.questions.none { it.id == id && it.sessionId == state.value.sessionId }) return
+        if (!rememberHandledQuestion(id)) return
+        update { it.copy(questions = it.questions.filterNot { q -> q.id == id && q.sessionId == it.sessionId }) }
+    }
+
+    private fun rememberHandledQuestion(id: String): Boolean {
+        val key = "$accountScope.questions.handled.v1"
+        try {
+            platform.updatePreferences(listOf(key)) { latest ->
+                val handled = latest[key]?.let { json.decodeFromString<Set<String>>(it) }.orEmpty()
+                mapOf(key to json.encodeToString(handled + id))
+            }
+        } catch (_: Exception) { update { it.copy(error = "error.storage") }; return false }
+        handledQuestions += id
+        return true
+    }
+
+    private fun receiveQuestion(job: MobileJob, event: BotEvent) {
+        // Listen even while another chat is open; only the matching chat may
+        // display or answer this prompt. Never restore prompts from history.
+        botQuestion(job, event)?.let { question ->
+            if (question.id !in handledQuestions && seenQuestions.add(question.id)) update { it.copy(questions = it.questions + question) }
+        }
+        val status = (event.data["state"] as? JsonPrimitive)?.contentOrNull
+        if (event.event == "error" || event.event == "mobile_state" && status in setOf("stopped", "failed", "interrupted", "cancelled")) {
+            update { it.copy(questions = it.questions.filterNot { q -> q.jobId == job.id }) }
+        }
+        if (event.event in setOf("tool_error", "tool_done", "tool_result")) {
+            val step = event.data["step"] as? JsonObject
+            val failed = event.event == "tool_error" || (step?.get("status") as? JsonPrimitive)?.contentOrNull == "failed" ||
+                (event.data["is_error"] as? JsonPrimitive)?.booleanOrNull == true
+            val call = (step?.get("id") as? JsonPrimitive)?.contentOrNull ?: (event.data["call_id"] as? JsonPrimitive)?.contentOrNull
+            if (failed && call != null) update { it.copy(questions = it.questions.filterNot { q -> q.id == "${job.sessionId}/${job.id}/$call" }) }
+        }
+    }
+
     private fun persistOutbox() {
         val queueKey = "$accountScope.outbox.v1"
         val allowedKey = "$accountScope.outbox.allowed"
@@ -576,6 +639,10 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     }
     private suspend fun submit(item: OutboxItem, askOnFailure: Boolean) {
         if (item.sessionId in deletingChats) return
+        // iOS preference updates can be sequential. A pending outbox answer
+        // carries its question ID through a crash; persist the receipt before
+        // HTTP acknowledgment can remove that durable answer from the queue.
+        if (item.questionId != null && !rememberHandledQuestion(item.questionId)) return
         val version = connectionVersion
         val owner = accountScope
         val navigation = navigationVersion
@@ -606,7 +673,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                 val index = outbox.indexOfFirst { it.clientId == item.clientId }
                 if (index >= 0) outbox[index] = item.copy(lastError = (failure as ApiFailure).code)
                 permitted.remove(item.clientId); persistOutbox()
-                if (navigation == navigationVersion && state.value.sessionId == item.sessionId) {
+                if (item.questionId == null && navigation == navigationVersion && state.value.sessionId == item.sessionId) {
                     if (state.value.draft.isBlank()) draft(item.message)
                     update { it.copy(attachments = if (it.attachments.isEmpty()) item.attachments else it.attachments) }
                 }
@@ -634,7 +701,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         if (allow) { permitted += outbox.filter { it.lastError == null && !it.deliveryDeclined }.map { it.clientId }; persistOutbox(); run { retryOutbox() } }
         else {
             val same = outbox.lastOrNull { it.sessionId == state.value.sessionId }
-            if (same != null && state.value.draft.isBlank() && same.clientId !in permitted) {
+            if (same != null && same.questionId == null && state.value.draft.isBlank() && same.clientId !in permitted) {
                 draft(same.message); update { it.copy(attachments = same.attachments) }
                 outbox.removeAll { it.clientId == same.clientId }
             }
@@ -695,6 +762,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                         if (version != connectionVersion) return@collect
                         if (event.id != null && event.id <= (cursors[job.id] ?: 0L)) return@collect
                         event.id?.let { cursors[job.id] = it }
+                        receiveQuestion(job, event)
                         val streamVersion = (sessionStreamVersions[job.sessionId] ?: 0L) + 1
                         sessionStreamVersions[job.sessionId] = streamVersion
                         if (event.event == "mobile_state") {
@@ -1486,6 +1554,8 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         connectionVersion++; navigationVersion++; recordingVersion++; previewVersion++; fileReadVersion++; directoryVersion++; pairingVersion++
         partialAsr?.cancel(); fileDebounce?.cancel(); platform.cancelRecording()
         watchers.values.forEach { it.cancel() }; watchers.clear(); api?.close(); api = null
+        seenQuestions.clear()
+        handledQuestions.clear()
         thumbnailLoads.values.forEach { it.cancel() }; thumbnailLoads.clear(); thumbnailMisses.clear(); reducedThumbnails.clear()
         presentationIds.clear(); replyImageCache.clear(); uploadVersion++; activeUploadVersion = null
         chatActionVersions.clear(); chatActionLocks.clear(); deletingChats.clear(); reactionLocks.clear(); reactionVersions.clear(); reactionBaselines.clear()

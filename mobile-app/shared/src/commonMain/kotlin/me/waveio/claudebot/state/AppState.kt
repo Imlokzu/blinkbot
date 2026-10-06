@@ -82,6 +82,7 @@ data class OutboxItem(
     val forkAction: String? = null,
     val lastError: String? = null,
     val deliveryDeclined: Boolean = false,
+    val questionId: String? = null,
 )
 
 data class AppState(
@@ -116,6 +117,7 @@ data class AppState(
     val conversations: List<ConversationRow> = emptyList(),
     val sessionId: String = "",
     val messages: List<MessageRow> = emptyList(),
+    val questions: List<BotQuestion> = emptyList(),
     val draft: String = "",
     val editingMessageId: String? = null,
     val attachments: List<DraftAttachment> = emptyList(),

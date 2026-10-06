@@ -2303,3 +2303,37 @@ Sol, Luna, Astra and GPT-6.1 Sol; it is not a claim about every catalog entry.
   400; test servers stopped and Mac output remains muted. No real devices/jobs
   or provider settings changed. Other agents' staged/native release drafts
   remain preserved. Evidence: `reports/night-agent-device-revocation-2026-10-05.md`.
+
+## Mobile question composer extension (2026-10-06)
+
+`ask_question` now opens immediately inside the bottom composer surface, as the
+owner requested, rather than as a centered dialog. Job-scoped native/local tool
+SSE already carries the structured arguments, so no server production change or
+new global event subscription is required. The panel offers every complete
+option label and optional free text, respects its IME-reduced viewport, and
+leaves the conversation header visible. Back respects drawer/modal precedence.
+Dictation retains its controls until it ends, then the pending question appears.
+
+Answers use a separate queued turn in the originating chat. Composer drafts,
+attachments and edit targets survive success, rejection and declined offline
+delivery. Questions are isolated by account, session, job and tool call;
+replayed starts/completion cannot reopen answered/dismissed calls. Durable
+outbox question IDs cover sequential iOS preference writes, while Android's
+background acknowledgment atomically retains the handled-question receipt.
+Unsupported/malformed tool events do not fabricate a prompt. Failed/stopped
+turns clear unanswered questions; multiple calls remain in arrival order.
+
+Validation: 246 shared and 78 Android JVM tests passed, including 15 focused
+controller/decoder regressions. Native Compose coverage exercises choices,
+custom/IME submission, long labels at 1.8x font scale, bottom-composer placement,
+chat isolation, input reset, close/Back and drawer precedence. The native outbox
+suite includes missing-receipt/background acknowledgment/restart coverage.
+The focused Python activity/streaming suite passed 28 tests, including real
+loopback HTTP proof that complete question arguments arrive before provider
+completion, plus static-asset 200 and workspace-traversal 400 smoke checks.
+Independent adversarial review used an available inherited model because the
+installed reviewer model was unavailable; its concrete findings were fixed.
+Tests used fake providers and isolated data, with no production messages or
+server restart. APK builds retain the existing 0.4.9 metadata; this feature has
+not been published as an automatic API update. Other pending mobile/dashboard
+work remains outside this commit.

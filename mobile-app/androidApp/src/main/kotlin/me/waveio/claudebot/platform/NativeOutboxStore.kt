@@ -133,6 +133,12 @@ internal class NativeOutboxStore(
             .putString(identity.deviceId + ALLOWED_SUFFIX, json.encodeToString(allowed))
             .putString(identity.deviceId + ACK_SUFFIX, json.encodeToString(acknowledged))
             .apply {
+                // A background acknowledgment must retain the question receipt
+                // even if the foreground receipt write failed before suspension.
+                item.questionId?.let { question ->
+                    val key = identity.deviceId + ".questions.handled.v1"
+                    putString(key, json.encodeToString((strings(key) + question).distinct()))
+                }
                 if (failures.isEmpty()) remove(identity.deviceId + FAILED_SUFFIX)
                 else putString(identity.deviceId + FAILED_SUFFIX, JsonObject(failures).toString())
             }

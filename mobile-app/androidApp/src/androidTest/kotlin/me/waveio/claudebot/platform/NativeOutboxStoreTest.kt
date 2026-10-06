@@ -76,6 +76,24 @@ class NativeOutboxStoreTest {
         assertEquals(listOf(newer), store.eligible(identity))
     }
 
+    @Test fun backgroundAnswerAcknowledgementRetainsQuestionReceiptAcrossRestart() {
+        val answer = item("answer").copy(questionId = "fixture-session/job/ask")
+        // The answer is durable but a failed foreground receipt write left no
+        // handled marker. Background delivery can still acknowledge the turn.
+        store.writePreference(queueKey, json.encodeToString(listOf(answer)))
+        val key = device + ".questions.handled.v1"
+        store.writePreference(key, "[\"previous-question\"]")
+        store.authorizeBackground()
+        val identity = store.snapshot()!!
+        assertEquals(listOf(answer), store.eligible(identity))
+        assertTrue(store.acknowledge(identity, answer))
+        val restarted = newStore().also { it.initialize() }
+        assertTrue(json.decodeFromString<List<OutboxItem>>(restarted.readPreference(queueKey)!!).isEmpty())
+        assertEquals(setOf("previous-question", answer.questionId),
+            json.decodeFromString<Set<String>>(restarted.readPreference(key)!!))
+        assertTrue(restarted.eligible(restarted.snapshot()!!).isEmpty())
+    }
+
     @Test fun acknowledgementNeverRemovesAnEditedEntry() {
         val original = item("one")
         persist(original)

@@ -28,12 +28,13 @@ import me.waveio.claudebot.state.*
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Composer(state: AppState, actions: AppActions) {
+fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.dp) {
     val p = LocalPalette.current
     val landscape = LocalAdaptiveLayout.current.compactHeight
     val keyboard = LocalSoftwareKeyboardController.current
     val popupRise = with(LocalDensity.current) { (-58).dp.roundToPx() }
     val sendLabel = tr("chat.send")
+    val question = state.questions.firstOrNull { it.sessionId == state.sessionId }.takeIf { !state.dictationOpen }
     val dictating = state.dictationOpen
     val amplitude = animateFloatAsState(if (state.recording) state.amplitude.coerceIn(0f, 1f) else 0f, tween(if (LocalReducedMotion.current) 0 else 80), label = "voiceAmplitude")
     val corners = RoundedCornerShape(25.dp)
@@ -46,6 +47,12 @@ fun Composer(state: AppState, actions: AppActions) {
             drawRoundRect(brush, cornerRadius = radius, style = Stroke((1f + amplitude.value * 1.5f).dp.toPx()), alpha = .4f + amplitude.value * .4f)
         }
     }.clip(corners).background(p.surface).border(1.dp, if (dictating) p.accent.copy(alpha = .65f) else p.line, corners).padding(if (landscape) 0.dp else 8.dp)) {
+        if (question != null) {
+            BotQuestionPanel(question, actions, questionMaxHeight,
+                backEnabled = !state.menuOpen && !state.modelPickerOpen && !state.attachmentPickerOpen &&
+                    !state.sendModeOpen && !state.scheduling && state.previewTitle == null &&
+                    !state.offlineQuestion && !state.updatePromptOpen)
+        } else {
         if (state.editingMessageId != null) Row(verticalAlignment = Alignment.CenterVertically) {
             Text(tr("chat.edit"), color = p.muted, fontSize = 12.sp, modifier = Modifier.weight(1f).padding(start = 10.dp))
             IconAction("close", tr("input.cancel"), actions::cancelEdit)
@@ -109,6 +116,7 @@ fun Composer(state: AppState, actions: AppActions) {
         } else {
             stableInput(Modifier.fillMaxWidth())
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, content = controls)
+        }
         }
     }
 }

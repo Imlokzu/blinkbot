@@ -143,7 +143,8 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
             }
         }
     }
-    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).testTag("chat-surface")) {
+    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).testTag("chat-surface")) {
+        val questionMaxHeight = ((maxHeight - topPanel).coerceAtLeast(0.dp) * .6f).coerceAtMost(440.dp)
         Box(Modifier.align(Alignment.TopCenter).widthIn(max = ChatContentMaxWidth).fillMaxSize().testTag("chat-column")) {
         Box(Modifier.fillMaxSize()) {
             if (state.messages.isEmpty() && !state.loading) {
@@ -208,7 +209,7 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
                 if (state.queuePaused) QuietAction(tr("queue.resume"), actions::resumeQueue)
             }
         }
-        Composer(state, actions)
+        Composer(state, actions, questionMaxHeight)
         }
         }
     }

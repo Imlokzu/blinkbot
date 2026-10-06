@@ -21,6 +21,8 @@ interface AppActions {
     fun selectEffort(value: String)
     fun draft(value: String)
     fun send(delivery: String = "queue", scheduledAt: String? = null)
+    fun answerQuestion(id: String, answer: String) {}
+    fun dismissQuestion(id: String) {}
     fun stop()
     fun resumeQueue()
     fun cancelPending(id: String)

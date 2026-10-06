@@ -1,4 +1,8 @@
 {
+  "question.title": "A question from the bot",
+  "question.dismiss": "Dismiss question",
+  "question.custom": "Your answer",
+  "question.send": "Send answer",
   "app.name": "Claude Bot",
   "connect.title": "Your bot. Always close.",
   "connect.body": "Open Devices in your bot’s dashboard to connect with a QR or one-time code. Your conversations and files will be here.",

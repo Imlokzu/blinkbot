@@ -86,6 +86,7 @@ fun BotDialog(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit
 fun ActionButton(
     text: String, onClick: () -> Unit, modifier: Modifier = Modifier,
     primary: Boolean = false, enabled: Boolean = true, icon: String? = null,
+    maxLines: Int = 2,
 ) {
     val p = LocalPalette.current
     val interaction = remember { MutableInteractionSource() }
@@ -97,7 +98,7 @@ fun ActionButton(
         .padding(horizontal = 16.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
         val ink = if (primary) p.background else p.ink
         if (icon != null) { Glyph(icon, modifier = Modifier.size(18.dp), tint = ink); Spacer(Modifier.width(8.dp)) }
-        Text(text, color = ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2)
+        Text(text, color = ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = maxLines)
     }
 }
 
