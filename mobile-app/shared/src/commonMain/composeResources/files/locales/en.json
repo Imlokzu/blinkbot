@@ -309,5 +309,8 @@
   "update.ready": "A newer version is available.",
   "update.noRelease": "No update has been published on this server yet.",
   "update.checkFailed": "Could not check for updates. Check your connection and try again.",
-  "update.installerOpened": "The system installer is open. Finish installation there."
+  "update.installerOpened": "The system installer is open. Finish installation there.",
+  "update.betaChannel": "Beta channel",
+  "update.channelBeta": "Early builds arrive here. Switch back to stable anytime.",
+  "update.channelStable": "Stable releases."
 }

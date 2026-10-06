@@ -11,7 +11,7 @@ RELEASES_DIR="$ROOT/Virtual Bot/runtime/releases"
 SERVICE="me.waveio.klodbot-web"
 DB="$ROOT/Virtual Bot/runtime/mobile.sqlite3"
 
-APK="" VERSION_NAME="" VERSION_CODE="" CHANGELOG=""
+APK="" VERSION_NAME="" VERSION_CODE="" CHANGELOG="" CHANNEL="stable"
 RESTART=0 PUBLIC=0
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -19,19 +19,30 @@ while [[ $# -gt 0 ]]; do
         --version-name) VERSION_NAME="$2"; shift 2 ;;
         --version-code) VERSION_CODE="$2"; shift 2 ;;
         --changelog) CHANGELOG="$2"; shift 2 ;;
+        --channel) CHANNEL="$2"; shift 2 ;;
         --restart) RESTART=1; shift ;;
         --public) PUBLIC=1; shift ;;
         *) echo "unknown flag: $1" >&2; exit 2 ;;
     esac
 done
+[[ "$CHANNEL" == "stable" || "$CHANNEL" == "beta" ]] || { echo "release aborted: channel must be stable or beta" >&2; exit 2; }
 [[ -f "$APK" && -s "$APK" && -n "$VERSION_NAME" && -n "$VERSION_CODE" ]] || {
     echo "release aborted: --apk, --version-name and --version-code are required" >&2; exit 2; }
 
 SHA256="$(shasum -a 256 "$APK" | awk '{print $1}')"
-PUBLISHED="$RELEASES_DIR/ClaudeBot-$VERSION_NAME.apk"
+if [[ "$CHANNEL" == "beta" ]]; then
+    PUBLISHED="$RELEASES_DIR/ClaudeBot-$VERSION_NAME-beta.apk"
+else
+    PUBLISHED="$RELEASES_DIR/ClaudeBot-$VERSION_NAME.apk"
+fi
 mkdir -p "$RELEASES_DIR"
 if [[ ! -f "$PUBLISHED" || "$(shasum -a 256 "$PUBLISHED" | awk '{print $1}')" != "$SHA256" ]]; then
     cp "$APK" "$PUBLISHED"
+fi
+
+PREFIX="MOBILE_UPDATE_ANDROID"
+if [[ "$CHANNEL" == "beta" ]]; then
+    PREFIX="MOBILE_UPDATE_BETA_ANDROID"
 fi
 
 set_env() { # key value — keep the file's existing quoting by rewriting whole lines
@@ -45,11 +56,11 @@ text = pattern.sub(line, text) if pattern.search(text) else text.rstrip("\n") + 
 open(path, "w", encoding="utf-8").write(text)
 PY
 }
-set_env MOBILE_UPDATE_ANDROID_VERSION "$VERSION_NAME"
-set_env MOBILE_UPDATE_ANDROID_VERSION_CODE "$VERSION_CODE"
-set_env MOBILE_UPDATE_ANDROID_CHANGELOG "${CHANGELOG//[$'\n']/ | }"
-set_env MOBILE_UPDATE_ANDROID_FILE "$PUBLISHED"
-set_env MOBILE_UPDATE_ANDROID_SHA256 "$SHA256"
+set_env "${PREFIX}_VERSION" "$VERSION_NAME"
+set_env "${PREFIX}_VERSION_CODE" "$VERSION_CODE"
+set_env "${PREFIX}_CHANGELOG" "${CHANGELOG//[$'\n']/ | }"
+set_env "${PREFIX}_FILE" "$PUBLISHED"
+set_env "${PREFIX}_SHA256" "$SHA256"
 
 if [[ "$RESTART" == "1" ]]; then
     if [[ -f "$DB" ]]; then

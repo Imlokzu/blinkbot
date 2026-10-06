@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import threading
 import time
 from types import SimpleNamespace
@@ -88,6 +89,7 @@ def test_pairing_rejects_unapproved_or_non_https_origins(tmp_path):
 
 
 def test_capabilities_publishes_version_gated_update_metadata(tmp_path, monkeypatch):
+    monkeypatch.delenv("MOBILE_UPDATE_ANDROID_SHA256", raising=False)
     monkeypatch.setenv("MOBILE_UPDATE_ANDROID_VERSION", "0.4.2")
     monkeypatch.setenv("MOBILE_UPDATE_ANDROID_VERSION_CODE", "9")
     monkeypatch.setenv("MOBILE_UPDATE_ANDROID_CHANGELOG", "Better image previews\nNative Excalidraw viewer")
@@ -98,6 +100,7 @@ def test_capabilities_publishes_version_gated_update_metadata(tmp_path, monkeypa
         current = client.get("/api/mobile/capabilities?platform=android&version_code=9").json()["update"]
     assert newer == {
         "available": True,
+        "channel": "stable",
         "version_name": "0.4.2",
         "version_code": 9,
         "changelog": ["Better image previews", "Native Excalidraw viewer"],
@@ -109,7 +112,43 @@ def test_capabilities_publishes_version_gated_update_metadata(tmp_path, monkeypa
     assert current["available"] is False
 
 
+def test_capabilities_beta_channel_uses_beta_metadata_and_stable_fallback(tmp_path, monkeypatch):
+    for key in list(os.environ):
+        if key.startswith("MOBILE_UPDATE"):
+            monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("MOBILE_UPDATE_ANDROID_VERSION", "0.4.2")
+    monkeypatch.setenv("MOBILE_UPDATE_ANDROID_VERSION_CODE", "9")
+    monkeypatch.setenv("MOBILE_UPDATE_ANDROID_FILE", str(tmp_path / "stable.apk"))
+    apk = tmp_path / "beta.apk"
+    apk.write_bytes(b"beta-bytes")
+    monkeypatch.setenv("MOBILE_UPDATE_BETA_ANDROID_VERSION", "0.4.3")
+    monkeypatch.setenv("MOBILE_UPDATE_BETA_ANDROID_VERSION_CODE", "10")
+    monkeypatch.setenv("MOBILE_UPDATE_BETA_ANDROID_FILE", str(apk))
+    monkeypatch.setenv("MOBILE_UPDATE_BETA_ANDROID_SHA256", "abc")
+    store = MobileStore(tmp_path / "mobile.db")
+    with TestClient(make_app(store)) as client:
+        auth = {"authorization": "Bearer " + _device_token(store)}
+        beta = client.get("/api/mobile/capabilities?platform=android&version_code=0&channel=beta", headers=auth).json()
+        assert beta["update"]["channel"] == "beta"
+        assert beta["update"]["version_code"] == 10
+        assert beta["update"]["url"].endswith("/api/mobile/update/download?channel=beta")
+        assert beta["update_stable"]["version_code"] == 9
+        assert beta["update_beta"]["version_code"] == 10
+        download = client.get("/api/mobile/update/download?channel=beta", headers=auth)
+        assert download.status_code == 200
+        assert download.content == b"beta-bytes"
+        assert client.get("/api/mobile/update/download?channel=nope", headers=auth).status_code in (200, 404)
+
+
+def _device_token(store):
+    result = store.exchange(store.create_pairing("")["code"], "Phone", "android")
+    return result["token"]
+
+
 def test_capabilities_builds_same_origin_android_download_and_serves_it_authenticated(tmp_path, monkeypatch):
+    for key in list(os.environ):
+        if key.startswith("MOBILE_UPDATE"):
+            monkeypatch.delenv(key, raising=False)
     apk = tmp_path / "ClaudeBot.apk"
     apk.write_bytes(b"synthetic-apk")
     monkeypatch.setenv("MOBILE_UPDATE_ANDROID_FILE", str(apk))

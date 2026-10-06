@@ -13,6 +13,12 @@ on:
         description: 'Version code (integer, must increase)'
         required: true
         default: '20'
+      channel:
+        description: 'Release channel'
+        required: true
+        default: 'stable'
+        type: choice
+        options: ['stable', 'beta']
       changelog:
         description: 'One-line release notes'
         required: false
@@ -41,10 +47,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          CHANNEL="stable"
           if [[ "${{ github.ref_name }}" == mobile-v* ]]; then
             NAME="${GITHUB_REF_NAME#mobile-v}"
           else
             NAME="${{ inputs.version-name }}"
+          fi
+          if [[ "$NAME" == *-beta ]]; then
+            CHANNEL="beta"
+            NAME="${NAME%-beta}"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.channel }}" == "beta" ]]; then
+            CHANNEL="beta"
           fi
           CODE="${{ inputs.version-code }}"
           : "${CODE:=0}"
@@ -75,6 +88,7 @@ jobs:
           PY
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
 
       - name: Build signed release APK
         working-directory: mobile-app
@@ -87,6 +101,9 @@ jobs:
         run: |
           APK="androidApp/build/outputs/apk/release/androidApp-release.apk"
           TAG="mobile-v${{ steps.version.outputs.name }}"
+          if [[ "${{ steps.version.outputs.channel }}" == "beta" ]]; then
+            TAG="${TAG}-beta"
+          fi
           NOTES="${{ inputs.changelog }}"
           if [[ -z "$NOTES" && "${{ github.event_name }}" == "push" ]]; then
             NOTES="${{ github.event.head_commit.message }}"
@@ -95,7 +112,11 @@ jobs:
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release delete "$TAG" --yes --repo "$GITHUB_REPOSITORY"
           fi
+          PRERELEASE=""
+          if [[ "${{ steps.version.outputs.channel }}" == "beta" ]]; then
+            PRERELEASE="--prerelease"
+          fi
           gh release create "$TAG" "$APK#ClaudeBot-${{ steps.version.outputs.name }}.apk" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Claude Bot ${{ steps.version.outputs.name }}" \
-            --notes "$NOTES"
+            --title "Claude Bot ${{ steps.version.outputs.name }}${{ steps.version.outputs.channel == 'beta' && ' (beta)' || '' }}" \
+            --notes "$NOTES" $PRERELEASE

@@ -77,6 +77,7 @@ interface AppActions {
     fun dismissUpdate()
     fun checkForUpdate()
     fun installUpdate()
+    fun updateBeta(enabled: Boolean)
     fun offlineDelivery(allow: Boolean)
     fun refresh()
 }

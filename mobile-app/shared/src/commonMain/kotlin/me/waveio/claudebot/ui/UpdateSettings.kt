@@ -28,6 +28,8 @@ internal fun UpdateSettingsContent(state: AppState, actions: AppActions) {
         }
         Text(tr(if (state.updateChecking) "update.checking" else state.updateStatus), color = palette.muted,
             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        BotToggle(tr("update.betaChannel"), state.updateBeta, actions::updateBeta)
+        Text(tr(if (state.updateBeta) "update.channelBeta" else "update.channelStable"), color = palette.muted, fontSize = 12.sp, modifier = Modifier.padding(start = 2.dp))
         state.updateError?.let { Text(tr(it), color = MaterialTheme.colorScheme.error) }
         ActionButton(tr(if (state.updateChecking) "update.checking" else "update.check"), actions::checkForUpdate,
             Modifier.fillMaxWidth(), icon = "retry", enabled = !state.updateChecking && !state.updateInstalling)

@@ -106,6 +106,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val token = restoredToken.getOrNull()
         // Publish restoration before launching work so a paired phone never flashes QR login.
         mutable.value = AppState(preferences = preferences, baseUrl = server, customWallpaper = wallpaper, draft = readScoped("draft.new").orEmpty(), selectedModel = initialModel(preferences), installedVersion = platform.appVersionName,
+            updateBeta = runCatching { platform.readPreference("update_beta") == "1" }.getOrDefault(false),
             initializing = !token.isNullOrBlank(), connecting = !token.isNullOrBlank(),
             initializationError = if (restoredToken.isFailure) "startup.storage" else null)
         if (!token.isNullOrBlank()) run { establish(server, token) }
@@ -1612,6 +1613,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     }
     override fun dismissNotice() { update { it.copy(error = null, notice = null, noticeDetail = null) } }
     override fun dismissUpdate() { update { it.copy(updatePromptOpen = false) } }
+    override fun updateBeta(enabled: Boolean) { update { it.copy(updateBeta = enabled) }; platform.writePreference("update_beta", if (enabled) "1" else "0"); checkForUpdate() }
     override fun checkForUpdate() {
         if (state.value.updateChecking || state.value.updateInstalling) return
         val connection = api ?: return
@@ -1619,7 +1621,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         update { it.copy(updateChecking = true, updateError = null) }
         run(isCurrent = { version == connectionVersion }) {
             try {
-                val capabilities = connection.capabilities(platform.platformName, platform.appVersionCode)
+                val capabilities = connection.capabilities(platform.platformName, platform.appVersionCode, if (state.value.updateBeta) "beta" else "stable")
                 val updateInfo = updateFromCapabilities(capabilities)
                 if (version != connectionVersion) return@run
                 update { it.copy(update = updateInfo, updateChecking = false, updateStatus = updateStatus(capabilities, updateInfo),

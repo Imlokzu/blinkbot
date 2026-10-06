@@ -22,7 +22,12 @@ if [[ -z "$TAG" ]]; then
 fi
 [[ -n "$TAG" ]] || { echo "no mobile-v* release found" >&2; exit 1; }
 
+CHANNEL="stable"
 NAME="${TAG#mobile-v}"
+if [[ "$NAME" == *-beta ]]; then
+    CHANNEL="beta"
+    NAME="${NAME%-beta}"
+fi
 DIR="$(mktemp -d)"
 trap 'rm -rf "$DIR"' EXIT
 gh release download "$TAG" --repo "$REPO" --pattern "ClaudeBot-*.apk" --dir "$DIR" --clobber
@@ -40,4 +45,4 @@ fi
 
 NOTES="$(gh release view "$TAG" --repo "$REPO" --json body --jq .body | head -1)"
 "$ROOT/scripts/mobile_publish.sh" --apk "$APK" --version-name "$NAME" \
-    --version-code "$NEXT" --changelog "${NOTES:-Mobile app update}" $RESTART $PUBLIC
+    --version-code "$NEXT" --channel "$CHANNEL" --changelog "${NOTES:-Mobile app update}" $RESTART $PUBLIC

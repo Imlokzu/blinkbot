@@ -139,28 +139,37 @@ def _origin(server: str) -> str:
     return server.rstrip("/")
 
 
-def _mobile_update(platform: str, version_code: int) -> dict[str, Any]:
+def _env(channel: str, key: str) -> str:
+    """Prefer MOBILE_UPDATE_<CHANNEL>_ANDROID_<KEY>; stable is the default."""
+    specific = os.environ.get(f"MOBILE_UPDATE_{channel.upper()}_ANDROID_{key}")
+    if specific is not None:
+        return specific.strip()
+    return os.environ.get(f"MOBILE_UPDATE_ANDROID_{key}", "").strip()
+
+
+def _mobile_update(platform: str, version_code: int, channel: str = "stable") -> dict[str, Any]:
     """Return operator-published update metadata without embedding binaries."""
-    prefix = "MOBILE_UPDATE_ANDROID" if platform == "android" else "MOBILE_UPDATE_IOS"
     try:
-        published_code = int(os.environ.get(f"{prefix}_VERSION_CODE", "0"))
+        published_code = int(_env(channel, "VERSION_CODE") or "0")
     except ValueError:
         published_code = 0
-    version_name = os.environ.get(f"{prefix}_VERSION", "").strip()
-    changelog = [line.strip(" -*\t") for line in os.environ.get(f"{prefix}_CHANGELOG", "").splitlines() if line.strip()]
-    update_url = os.environ.get(f"{prefix}_URL", "").strip() or None
-    if platform == "android" and os.environ.get("MOBILE_UPDATE_ANDROID_FILE", "").strip() and not update_url:
+    version_name = _env(channel, "VERSION")
+    changelog = [line.strip(" -*\t") for line in _env(channel, "CHANGELOG").splitlines() if line.strip()]
+    update_url = _env(channel, "URL") or None
+    if platform == "android" and not update_url:
         origin = os.environ.get("MOBILE_API_ORIGIN", "https://api-bot.waveio.me").rstrip("/")
-        update_url = f"{origin}/api/mobile/update/download"
+        suffix = "" if channel == "stable" else f"?channel={channel}"
+        update_url = f"{origin}/api/mobile/update/download{suffix}"
     return {
         "available": published_code > max(0, version_code) and bool(version_name),
+        "channel": channel,
         "version_name": version_name,
         "version_code": published_code,
         "changelog": changelog[:32],
         "url": update_url,
-        "ios_url": os.environ.get("MOBILE_UPDATE_IOS_URL", "").strip() or None,
-        "sha256": os.environ.get(f"{prefix}_SHA256", "").strip() or None,
-        "mandatory": os.environ.get(f"{prefix}_MANDATORY", "").lower() in {"1", "true", "yes"},
+        "ios_url": _env(channel, "IOS_URL") or None,
+        "sha256": _env(channel, "SHA256") or None,
+        "mandatory": _env(channel, "MANDATORY").lower() in {"1", "true", "yes"},
     }
 
 
@@ -558,10 +567,14 @@ def router(require_user, require_operator, run_turn: RunTurn, *, store: MobileSt
         return {"ok": True}
 
     @routes.get("/update/download")
-    async def download_update(user_id: str = Depends(identity)):
-        if os.environ.get("MOBILE_UPDATE_ANDROID_FILE", "").strip() == "":
+    async def download_update(
+        channel: str = Query(default="stable"),
+        user_id: str = Depends(identity),
+    ):
+        channel = channel if channel == "beta" else "stable"
+        if _env(channel, "FILE") == "":
             raise HTTPException(404, {"code": "update_unavailable"})
-        path = Path(os.environ["MOBILE_UPDATE_ANDROID_FILE"]).expanduser()
+        path = Path(_env(channel, "FILE")).expanduser()
         try:
             path = path.resolve(strict=True)
             if path.suffix.lower() != ".apk" or not path.is_file() or path.stat().st_size > 100 * 1024 * 1024:
@@ -575,12 +588,17 @@ def router(require_user, require_operator, run_turn: RunTurn, *, store: MobileSt
     async def capabilities(
         platform: Literal["android", "ios"] = Query(default="android"),
         version_code: int = Query(default=0, ge=0, le=10_000_000),
+        channel: str = Query(default="stable"),
         user_id: str = Depends(identity),
     ):
+        update = _mobile_update(platform, version_code, channel if channel == "beta" else "stable")
+        latest = _mobile_update(platform, 0, "stable")
+        latest_beta = _mobile_update(platform, 0, "beta")
+        latest_beta["available"] = False
         return {"version": 1, "pairing": True, "queue": True, "steer": False,
                 "stop": True, "scheduled_send": True, "event_replay": True,
                 "idempotency": True, "history_fork": True, "push": False,
-                "update": _mobile_update(platform, version_code)}
+                "update": update, "update_stable": latest, "update_beta": latest_beta}
 
     @routes.post("/messages")
     async def submit(req: MessageRequest, user_id: str = Depends(identity)):

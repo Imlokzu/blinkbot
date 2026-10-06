@@ -111,6 +111,7 @@ data class AppState(
     val noticeDetail: String? = null,
     val update: MobileUpdate? = null,
     val installedVersion: String = "",
+    val updateBeta: Boolean = false,
     val updatePromptOpen: Boolean = false,
     val updateStatus: String = "update.notChecked",
     val updateChecking: Boolean = false,
