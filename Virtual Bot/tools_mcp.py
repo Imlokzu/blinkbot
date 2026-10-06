@@ -24,12 +24,14 @@ import sys
 import urllib.error
 import urllib.request
 from image_generation_schema import SCHEMA as IMAGE_GENERATION_SCHEMA
+from calculation_schema import SCHEMA as CALCULATION_SCHEMA
 
 VBOT_URL = os.environ.get("VBOT_URL", "http://127.0.0.1:8100").rstrip("/")
 VBOT_SESSION = os.environ.get("VBOT_SESSION", "")
 PROTOCOL_VERSION = "2024-11-05"
 
 TOOLS = [
+    CALCULATION_SCHEMA,
     {
         "name": "web_search",
         "description": (

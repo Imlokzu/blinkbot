@@ -12,7 +12,7 @@ from tools.facts import get_fact
 from tools.images import search_images
 from image_generation import image_generate
 from image_generation_schema import SCHEMA as IMAGE_GENERATION_SCHEMA
-from tools import email_tools, fs_tools, integration_tools, music_tools, screen_tools, share_tools, timer_tools, ui_tools, video_tools, workspace_tools
+from tools import calculation_tools, email_tools, fs_tools, integration_tools, music_tools, screen_tools, share_tools, timer_tools, ui_tools, video_tools, workspace_tools
 from tools.search import fetch_top_pages, search_web
 from tools.weather import get_weather
 import memory
@@ -23,6 +23,7 @@ log = logging.getLogger("virtual_bot.tools.registry")
 ToolHandler = Callable[..., Awaitable[dict]]
 
 _TOOL_SCHEMAS: list[dict] = [
+    *calculation_tools.SCHEMAS,
     {'type': 'function', 'function': {**{key: value for key, value in IMAGE_GENERATION_SCHEMA.items() if key != 'inputSchema'},
         'parameters': IMAGE_GENERATION_SCHEMA['inputSchema']}},
     {
@@ -297,6 +298,7 @@ _SHARE_SCHEMAS: list[dict] = [
 ]
 
 _HANDLERS: dict[str, ToolHandler] = {
+    **calculation_tools.HANDLERS,
     "weather": _weather_handler,
     "currency": _currency_handler,
     "facts": get_fact,

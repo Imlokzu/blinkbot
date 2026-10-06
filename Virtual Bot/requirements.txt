@@ -1,4 +1,6 @@
 fastapi>=0.110
+# Isolated numeric Python execution; pins the matching client and worker binary.
+pydantic-monty==1.1.0
 qrcode>=8.0,<9.0
 uvicorn>=0.29
 httpx>=0.27

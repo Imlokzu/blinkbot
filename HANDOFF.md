@@ -2364,3 +2364,22 @@ run is released independently and asserts no `reply_snapshot` reaches mobile,
 while the authoritative HTTP delta and final answer still arrive. An independent
 adversarial review found no additional issue in the bounded change. The fix is
 backend-only; the previously published Android 0.4.10 package remains usable.
+
+## Isolated Python calculation tool (2026-10-06)
+
+Added `python_calculate` to the local registry and tools-MCP with one shared
+schema. Each invocation uses a fresh Pydantic Monty 1.1.0 worker with a 32 MiB
+memory limit, three-second feed limit, bounded output and at most two concurrent
+workers per server event loop. No host functions, filesystem mounts, environment
+or networking are exposed. Numeric Python supports loops, functions, complex
+numbers and `math`; NumPy/SymPy are explicitly not advertised. Large results are
+formatted and sliced inside the worker before crossing the host boundary.
+Cancellation closes the worker scope; errors are returned truthfully.
+
+Validation: 35 calculation, tool-event and tool-passthrough tests passed,
+including actual worker execution, sandbox boundaries, limits, cancellation,
+integer formatting and schema parity. Independent adversarial review findings
+were resolved. Live `tools__python_calculate` allowlist activation and MCP reload
+remain part of the coordinated math-feature deployment; registration alone is
+not claimed as live model availability. Math rendering is being integrated
+separately into the web and mobile clients.
