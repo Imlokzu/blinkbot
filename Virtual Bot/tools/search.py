@@ -1,16 +1,24 @@
-"""Web search through Exa's hosted MCP, DuckDuckGo, and Bing (parallel)."""
+"""Web search through Exa's hosted MCP, DuckDuckGo, and Bing (parallel).
+
+Also exposes `fetch_top_pages`: search once, then fetch the top N pages in
+parallel and extract a title plus a body-text preview for each. Fetches go
+through the same public-IP allowlist as web_browser, so SSRF to internal
+services stays blocked.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import base64
+import ipaddress
 import json
 import logging
 import os
 import re
+import socket
 from html import unescape
 from time import monotonic
-from urllib.parse import parse_qs, urljoin, urlsplit
+from urllib.parse import parse_qs, urljoin, urlsplit, urlparse
 
 import httpx
 
@@ -354,3 +362,157 @@ async def _run_providers(query: str, count: int) -> dict:
     if any_alive:
         return _error("search.no_results")
     return _error("search.rate_limited" if any_limited else "search.unavailable")
+
+
+# ---------------------------------------------------------------------------
+# fetch_top_pages: search + parallel page download + text extraction.
+# ---------------------------------------------------------------------------
+
+_FETCH_TIMEOUT = 6.0
+_FETCH_MAX_BYTES = 200_000
+_FETCH_TEXT_CHARS = 600
+_FETCH_DEFAULT_COUNT = 5
+_FETCH_MAX_COUNT = 10
+_STRIP_TAGS = re.compile(
+    r"<(script|style|noscript|template|svg|iframe|form|button|nav|header|footer|aside)[^>]*>.*?</\1>",
+    re.IGNORECASE | re.DOTALL,
+)
+_TAG = re.compile(r"<[^>]+>")
+
+
+def _check_public_fetch(url: str) -> None:
+    """Same allowlist idea as web_browser._check_public: http(s) only, no
+    private/loopback/reserved IPs. Raises ValueError on rejection."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError("only http(s) is allowed")
+    host = parsed.hostname
+    if not host:
+        raise ValueError("invalid host")
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror as exc:
+        raise ValueError(f"unresolvable host: {host}") from exc
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            raise ValueError(f"private/loopback IP blocked: {ip}")
+
+
+def _extract_title(html: str) -> str:
+    m = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+    return _clean_text(m.group(1))[:200] if m else ""
+
+
+def _extract_text(html: str, limit: int = _FETCH_TEXT_CHARS) -> str:
+    """Strip boilerplate tags, collapse remaining markup to text, cap length."""
+    body = _STRIP_TAGS.sub(" ", html)
+    # Drop comments and remaining tags.
+    body = re.sub(r"<!--.*?-->", " ", body, flags=re.DOTALL)
+    body = _TAG.sub(" ", body)
+    text = _clean_text(body)
+    if len(text) <= limit:
+        return text
+    return text[:limit].rstrip() + "…"
+
+
+async def _fetch_one(client: httpx.AsyncClient, url: str) -> dict:
+    """Fetch a single URL; never raises. Returns {url, ok, ...} dict."""
+    try:
+        _check_public_fetch(url)
+    except ValueError as exc:
+        return {"url": url, "ok": False, "reason": f"blocked: {exc}"}
+    try:
+        response = await client.get(
+            url,
+            headers={
+                "User-Agent": _BING_HEADERS["User-Agent"],
+                "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7",
+            },
+            timeout=_FETCH_TIMEOUT,
+            follow_redirects=False,  # stay safe; redirects would need re-validation
+        )
+    except httpx.HTTPError as exc:
+        return {"url": url, "ok": False, "reason": type(exc).__name__}
+    if response.is_redirect:
+        return {"url": url, "ok": False, "reason": f"redirect {response.status_code}"}
+    if response.status_code >= 400:
+        return {"url": url, "ok": False, "reason": f"HTTP {response.status_code}"}
+    content_type = (response.headers.get("content-type") or "").split(";")[0].lower()
+    if content_type and not (
+        content_type.startswith("text/html")
+        or content_type.startswith("application/xhtml")
+        or content_type.startswith("text/plain")
+    ):
+        return {"url": url, "ok": False, "reason": f"not html: {content_type}"}
+    body = response.content[:_FETCH_MAX_BYTES]
+    text = body.decode(response.encoding or "utf-8", errors="replace")
+    return {
+        "url": url,
+        "ok": True,
+        "title": _extract_title(text),
+        "text": _extract_text(text),
+        "bytes": len(body),
+    }
+
+
+async def fetch_top_pages(query: str, count: int = _FETCH_DEFAULT_COUNT) -> dict:
+    """Search once, then fetch the top N result pages in parallel.
+
+    Returns {"query", "results": [{url, title, snippet, text, ok}], "fetched",
+             "provider"} or an _error dict. Never raises.
+    """
+    query = (query or "").strip()
+    if not query:
+        return _error("search.empty_query")
+    try:
+        count = max(1, min(int(_FETCH_DEFAULT_COUNT if count is None else count),
+                           _FETCH_MAX_COUNT))
+    except (TypeError, ValueError, OverflowError):
+        return _error("search.invalid_count")
+
+    search_result = await search_web(query, count)
+    if "error" in search_result:
+        return search_result
+
+    hits = search_result.get("results", [])[:count]
+    if not hits:
+        return _error("search.no_results")
+
+    try:
+        async with httpx.AsyncClient(timeout=_FETCH_TIMEOUT + 1.0) as client:
+            fetched = await asyncio.wait_for(
+                asyncio.gather(*[_fetch_one(client, hit["url"]) for hit in hits]),
+                timeout=_FETCH_TIMEOUT * 2,
+            )
+    except asyncio.TimeoutError:
+        log.warning("fetch_top_pages gather timed out")
+        return _error("search.unavailable")
+
+    out: list[dict] = []
+    successful_fetches = 0
+    for hit, fetch in zip(hits, fetched):
+        row = {
+            "url": hit["url"],
+            "title": hit.get("title") or fetch.get("title", ""),
+            "snippet": hit.get("snippet", ""),
+            "ok": fetch["ok"],
+        }
+        if fetch["ok"]:
+            successful_fetches += 1
+            row["text"] = fetch["text"]
+            if not row["title"]:
+                row["title"] = fetch.get("title", "")
+        else:
+            row["reason"] = fetch.get("reason", "fetch failed")
+        out.append(row)
+
+    return {
+        "query": query,
+        "provider": search_result.get("provider", ""),
+        "results": out,
+        "fetched": successful_fetches,
+        "total": len(out),
+    }

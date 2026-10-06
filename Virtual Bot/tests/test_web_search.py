@@ -8,6 +8,8 @@ from unittest.mock import patch
 
 import httpx
 
+import ipaddress
+import socket
 from tools import search
 
 
@@ -582,6 +584,184 @@ class WebSearchTests(unittest.TestCase):
         # The first provider to deliver a URL keeps its snippet.
         a_hit = next(hit for hit in result["results"] if hit["url"] == "https://a.example")
         self.assertEqual(a_hit["snippet"], "from exa")
+
+
+class FetchTopPagesTests(unittest.TestCase):
+    """End-to-end of the search+fetch pipeline, with both stages mocked."""
+
+    def setUp(self) -> None:
+        search._COOLDOWNS.clear()
+        search._LIMITED.clear()
+        self.addCleanup(search._COOLDOWNS.clear)
+        self.addCleanup(search._LIMITED.clear)
+        # Mock DNS so any host resolves to a public IP except the ones the
+        # test explicitly maps to private ranges.
+        self._private_hosts: set[str] = set()
+        real_getaddrinfo = socket.getaddrinfo
+
+        def fake_getaddrinfo(host, port, *args, **kwargs):
+            if host in self._private_hosts:
+                return real_getaddrinfo("192.168.1.1", port, *args, **kwargs)
+            # IP literals pass through unchanged so private-IP tests still hit
+            # the is_private branch.
+            try:
+                ip = ipaddress.ip_address(host)
+                return real_getaddrinfo(str(ip), port, *args, **kwargs)
+            except ValueError:
+                pass
+            # Anything else resolves as a public IP so _check_public_fetch passes.
+            return real_getaddrinfo("93.184.216.34", port, *args, **kwargs)  # example.com
+
+        patcher = patch.object(search.socket, "getaddrinfo", side_effect=fake_getaddrinfo)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _run_fetch(self, handler, query="cats", count=3):
+        requests = []
+
+        async def transport_handler(request):
+            requests.append(request)
+            response = handler(request)
+            if asyncio.iscoroutine(response):
+                response = await response
+            return response
+
+        def client_factory(*args, **kwargs):
+            return _REAL_ASYNC_CLIENT(
+                *args, **kwargs, transport=httpx.MockTransport(transport_handler)
+            )
+
+        with patch.object(search.httpx, "AsyncClient", side_effect=client_factory):
+            result = asyncio.run(search.fetch_top_pages(query, count))
+        return result, requests
+
+    def _search_and_pages(self, request):
+        """Bing returns 3 results; each result page returns minimal HTML."""
+        url = _url_str(request)
+        if url.startswith(search._BING_URL):
+            html = "".join(
+                f'<li class="b_algo"><h2><a href="https://p{i}.example/">Page {i}</a></h2>'
+                f'<p>Snippet {i}</p></li>'
+                for i in range(3)
+            )
+            return httpx.Response(200, text=html)
+        if url == search._EXA_URL or url.startswith(search._DDG_URLS[0]) or url.startswith(search._DDG_URLS[1]):
+            return httpx.Response(503)
+        # Page fetch: /p0, /p1, /p2 all return simple HTML
+        if url.startswith("https://p") and url.endswith(".example/"):
+            return httpx.Response(200, text=f"""
+                <html><head><title>Page {url}</title></head>
+                <body><p>Body text for {url}</p>
+                <script>ignored()</script><style>.x{{color:red}}</style>
+                </body></html>""")
+        return httpx.Response(404)
+
+    def test_fetch_top_pages_fetches_all_in_parallel(self) -> None:
+        result, _ = self._run_fetch(self._search_and_pages, count=3)
+        self.assertNotIn("error", result)
+        self.assertEqual(result["fetched"], 3)
+        self.assertEqual(result["total"], 3)
+        for row in result["results"]:
+            self.assertTrue(row["ok"])
+            self.assertIn("Body text", row["text"])
+            # Script/style are stripped by _extract_text
+            self.assertNotIn("ignored()", row["text"])
+            self.assertNotIn("color:red", row["text"])
+
+    def test_fetch_top_pages_blocks_private_ips(self) -> None:
+        # Mark internal.example as resolving to 192.168.1.1 for the DNS mock.
+        self._private_hosts.add("internal.example")
+
+        def handler(request):
+            url = _url_str(request)
+            if url.startswith(search._BING_URL):
+                html = (
+                    '<li class="b_algo"><h2><a href="http://127.0.0.1/x">A</a></h2><p>x</p></li>'
+                    '<li class="b_algo"><h2><a href="http://internal.example/x">B</a></h2><p>x</p></li>'
+                    '<li class="b_algo"><h2><a href="http://10.0.0.1/x">C</a></h2><p>x</p></li>'
+                )
+                return httpx.Response(200, text=html)
+            if url == search._EXA_URL:
+                return httpx.Response(503)
+            return httpx.Response(503)
+
+        result, requests = self._run_fetch(handler)
+        # None of the private-IP URLs should ever be touched.
+        fetched_urls = {_url_str(r) for r in requests
+                        if not _url_str(r).startswith(search._BING_URL)
+                        and _url_str(r) != search._EXA_URL
+                        and not _url_str(r).startswith(search._DDG_URLS[0])
+                        and not _url_str(r).startswith(search._DDG_URLS[1])}
+        self.assertEqual(fetched_urls, set())
+        for row in result["results"]:
+            self.assertFalse(row["ok"])
+            self.assertIn("blocked", row["reason"])
+
+    def test_fetch_top_pages_handles_failed_fetches(self) -> None:
+        def handler(request):
+            url = _url_str(request)
+            if url.startswith(search._BING_URL):
+                html = (
+                    '<li class="b_algo"><h2><a href="https://a.example/">A</a></h2><p>a</p></li>'
+                    '<li class="b_algo"><h2><a href="https://b.example/">B</a></h2><p>b</p></li>'
+                    '<li class="b_algo"><h2><a href="https://c.example/">C</a></h2><p>c</p></li>'
+                )
+                return httpx.Response(200, text=html)
+            if url == search._EXA_URL:
+                return httpx.Response(503)
+            if url == "https://a.example/":
+                return httpx.Response(200, text="<html><body>A body</body></html>")
+            if url == "https://b.example/":
+                return httpx.Response(404)
+            if url == "https://c.example/":
+                return httpx.Response(301, headers={"location": "https://c.example/other"})
+            return httpx.Response(503)
+
+        result, _ = self._run_fetch(handler)
+        self.assertEqual(result["fetched"], 1)
+        self.assertEqual(result["total"], 3)
+        by_url = {r["url"]: r for r in result["results"]}
+        self.assertTrue(by_url["https://a.example/"]["ok"])
+        self.assertFalse(by_url["https://b.example/"]["ok"])
+        self.assertIn("404", by_url["https://b.example/"]["reason"])
+        self.assertFalse(by_url["https://c.example/"]["ok"])
+        self.assertIn("redirect", by_url["https://c.example/"]["reason"])
+
+    def test_fetch_top_pages_propagates_search_errors(self) -> None:
+        def handler(request):
+            return httpx.Response(503)
+
+        result, _ = self._run_fetch(handler, query="cats")
+        self.assertIn("error", result)
+
+    def test_fetch_top_pages_validates_inputs_before_network(self) -> None:
+        def unexpected(request):
+            self.fail("must not hit network on invalid input")
+
+        result, _ = self._run_fetch(unexpected, query="   ")
+        self.assertEqual(result["error_code"], "search.empty_query")
+        result, _ = self._run_fetch(unexpected, count="nope")
+        self.assertEqual(result["error_code"], "search.invalid_count")
+
+    def test_fetch_top_pages_caps_count_at_10(self) -> None:
+        # Build 15 result pages so we can verify the cap holds.
+        def handler(request):
+            url = _url_str(request)
+            if url.startswith(search._BING_URL):
+                html = "".join(
+                    f'<li class="b_algo"><h2><a href="https://p{i}.example/">P{i}</a></h2>'
+                    f'<p>S{i}</p></li>'
+                    for i in range(15)
+                )
+                return httpx.Response(200, text=html)
+            if url == search._EXA_URL:
+                return httpx.Response(503)
+            if url.startswith("https://p"):
+                return httpx.Response(200, text="<html><body>x</body></html>")
+            return httpx.Response(503)
+
+        result, _ = self._run_fetch(handler, count=50)
+        self.assertEqual(result["total"], 10)
 
 
 if __name__ == "__main__":

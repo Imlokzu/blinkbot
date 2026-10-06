@@ -13,7 +13,7 @@ from tools.images import search_images
 from image_generation import image_generate
 from image_generation_schema import SCHEMA as IMAGE_GENERATION_SCHEMA
 from tools import email_tools, fs_tools, integration_tools, music_tools, screen_tools, share_tools, timer_tools, ui_tools, video_tools, workspace_tools
-from tools.search import search_web
+from tools.search import fetch_top_pages, search_web
 from tools.weather import get_weather
 import memory
 import brain_context
@@ -108,7 +108,33 @@ _TOOL_SCHEMAS: list[dict] = [
                     },
                     "count": {
                         "type": "integer",
-                        "description": "Скільки результатів повернути (1-5). За замовчуванням 3.",
+                        "description": "Скільки результатів повернути (1-10). За замовчуванням 3.",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "web_fetch_top",
+            "description": (
+                "Пошук у інтернеті + паралельне завантаження топ-N сторінок: "
+                "повертає заголовок, снипет і перші ~600 символів видимого тексту з кожної. "
+                "Використовуй, коли потрібні факти з самих сторінок, а не лише заголовки; "
+                "ідеально для порівняння кількох джерел."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Пошуковий запит, наприклад 'react server components tutorial'.",
+                    },
+                    "count": {
+                        "type": "integer",
+                        "description": "Скільки топ-сторінок завантажити паралельно (1-10). За замовчуванням 5.",
                     },
                 },
                 "required": ["query"],
@@ -276,6 +302,7 @@ _HANDLERS: dict[str, ToolHandler] = {
     "facts": get_fact,
     "memory_search": _memory_search,
     "web_search": search_web,
+    "web_fetch_top": fetch_top_pages,
     "image_search": search_images,
     "image_generate": image_generate,
     "create_brain_directory": _create_brain_directory,
