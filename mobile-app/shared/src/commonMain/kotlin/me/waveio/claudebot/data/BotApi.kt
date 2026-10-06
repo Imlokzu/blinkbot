@@ -42,6 +42,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 
+/** Native Android's installer/cache path accepts at most this many APK bytes. */
+private const val MOBILE_UPDATE_MAX_BYTES = 20 * 1024 * 1024
+
 /**
  * Typed adapters over the existing host. The cloned client owns its lifecycle;
  * close() does not close an injected client. Requests never follow redirects.
@@ -255,7 +258,7 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
             method = HttpMethod.Get
             this.url.takeFrom(requested)
             attributes.put(Authenticated, true)
-        }.execute { boundedBytes(it, 100 * 1024 * 1024) }
+        }.execute { boundedBytes(it, MOBILE_UPDATE_MAX_BYTES) }
     }
 
     suspend fun fetchMobileSkills(): List<MobileSkill> = get<SkillCatalog>("mobile", "skills").skills

@@ -29,6 +29,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from mobile_store import MobileStore, StoreError, TERMINAL, TOKEN_PREFIX, _json
 
+MOBILE_UPDATE_MAX_BYTES = 20 * 1024 * 1024
+
 RunTurn = Callable[[dict], AsyncIterator[tuple[str, dict]]]
 _default_store: MobileStore | None = None
 _turn_options: ContextVar[dict | None] = ContextVar("mobile_turn_options", default=None)
@@ -577,7 +579,7 @@ def router(require_user, require_operator, run_turn: RunTurn, *, store: MobileSt
         path = Path(_env(channel, "FILE")).expanduser()
         try:
             path = path.resolve(strict=True)
-            if path.suffix.lower() != ".apk" or not path.is_file() or path.stat().st_size > 100 * 1024 * 1024:
+            if path.suffix.lower() != ".apk" or not path.is_file() or path.stat().st_size > MOBILE_UPDATE_MAX_BYTES:
                 raise ValueError
         except (OSError, ValueError):
             raise HTTPException(404, {"code": "update_unavailable"}) from None

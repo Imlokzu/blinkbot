@@ -2476,3 +2476,9 @@ calls were sent. Release details are in `docs/mobile-app/RELEASE-0.4.12.md`.
   400; test servers stopped and Mac output remains muted. No real devices/jobs
   or provider settings changed. Other agents' staged/native release drafts
   remain preserved. Evidence: `reports/night-agent-device-revocation-2026-10-05.md`.
+
+## 2026-10-06 — Night review: mobile contract hardening
+
+- Android update download and native handoff now share a 20 MiB maximum. A package above that boundary is rejected by the server before streaming and by the Kotlin client before installer handoff. Added the boundary regression without touching release metadata or signing.
+- Rechecked paired-device stream revocation with seven tests and actual HTTP EOF; other devices/jobs continue. Final Python suite was 1,559 passed, 7 skipped, 178 subtests; dashboard 215 plus typecheck; shared/Android 231/78. Isolated HTTP smoke passed 26 checks and traversal guards returned 400.
+- Independent stream code and architecture review approved the existing revocation fix; updater-size review was requested under the supported fallback because the configured reviewer model was unavailable. Evidence: `reports/night-agent-mobile-contracts-2026-10-06.md`.
