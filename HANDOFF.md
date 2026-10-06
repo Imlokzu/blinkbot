@@ -2337,3 +2337,18 @@ Tests used fake providers and isolated data, with no production messages or
 server restart. APK builds retain the existing 0.4.9 metadata; this feature has
 not been published as an automatic API update. Other pending mobile/dashboard
 work remains outside this commit.
+
+### Android update publication follow-up (2026-10-06)
+
+The owner requested publication through the in-app updater. The question build
+is now Android **0.4.10 / version code 17**, superseding the earlier unpublished
+0.4.9 package. The optimized APK is staged in ignored
+`Virtual Bot/runtime/releases/ClaudeBot-0.4.10.apk`; only Android update fields
+were set in the host's ignored dotenv file, preserving other configuration.
+Live checks: codes 15/16 see the update, code 17 is current, changelog exists,
+and the downloaded package exactly matches its advertised SHA-256 and signing
+identity. Public API authentication still returns 401 without a device token;
+public dashboard returns 200. Only `me.waveio.klodbot-web` was restarted after
+rechecking zero running/stopping mobile jobs. No emulator or provider call was
+started. See `docs/mobile-app/RELEASE-0.4.10.md` for artifact details. The earlier
+unpublished-update statement applies only to the previous 0.4.9 artifact.
