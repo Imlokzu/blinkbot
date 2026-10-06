@@ -38,7 +38,20 @@ data class MobileUpdate(
     val iosUrl: String? = null,
     val sha256: String? = null,
     val mandatory: Boolean = false,
-)
+    val channel: String = "stable",
+) {
+    val security: List<String> get() = changelog.filter { SECRET_REGEX in it.lowercase() }
+    val added: List<String> get() = changelog.filter { ADDED_REGEX in it.lowercase() }
+    val fixed: List<String> get() = changelog.filter { FIXED_REGEX in it.lowercase() }
+    val other: List<String> get() = changelog.filter { item ->
+        SECRET_REGEX !in item.lowercase() && ADDED_REGEX !in item.lowercase() && FIXED_REGEX !in item.lowercase()
+    }
+    companion object {
+        private val SECRET_REGEX = Regex("""\b(security|vulnerabilit|CVE-|critical)""")
+        private val ADDED_REGEX = Regex("""\b(feature|added|new)""")
+        private val FIXED_REGEX = Regex("""\b(fix|patch|bug)""")
+    }
+}
 data class ModelRow(val id: String, val label: String, val provider: String, val brand: String, val available: Boolean = true, val efforts: List<String> = emptyList(), val vision: Boolean? = null)
 data class IntelligenceRow(val index: Float, val coverage: Int, val total: Int)
 data class ActivityRow(val id: String, val label: String, val detail: String = "", val status: String = "running", val input: JsonElement? = null, val result: JsonElement? = null)
@@ -110,6 +123,8 @@ data class AppState(
     val notice: String? = null,
     val noticeDetail: String? = null,
     val update: MobileUpdate? = null,
+    val updateStable: MobileUpdate? = null,
+    val updateBetaLatest: MobileUpdate? = null,
     val installedVersion: String = "",
     val updateBeta: Boolean = false,
     val updatePromptOpen: Boolean = false,

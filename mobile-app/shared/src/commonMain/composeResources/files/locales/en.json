@@ -312,5 +312,8 @@
   "update.installerOpened": "The system installer is open. Finish installation there.",
   "update.betaChannel": "Beta channel",
   "update.channelBeta": "Early builds arrive here. Switch back to stable anytime.",
-  "update.channelStable": "Stable releases."
+  "update.channelStable": "Stable releases.",
+  "update.security": "Security",
+  "update.added": "New features",
+  "update.fixed": "Fixed"
 }

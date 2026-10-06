@@ -148,19 +148,26 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             else initialModel(p).ifBlank { catalogDefaultModel.ifBlank { state.value.selectedModel } }
     }
     private fun requireApi(): BotApi = api ?: throw ApiFailure(401, "not_connected")
-    private fun updateFromCapabilities(capabilities: JsonObject): MobileUpdate? = capabilities["update"]?.jsonObject?.let { value ->
-        if (value["available"]?.jsonPrimitive?.booleanOrNull != true ||
-            (value["version_code"]?.jsonPrimitive?.intOrNull ?: 0) <= platform.appVersionCode ||
-            value["version_name"]?.jsonPrimitive?.contentOrNull.isNullOrBlank()) null else MobileUpdate(
+    private fun parseUpdate(value: JsonObject?, defaultChannel: String): MobileUpdate? {
+        if (value == null) return null
+        val versionCode = value["version_code"]?.jsonPrimitive?.intOrNull ?: 0
+        if (versionCode <= platform.appVersionCode ||
+            value["version_name"]?.jsonPrimitive?.contentOrNull.isNullOrBlank()) return null
+        return MobileUpdate(
             versionName = value["version_name"]?.jsonPrimitive?.contentOrNull.orEmpty(),
-            versionCode = value["version_code"]?.jsonPrimitive?.intOrNull ?: 0,
+            versionCode = versionCode,
             changelog = value["changelog"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }.orEmpty(),
             url = value["url"]?.jsonPrimitive?.contentOrNull,
             iosUrl = value["ios_url"]?.jsonPrimitive?.contentOrNull,
             sha256 = value["sha256"]?.jsonPrimitive?.contentOrNull,
             mandatory = value["mandatory"]?.jsonPrimitive?.booleanOrNull == true,
+            channel = value["channel"]?.jsonPrimitive?.contentOrNull ?: defaultChannel,
         )
     }
+    private fun updateFromCapabilities(capabilities: JsonObject): MobileUpdate? =
+        parseUpdate(capabilities["update"]?.jsonObject, if (state.value.updateBeta) "beta" else "stable")?.takeIf {
+            capabilities["update"]?.jsonObject?.get("available")?.jsonPrimitive?.booleanOrNull == true
+        }
     private fun updateStatus(capabilities: JsonObject, available: MobileUpdate?): String = when {
         available != null -> "update.ready"
         capabilities["update"]?.jsonObject?.get("version_name")?.jsonPrimitive?.contentOrNull.isNullOrBlank() -> "update.noRelease"
@@ -1623,8 +1630,11 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             try {
                 val capabilities = connection.capabilities(platform.platformName, platform.appVersionCode, if (state.value.updateBeta) "beta" else "stable")
                 val updateInfo = updateFromCapabilities(capabilities)
+                val stableLatest = parseUpdate(capabilities["update_stable"]?.jsonObject, "stable")
+                val betaLatest = parseUpdate(capabilities["update_beta"]?.jsonObject, "beta")
                 if (version != connectionVersion) return@run
-                update { it.copy(update = updateInfo, updateChecking = false, updateStatus = updateStatus(capabilities, updateInfo),
+                update { it.copy(update = updateInfo, updateStable = stableLatest, updateBetaLatest = betaLatest,
+                    updateChecking = false, updateStatus = updateStatus(capabilities, updateInfo),
                     updatePromptOpen = updateInfo != null && it.screen != Screen.Updates) }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) {

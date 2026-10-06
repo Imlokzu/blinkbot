@@ -312,5 +312,8 @@
   "update.installerOpened": "Відкрито системний інсталятор. Заверши встановлення в ньому.",
   "update.betaChannel": "Бета-канал",
   "update.channelBeta": "Ранні збірки приходять сюди. Стабільну можна повернути будь-коли.",
-  "update.channelStable": "Стабільні релізи."
+  "update.channelStable": "Стабільні релізи.",
+  "update.security": "Безпека",
+  "update.added": "Нові функції",
+  "update.fixed": "Виправлено"
 }
