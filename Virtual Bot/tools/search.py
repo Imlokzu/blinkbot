@@ -1,8 +1,9 @@
-"""Web search through Exa's hosted MCP, with a DuckDuckGo fallback."""
+"""Web search through Exa's hosted MCP, DuckDuckGo, and Bing (parallel)."""
 
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -18,8 +19,8 @@ from tools.locales import t
 log = logging.getLogger("virtual_bot.tools.search")
 
 _EXA_URL = "https://mcp.exa.ai/mcp"
-_SEARCH_TIMEOUT = 25.0
-_PROVIDER_TIMEOUT = 10.0
+_SEARCH_TIMEOUT = 8.0
+_PROVIDER_TIMEOUT = 4.0
 _DDG_URLS = (
     "https://html.duckduckgo.com/html/",
     "https://lite.duckduckgo.com/lite/",
@@ -27,6 +28,12 @@ _DDG_URLS = (
 _DDG_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "text/html",
+    "Accept-Language": "uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7",
+}
+_BING_URL = "https://www.bing.com/search"
+_BING_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7",
 }
 _COOLDOWNS: dict[str, float] = {}
@@ -57,8 +64,28 @@ def _result_url(url: str, base: str = "") -> str:
         if parsed.hostname == "duckduckgo.com" or (parsed.hostname or "").endswith(".duckduckgo.com"):
             url = parse_qs(parsed.query).get("uddg", [url])[0]
             parsed = urlsplit(url)
+        if parsed.hostname and (parsed.hostname == "bing.com" or parsed.hostname.endswith(".bing.com")):
+            url = _unwrap_bing(url)
+            if not url:
+                return ""
+            parsed = urlsplit(url)
         return url if parsed.scheme in {"http", "https"} and parsed.hostname else ""
     except ValueError:
+        return ""
+
+
+def _unwrap_bing(url: str) -> str:
+    """Bing redirects wrap the target in bing.com/ck/a with u=a1<base64url>."""
+    try:
+        parsed = urlsplit(url)
+        qs = parse_qs(parsed.query)
+        u = qs.get("u", [""])[0]
+        if not u.startswith("a1"):
+            return url
+        payload = u[2:]
+        payload += "=" * (-len(payload) % 4)
+        return base64.urlsafe_b64decode(payload).decode("utf-8", errors="replace")
+    except (ValueError, TypeError):
         return ""
 
 
@@ -146,6 +173,30 @@ def _parse_ddg_results(html: str, count: int) -> list[dict]:
     return results[:count]
 
 
+def _parse_bing_results(html: str, count: int) -> list[dict]:
+    """Extract Bing b_algo organic hits; redirect URLs are unwrapped via _result_url."""
+    results: list[dict] = []
+    blocks = re.findall(r'<li class="b_algo"[^>]*>(.*?)</li>', html, re.IGNORECASE | re.DOTALL)
+    for block in blocks:
+        h2 = re.search(r"<h2[^>]*>(.*?)</h2>", block, re.IGNORECASE | re.DOTALL)
+        if not h2:
+            continue
+        anchor = re.search(r'<a[^>]*href="([^"]+)"[^>]*>(.*?)</a>', h2.group(1),
+                           re.IGNORECASE | re.DOTALL)
+        if not anchor:
+            continue
+        url = _result_url(anchor.group(1))
+        title = _clean_text(re.sub(r"<[^>]+>", "", anchor.group(2)))
+        if not (url and title):
+            continue
+        snippet = ""
+        p = re.search(r"<p[^>]*>(.*?)</p>", block, re.IGNORECASE | re.DOTALL)
+        if p:
+            snippet = _snippet(re.sub(r"<[^>]+>", "", p.group(1)))
+        results.append({"title": title, "url": url, "snippet": snippet})
+    return results[:count]
+
+
 async def _search_exa(client: httpx.AsyncClient, query: str, count: int) -> list[dict]:
     headers = {"Accept": "application/json, text/event-stream"}
     key = os.environ.get("EXA_API_KEY", "").strip()
@@ -163,7 +214,7 @@ async def _search_exa(client: httpx.AsyncClient, query: str, count: int) -> list
 
 
 async def _search_ddg(client: httpx.AsyncClient, query: str, count: int) -> list[dict]:
-    failure: Exception | None = None
+    """DDG hits both endpoints; a non-challenge failure on both returns []."""
     for url in _DDG_URLS:
         try:
             response = await client.post(url, headers=_DDG_HEADERS,
@@ -183,69 +234,123 @@ async def _search_ddg(client: httpx.AsyncClient, query: str, count: int) -> list
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 429:
                 raise
-            failure = exc
+            log.debug("DDG endpoint %s failed: HTTP %s", url, exc.response.status_code)
         except httpx.RequestError as exc:
-            failure = exc
-    if failure:
-        raise failure
+            log.debug("DDG endpoint %s failed: %s", url, type(exc).__name__)
     return []
 
 
+async def _search_bing(client: httpx.AsyncClient, query: str, count: int) -> list[dict]:
+    """Hit Bing with a browser-like UA and parse organic b_algo blocks."""
+    try:
+        response = await client.get(_BING_URL, headers=_BING_HEADERS,
+                                    params={"q": query, "count": str(max(count, 10))})
+    except httpx.RequestError:
+        raise
+    if response.status_code == 429:
+        raise _SearchFailure("rate_limit", limited=True)
+    response.raise_for_status()
+    results = _parse_bing_results(response.text, count)
+    return results
+
+
+def _merge_results(lists: list[list[dict]], count: int) -> list[dict]:
+    """Merge providers' hits by URL (first provider wins for a given URL)."""
+    seen: set[str] = set()
+    out: list[dict] = []
+    for hits in lists:
+        for hit in hits:
+            url = hit.get("url")
+            if not url or url in seen:
+                continue
+            seen.add(url)
+            out.append(hit)
+            if len(out) >= count:
+                return out
+    return out
+
+
 async def search_web(query: str, count: int = 3) -> dict:
-    """Keep the existing result contract while switching failed providers."""
+    """Run all providers in parallel and merge their results."""
     query = (query or "").strip()
     if not query:
         return _error("search.empty_query")
     try:
-        count = max(1, min(int(3 if count is None else count), 5))
+        count = max(1, min(int(3 if count is None else count), 10))
     except (TypeError, ValueError, OverflowError):
         return _error("search.invalid_count")
 
     # wait_for also supports Python 3.10, the launcher's minimum version.
     try:
-        return await asyncio.wait_for(_try_providers(query, count), timeout=_SEARCH_TIMEOUT)
+        return await asyncio.wait_for(_run_providers(query, count), timeout=_SEARCH_TIMEOUT)
     except asyncio.TimeoutError:
         log.warning("Search fallback chain timed out")
         return _error("search.unavailable")
 
 
-async def _try_providers(query: str, count: int) -> dict:
-    had_empty_results = False
-    limited = False
-    async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-        for provider, handler in (("exa", _search_exa), ("duckduckgo", _search_ddg)):
-            if _COOLDOWNS.get(provider, 0) > monotonic():
-                limited |= provider in _LIMITED
-                continue
-            try:
-                # HTTPX limits each read; an SSE stream needs an absolute deadline.
-                results = await asyncio.wait_for(handler(client, query, count),
-                                                 timeout=_PROVIDER_TIMEOUT)
-            except (httpx.HTTPError, _SearchFailure, ValueError, asyncio.TimeoutError) as exc:
-                status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
-                blocked = status == 429 or isinstance(exc, _SearchFailure) and exc.limited
-                delay = 60.0 if blocked else 15.0
-                if blocked and isinstance(exc, httpx.HTTPStatusError):
-                    try:
-                        delay = max(delay, min(float(exc.response.headers.get("retry-after", 60)), 300))
-                    except ValueError:
-                        pass
-                _COOLDOWNS[provider] = monotonic() + delay
-                if blocked:
-                    _LIMITED.add(provider)
-                else:
-                    _LIMITED.discard(provider)
-                limited |= blocked
-                reason = exc.reason if isinstance(exc, _SearchFailure) else type(exc).__name__
-                log.warning("Search provider %s failed: %s (HTTP %s)", provider,
-                            reason, status)
-                continue
-            _COOLDOWNS.pop(provider, None)
-            _LIMITED.discard(provider)
-            if results:
-                return {"query": query, "results": results, "provider": provider}
-            had_empty_results = True
+async def _call_provider(name: str, handler, client: httpx.AsyncClient,
+                         query: str, count: int) -> dict:
+    """Return {hits, limited, alive} for one provider; never raises.
 
-    if had_empty_results:
+    alive=True means the provider answered at all (even with an empty list),
+    so the caller can tell 'all dead' from 'all alive but no matches'.
+    """
+    if _COOLDOWNS.get(name, 0) > monotonic():
+        return {"hits": [], "limited": name in _LIMITED, "alive": False}
+    try:
+        hits = await asyncio.wait_for(handler(client, query, count),
+                                      timeout=_PROVIDER_TIMEOUT)
+    except (httpx.HTTPError, _SearchFailure, ValueError, asyncio.TimeoutError) as exc:
+        status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+        blocked = status == 429 or isinstance(exc, _SearchFailure) and exc.limited
+        delay = 60.0 if blocked else 15.0
+        if blocked and isinstance(exc, httpx.HTTPStatusError):
+            try:
+                delay = max(delay, min(float(exc.response.headers.get("retry-after", 60)), 300))
+            except ValueError:
+                pass
+        _COOLDOWNS[name] = monotonic() + delay
+        if blocked:
+            _LIMITED.add(name)
+        else:
+            _LIMITED.discard(name)
+        reason = exc.reason if isinstance(exc, _SearchFailure) else type(exc).__name__
+        log.warning("Search provider %s failed: %s (HTTP %s)", name, reason, status)
+        return {"hits": [], "limited": blocked, "alive": False}
+    _COOLDOWNS.pop(name, None)
+    _LIMITED.discard(name)
+    return {"hits": hits, "limited": False, "alive": True}
+
+
+async def _run_providers(query: str, count: int) -> dict:
+    """All providers in parallel; pick whichever return results and merge."""
+    async with httpx.AsyncClient(timeout=_PROVIDER_TIMEOUT + 0.5,
+                                 follow_redirects=True) as client:
+        outcomes = await asyncio.gather(
+            _call_provider("exa", _search_exa, client, query, count),
+            _call_provider("duckduckgo", _search_ddg, client, query, count),
+            _call_provider("bing", _search_bing, client, query, count),
+        )
+
+    provider_names = ("exa", "duckduckgo", "bing")
+    hits_lists: list[list[dict]] = []
+    used_providers: list[str] = []
+    any_alive = False
+    any_limited = False
+    for name, outcome in zip(provider_names, outcomes):
+        if outcome["alive"]:
+            any_alive = True
+        if outcome["hits"]:
+            used_providers.append(name)
+            hits_lists.append(outcome["hits"])
+        if outcome["limited"]:
+            any_limited = True
+
+    if hits_lists:
+        merged = _merge_results(hits_lists, count)
+        if merged:
+            return {"query": query, "results": merged,
+                    "provider": "+".join(used_providers)}
+    if any_alive:
         return _error("search.no_results")
-    return _error("search.rate_limited" if limited else "search.unavailable")
+    return _error("search.rate_limited" if any_limited else "search.unavailable")

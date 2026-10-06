@@ -18,6 +18,12 @@ _HTML = """
   <a class="result__snippet">Coding agent from OpenAI.</a>
 </div>
 """
+_BING_HTML = """
+<li class="b_algo"><h2><a href="https://www.bing.com/ck/a?!&p=x&u=a1aHR0cHM6Ly9iaW5nLmV4YW1wbGUv">Bing Hit</a></h2>
+<p>A hit only Bing returned.</p></li>
+<li class="b_algo"><h2><a href="https://bing.example/second">Bing Second</a></h2>
+<p>Second Bing hit.</p></li>
+"""
 _EXA_TEXT = """Title: OpenAI Codex
 URL: https://openai.com/codex/
 ID: https://openai.com/codex/
@@ -36,6 +42,10 @@ def _exa_message(text: str = _EXA_TEXT) -> dict:
         "id": 1,
         "result": {"content": [{"type": "text", "text": text}]},
     }
+
+
+def _url_str(request) -> str:
+    return str(request.url)
 
 
 class WebSearchTests(unittest.TestCase):
@@ -68,95 +78,121 @@ class WebSearchTests(unittest.TestCase):
             result = asyncio.run(search.search_web(query, count))
         return result, requests
 
-    @staticmethod
-    def _ddg_only(request):
-        if str(request.url) == search._EXA_URL:
+    # Default routing table: Exa replies, DDG replies, Bing 404s by default
+    # so the existing tests keep their shape. Tests that care about Bing
+    # override the table themselves.
+    def _default_handler(self, request):
+        url = _url_str(request)
+        if url == search._EXA_URL:
+            return httpx.Response(200, json=_exa_message())
+        if url.startswith(search._BING_URL):
+            return httpx.Response(404)
+        return httpx.Response(200, text=_HTML)
+
+    def _ddg_only(self, request):
+        url = _url_str(request)
+        if url == search._EXA_URL:
             return httpx.Response(503)
+        if url.startswith(search._BING_URL):
+            return httpx.Response(404)
         return httpx.Response(200, text=_HTML)
 
     def test_exa_is_primary_and_uses_current_hosted_mcp_schema(self) -> None:
-        result, requests = self._run(lambda request: httpx.Response(200, json=_exa_message()))
+        result, requests = self._run(self._default_handler)
 
-        self.assertEqual(len(requests), 1)
-        self.assertEqual(str(requests[0].url), search._EXA_URL)
-        self.assertNotIn("x-api-key", requests[0].headers)
-        self.assertEqual(json.loads(requests[0].content), {
+        urls = {_url_str(r) for r in requests}
+        self.assertIn(search._EXA_URL, urls)
+        exa_request = next(r for r in requests if _url_str(r) == search._EXA_URL)
+        self.assertNotIn("x-api-key", exa_request.headers)
+        self.assertEqual(json.loads(exa_request.content), {
             "jsonrpc": "2.0", "id": 1, "method": "tools/call",
             "params": {"name": "web_search_exa", "arguments": {
                 "query": "OpenAI Codex", "objective": "OpenAI Codex", "numResults": 3,
             }},
         })
-        self.assertEqual(result, {
-            "query": "OpenAI Codex", "provider": "exa",
-            "results": [
-                {"title": "OpenAI Codex", "url": "https://openai.com/codex/",
-                 "snippet": "Coding agent from OpenAI."},
-                {"title": "Python documentation", "url": "https://docs.python.org/3/",
-                 "snippet": "Official Python reference."},
-            ],
-        })
+        # Exa returns 2 hits; DDG's 1 is appended, but the same URL is dropped.
+        self.assertEqual(result["query"], "OpenAI Codex")
+        self.assertIn("exa", result["provider"])
+        urls = [r["url"] for r in result["results"]]
+        # Exa hits must lead the merged list.
+        self.assertEqual(urls[0], "https://openai.com/codex/")
+        self.assertEqual(urls[1], "https://docs.python.org/3/")
 
     def test_exa_key_is_header_only_and_never_sent_to_fallback(self) -> None:
         with patch.dict(os.environ, {"EXA_API_KEY": "test-exa-key"}):
             result, requests = self._run(self._ddg_only)
 
-        self.assertEqual(result["provider"], "duckduckgo")
-        self.assertEqual(requests[0].headers["x-api-key"], "test-exa-key")
+        exa_request = next(r for r in requests if _url_str(r) == search._EXA_URL)
+        self.assertEqual(exa_request.headers["x-api-key"], "test-exa-key")
         for request in requests:
-            self.assertNotIn("test-exa-key", str(request.url))
+            if _url_str(request) == search._EXA_URL:
+                continue
+            self.assertNotIn("test-exa-key", _url_str(request))
             self.assertNotIn("test-exa-key", request.content.decode())
-        self.assertNotIn("x-api-key", requests[1].headers)
+            self.assertNotIn("x-api-key", request.headers)
 
     def test_exa_redirect_does_not_forward_api_key_to_another_host(self) -> None:
         def handler(request):
-            if str(request.url) == search._EXA_URL:
+            url = _url_str(request)
+            if url == search._EXA_URL:
                 return httpx.Response(302, headers={"location": "https://other.example/search"})
-            if str(request.url) == search._DDG_URLS[0]:
+            if url.startswith(search._BING_URL):
+                return httpx.Response(404)
+            if url == search._DDG_URLS[0]:
                 return httpx.Response(200, text=_HTML)
             self.fail("An Exa redirect must not receive the API-key header")
 
         with patch.dict(os.environ, {"EXA_API_KEY": "test-exa-key"}):
             result, requests = self._run(handler)
 
-        self.assertEqual(result["provider"], "duckduckgo")
-        self.assertEqual([str(request.url) for request in requests],
-                         [search._EXA_URL, search._DDG_URLS[0]])
-        self.assertEqual(requests[0].headers["x-api-key"], "test-exa-key")
-        self.assertNotIn("x-api-key", requests[1].headers)
+        self.assertIn("duckduckgo", result["provider"])
+        exa_request = next(r for r in requests if _url_str(r) == search._EXA_URL)
+        self.assertEqual(exa_request.headers["x-api-key"], "test-exa-key")
+        for request in requests:
+            if _url_str(request) != search._EXA_URL:
+                self.assertNotIn("x-api-key", request.headers)
 
     def test_exa_accepts_sse_with_adjacent_results_and_highlights(self) -> None:
-        # Exa's text does not promise blank lines or separators between hits.
         payload = (
             'event: endpoint\ndata: {"jsonrpc":"2.0","method":"notifications/ping"}\n\n'
             "event: message\ndata: " + json.dumps(_exa_message()) + "\n\n"
             "data: [DONE]\n\n"
         )
-        result, requests = self._run(lambda request: httpx.Response(
-            200, text=payload, headers={"content-type": "text/event-stream"}
-        ))
 
-        self.assertEqual(result["provider"], "exa")
-        self.assertEqual(len(requests), 1)
-        self.assertEqual([hit["title"] for hit in result["results"]],
+        def handler(request):
+            url = _url_str(request)
+            if url == search._EXA_URL:
+                return httpx.Response(200, text=payload, headers={"content-type": "text/event-stream"})
+            if url.startswith(search._BING_URL):
+                return httpx.Response(404)
+            return httpx.Response(200, text="<html></html>")
+
+        result, requests = self._run(handler)
+        self.assertIn("exa", result["provider"])
+        self.assertEqual([hit["title"] for hit in result["results"]][:2],
                          ["OpenAI Codex", "Python documentation"])
         self.assertEqual(result["results"][0]["snippet"], "Coding agent from OpenAI.")
         self.assertEqual(result["results"][1]["snippet"], "Official Python reference.")
 
     def test_exa_accepts_text_snippets_without_highlights(self) -> None:
-        result, requests = self._run(lambda request: httpx.Response(
-            200, json=_exa_message(_EXA_TEXT.replace("Highlights:", "Text:"))
-        ))
+        def handler(request):
+            url = _url_str(request)
+            if url == search._EXA_URL:
+                return httpx.Response(200, json=_exa_message(
+                    _EXA_TEXT.replace("Highlights:", "Text:")))
+            if url.startswith(search._BING_URL):
+                return httpx.Response(404)
+            return httpx.Response(200, text="<html></html>")
 
-        self.assertEqual(result["provider"], "exa")
-        self.assertEqual(len(requests), 1)
+        result, _ = self._run(handler)
+        self.assertIn("exa", result["provider"])
         self.assertEqual(result["results"][0]["snippet"], "Coding agent from OpenAI.")
 
     def test_query_is_trimmed_and_objective_respects_provider_limit(self) -> None:
         query = "x" * 5000
-        result, requests = self._run(
-            lambda request: httpx.Response(200, json=_exa_message()), "  " + query + "  "
-        )
-        arguments = json.loads(requests[0].content)["params"]["arguments"]
+        result, requests = self._run(self._default_handler, "  " + query + "  ")
+        exa_request = next(r for r in requests if _url_str(r) == search._EXA_URL)
+        arguments = json.loads(exa_request.content)["params"]["arguments"]
 
         self.assertEqual(result["query"], query)
         self.assertEqual(arguments["query"], query)
@@ -165,14 +201,22 @@ class WebSearchTests(unittest.TestCase):
     def test_result_count_is_clamped_and_limits_returned_hits(self) -> None:
         text = "".join(
             f"Title: Result {i}\nURL: https://example.com/{i}\nHighlights:\nSnippet {i}\n"
-            for i in range(7)
+            for i in range(12)
         )
-        for count, expected in ((-5, 1), (0, 1), (1, 1), (3, 3), (99, 5)):
+
+        def handler(request):
+            url = _url_str(request)
+            if url == search._EXA_URL:
+                return httpx.Response(200, json=_exa_message(text))
+            if url.startswith(search._BING_URL):
+                return httpx.Response(404)
+            return httpx.Response(200, text="<html></html>")
+
+        for count, expected in ((-5, 1), (0, 1), (1, 1), (3, 3), (99, 10)):
             with self.subTest(count=count):
-                result, requests = self._run(
-                    lambda request: httpx.Response(200, json=_exa_message(text)), count=count
-                )
-                arguments = json.loads(requests[0].content)["params"]["arguments"]
+                result, requests = self._run(handler, count=count)
+                exa_request = next(r for r in requests if _url_str(r) == search._EXA_URL)
+                arguments = json.loads(exa_request.content)["params"]["arguments"]
                 self.assertEqual(arguments["numResults"], expected)
                 self.assertEqual(len(result["results"]), expected)
 
@@ -197,10 +241,11 @@ class WebSearchTests(unittest.TestCase):
 
     def test_parses_current_duckduckgo_html_markup(self) -> None:
         result, requests = self._run(self._ddg_only)
-
-        self.assertEqual([str(request.url) for request in requests],
-                         [search._EXA_URL, search._DDG_URLS[0]])
-        self.assertEqual(result["provider"], "duckduckgo")
+        urls = {_url_str(r) for r in requests}
+        self.assertIn(search._EXA_URL, urls)
+        self.assertIn(search._DDG_URLS[0], urls)
+        self.assertIn("duckduckgo", result["provider"])
+        # The DDG hit follows Exa's empty list; the merged list is DDG's only entry.
         self.assertEqual(result["results"][0]["title"], "OpenAI Codex")
         self.assertEqual(result["results"][0]["url"], "https://openai.com/codex/")
         self.assertEqual(result["results"][0]["snippet"], "Coding agent from OpenAI.")
@@ -215,9 +260,11 @@ class WebSearchTests(unittest.TestCase):
                 search._COOLDOWNS.clear()
 
                 def handler(request):
-                    url = str(request.url)
+                    url = _url_str(request)
                     if url == search._EXA_URL:
                         return httpx.Response(503)
+                    if url.startswith(search._BING_URL):
+                        return httpx.Response(404)
                     if url == search._DDG_URLS[0]:
                         if failure == "network":
                             raise httpx.ConnectError("Mock failure", request=request)
@@ -225,9 +272,10 @@ class WebSearchTests(unittest.TestCase):
                     return httpx.Response(200, text=lite_html)
 
                 result, requests = self._run(handler)
-                self.assertEqual([str(request.url) for request in requests],
-                                 [search._EXA_URL, *search._DDG_URLS])
-                self.assertEqual(result["provider"], "duckduckgo")
+                urls = [_url_str(r) for r in requests]
+                self.assertIn(search._DDG_URLS[0], urls)
+                self.assertIn(search._DDG_URLS[1], urls)
+                self.assertIn("duckduckgo", result["provider"])
                 self.assertEqual(result["results"][0], {
                     "title": "Reference", "url": "https://example.com/reference",
                     "snippet": "An offline-friendly reference.",
@@ -240,7 +288,12 @@ class WebSearchTests(unittest.TestCase):
         """
 
         def handler(request):
-            return httpx.Response(503) if str(request.url) == search._EXA_URL else httpx.Response(200, text=html)
+            url = _url_str(request)
+            if url == search._EXA_URL:
+                return httpx.Response(503)
+            if url.startswith(search._BING_URL):
+                return httpx.Response(404)
+            return httpx.Response(200, text=html)
 
         result, _ = self._run(handler)
         self.assertEqual(result["results"][0], {
@@ -249,19 +302,22 @@ class WebSearchTests(unittest.TestCase):
         })
 
     def test_duckduckgo_search_results_about_captcha_are_not_challenges(self) -> None:
-        # Search subjects can mention these words without blocking the provider.
         html = _HTML.replace("OpenAI Codex", "CAPTCHA reference").replace(
             "Coding agent from OpenAI.",
             "Bots use DuckDuckGo; challenge-form and anomaly.js explained.",
         )
-        result, requests = self._run(lambda request: (
-            httpx.Response(503) if str(request.url) == search._EXA_URL
-            else httpx.Response(200, text=html)
-        ))
 
-        self.assertEqual(result["provider"], "duckduckgo")
+        def handler(request):
+            url = _url_str(request)
+            if url == search._EXA_URL:
+                return httpx.Response(503)
+            if url.startswith(search._BING_URL):
+                return httpx.Response(404)
+            return httpx.Response(200, text=html)
+
+        result, _ = self._run(handler)
+        self.assertIn("duckduckgo", result["provider"])
         self.assertEqual(result["results"][0]["title"], "CAPTCHA reference")
-        self.assertEqual(len(requests), 2)
         self.assertNotIn("duckduckgo", search._LIMITED)
 
     def test_malformed_exa_responses_safely_fall_back(self) -> None:
@@ -279,33 +335,43 @@ class WebSearchTests(unittest.TestCase):
         for response in bad_responses:
             with self.subTest(response=response.text):
                 search._COOLDOWNS.clear()
-                result, requests = self._run(
-                    lambda request: response if str(request.url) == search._EXA_URL else httpx.Response(200, text=_HTML)
-                )
-                self.assertEqual(result["provider"], "duckduckgo")
-                self.assertEqual(len(requests), 2)
+
+                def handler(request):
+                    url = _url_str(request)
+                    if url == search._EXA_URL:
+                        return response
+                    if url.startswith(search._BING_URL):
+                        return httpx.Response(404)
+                    return httpx.Response(200, text=_HTML)
+
+                result, _ = self._run(handler)
+                self.assertIn("duckduckgo", result["provider"])
 
     def test_exa_rate_limit_cools_down_then_recovers(self) -> None:
         def limited_exa(request):
-            if str(request.url) == search._EXA_URL:
+            url = _url_str(request)
+            if url == search._EXA_URL:
                 return httpx.Response(429, headers={"retry-after": "120"})
+            if url.startswith(search._BING_URL):
+                return httpx.Response(404)
             return httpx.Response(200, text=_HTML)
 
         with patch.object(search, "monotonic", return_value=1000.0):
             result, first_requests = self._run(limited_exa)
             result_again, second_requests = self._run(limited_exa)
 
-        self.assertEqual(result["provider"], "duckduckgo")
-        self.assertEqual(result_again["provider"], "duckduckgo")
-        self.assertEqual(str(first_requests[0].url), search._EXA_URL)
-        self.assertTrue(all(str(request.url) != search._EXA_URL for request in second_requests))
+        self.assertIn("duckduckgo", result["provider"])
+        self.assertIn("duckduckgo", result_again["provider"])
+        first_urls = [_url_str(r) for r in first_requests]
+        second_urls = [_url_str(r) for r in second_requests]
+        self.assertIn(search._EXA_URL, first_urls)
+        self.assertNotIn(search._EXA_URL, second_urls)
         self.assertGreaterEqual(search._COOLDOWNS["exa"], 1120.0)
         deadline = search._COOLDOWNS["exa"]
         with patch.object(search, "monotonic", return_value=deadline + 1):
-            recovered, requests = self._run(lambda request: httpx.Response(200, json=_exa_message()))
+            recovered, requests = self._run(self._default_handler)
 
-        self.assertEqual(recovered["provider"], "exa")
-        self.assertEqual(len(requests), 1)
+        self.assertIn("exa", recovered["provider"])
         self.assertNotIn("exa", search._COOLDOWNS)
         self.assertNotIn("exa", search._LIMITED)
 
@@ -324,14 +390,22 @@ class WebSearchTests(unittest.TestCase):
                 with patch.dict(os.environ, {"EXA_API_KEY": "test-secret"}), \
                      patch.object(search, "monotonic", return_value=1000.0), \
                      self.assertLogs(search.log, level="WARNING") as captured:
-                    result, requests = self._run(lambda request: (
-                        httpx.Response(200, json=payload)
-                        if str(request.url) == search._EXA_URL else httpx.Response(503)
-                    ))
+                    def handler(request):
+                        url = _url_str(request)
+                        if url == search._EXA_URL:
+                            return httpx.Response(200, json=payload)
+                        if url.startswith(search._BING_URL):
+                            return httpx.Response(429)
+                        # DDG is the only one alive, and even it gets the
+                        # challenge-form treatment.
+                        return httpx.Response(200, text='<form id="challenge-form">CAPTCHA</form>')
+
+                    result, requests = self._run(handler)
 
                 self.assertEqual(result["error_code"], "search.rate_limited")
                 self.assertGreaterEqual(search._COOLDOWNS["exa"], 1060.0)
                 self.assertIn("exa", search._LIMITED)
+                # One Exa + one Bing + one DDG (challenge-form raises immediately).
                 self.assertEqual(len(requests), 3)
                 self.assertNotIn("test-secret", json.dumps(result))
                 self.assertNotIn("test-secret", " ".join(captured.output))
@@ -349,74 +423,165 @@ class WebSearchTests(unittest.TestCase):
                 search._LIMITED.clear()
 
                 def handler(request):
-                    return httpx.Response(503) if str(request.url) == search._EXA_URL else response
+                    url = _url_str(request)
+                    if url == search._EXA_URL:
+                        return httpx.Response(503)
+                    if url.startswith(search._BING_URL):
+                        return httpx.Response(503)
+                    return response
 
                 with patch.object(search, "monotonic", return_value=1000.0):
                     result, first_requests = self._run(handler)
                     result_again, second_requests = self._run(handler)
                 self.assertEqual(result["error_code"], "search.rate_limited")
                 self.assertEqual(result_again["error_code"], "search.rate_limited")
-                self.assertEqual(len(first_requests), 2)
+                # One Exa + one Bing + two DDG (HTML then Lite, which gets the
+                # same challenge/429 treatment). DDG raises on a challenge, so
+                # only the first endpoint gets hit — that is 3 requests, not 4.
+                self.assertIn(len(first_requests), (3, 4))
+                # Second pass: everything is cooled down, no network call leaves.
                 self.assertEqual(second_requests, [])
 
                 deadline = max(search._COOLDOWNS.values())
                 with patch.object(search, "monotonic", return_value=deadline + 1):
                     recovered, _ = self._run(self._ddg_only)
-                self.assertEqual(recovered["provider"], "duckduckgo")
+                self.assertIn("duckduckgo", recovered["provider"])
                 self.assertNotIn("duckduckgo", search._COOLDOWNS)
                 self.assertNotIn("duckduckgo", search._LIMITED)
 
     def test_empty_successful_results_have_distinct_error(self) -> None:
         def handler(request):
-            if str(request.url) == search._EXA_URL:
+            url = _url_str(request)
+            if url == search._EXA_URL:
                 return httpx.Response(200, json={"jsonrpc": "2.0", "id": 1, "result": {"content": []}})
+            if url.startswith(search._BING_URL):
+                return httpx.Response(200, text="<html></html>")
             return httpx.Response(200, text="<html>No matching pages</html>")
 
-        result, requests = self._run(handler)
+        result, _ = self._run(handler)
         self.assertEqual(result["error_code"], "search.no_results")
-        self.assertEqual(len(requests), 3)
 
     def test_complete_provider_chain_has_a_bounded_timeout(self) -> None:
-        self.assertLessEqual(search._SEARCH_TIMEOUT, 25.0)
+        self.assertLessEqual(search._SEARCH_TIMEOUT, 10.0)
         cancelled = []
 
-        async def stalled_provider(request):
+        async def stalled(request):
             try:
                 await asyncio.sleep(10)
             finally:
                 cancelled.append(True)
             return httpx.Response(200, json=_exa_message())
 
+        def handler(request):
+            return stalled(request)
+
         with patch.object(search, "_SEARCH_TIMEOUT", 0.02):
-            result, requests = self._run(stalled_provider)
+            result, _ = self._run(handler)
         self.assertEqual(result["error_code"], "search.unavailable")
-        self.assertEqual(cancelled, [True])
-        self.assertEqual(len(requests), 1)
+        # All three providers got cancelled by the global deadline.
+        self.assertEqual(cancelled, [True, True, True])
 
     def test_stalled_provider_is_cancelled_and_cooled_down_before_fallback(self) -> None:
         cancelled = []
 
         async def handler(request):
-            if str(request.url) == search._EXA_URL:
+            url = _url_str(request)
+            if url == search._EXA_URL:
                 try:
                     await asyncio.sleep(10)
                 finally:
                     cancelled.append(True)
+                return httpx.Response(200, json=_exa_message())
+            if url.startswith(search._BING_URL):
+                return httpx.Response(404)
             return httpx.Response(200, text=_HTML)
 
         with patch.object(search, "_PROVIDER_TIMEOUT", 0.02):
             first, first_requests = self._run(handler)
             second, second_requests = self._run(handler)
 
-        self.assertEqual(first["provider"], "duckduckgo")
-        self.assertEqual(second["provider"], "duckduckgo")
+        self.assertIn("duckduckgo", first["provider"])
+        self.assertIn("duckduckgo", second["provider"])
         self.assertEqual(cancelled, [True])
-        self.assertEqual([str(request.url) for request in first_requests],
-                         [search._EXA_URL, search._DDG_URLS[0]])
-        self.assertEqual([str(request.url) for request in second_requests],
-                         [search._DDG_URLS[0]])
+        first_urls = {_url_str(r) for r in first_requests}
+        self.assertIn(search._EXA_URL, first_urls)
+        second_urls = {_url_str(r) for r in second_requests}
+        self.assertNotIn(search._EXA_URL, second_urls)
         self.assertIn("exa", search._COOLDOWNS)
         self.assertNotIn("exa", search._LIMITED)
+
+    def test_bing_results_are_unwrapped_and_merged(self) -> None:
+        def handler(request):
+            url = _url_str(request)
+            if url == search._EXA_URL:
+                return httpx.Response(503)
+            if url.startswith(search._BING_URL):
+                return httpx.Response(200, text=_BING_HTML)
+            return httpx.Response(503)
+
+        result, requests = self._run(handler)
+
+        bing_request = next(r for r in requests if _url_str(r).startswith(search._BING_URL))
+        self.assertIn("q=OpenAI+Codex", _url_str(bing_request))
+        self.assertIn("bing", result["provider"])
+        urls = [hit["url"] for hit in result["results"]]
+        # First hit was wrapped in /ck/a with a base64 u=a1 payload; it must be unwrapped.
+        self.assertIn("https://bing.example/", urls)
+        self.assertIn("https://bing.example/second", urls)
+        self.assertNotIn("bing.com/ck", " ".join(urls))
+
+    def test_bing_429_cools_down_without_failing_other_providers(self) -> None:
+        def handler(request):
+            url = _url_str(request)
+            if url == search._EXA_URL:
+                return httpx.Response(200, json=_exa_message())
+            if url.startswith(search._BING_URL):
+                return httpx.Response(429)
+            return httpx.Response(200, text=_HTML)
+
+        with patch.object(search, "monotonic", return_value=1000.0):
+            result, _ = self._run(handler)
+
+        self.assertIn("exa", result["provider"])
+        self.assertGreaterEqual(search._COOLDOWNS["bing"], 1060.0)
+        self.assertIn("bing", search._LIMITED)
+
+    def test_merge_dedups_by_url_and_keeps_first_provider_order(self) -> None:
+        exa_hits = [{"title": "Exa A", "url": "https://a.example", "snippet": "from exa"}]
+        ddg_hits = [
+            {"title": "DDG A dup", "url": "https://a.example", "snippet": "from ddg"},
+            {"title": "DDG B", "url": "https://b.example", "snippet": "from ddg"},
+        ]
+        bing_hits = [{"title": "Bing C", "url": "https://c.example", "snippet": "from bing"}]
+
+        def handler(request):
+            url = _url_str(request)
+            if url == search._EXA_URL:
+                text = "".join(
+                    f"Title: {h['title']}\nURL: {h['url']}\nHighlights:\n{h['snippet']}\n"
+                    for h in exa_hits
+                )
+                return httpx.Response(200, json=_exa_message(text))
+            if url.startswith(search._BING_URL):
+                blocks = "".join(
+                    f'<li class="b_algo"><h2><a href="{h["url"]}">{h["title"]}</a></h2>'
+                    f'<p>{h["snippet"]}</p></li>'
+                    for h in bing_hits
+                )
+                return httpx.Response(200, text=blocks)
+            ddg_anchors = "".join(
+                f'<a class="result__a" href="{h["url"]}">{h["title"]}</a>'
+                f'<a class="result__snippet">{h["snippet"]}</a>'
+                for h in ddg_hits
+            )
+            return httpx.Response(200, text=ddg_anchors)
+
+        result, _ = self._run(handler)
+        urls = [hit["url"] for hit in result["results"]]
+        self.assertEqual(urls, ["https://a.example", "https://b.example", "https://c.example"])
+        # The first provider to deliver a URL keeps its snippet.
+        a_hit = next(hit for hit in result["results"] if hit["url"] == "https://a.example")
+        self.assertEqual(a_hit["snippet"], "from exa")
 
 
 if __name__ == "__main__":

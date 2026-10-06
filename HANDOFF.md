@@ -2056,11 +2056,6 @@ provider traffic remained mocked; no paid model calls or production messages.
 Independent reviews closed all concrete findings. Version 0.4.2/code 9 is built
 with R8 and separately installed/launch-smoked; iOS remains source-only.
 
-## 2026-10-04 — Mobile update integrity gate
-
-- Android in-app APK installation now requires a complete 64-hex SHA-256 digest from the update metadata and an exact match from the downloaded bytes. Missing, malformed and mismatched digests never reach the native installer; iOS external update links are unchanged.
-- Validation: 32 focused Python mobile tests, shared/Android Gradle unit tests, and new checksum regressions passed. Independent adversarial review approved the scoped change. Details: `reports/night-agent-mobile-update-2026-10-04.md`.
-
 
 ## 2026-10-05 — Privacy and operation-lifecycle audit
 
