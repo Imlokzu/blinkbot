@@ -46,6 +46,10 @@ _BING_HEADERS = {
 }
 _COOLDOWNS: dict[str, float] = {}
 _LIMITED: set[str] = set()
+# DuckDuckGo drops any parallel burst with a challenge page and a 60s cool-off;
+# a non-blocking semaphore keeps us from DDoSing ourselves. Bing and Exa
+# handle concurrent load fine, so only DDG is gated this way.
+_DDG_LOCK = asyncio.Lock()
 
 
 class _SearchFailure(Exception):
@@ -305,9 +309,24 @@ async def _call_provider(name: str, handler, client: httpx.AsyncClient,
     """
     if _COOLDOWNS.get(name, 0) > monotonic():
         return {"hits": [], "limited": name in _LIMITED, "alive": False}
+
+    # DDG rejects parallel bursts with a 202 challenge; rather than wait, the
+    # current request simply skips DDG when another one is already in flight.
+    lock = _DDG_LOCK if name == "duckduckgo" else None
+    if lock is not None and lock.locked():
+        log.debug("Search provider %s skipped: another request is in flight", name)
+        return {"hits": [], "limited": False, "alive": False}
+
+    async def _call() -> list[dict]:
+        if lock is None:
+            return await asyncio.wait_for(handler(client, query, count),
+                                          timeout=_PROVIDER_TIMEOUT)
+        async with lock:
+            return await asyncio.wait_for(handler(client, query, count),
+                                          timeout=_PROVIDER_TIMEOUT)
+
     try:
-        hits = await asyncio.wait_for(handler(client, query, count),
-                                      timeout=_PROVIDER_TIMEOUT)
+        hits = await _call()
     except (httpx.HTTPError, _SearchFailure, ValueError, asyncio.TimeoutError) as exc:
         status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
         blocked = status == 429 or isinstance(exc, _SearchFailure) and exc.limited
