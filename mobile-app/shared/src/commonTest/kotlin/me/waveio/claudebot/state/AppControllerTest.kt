@@ -66,7 +66,8 @@ class AppControllerTest {
         runCurrent()
         assertFalse(fixture.controller.state.value.connected)
         assertFalse(fixture.controller.state.value.connecting)
-        assertEquals("error.network", fixture.controller.state.value.error)
+        assertEquals("error.network", fixture.controller.state.value.initializationError)
+        assertFalse(fixture.controller.state.value.initializing)
     }
 
     @Test fun queuedJobStateCannotHideAnotherJobsActiveStopControl() = controllerTest {

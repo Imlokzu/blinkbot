@@ -41,6 +41,7 @@ class MobileUiTest {
     private val sent = CopyOnWriteArrayList<JsonObject>()
     private val paired = CopyOnWriteArrayList<JsonObject>()
     @Volatile private var rejectPairing = false
+    @Volatile private var rejectStartup = false
     @Volatile private var answered = false
     @Volatile private var sessionId = "conversation"
     @Volatile private var fileText = "# Shared workspace\nA note from the computer."
@@ -71,7 +72,11 @@ class MobileUiTest {
                                 HttpStatusCode.Unauthorized, headersOf(HttpHeaders.ContentType, "application/json"))
                             """{"token":"test-device-token","device_id":"test-device","expires_at":1999999999}"""
                         }
-                        path == "/api/mobile/capabilities" -> """{"steer":false,"queue":true,"event_replay":true}"""
+                        path == "/api/mobile/capabilities" -> {
+                            if (rejectStartup) return@MockEngine respond("""{"detail":"unavailable"}""",
+                                HttpStatusCode.ServiceUnavailable, headersOf(HttpHeaders.ContentType, "application/json"))
+                            """{"steer":false,"queue":true,"event_replay":true}"""
+                        }
                         path == "/api/brain/models" -> {
                             if (slowCatalog) catalogReady.await()
                             """{"models":[{"id":"fixture/claude","label":"Claude Sonnet","provider":"fixture","brand":"anthropic","vision":true,"efforts":["none","low","high"]},{"id":"fixture/gpt","label":"$alternateModelLabel","provider":"fixture","brand":"openai","efforts":["none","high"]}],"selected":"fixture/claude"}"""
@@ -511,16 +516,53 @@ class MobileUiTest {
         val en = runBlocking { LocaleText.load("en") }
         launch(theme = "dark")
         waitFor("Scan QR code"); compose.onNodeWithText("Scan QR code").performScrollTo().performClick()
-        waitFor(en.get("model.loading"))
-        compose.onNodeWithText(en.get("model.loading")).performClick()
-        compose.waitUntil(10000) { compose.onAllNodesWithText(en.get("model.loading")).fetchSemanticsNodes().size == 2 }
-        compose.onAllNodesWithText(en.get("model.loading")).onLast().assertIsDisplayed()
-        screenshot("pixel-model-loading")
+        waitFor(en.get("startup.title"))
+        compose.onNodeWithText(en.get("startup.body")).assertIsDisplayed()
+        compose.onNodeWithText("Scan QR code").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Find a model").assertDoesNotExist()
+        screenshot("pixel-startup-loading")
         catalogReady.complete(Unit)
         waitFor("Claude Sonnet")
+        compose.onNodeWithText(en.get("startup.title")).assertDoesNotExist()
+        compose.onNodeWithText("Claude Sonnet").performClick()
         compose.onNodeWithContentDescription("Find a model").performClick().performTextInput("missing-model")
         compose.onNodeWithText(en.get("model.empty")).assertIsDisplayed()
         screenshot("pixel-model-empty")
+    }
+
+    @Test fun savedConnectionLoadsWithoutFlashingQrAndPreloadsHistory() {
+        slowCatalog = true
+        bridge.writeSecret("device_token", "test-device-token")
+        bridge.preferences["server"] = "https://mobile-test.example"
+        val en = runBlocking { LocaleText.load("en") }
+        launch(theme = "dark")
+        waitFor(en.get("startup.title"))
+        compose.onNodeWithText(en.get("startup.body")).assertIsDisplayed()
+        compose.onNodeWithText(en.get("connect.scan")).assertDoesNotExist()
+        screenshot("pixel-restored-startup")
+        catalogReady.complete(Unit)
+        waitFor("Claude Sonnet")
+        compose.onNodeWithContentDescription(en.get("nav.menu")).performClick()
+        waitFor("A shared conversation")
+        compose.onNodeWithText(en.get("connect.scan")).assertDoesNotExist()
+        assertTrue(paired.isEmpty())
+    }
+
+    @Test fun failedStartupOffersLocalizedRetryWithoutAnotherQr() {
+        rejectStartup = true
+        bridge.writeSecret("device_token", "test-device-token")
+        bridge.preferences["server"] = "https://mobile-test.example"
+        val uk = runBlocking { LocaleText.load("uk") }
+        launch(language = "uk", theme = "light")
+        waitFor(uk.get("startup.failed"))
+        compose.onNodeWithText(uk.get("error.service")).assertIsDisplayed()
+        compose.onNodeWithText(uk.get("connect.scan")).assertDoesNotExist()
+        screenshot("pixel-startup-retry-uk")
+        compose.runOnIdle { controller.dismissNotice(); rejectStartup = false }
+        compose.onNodeWithText(uk.get("action.retry")).performScrollTo().performClick()
+        waitFor("Claude Sonnet")
+        assertTrue(paired.isEmpty())
+        assertEquals("test-device-token", bridge.readSecret("device_token"))
     }
 
     @Test fun longModelNameKeepsPickerAndEffortActionsAvailable() {

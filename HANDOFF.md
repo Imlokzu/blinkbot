@@ -2383,3 +2383,32 @@ were resolved. Live `tools__python_calculate` allowlist activation and MCP reloa
 remain part of the coordinated math-feature deployment; registration alone is
 not claimed as live model availability. Math rendering is being integrated
 separately into the web and mobile clients.
+
+
+## Mobile startup and parallel preload (2026-10-06)
+
+Android 0.4.11 (version code 18) opens a localized loading surface while restoring
+a paired connection and after QR/code exchange. Capabilities, model catalog and
+chat history load concurrently; the chat opens only when these reads finish.
+Profile/intelligence reads remain optional and approved outbox delivery starts
+without waiting for profile data. Foreground refresh also loads chats/models
+concurrently, without repeating the initial startup requests.
+
+Persistent failures offer Retry and Disconnect. Credentials remain tied to their
+paired server during failed-preload retries, secure-storage failures can recover,
+and stale/cancelled work cannot replace a newer connection. Independent
+adversarial review fixed those boundary cases; 15 startup regressions cover them.
+
+Validation from an isolated snapshot of the staged change: 260 shared tests and
+78 Android unit tests passed; six Android emulator scenarios covered startup,
+restoration, localized retry and manual-code pairing. Debug/instrumentation and
+optimized release builds passed. APK signature matches the previous distributed
+build. A loopback server/curl smoke verified capabilities and queued messages,
+401 without credentials, 400 for workspace traversal, and static assets; the
+server and instrumentation apps were stopped. Backend: 1590 passed, 6 skipped
+and 178 subtests passed with production updater settings cleared for the test
+process. Shared iOS source changed, but Apple compilation/runtime is unverified.
+
+The locally built APK is `mobile-app/build/ClaudeBot-0.4.11.apk` (2,877,555 bytes),
+SHA-256 `aba90b04a4e66bf2434daf504934b4b310f13b7ea6f22d6e45a1452d11f2a8f5`.
+The in-app update channel has not been changed by this task.

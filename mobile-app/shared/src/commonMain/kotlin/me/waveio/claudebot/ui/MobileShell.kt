@@ -64,7 +64,9 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
     Box(Modifier.fillMaxSize().background(palette.background)) {
         if (!state.connected) {
             Wallpaper(state.preferences, state.customWallpaper, state.screen, state.connected)
-            ConnectionScreen(state, actions)
+            if (state.initializing || state.initializationError != null || (state.connecting && !state.codePairingOpen))
+                StartupScreen(state, actions)
+            else ConnectionScreen(state, actions)
         } else RevealDrawer(modalMenuOpen, actions::menu, state.openFile == null && !state.dictationOpen,
             menu = { ConversationDrawer(state, actions) }) {
             Box(Modifier.fillMaxSize()) {
@@ -152,6 +154,32 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
         } }
     }
     }
+    }
+}
+
+@Composable
+private fun StartupScreen(state: AppState, actions: AppActions) {
+    val p = LocalPalette.current
+    val failure = state.initializationError
+    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+        Column(Modifier.align(Alignment.TopCenter).widthIn(max = CompactPanelMaxWidth).fillMaxWidth()
+            .verticalScroll(rememberScrollState()).heightIn(min = maxHeight).padding(28.dp),
+            verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            BotMark(Modifier.size(76.dp))
+            Spacer(Modifier.height(22.dp))
+            Text(tr(if (failure == null) "startup.title" else "startup.failed"),
+                fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Medium, color = p.ink,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+            Spacer(Modifier.height(12.dp))
+            Text(tr(failure ?: "startup.body"), color = p.muted, lineHeight = 23.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Spacer(Modifier.height(26.dp))
+            if (failure == null) LoadingDots(color = p.accent) else {
+                ActionButton(tr("action.retry"), actions::refresh, Modifier.fillMaxWidth().heightIn(min = 54.dp), primary = true)
+                QuietAction(tr("profile.disconnect"), actions::disconnect, Modifier.fillMaxWidth().padding(top = 6.dp))
+            }
+        }
     }
 }
 

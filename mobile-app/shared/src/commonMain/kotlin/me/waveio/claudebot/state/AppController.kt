@@ -102,8 +102,12 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         permitted += runCatching { readScoped("outbox.allowed")?.let { json.decodeFromString<List<String>>(it) } }.getOrNull().orEmpty()
         outboxSnapshot = outbox.toList()
         allowedSnapshot = permitted.toSet()
-        mutable.value = AppState(preferences = preferences, baseUrl = server, customWallpaper = wallpaper, draft = readScoped("draft.new").orEmpty(), selectedModel = initialModel(preferences), installedVersion = platform.appVersionName)
-        val token = runCatching { platform.readSecret("device_token") }.getOrNull()
+        val restoredToken = runCatching { platform.readSecret("device_token") }
+        val token = restoredToken.getOrNull()
+        // Publish restoration before launching work so a paired phone never flashes QR login.
+        mutable.value = AppState(preferences = preferences, baseUrl = server, customWallpaper = wallpaper, draft = readScoped("draft.new").orEmpty(), selectedModel = initialModel(preferences), installedVersion = platform.appVersionName,
+            initializing = !token.isNullOrBlank(), connecting = !token.isNullOrBlank(),
+            initializationError = if (restoredToken.isFailure) "startup.storage" else null)
         if (!token.isNullOrBlank()) run { establish(server, token) }
         scope.launch {
             platform.incomingPairing.filterNotNull().distinctUntilChanged().collect { payload ->
@@ -112,9 +116,9 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         }
         scope.launch {
             var hasBeenForeground = platform.foreground.value
-            platform.foreground.collect { foreground ->
+            platform.foreground.drop(1).collect { foreground ->
                 if (!foreground && hasBeenForeground) { permitted += outbox.filter { it.lastError == null && !it.deliveryDeclined }.map { it.clientId }; persistOutbox() }
-                else if (state.value.connected) refresh()
+                else if (foreground && state.value.connected && !state.value.initializing) refresh()
                 if (foreground) hasBeenForeground = true
             }
         }
@@ -184,7 +188,9 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             failure is ApiFailure && failure.status != 0 -> "error.service"
             else -> "error.network"
         }
-        update { it.copy(error = key, loading = false, connecting = false, modelPickerOpen = it.modelPickerOpen || key == "error.imageModel") }
+        update { it.copy(error = if (it.initializing) null else key,
+            initializationError = if (it.initializing) key else it.initializationError,
+            initializing = false, loading = false, connecting = false, modelPickerOpen = it.modelPickerOpen || key == "error.imageModel") }
     }
     private fun feedback(answer: Boolean = false) {
         if (answer && !platform.foreground.value) return
@@ -271,28 +277,44 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     }
 
     private suspend fun establish(server: String, token: String) {
+        // Retry must use the origin that owns this token, even if preload fails.
+        update { it.copy(baseUrl = server, connecting = true, initializing = true, initializationError = null, error = null) }
         handledQuestions.clear()
         handledQuestions += readScoped("questions.handled.v1")?.let { json.decodeFromString<Set<String>>(it) }.orEmpty()
         handledQuestions += outbox.mapNotNull { it.questionId }
-        update { it.copy(connecting = true) }
         val version = ++connectionVersion
-        val connection = makeApi(server, token)
+        val connection = try { makeApi(server, token) }
+        catch (failure: Exception) {
+            if (failure is CancellationException) throw failure
+            error(failure)
+            return
+        }
         try {
-            val capabilities = connection.capabilities(platform.platformName, platform.appVersionCode)
+            api?.close(); api = connection
+            // Independent authenticated reads keep startup bounded by the slowest request.
+            val capabilities = coroutineScope {
+                val capabilities = async { connection.capabilities(platform.platformName, platform.appVersionCode) }
+                launch { if (version == connectionVersion) loadCatalog() }
+                launch { if (version == connectionVersion) loadSessions() }
+                capabilities.await()
+            }
             val updateInfo = updateFromCapabilities(capabilities)
             if (version != connectionVersion) { connection.close(); return }
-            api?.close(); api = connection
-            update { it.copy(baseUrl = connection.origin, connected = true, connecting = false, error = null, update = updateInfo,
+            update { it.copy(baseUrl = connection.origin, connected = true, connecting = false, initializing = false, initializationError = null, error = null, update = updateInfo,
                 updateChecking = false, updatePromptOpen = updateInfo != null, updateStatus = updateStatus(capabilities, updateInfo),
                 steerAvailable = capabilities["steer"]?.jsonPrimitive?.booleanOrNull == true) }
-            loadCatalog(); loadSessions()
-            scope.launch { loadIntelligence(version) }
-            runCatching { loadProfile() }
-            retryOutbox()
+            run(isCurrent = { version == connectionVersion }) { loadIntelligence(version) }
+            run(isCurrent = { version == connectionVersion }) {
+                try { loadProfile() }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { /* Optional profile data must not block chat. */ }
+            }
+            run(isCurrent = { version == connectionVersion }) { retryOutbox() }
         } catch (failure: Exception) {
-            if (api !== connection) connection.close()
+            if (api === connection) api = null
+            connection.close()
             if (version == connectionVersion && failure !is CancellationException) error(failure)
-            throw failure
+            if (failure is CancellationException) throw failure
         }
     }
 
@@ -323,7 +345,8 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                 IntelligenceRow(entry.index.toFloat().coerceIn(0f, 100f), entry.scores.keys.count { key -> catalog.benchmarks.any { it.key == key } }, total)
             }
             update { it.copy(intelligence = entries, intelligenceLoading = false) }
-        } catch (_: Exception) {
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) {
             if (version == connectionVersion) update { it.copy(intelligence = emptyMap(), intelligenceLoading = false) }
         }
     }
@@ -354,7 +377,31 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         if (edits == profileEditVersion) update { it.copy(profileName = profile.name.orEmpty(), profilePersona = profile.personaCustom.orEmpty()) }
     }
 
-    override fun refresh() = run { if (state.value.screen == Screen.Skills) loadSkills() else { loadSessions(); loadCatalog(); loadAllJobs(); state.value.sessionId.takeIf { it.isNotBlank() }?.let { loadJobs(it) } } }
+    override fun refresh() {
+        if (state.value.initializing || state.value.connecting) return
+        if (!state.value.connected) {
+            val token = try { platform.readSecret("device_token") }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { update { it.copy(initializationError = "startup.storage") }; return }
+            if (token.isNullOrBlank()) {
+                update { it.copy(initializationError = null, error = null) }
+                return
+            }
+            val server = state.value.baseUrl
+            update { it.copy(initializing = true, connecting = true, initializationError = null) }
+            run { establish(server, token) }
+        } else {
+            val version = connectionVersion
+            run {
+                if (state.value.screen == Screen.Skills) loadSkills() else coroutineScope {
+                    launch { if (version == connectionVersion) loadSessions() }
+                    launch { if (version == connectionVersion) loadCatalog() }
+                    launch { if (version == connectionVersion) loadAllJobs() }
+                    state.value.sessionId.takeIf { it.isNotBlank() }?.let { session -> launch { if (version == connectionVersion) loadJobs(session) } }
+                }
+            }
+        }
+    }
     override fun navigate(screen: Screen) {
         if (screen != state.value.screen && state.value.openFile != null) closeFile()
         if (screen != Screen.Chat && state.value.dictationOpen) cancelDictation()

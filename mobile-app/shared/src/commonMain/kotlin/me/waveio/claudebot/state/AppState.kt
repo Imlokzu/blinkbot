@@ -89,6 +89,8 @@ data class AppState(
     val preferences: Preferences = Preferences(),
     val connected: Boolean = false,
     val connecting: Boolean = false,
+    val initializing: Boolean = false,
+    val initializationError: String? = null,
     val codePairingOpen: Boolean = false,
     val pairingCode: String = "",
     val pairingServer: String = "",

@@ -91,6 +91,18 @@ The owner requested phrases changing every two seconds and subsequently clarifie
 that they are a greeting. Preserve this as the current direction in the preview;
 do not turn it into a stream of greeting bubbles or assistant notifications.
 
+## Connection loading
+
+A paired phone opens a dedicated loading surface immediately, without showing
+QR login during credential restoration. After QR/code exchange, the same surface
+remains until capabilities, models and conversation history are ready. Fetch
+these independent catalogs concurrently. Keep the existing mascot, wallpaper,
+theme, typography and reduced-motion waiting dots; use localized brief status
+text rather than invented progress percentages. Nonessential profile and
+intelligence reads do not delay chat. Startup failures retain the device
+credential and show persistent Retry and Disconnect actions. Foreground refresh
+updates chats/models concurrently without replacing the current conversation.
+
 ## Chat presentation and actions
 
 - Short conversational thoughts arrive as separate messenger-like bubbles.
