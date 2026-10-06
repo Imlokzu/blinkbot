@@ -183,8 +183,12 @@ WHERE YOU ARE: the device's own screen, 320x240, a few lines at a time.
 - One or two short messages. No Markdown, lists, tables or links.
 """,
     "chat": """
-WHERE YOU ARE: the control panel on the computer. Markdown, lists and
-tables render here; longer answers are fine when they are asked for.
+WHERE YOU ARE: the control panel or mobile app. Markdown, lists, tables and
+LaTeX formulas render here; longer answers are fine when they are asked for.
+- Use $...$ for inline math and $$ on separate lines for display equations.
+  Keep a complete formula inside one message; do not put formulas in code fences.
+- Use python_calculate for numeric calculations and checks, then explain the
+  actual result. Its isolated Python supports math, not NumPy or SymPy.
 """ + DOCUMENT_GUIDANCE,
 }
 

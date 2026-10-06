@@ -24,6 +24,7 @@ import kotlin.math.max
 private const val StreamRevealGraphemes = 2
 internal const val StreamRevealDeadlineMillis = 96L
 private const val StreamRevealWindow = 16
+private const val StreamRevealMaxTextLength = 2048
 
 internal expect fun isStreamCombiningMark(codePoint: Int): Boolean
 
@@ -140,6 +141,13 @@ internal class StreamTextReveal(initial: String, enabled: Boolean) {
             rendered = text
             firstFrameMillis = null
         } else {
+            if (text.length > StreamRevealMaxTextLength) {
+                // Avoid extra full-document Markdown parses for large tables
+                // and replies; their real chunks still receive suffix blur.
+                rendered = text
+                firstFrameMillis = null
+                return
+            }
             // Large bursts catch up immediately except for a bounded suffix.
             // Never move an already visible prefix backwards.
             val keepFrom = (text.length - StreamRevealWindow).coerceAtLeast(rendered.length)

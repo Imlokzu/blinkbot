@@ -2412,3 +2412,34 @@ process. Shared iOS source changed, but Apple compilation/runtime is unverified.
 The locally built APK is `mobile-app/build/ClaudeBot-0.4.11.apk` (2,877,555 bytes),
 SHA-256 `aba90b04a4e66bf2434daf504934b4b310f13b7ea6f22d6e45a1452d11f2a8f5`.
 The in-app update channel has not been changed by this task.
+
+## Math rendering in mobile and web replies (2026-10-06)
+
+Added native Compose LaTeX rendering and web remark-math/KaTeX integration while
+preserving the existing Markdown pipeline. Inline/display delimiters, fractions,
+roots, integrals, matrices, table cells and formula-only links are covered.
+Source text remains unchanged for copying/sharing. Code, currency and link
+contents are protected; incomplete formulas remain source until closed.
+The web closing-delimiter check respects enclosing blockquotes. Large replies
+retain bounded reveal work, avoiding repeated full-document parses.
+
+The Python tool's readable label is localized in both clients; chat-channel
+instructions explain math delimiters and `python_calculate` usage. The runtime
+is numeric Python with `math`, not NumPy/SymPy. See `docs/mobile-app/MATH.md`.
+
+Validation: isolated mobile build on committed startup work passed 270 shared
+and 78 Android JVM tests. All five new native math cases passed, including actual
+glyph rendering, inline/table placeholders and formula-only link annotations.
+Thirty existing native interaction/streaming cases also passed. Two strict
+suffix-blur pixel comparisons failed identically (1784/1513 outside-region
+pixels) on the private generic AVD with both this branch and unchanged committed
+renderer/reveal sources; these are recorded baseline limitations, not claimed
+passes or repaired by weakening assertions. Web typecheck/build and the actual
+component browser fixture passed; math parser/KaTeX tests passed six cases.
+Backend calculation/tool/channel tests passed 39 cases and the real local HTTP
+calculation/static/traversal smoke passed. No paid model calls were made.
+
+Independent review fixes: bounded worker-side result formatting, preservation
+of currency/indented code/link annotations, and complete/incomplete blockquote
+math handling. Android publication and live calculator allowlist activation are
+the remaining deployment steps and will be recorded after verification.

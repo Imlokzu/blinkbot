@@ -1,4 +1,6 @@
 {
+  "tool.python_calculate": "Python calculation",
+  "math.formula": "Formula: {formula}",
   "question.title": "A question from the bot",
   "question.dismiss": "Dismiss question",
   "question.custom": "Your answer",

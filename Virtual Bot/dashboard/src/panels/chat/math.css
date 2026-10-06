@@ -1,0 +1,9 @@
+/* Keep formulas in the message; wide equations scroll without widening chat. */
+.chat-math .katex { font-size: 1.08em; }
+.chat-math .katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.3em;
+  scrollbar-width: thin;
+}

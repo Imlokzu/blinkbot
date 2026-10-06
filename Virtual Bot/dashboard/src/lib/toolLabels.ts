@@ -1,4 +1,5 @@
 import type { OrbVariant } from '@/vendor/aicss';
+import { t } from '@/locales/chat';
 
 /*
  * Що саме робить бот — людською мовою.
@@ -56,6 +57,7 @@ const LOOKS: Record<string, ToolLook> = {
 const FALLBACK: ToolLook = { verb: 'працюю', orb: 'S3' };
 
 export function toolLook(name: string): ToolLook {
+  if (name.replace(/^tools__/, '') === 'python_calculate') return { verb: t('tool.python_calculate'), orb: 'C4' };
   return LOOKS[name] ?? FALLBACK;
 }
 

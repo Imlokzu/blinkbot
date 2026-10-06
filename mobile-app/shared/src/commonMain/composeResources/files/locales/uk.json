@@ -1,4 +1,6 @@
 {
+  "tool.python_calculate": "Обчислення Python",
+  "math.formula": "Формула: {formula}",
   "question.title": "Питання від бота",
   "question.dismiss": "Закрити питання",
   "question.custom": "Твоя відповідь",

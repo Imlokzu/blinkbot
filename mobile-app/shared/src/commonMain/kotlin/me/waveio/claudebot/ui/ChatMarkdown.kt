@@ -37,32 +37,38 @@ private val LocalStreamTail = compositionLocalOf { false }
 @Composable
 fun ChatMarkdown(text: String, streaming: Boolean = false) {
     val renderedText = rememberStreamingText(text, streaming)
-    // Recreate parsing state only for authoritative replacements, so retained
-    // Markdown cannot show an obsolete snapshot while the replacement parses.
-    key(renderedText.revision) {
-        val state = rememberMarkdownState(renderedText.text, retainState = true)
-        val components = remember {
-            markdownComponents(
-                paragraph = { StreamingMarkdownText(it, it.typography.paragraph) },
-                text = { StreamingMarkdownText(it, it.typography.text, plain = true) },
-                heading1 = { StreamingMarkdownText(it, it.typography.h1, MarkdownTokenTypes.ATX_CONTENT) },
-                heading2 = { StreamingMarkdownText(it, it.typography.h2, MarkdownTokenTypes.ATX_CONTENT) },
-                heading3 = { StreamingMarkdownText(it, it.typography.h3, MarkdownTokenTypes.ATX_CONTENT) },
-                heading4 = { StreamingMarkdownText(it, it.typography.h4, MarkdownTokenTypes.ATX_CONTENT) },
-                heading5 = { StreamingMarkdownText(it, it.typography.h5, MarkdownTokenTypes.ATX_CONTENT) },
-                heading6 = { StreamingMarkdownText(it, it.typography.h6, MarkdownTokenTypes.ATX_CONTENT) },
-                setextHeading1 = { StreamingMarkdownText(it, it.typography.h1, MarkdownTokenTypes.SETEXT_CONTENT) },
-                setextHeading2 = { StreamingMarkdownText(it, it.typography.h2, MarkdownTokenTypes.SETEXT_CONTENT) },
-                table = { ChatTable(it) },
-            )
-        }
-        CompositionLocalProvider(LocalStreamTail provides renderedText.animateTail) {
-            // The reveal window is bounded; only its fresh suffix drawing is softened.
-            Markdown(state, modifier = Modifier.wrapContentWidth(), components = components,
-                animations = markdownAnimations(animateTextSize = { this }),
-                loading = { Text(renderedText.text, color = LocalPalette.current.ink) },
-                error = { Text(renderedText.text, color = LocalPalette.current.ink) })
-        }
+    // Keep the last measured Markdown frame while replacements parse; a raw
+    // loading frame can collapse a table and incorrectly restore auto-follow.
+    val math = remember(renderedText.text) { mathMarkdown(renderedText.text) }
+    // Retained AST frames may still reference the preceding set of formulas.
+    val formulaCache = remember { linkedMapOf<String, MathSpan>() }
+    val formulas = remember(math) {
+        formulaCache.putAll(math.formulas)
+        while (formulaCache.size > 256) formulaCache.remove(formulaCache.keys.first())
+        if ('\uE000' in renderedText.text) emptyMap() else formulaCache.toMap()
+    }
+    val state = rememberMarkdownState(math.markdown, retainState = true)
+    val components = remember {
+        markdownComponents(
+            paragraph = { StreamingMarkdownText(it, it.typography.paragraph) },
+            text = { StreamingMarkdownText(it, it.typography.text, plain = true) },
+            heading1 = { StreamingMarkdownText(it, it.typography.h1, MarkdownTokenTypes.ATX_CONTENT) },
+            heading2 = { StreamingMarkdownText(it, it.typography.h2, MarkdownTokenTypes.ATX_CONTENT) },
+            heading3 = { StreamingMarkdownText(it, it.typography.h3, MarkdownTokenTypes.ATX_CONTENT) },
+            heading4 = { StreamingMarkdownText(it, it.typography.h4, MarkdownTokenTypes.ATX_CONTENT) },
+            heading5 = { StreamingMarkdownText(it, it.typography.h5, MarkdownTokenTypes.ATX_CONTENT) },
+            heading6 = { StreamingMarkdownText(it, it.typography.h6, MarkdownTokenTypes.ATX_CONTENT) },
+            setextHeading1 = { StreamingMarkdownText(it, it.typography.h1, MarkdownTokenTypes.SETEXT_CONTENT) },
+            setextHeading2 = { StreamingMarkdownText(it, it.typography.h2, MarkdownTokenTypes.SETEXT_CONTENT) },
+            table = { ChatTable(it) },
+        )
+    }
+    CompositionLocalProvider(LocalStreamTail provides renderedText.animateTail, LocalMathSpans provides formulas) {
+        // The reveal window is bounded; only its fresh suffix drawing is softened.
+        Markdown(state, modifier = Modifier.wrapContentWidth(), components = components,
+            animations = markdownAnimations(animateTextSize = { this }),
+            loading = { Text(renderedText.text, color = LocalPalette.current.ink) },
+            error = { Text(renderedText.text, color = LocalPalette.current.ink) })
     }
 }
 
@@ -80,9 +86,10 @@ private fun StreamingMarkdownText(model: MarkdownComponentModel, style: TextStyl
         }
     }
     val isTail = model.node.endOffset >= model.content.trimEnd().length
-    val tail = rememberStreamingTail(styled.text, LocalStreamTail.current && isTail)
-    MarkdownText(styled, modifier = tail.modifier.then(if (childType != null) Modifier.semantics { heading() } else Modifier),
-        style = style, onTextLayout = { layout, _ -> tail.onTextLayout(layout) })
+    val tail = rememberStreamingTail(styled.text, LocalStreamTail.current && isTail && !mathMarker.containsMatchIn(styled.text))
+    val modifier = tail.modifier.then(if (childType != null) Modifier.semantics { heading() } else Modifier)
+    if (mathMarker.containsMatchIn(styled.text)) MathText(styled, modifier = modifier, style = style, onTextLayout = tail.onTextLayout)
+    else MarkdownText(styled, modifier = modifier, style = style, onTextLayout = { layout, _ -> tail.onTextLayout(layout) })
 }
 
 @Immutable
@@ -120,7 +127,9 @@ private fun ChatTableCell(cell: String, style: TextStyle, streaming: Boolean) {
     // Previous cells have unchanged strings while a new row streams in; cache
     // their inline Markdown instead of rebuilding every cell from the full reply.
     val text = remember(cell, style, settings) { cell.buildMarkdownAnnotatedString(style, settings) }
-    val tail = rememberStreamingTail(text.text, streaming)
-    Text(text, style = style, maxLines = Int.MAX_VALUE, overflow = TextOverflow.Clip,
-        modifier = Modifier.width(180.dp).padding(12.dp).then(tail.modifier), onTextLayout = tail.onTextLayout)
+    val tail = rememberStreamingTail(text.text, streaming && !mathMarker.containsMatchIn(text.text))
+    val modifier = Modifier.width(180.dp).padding(12.dp).then(tail.modifier)
+    if (mathMarker.containsMatchIn(text.text)) MathText(text, modifier, style, tail.onTextLayout)
+    else Text(text, style = style, maxLines = Int.MAX_VALUE, overflow = TextOverflow.Clip,
+        modifier = modifier, onTextLayout = tail.onTextLayout)
 }

@@ -21,6 +21,7 @@ kotlin {
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.38.1")
+            implementation("io.github.huarangmeng:latex-renderer:1.5.6")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")

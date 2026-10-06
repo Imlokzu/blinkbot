@@ -20,7 +20,7 @@ function bareTool(label: string): string {
 
 const TOOL_ICONS: Record<string, SolarIconComponent> = {
   web_search: Search, image_search: ImageIcon, facts: FileText, weather: CloudSun,
-  currency: Coins, memory_search: Search, workspace_read: Book,
+  python_calculate: Terminal, currency: Coins, memory_search: Search, workspace_read: Book,
   workspace_write: Pen, workspace_list: Folder, workspace_show: FileText,
   workspace_info: FileText, ask_question: MessageCircleQuestion, todo_list: ListTodo,
   show_choice: ListTodo, play_music: Music, stop_music: Music, play_video: Play,
@@ -30,7 +30,7 @@ const TOOL_ICONS: Record<string, SolarIconComponent> = {
 
 const TOOL_TITLES: Record<string, ChatKey> = {
   web_search: 'tool.web_search', image_search: 'tool.image_search', facts: 'tool.facts',
-  weather: 'tool.weather', currency: 'tool.currency', memory_search: 'tool.memory_search',
+  python_calculate: 'tool.python_calculate', weather: 'tool.weather', currency: 'tool.currency', memory_search: 'tool.memory_search',
   workspace_read: 'tool.workspace_read', workspace_write: 'tool.workspace_write',
   workspace_list: 'tool.workspace_list', workspace_show: 'tool.workspace_show',
   ask_question: 'tool.ask_question', todo_list: 'tool.todo_list', show_choice: 'tool.show_choice',

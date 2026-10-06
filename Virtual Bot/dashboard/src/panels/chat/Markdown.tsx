@@ -8,6 +8,11 @@ import { Children, isValidElement, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { Check, Copy } from '../../vendor/solar-icons/compat.ts';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import { mathPreprocess, mathOptions, remarkDisplayMath } from './math';
+import 'katex/dist/katex.min.css';
+import './math.css';
 import { DataTable, FileDiff, parseUnifiedDiff } from '@/vendor/aicss';
 import { ChatGallery, ChatImage } from './Gallery';
 import { remarkImageGroups } from './remarkImageGroups';
@@ -161,10 +166,12 @@ export function Markdown() {
        * одним абзацом із паличками. Перевизначення `table` нижче без цього
        * плагіна просто ніколи не викликались.
        */
-      remarkPlugins={[remarkGfm, remarkImageGroups]}
+      remarkPlugins={[remarkGfm, remarkImageGroups, remarkMath, remarkDisplayMath]}
+      rehypePlugins={[[rehypeKatex, mathOptions]]}
+      preprocess={mathPreprocess}
       urlTransform={safeMarkdownUrl}
       componentsByLanguage={DIFF_LANGUAGE}
-      className="text-[15px] leading-[1.62] text-ink"
+      className="chat-math text-[15px] leading-[1.62] text-ink"
       components={{
         img: MdImage,
         /*

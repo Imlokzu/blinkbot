@@ -37,7 +37,7 @@ class StreamingTailRangeTest {
     }
 
     @Test fun revealStartsFromTheSuppliedSnapshotAndOnlyQueuesLiveAppends() {
-        val history = "A long existing answer. ".repeat(100)
+        val history = "An existing answer. ".repeat(20)
         val reveal = StreamTextReveal(history, true)
         assertEquals(history, reveal.rendered)
         assertFalse(reveal.pending)
@@ -54,7 +54,7 @@ class StreamingTailRangeTest {
 
     @Test fun largeAndRepeatedBurstsCannotExtendTheOriginalDeadline() {
         val reveal = StreamTextReveal("Prefix ", true)
-        reveal.update("Prefix " + "a".repeat(4000), true)
+        reveal.update("Prefix " + "a".repeat(1000), true)
         assertTrue(reveal.target.length - reveal.rendered.length <= 16)
         assertTrue(reveal.rendered.startsWith("Prefix "))
         reveal.advance(1000)
@@ -86,6 +86,20 @@ class StreamingTailRangeTest {
         inactive.update("History with a snapshot", true)
         assertEquals(inactive.target, inactive.rendered)
         assertFalse(inactive.animateTail)
+    }
+
+    @Test fun largeMarkdownBlocksUseRealChunksWithoutAdditionalParseFrames() {
+        val full = "A long existing answer. ".repeat(100)
+        val reveal = StreamTextReveal(full, true)
+        assertEquals(full, reveal.rendered)
+        assertFalse(reveal.pending)
+        val revision = reveal.revision
+        reveal.update(full + "New provider chunk", true)
+        assertEquals(reveal.target, reveal.rendered)
+        assertFalse(reveal.pending)
+        assertTrue(reveal.animateTail)
+        assertEquals(revision, reveal.revision)
+        assertEquals(reveal.target, reveal.advance(1000))
     }
 
     @Test fun settledModeChangesPreserveMarkdownIdentityButPendingTextStillFlushes() {
