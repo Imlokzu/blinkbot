@@ -2347,3 +2347,20 @@ public dashboard returns 200. Only `me.waveio.klodbot-web` was restarted after
 rechecking zero running/stopping mobile jobs. No emulator or provider call was
 started. See `docs/mobile-app/RELEASE-0.4.10.md` for artifact details. The earlier
 unpublished-update statement applies only to the previous 0.4.9 artifact.
+
+### Mobile duplicate or wrong first answer fix (2026-10-06)
+
+Mobile OpenClaw turns no longer render Gateway assistant snapshots as answer
+text. The durable session subscription remains active for tool activity,
+pre-answer notes and model/status events, but the current HTTP completion stream
+is now the only answer-text source. This prevents a delayed preview from a stale
+or parallel run on the same session from appearing first and then being replaced
+by the current model's answer. The existing HTTP SSE path still delivers real
+provider chunks before completion; no artificial typewriter is involved.
+
+Focused transport, streaming and mobile integration validation passed 47 tests.
+The transport regression now feeds misleading native snapshots while the HTTP
+run is released independently and asserts no `reply_snapshot` reaches mobile,
+while the authoritative HTTP delta and final answer still arrive. An independent
+adversarial review found no additional issue in the bounded change. The fix is
+backend-only; the previously published Android 0.4.10 package remains usable.

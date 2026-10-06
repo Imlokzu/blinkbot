@@ -400,8 +400,8 @@ def test_large_phone_jpeg_has_explicit_upload_limit_and_accepted_bytes_reach_pro
 
 
 @pytest.mark.parametrize("replaceable", [None, True])
-def test_gateway_assistant_snapshot_arrives_on_phone_before_http_completion(phone_transport, monkeypatch, replaceable):
-    """Native assistant frames can omit replaceable; withholding HTTP detects silent drops."""
+def test_mobile_text_uses_http_stream_without_gateway_preview(phone_transport, monkeypatch, replaceable):
+    """Mobile text must come from the current HTTP run, not a stale gateway preview."""
     async def check():
         app, store, owner, headers = phone_transport
         release = asyncio.Event()
@@ -419,20 +419,22 @@ def test_gateway_assistant_snapshot_arrives_on_phone_before_http_completion(phon
                 job = submitted.json()
                 try:
                     async with client.stream("GET", f"/api/mobile/messages/{job['id']}/events") as stream:
+                        # The provider is no longer gated on a gateway preview;
+                        # release it so the authoritative HTTP frame can arrive.
+                        release.set()
                         async with asyncio.timeout(2):
                             async for _, event, data in frames(stream):
                                 received.append((event, data))
-                                if event == "reply_snapshot" and data["text"] == "Corrected answer ":
-                                    assert not finished.is_set()
+                                if event == "delta":
+                                    assert data["chunk"] == "Corrected answer Complete."
+                                    assert not any(kind == "reply_snapshot" for kind, _ in received)
                                     assert store.get(owner, job["id"])["state"] == "running"
                                     release.set()
                 finally:
                     release.set()
         assert len(captured) == 1
-        assert [data["text"] for event, data in received if event == "reply_snapshot"] == [
-            "Early answer 🌊 ", "Corrected answer ",
-        ]
-        assert [data["chunk"] for event, data in received if event == "delta"] == ["Complete."]
+        assert [data["text"] for event, data in received if event == "reply_snapshot"] == []
+        assert [data["chunk"] for event, data in received if event == "delta"] == ["Corrected answer Complete."]
         assert next(data["reply"] for event, data in received if event == "done") == "Corrected answer Complete."
         assert store.get(owner, job["id"])["state"] == "completed"
     asyncio.run(check())

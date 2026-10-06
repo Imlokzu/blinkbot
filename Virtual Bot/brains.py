@@ -859,8 +859,10 @@ async def chat_openclaw(
             await emit(event)
 
         try:
-            activity_options = {"preview_assistant": True} if mobile_api.current_turn_options() is not None else {}
-            async with GatewayActivity(tracked_emit, session_key=session_key, **activity_options) as activity:
+            # The HTTP response is the authoritative text stream for mobile.
+            # Gateway assistant previews can belong to a stale or parallel run
+            # on the same durable session and briefly show another answer.
+            async with GatewayActivity(tracked_emit, session_key=session_key) as activity:
                 text = await _stream_openai_compatible(
                     url, {**headers, "x-openclaw-session-key": activity.session_key},
                     payload, cfg.CHAT_OPENCLAW_TIMEOUT_S, trust_env,
