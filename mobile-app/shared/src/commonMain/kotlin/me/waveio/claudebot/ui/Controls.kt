@@ -31,7 +31,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 
 val LocalReducedMotion = staticCompositionLocalOf { false }
 
@@ -40,6 +43,7 @@ val LocalReducedMotion = staticCompositionLocalOf { false }
 fun MotionPopup(
     open: Boolean, onDismiss: () -> Unit, modifier: Modifier = Modifier,
     alignment: Alignment = Alignment.TopCenter, offset: IntOffset = IntOffset.Zero,
+    anchorBounds: androidx.compose.ui.geometry.Rect? = null,
     focusable: Boolean = true,
     surfacePadding: Dp = 12.dp,
     drawBorder: Boolean = true,
@@ -53,8 +57,23 @@ fun MotionPopup(
     val blurSteps = remember { (1..5).map { BlurEffect(it.toFloat(), it.toFloat()) } }
     val motion = updateTransition(target, label = "panel")
     val progress = motion.animateFloat(transitionSpec = { tween(if (reduced) 0 else 190, easing = FastOutSlowInEasing) }, label = "panelReveal") { if (it) 1f else 0f }
+    val edgePx = with(LocalDensity.current) { 8.dp.toPx() }
     if (target.currentState || target.targetState) {
-        Popup(alignment = alignment, offset = offset, onDismissRequest = onDismiss, properties = PopupProperties(focusable = focusable)) {
+        val popupAlignment = if (anchorBounds != null) Alignment { popupSize, windowSize, layoutDirection ->
+            val anchor = anchorBounds ?: return@Alignment IntOffset.Zero
+            val popupW = popupSize.width.toFloat(); val popupH = popupSize.height.toFloat()
+            val windowW = windowSize.width.toFloat(); val windowH = windowSize.height.toFloat()
+            val spaceAbove = anchor.top
+            val spaceBelow = windowH - anchor.bottom
+            val x = (anchor.center.x - popupW / 2f).coerceIn(edgePx, (windowW - popupW - edgePx).coerceAtLeast(edgePx))
+            val y = when {
+                spaceAbove > popupH + 8f -> anchor.top - popupH - 8f
+                spaceBelow > popupH + 8f -> anchor.bottom + 8f
+                else -> anchor.center.y - popupH / 2f
+            }
+            IntOffset(x.roundToInt(), y.roundToInt().coerceIn(0, (windowH - popupH).toInt().coerceAtLeast(0)))
+        } else alignment
+        Popup(alignment = popupAlignment, offset = offset, onDismissRequest = onDismiss, properties = PopupProperties(focusable = focusable)) {
             val palette = LocalPalette.current
             Column(modifier.graphicsLayer {
                 val value = progress.value

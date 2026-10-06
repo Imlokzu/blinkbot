@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -164,7 +165,9 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
                     }
                 }, contentPadding = PaddingValues(start = 18.dp, top = topPanel + 20.dp, end = 18.dp, bottom = bottomPanel + 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     items(state.messages, key = { it.presentationId ?: it.id }) { message ->
-                        MessageContent(message, actions, reducedMotion, state.busy, state.attachmentThumbnails, state.mediaGeneration, state.baseUrl, state.imageFailures, seen.add(message.presentationId ?: message.id) && (message.live || message.presentationId != null || message.id.startsWith("u-")))
+                        MessageContent(message, actions, reducedMotion, state.busy, state.attachmentThumbnails, state.mediaGeneration, state.baseUrl, state.imageFailures,
+                            message.role == "user" && seen.add(message.presentationId ?: message.id) && message.id.startsWith("u-") ||
+                            message.role == "assistant" && seen.add(message.presentationId ?: message.id) && message.live)
                     }
                     if (showTyping && waiting) item(key = "typing") {
                         EnterMotion(true) { motion -> Box(motion.testTag("chat-typing")) { TypingIndicator() } }
@@ -295,7 +298,7 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
         if (!user && message.model.isNotBlank() && !message.live) Text(message.model.substringAfterLast('/'), color = palette.muted, fontSize = 10.sp, modifier = Modifier.padding(start = 6.dp, top = 2.dp))
     }
     }
-    MotionPopup(menuText != null, { menuText = null }, Modifier.widthIn(max = 300.dp).fillMaxWidth(), alignment = Alignment.Center, focusable = false) {
+    MotionPopup(menuText != null, { menuText = null }, Modifier.widthIn(max = 300.dp).fillMaxWidth(), focusable = false) {
         if (!user && !message.live && !selectedNote) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.SpaceEvenly) {
             listOf("👍", "❤️", "😂", "😮", "😢", "👎").forEach { emoji ->
                 Text(emoji, fontSize = 24.sp, modifier = Modifier.size(44.dp).clip(CircleShape).clickable {
@@ -303,12 +306,13 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
                 }.padding(6.dp))
             }
         }
+        if (!user && !message.live && !selectedNote) Hairline(Modifier.padding(vertical = 5.dp))
         MenuRow("copy", tr("chat.copy"), { actions.copyContent(menuText.orEmpty()); menuText = null })
         MenuRow("select", tr("chat.select"), { selection = menuText; menuText = null })
         MenuRow("share", tr("chat.share"), { actions.shareContent(menuText.orEmpty()); menuText = null })
+        if (user || !busy) Hairline(Modifier.padding(vertical = 5.dp))
         if (user) MenuRow("edit", tr("chat.edit"), { menuText = null; actions.editMessage(message.id) }, enabled = !busy)
         else MenuRow("retry", tr("chat.regenerate"), { menuText = null; actions.regenerate(message.id) }, enabled = !busy)
-
     }
     if (selection != null) BotDialog({ selection = null }) {
         SelectionContainer(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) { Text(selection.orEmpty(), color = palette.ink) }

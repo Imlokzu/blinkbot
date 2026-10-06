@@ -324,7 +324,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val catalog = try { requireApi().models() }
         finally { if (version == connectionVersion) update { it.copy(modelsLoading = false) } }
         if (version != connectionVersion) return
-        val models = catalog.models.map { model -> ModelRow(model.id, model.label ?: model.id.substringAfterLast('/'), model.provider.orEmpty(), model.brand ?: brand(model.id), model.available != false, (listOf("none") + model.efforts.ifEmpty { catalog.efforts }).distinct(), model.vision) }
+        val models = catalog.models.map { model -> ModelRow(model.id, model.label ?: model.id.substringAfterLast('/'), model.provider.orEmpty(), model.brand ?: brand(model.id), model.available != false, (listOf("none") + model.efforts.ifEmpty { catalog.efforts }).distinct(), model.vision) }.sortedWith(modelComparator)
         val initial = catalog.selected?.takeIf { it.isNotBlank() }
             ?: catalog.defaultModel?.takeIf { it.isNotBlank() }
             ?: models.firstOrNull { it.available }?.id.orEmpty()
