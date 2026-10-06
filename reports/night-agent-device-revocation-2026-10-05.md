@@ -3,8 +3,6 @@
 This pass checked the recent native Updates screen, file previews and stream
 changes, then fixed audit finding L-02. Removing a paired phone already blocked
 new requests, but its open job stream could still receive later reply text.
-Regression cases reproduced the leak for both the empty local owner and a Clerk
-owner, including invalidation between two events in one loaded replay batch.
 
 The stream now retains its original request credential and uses the existing
 device-authentication read before each batch and event. A committed revocation,

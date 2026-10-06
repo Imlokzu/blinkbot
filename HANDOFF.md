@@ -2459,3 +2459,20 @@ running/stopping mobile jobs, and the existing tunnel remained running.
 The separate math QA AVD and the originally started shared emulator were stopped
 once no instrumentation was active. No production chat messages or paid model
 calls were sent. Release details are in `docs/mobile-app/RELEASE-0.4.12.md`.
+
+## 2026-10-06 — Night review: live paired-device revocation
+
+- Revoked or expired phones now lose their already-open job stream after the
+  next credential check. Checks run before each replay batch and event, including
+  buffered events and the empty local owner. Other devices and accepted jobs
+  continue; new revoked-device requests still return 401. Frames already handed
+  to the HTTP transport cannot be recalled. Nonmobile policy is unchanged.
+- Seven regression cases include real HTTP EOF and surviving-device delivery.
+  Final Python suite: 1,559 passed, 7 skipped, 178 subtests; shared/Android JVM
+  tests: 231/78; dashboard tests: 215 plus typecheck. An earlier known PID-file
+  fixture race passed on isolated rerun and the final full suite was clean.
+- Independent code and architecture reviews approved the fix. Post-review
+  isolated curl smoke passed 26 checks, including traversal guards returning
+  400; test servers stopped and Mac output remains muted. No real devices/jobs
+  or provider settings changed. Other agents' staged/native release drafts
+  remain preserved. Evidence: `reports/night-agent-device-revocation-2026-10-05.md`.
