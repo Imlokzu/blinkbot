@@ -2443,3 +2443,19 @@ Independent review fixes: bounded worker-side result formatting, preservation
 of currency/indented code/link annotations, and complete/incomplete blockquote
 math handling. Android publication and live calculator allowlist activation are
 the remaining deployment steps and will be recorded after verification.
+
+### Math deployment completed (2026-10-06)
+
+`tools__python_calculate` is enabled in the live OpenClaw minimal allowlist and
+`openclaw mcp reload` succeeded. The actual bot tool API returned the expected
+square root, multiplication and factorial without a provider call. The web math
+build is published atomically and its public entry assets return 200.
+
+Android **0.4.12 / code 19** is published through the existing updater. Codes
+16/17/18 see availability, code 19 is current, and the live download matches the
+advertised SHA-256/size. The signing identity matches earlier APKs; optimized
+release assembly and installation passed. Web restarts were gated on zero
+running/stopping mobile jobs, and the existing tunnel remained running.
+The separate math QA AVD and the originally started shared emulator were stopped
+once no instrumentation was active. No production chat messages or paid model
+calls were sent. Release details are in `docs/mobile-app/RELEASE-0.4.12.md`.
