@@ -1,0 +1,39 @@
+# Minimal SearXNG setup for the Virtual Bot
+# Fits comfortably within ~200MB RAM, well under the 1GB budget.
+# No Redis (not needed when used only from tools/search.py), no limiter plugin
+# (we provide our own anti-abuse with provider timeouts and merge logic).
+
+name: claudebot-searxng
+
+services:
+  searxng:
+    image: docker.io/searxng/searxng:latest
+    container_name: claudebot-searxng
+    restart: unless-stopped
+    ports:
+      # Bind only to localhost so the bot's machine is the only client.
+      - "127.0.0.1:8888:8080"
+    volumes:
+      - ./settings.yml:/etc/searxng/settings.yml:ro
+      # Limiter is intentionally disabled - no bot.limiter.toml needed.
+    environment:
+      # Base URL the instance reports back; harmless on localhost.
+      - SEARXNG_BASE_URL=http://127.0.0.1:8888/
+      # Cap Python + uWSGI so memory stays predictable.
+      - UWSGI_WORKERS=2
+      - UWSGI_THREADS=2
+    # Hard ceiling on resource usage. SearXNG idle ~80MB, spikes ~180MB.
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1.0
+    pids_limit: 200
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

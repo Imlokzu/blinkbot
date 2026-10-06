@@ -56,10 +56,23 @@ class WebSearchTests(unittest.TestCase):
         self.environment = patch.dict(os.environ, {"EXA_API_KEY": ""})
         self.environment.start()
         self.addCleanup(self.environment.stop)
+        # Most tests predate the SearXNG provider — disable it by default so
+        # their hand-rolled handlers don't see a fourth request. The one test
+        # that targets SearXNG explicitly re-enables it via `use_searxng()`.
+        self._original_searxng = search._SEARXNG_URL
+        search._SEARXNG_URL = ""
+        self.addCleanup(self._restore_searxng)
         search._COOLDOWNS.clear()
         search._LIMITED.clear()
         self.addCleanup(search._COOLDOWNS.clear)
         self.addCleanup(search._LIMITED.clear)
+
+    def _restore_searxng(self) -> None:
+        search._SEARXNG_URL = self._original_searxng
+
+    def use_searxng(self, url: str = "http://testhost.local:8888") -> None:
+        """Re-enable the SearXNG provider for tests that target it."""
+        search._SEARXNG_URL = url
 
     def _run(self, handler, query="OpenAI Codex", count=3):
         requests = []
@@ -590,6 +603,10 @@ class FetchTopPagesTests(unittest.TestCase):
     """End-to-end of the search+fetch pipeline, with both stages mocked."""
 
     def setUp(self) -> None:
+        # These tests target the search + fetch pipeline, not the providers.
+        self._original_searxng = search._SEARXNG_URL
+        search._SEARXNG_URL = ""
+        self.addCleanup(self._restore_searxng)
         search._COOLDOWNS.clear()
         search._LIMITED.clear()
         self.addCleanup(search._COOLDOWNS.clear)
@@ -615,6 +632,9 @@ class FetchTopPagesTests(unittest.TestCase):
         patcher = patch.object(search.socket, "getaddrinfo", side_effect=fake_getaddrinfo)
         patcher.start()
         self.addCleanup(patcher.stop)
+
+    def _restore_searxng(self) -> None:
+        search._SEARXNG_URL = self._original_searxng
 
     def _run_fetch(self, handler, query="cats", count=3):
         requests = []

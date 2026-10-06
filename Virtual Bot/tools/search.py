@@ -266,6 +266,53 @@ async def _search_bing(client: httpx.AsyncClient, query: str, count: int) -> lis
     return results
 
 
+_SEARXNG_URL = os.environ.get("SEARXNG_URL", "http://127.0.0.1:8888").rstrip("/")
+
+
+async def _search_searxng(client: httpx.AsyncClient, query: str,
+                          count: int) -> list[dict]:
+    """Self-hosted SearXNG on localhost:8888. Optional — silently returns []
+    when the instance isn't running so the bot never notices.
+
+    To keep the surrounding error semantics clean ('all dead' vs 'all alive
+    but empty'), this function raises _SearchFailure('disabled') when the URL
+    is unset and _SearchFailure('unreachable') when the local service is
+    down. The caller treats both as 'not alive', which keeps 'no_results' vs
+    'unavailable' honest for the other providers."""
+    if not _SEARXNG_URL:
+        raise _SearchFailure("disabled")
+    try:
+        response = await client.get(
+            f"{_SEARXNG_URL}/search",
+            params={"q": query, "format": "json", "language": "auto"},
+            timeout=_PROVIDER_TIMEOUT,
+        )
+    except httpx.RequestError as exc:
+        raise _SearchFailure("unreachable") from exc
+    if response.status_code == 429:
+        raise _SearchFailure("rate_limit", limited=True)
+    response.raise_for_status()
+    try:
+        data = response.json()
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise _SearchFailure("invalid_response") from exc
+    items = data.get("results") or []
+    out: list[dict] = []
+    for item in items[:count]:
+        if not isinstance(item, dict):
+            continue
+        url = _result_url(item.get("url") or "")
+        title = _clean_text(str(item.get("title") or ""))
+        if not (url and title):
+            continue
+        out.append({
+            "title": title,
+            "url": url,
+            "snippet": _snippet(str(item.get("content") or "")),
+        })
+    return out
+
+
 def _merge_results(lists: list[list[dict]], count: int) -> list[dict]:
     """Merge providers' hits by URL (first provider wins for a given URL)."""
     seen: set[str] = set()
@@ -357,9 +404,10 @@ async def _run_providers(query: str, count: int) -> dict:
             _call_provider("exa", _search_exa, client, query, count),
             _call_provider("duckduckgo", _search_ddg, client, query, count),
             _call_provider("bing", _search_bing, client, query, count),
+            _call_provider("searxng", _search_searxng, client, query, count),
         )
 
-    provider_names = ("exa", "duckduckgo", "bing")
+    provider_names = ("exa", "duckduckgo", "bing", "searxng")
     hits_lists: list[list[dict]] = []
     used_providers: list[str] = []
     any_alive = False

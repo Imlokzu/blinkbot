@@ -1,0 +1,103 @@
+# SearXNG settings tuned for the Virtual Bot's tools/search.py.
+# Only JSON output on /search is enabled; the public UI is irrelevant.
+
+use_default_settings: true
+
+general:
+  debug: false
+  instance_name: "claudebot-searxng"
+
+server:
+  # Inside the container SearXNG always listens on 8080; compose maps host
+  # 127.0.0.1:8888 → container 8080.
+  secret_key: "change-me-to-a-long-random-string"
+  limiter: false
+  image_proxy: false
+  http_protocol_version: "1.1"
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: ""
+  ban_time_on_fail: 5
+  max_ban_time_on_fail: 120
+  formats:
+    - json
+    - html
+  # Allow high result count so the bot can ask for 10 without SearXNG trimming.
+  max_page: 2
+
+# Only engines that returned real results in our probes. Disabled engines
+# don't even start, which keeps the spawn-time and memory footprint low.
+engines:
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    disabled: false
+    timeout: 6.0
+
+  - name: bing
+    engine: bing
+    shortcut: bing
+    disabled: false
+    timeout: 6.0
+
+  - name: brave
+    engine: brave
+    shortcut: brave
+    disabled: false
+    timeout: 6.0
+
+  - name: mojeek
+    engine: mojeek
+    shortcut: mjk
+    disabled: false
+    timeout: 8.0
+
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+    disabled: false
+    timeout: 6.0
+
+  - name: hackernews
+    engine: hackernews
+    shortcut: hn
+    disabled: false
+    timeout: 6.0
+
+  - name: github
+    engine: github
+    shortcut: gh
+    disabled: false
+    timeout: 6.0
+
+  - name: stackoverflow
+    engine: stackoverflow
+    shortcut: st
+    disabled: false
+    timeout: 8.0
+
+  - name: reddit
+    engine: reddit
+    shortcut: rd
+    disabled: false
+    timeout: 8.0
+
+  - name: arxiv
+    engine: arxiv
+    shortcut: arx
+    disabled: false
+    timeout: 8.0
+
+  - name: youtube
+    engine: youtube_noapi
+    shortcut: yt
+    disabled: false
+    timeout: 10.0
+
+  - name: wikidata
+    engine: wikidata
+    shortcut: wd
+    disabled: false
+    timeout: 8.0
