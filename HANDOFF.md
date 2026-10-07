@@ -2495,3 +2495,18 @@ calls were sent. Release details are in `docs/mobile-app/RELEASE-0.4.12.md`.
   adaptive safe zones, writing-indicator selectors and panel favicon paths.
   Fable was unavailable; no Fable review or full iOS runtime test is claimed.
   Runtime dashboard publication follows in a separate build commit.
+
+
+### Blink runtime publication
+
+The logo build is now served at the active `/dash/` route, including its new
+PWA/Apple icons and service-worker precache. Standalone chat/memory panels use
+base-aware favicon paths, including when opened without a trailing slash.
+All published dashboard assets match the validated artifact; prior hashed
+chunks are retained for already-open tabs.
+
+A clean checkout build exposed existing missing tracked sources:
+`SettingsPanel.tsx` imports the locally untracked `IntegrationsSection.tsx`
+and its locale file. Runtime artifacts were built from the current working
+sources, which pass the recorded checks; those unrelated source files were
+not added to the logo commits. This clean-checkout limitation remains.
