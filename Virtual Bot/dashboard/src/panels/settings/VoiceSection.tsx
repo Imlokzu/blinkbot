@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CometDial, GlideSelect, VoicePill, WakeSlider } from '@/vendor/reactbits';
@@ -32,8 +33,6 @@ interface TtsStatus {
   selected: number | string | null;
   speeds: number[];
 }
-
-const SAMPLE = 'Привіт! Я Клод Бот. Так звучить мій голос.';
 
 export function VoiceSection() {
   const toast = useToast();
@@ -82,7 +81,7 @@ export function VoiceSection() {
       const response = await fetch('/api/tts', {
         method: 'POST',
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ text: SAMPLE, speed: Number(realSpeed.toFixed(2)) }),
+        body: JSON.stringify({ text: t('voice.sample'), speed: Number(realSpeed.toFixed(2)) }),
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const blob = await response.blob();

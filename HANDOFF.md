@@ -2510,3 +2510,19 @@ A clean checkout build exposed existing missing tracked sources:
 and its locale file. Runtime artifacts were built from the current working
 sources, which pass the recorded checks; those unrelated source files were
 not added to the logo commits. This clean-checkout limitation remains.
+
+
+## Active dashboard renamed to Blink (2026-10-07)
+
+- Corrected the missing source-level rename in `/dash`: brand wordmark,
+  localized browser title, PWA install name/description, phone-pairing copy,
+  error notifications and voice sample now use Blink. Product copy lives in
+  the shared en/uk `src/locales/product.ts` catalog used by UI and Vite.
+- Existing storage keys, API routes, provider/model names and custom bot
+  profiles are preserved. The previously shipped spiral remains unchanged.
+- Validation: all 221 dashboard tests, typecheck and isolated production build
+  passed. Browser checks cover the brand and Ukrainian/English document titles.
+  Independent fallback review found and fixed initial English-title handling;
+  Fable is unavailable in this runtime.
+- Jude's broader repository/landing/mobile rename is still in progress. This
+  local correction publishes the primary dashboard without waiting for that PR.

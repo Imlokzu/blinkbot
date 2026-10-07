@@ -1,3 +1,4 @@
+import { product } from '../locales/product';
 import { useCallback, useEffect, useState } from 'react';
 
 /*
@@ -26,6 +27,7 @@ export function useLanguage(): [Language, (next: Language) => void] {
 
   useEffect(() => {
     document.documentElement.lang = lang;
+    document.title = product[lang].title;
     try {
       localStorage.setItem(KEY, lang);
     } catch {

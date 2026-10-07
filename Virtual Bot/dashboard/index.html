@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="color-scheme" content="light dark" />
-    <title>Клод Бот — панель</title>
+    <title>__PRODUCT_TITLE__</title>
     <link rel="icon" href="/static/dash/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/static/dash/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -38,6 +38,8 @@
           r.dataset.popupGlassTargets = popupTargets.join(' ');
           if (popupTargets.length) r.dataset.popup = 'glass';
         } catch (e) {}
+        var productTitles = __PRODUCT_TITLES__;
+        document.title = productTitles[document.documentElement.lang === 'uk' ? 'uk' : 'en'];
       })();
     </script>
   </head>

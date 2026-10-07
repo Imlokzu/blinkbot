@@ -1,6 +1,10 @@
+import { product } from '../locales/product';
+
 /** New dashboard strings live here; existing screens migrate when touched. */
 const uk = {
-  'brand.name': 'КЛОД БОТ',
+  'brand.name': product.uk.name,
+  'logs.notification': product.uk.notification,
+  'voice.sample': product.uk.voiceSample,
   'brand.virtual': '· ВІРТУАЛЬНИЙ',
   'activity.running': 'Працюю…',
   'activity.runningCount': 'Працюю… · {count}',
@@ -86,7 +90,9 @@ const uk = {
 } as const;
 
 const en: Record<keyof typeof uk, string> = {
-  'brand.name': 'CLAUDE BOT',
+  'brand.name': product.en.name,
+  'logs.notification': product.en.notification,
+  'voice.sample': product.en.voiceSample,
   'brand.virtual': '· VIRTUAL',
   'activity.running': 'Working…',
   'activity.runningCount': 'Working… · {count}',

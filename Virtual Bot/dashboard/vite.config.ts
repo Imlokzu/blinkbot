@@ -1,3 +1,4 @@
+import { product } from './src/locales/product';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -26,6 +27,12 @@ const BACKEND_PATHS = ['/api', '/preview', '/file', '/uploads', '/store-apps', '
 export default defineConfig({
   base: '/static/dash/',
   plugins: [
+    {
+      name: 'product-title',
+      transformIndexHtml: (html) => html
+        .replace('__PRODUCT_TITLE__', product.uk.title)
+        .replace('__PRODUCT_TITLES__', JSON.stringify({ uk: product.uk.title, en: product.en.title })),
+    },
     react(),
     tailwindcss(),
     VitePWA({
@@ -35,9 +42,9 @@ export default defineConfig({
       manifestFilename: 'manifest.webmanifest',
       includeAssets: ['icon.svg', 'blink-mark.svg', 'apple-touch-icon.png', 'solar-icons-notice.txt'],
       manifest: {
-        name: 'Клод Бот — панель',
-        short_name: 'Клод Бот',
-        description: 'Панель керування віртуальним ботом',
+        name: product.uk.title,
+        short_name: product.uk.name,
+        description: product.uk.description,
         lang: 'uk',
         start_url: '/static/dash/',
         scope: '/static/dash/',

@@ -1,3 +1,4 @@
+import { t } from '@/lib/i18n';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Panel, PanelHead } from '@/components/ui/Panel';
@@ -87,7 +88,7 @@ export default function LogsPanel() {
     if (notify && (level === 'ERROR' || level === 'CRITICAL')) {
       try {
         if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('Клод Бот: збій', { body: String(event.msg ?? '').slice(0, 180) });
+          new Notification(t('logs.notification'), { body: String(event.msg ?? '').slice(0, 180) });
         }
       } catch {
         // Сповіщення — приємність; його відмова не має зачіпати консоль.
