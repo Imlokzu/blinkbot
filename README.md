@@ -1,4 +1,6 @@
-# Claude Bot
+# Blink
+
+[Website](https://waveio.me) · [Repository](https://github.com/Imlokzu/blinkbot)
 
 A DIY personal AI companion for experimenting with a software-first, virtual AI companion before buying hardware. The repository combines vision, voice, display, remote control, setup tooling, and a Virtual Bot control panel around a Raspberry Pi/home-server architecture. The physical bot will be a **Raspberry Pi 3**
 (camera, mic, speaker, SPI touchscreen) talking to a **home i5 server** and the

@@ -75,7 +75,7 @@ jude patch 1234567890 | git apply
 | Variable | Meaning |
 |---|---|
 | `JULES_API_KEY` | API key (env or `.env`) |
-| `JULES_SOURCE` | Default repo when none is given, e.g. `Imlokzu/claude-bot` |
+| `JULES_SOURCE` | Default repo when none is given, e.g. `Imlokzu/blinkbot` |
 | `JULES_API_URL` | Override the API base (tests use a fake server) |
 | `JULES_POLL_SECONDS` | Poll interval for `wait` (default 30) |
 

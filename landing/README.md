@@ -93,5 +93,25 @@ author and licence are unknown.
 
 ## Deploying
 
-Nothing is deployed yet. `dist/` is a plain static site, so Cloudflare Pages
-or any static host will do (see `~/stack/hosting.md`).
+The production site is `https://waveio.me`, served by the Cloudflare Pages
+project `blinkbot`. `wrangler.jsonc` declares the static output directory.
+The repository is `https://github.com/Imlokzu/blinkbot`.
+
+`.github/workflows/landing-deploy.yml` tests, builds and deploys changes to
+`landing/` on pushes to `main`. It uses repository secrets
+`CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`; the token is restricted to
+Pages deployment in the Cloudflare account. Credentials live in the agents'
+vault, never in this repository.
+
+For a manual deployment with those environment variables already configured:
+
+```bash
+npm ci
+npm test
+npm run build
+npx --yes wrangler@4.148.0 pages deploy dist --project-name blinkbot --branch main
+```
+
+This is a Direct Upload project with GitHub Actions handling continuous
+updates. Changing website DNS must preserve the independent bot API, tunnel,
+email and other subdomains in the zone.
