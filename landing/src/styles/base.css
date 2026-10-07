@@ -4,7 +4,7 @@
  * The page is black, but a warm black: the dashboard's dark theme is
  * brown-graphite (#13110f), and its screenshots have to sit on this page
  * as lifted panels rather than as holes cut into a blue-black. The accent is
- * the dashboard's dark terracotta, the colour of the crab itself.
+ * the dashboard's dark terracotta.
  *
  * Gradients stay inside one hue (light terracotta to deep terracotta), the
  * way the screen's app icons are drawn: the owner turned down multi-hue
@@ -26,8 +26,6 @@
   --accent-hi: #f4b294;
   --accent-deep: #b95f3d;
   --accent-rgb: 224 138 103;
-  --crab: #d98263;
-  --crab-shadow: #c4734f;
   --screen: #18191b;
 
   --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", system-ui, sans-serif;

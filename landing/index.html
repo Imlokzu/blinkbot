@@ -30,8 +30,8 @@
           root.lang = lang;
           root.dataset.lang = lang;
           // The hero picture is the first thing worth waiting for; start it
-          // now, in the right language, instead of after the module runs.
-          var shots = "%BASE_URL%shots/" + lang + "/chat";
+          // now, instead of waiting for the module. Product captures are English.
+          var shots = "%BASE_URL%shots/en/chat";
           var hint = document.createElement("link");
           hint.rel = "preload";
           hint.as = "image";
@@ -83,9 +83,7 @@
             <div class="hero__grid" aria-hidden="true"></div>
 
             <div class="hero__content" data-hero-content>
-              <button type="button" class="hero__crab" data-hero-crab data-i18n-attr="aria-label:hero.crabLabel;title:hero.crabLabel">
-                <canvas width="300" height="120" data-crab="hero"></canvas>
-              </button>
+              <span class="hero__mark blink-mark" data-hero-mark aria-hidden="true"></span>
               <p class="eyebrow" data-hero-item><span data-i18n="hero.eyebrow"></span></p>
               <h1 class="hero__title">
                 <span class="hero__line" data-split-lines><span data-i18n="hero.titleA"></span></span>
@@ -140,13 +138,6 @@
                       <span class="callout__card">
                         <strong data-i18n="callout.modelTitle"></strong>
                         <span data-i18n="callout.modelText"></span>
-                      </span>
-                    </div>
-                    <div class="callout" data-callout data-side="below" style="--x: 91.5%; --y: 31%">
-                      <span class="callout__dot"></span>
-                      <span class="callout__card">
-                        <strong data-i18n="callout.faceTitle"></strong>
-                        <span data-i18n="callout.faceText"></span>
                       </span>
                     </div>
                   </div>
@@ -228,16 +219,6 @@
               </h2>
               <p class="section-lead" data-reveal data-i18n="device.lead"></p>
 
-              <p class="moods__label" data-reveal data-i18n="device.moodLabel"></p>
-              <div class="moods" data-reveal data-moods>
-                <button type="button" class="chip" aria-pressed="false" data-mood="happy" data-i18n="device.mood.happy"></button>
-                <button type="button" class="chip" aria-pressed="false" data-mood="love" data-i18n="device.mood.love"></button>
-                <button type="button" class="chip" aria-pressed="false" data-mood="thinking" data-i18n="device.mood.thinking"></button>
-                <button type="button" class="chip" aria-pressed="false" data-mood="web" data-i18n="device.mood.web"></button>
-                <button type="button" class="chip" aria-pressed="false" data-mood="writing" data-i18n="device.mood.writing"></button>
-                <button type="button" class="chip" aria-pressed="false" data-mood="sleepy" data-i18n="device.mood.sleepy"></button>
-                <button type="button" class="chip" aria-pressed="false" data-mood="celebrating" data-i18n="device.mood.celebrating"></button>
-              </div>
 
               <dl class="stats" data-reveal>
                 <div><dt data-count="18">18</dt><dd data-i18n="device.statApps"></dd></div>
@@ -250,17 +231,7 @@
               <div class="bot" data-bot>
                 <div class="bot__body">
                   <div class="bot__screen" data-bot-screen>
-                    <div class="bot__view bot__view--face is-active" data-bot-view="face">
-                      <span class="bot__status" aria-hidden="true"></span>
-                      <canvas class="bot__clock" width="17" height="5" aria-hidden="true" data-pixel-clock></canvas>
-                      <canvas width="320" height="150" data-crab="device"></canvas>
-                      <span class="bot__mood" data-bot-mood data-i18n="device.faceLabel"></span>
-                      <span class="bot__talk" aria-hidden="true">
-                        <svg viewBox="0 0 7 9" shape-rendering="crispEdges"><path fill="currentColor" d="M2 0h3v5H2zM0 3h1v2h1v1h3V5h1V3h1v2H6v1H5v1H4v2H3V7H2V6H1V5H0z" /></svg>
-                      </span>
-                      <span class="bot__pages" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-                    </div>
-                    <img class="bot__view" data-bot-view="clock" data-shot="screen-clock" data-ratio="320x240" data-i18n-attr="alt:device.clockAlt" loading="lazy" width="320" height="240" />
+                    <img class="bot__view is-active" data-bot-view="clock" data-shot="screen-clock" data-ratio="320x240" data-i18n-attr="alt:device.clockAlt" loading="lazy" width="320" height="240" />
                     <img class="bot__view" data-bot-view="weather" data-shot="screen-weather" data-ratio="320x240" data-i18n-attr="alt:device.weatherAlt" loading="lazy" width="320" height="240" />
                     <img class="bot__view" data-bot-view="apps" data-shot="screen-apps" data-ratio="320x240" data-i18n-attr="alt:device.appsAlt" loading="lazy" width="320" height="240" />
                     <span class="bot__glare" aria-hidden="true"></span>
@@ -271,8 +242,7 @@
                 <div class="bot__shadow" aria-hidden="true"></div>
               </div>
               <div class="bot__views" role="group" data-i18n-attr="aria-label:device.viewsLabel">
-                <button type="button" class="chip chip--quiet is-active" aria-pressed="true" data-show-view="face" data-i18n="device.viewFace"></button>
-                <button type="button" class="chip chip--quiet" aria-pressed="false" data-show-view="clock" data-i18n="device.viewClock"></button>
+                <button type="button" class="chip chip--quiet is-active" aria-pressed="true" data-show-view="clock" data-i18n="device.viewClock"></button>
                 <button type="button" class="chip chip--quiet" aria-pressed="false" data-show-view="weather" data-i18n="device.viewWeather"></button>
                 <button type="button" class="chip chip--quiet" aria-pressed="false" data-show-view="apps" data-i18n="device.viewApps"></button>
               </div>
@@ -441,7 +411,7 @@
           </section>
 
           <section class="final" aria-labelledby="final-title">
-            <canvas class="final__crab" width="640" height="120" data-crab="final" aria-hidden="true"></canvas>
+            <span class="final__mark blink-mark" aria-hidden="true"></span>
             <h2 class="final__title" id="final-title">
               <span data-split-lines><span data-i18n="final.titleA"></span></span>
               <span data-split-lines class="serif"><em data-i18n="final.titleB"></em></span>
@@ -469,12 +439,6 @@
     </div>
 
     <svg width="0" height="0" class="sprites" aria-hidden="true">
-      <!-- The bot's own sprite: body 10x5, idle legs 3 rows, eyes at (2,1) and (7,1). -->
-      <symbol id="crab-glyph" viewBox="0 0 10 8">
-        <path fill="currentColor" d="M1 0h8v3h1v1H9v1H1V4H0V3h1z" />
-        <path fill="#141414" d="M2 1h1v1H2zM7 1h1v1H7z" />
-        <path fill="currentColor" d="M1 5h1v3H1zM3 5h1v3H3zM6 5h1v3H6zM8 5h1v3H8z" />
-      </symbol>
       <symbol id="icon-github" viewBox="0 0 16 16">
         <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
       </symbol>

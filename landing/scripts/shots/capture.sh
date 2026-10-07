@@ -16,14 +16,16 @@ LANDING="$(cd "$HERE/../.." && pwd)"
 REPO="$(cd "$LANDING/.." && pwd)"
 BOT_ROOT="${BOT_ROOT:?set BOT_ROOT to the throwaway Virtual Bot folder}"
 BOT_URL="${BOT_URL:-http://127.0.0.1:8199}"
-LANGS="${LANGS:-uk en}"
+LANGS="${LANGS:-en}"
 PARTS="${PARTS:-dashboard mobile screen}"
 RAW="$HERE/raw"
 SKY="$REPO/Virtual Bot/dashboard/src/panels/chat/assets/chat-sky-v2.webp"
-export AGENT_BROWSER_SESSION="landing-shots"
+export AGENT_BROWSER_SESSION="landing-shots-$$"
+trap 'agent-browser close >/dev/null 2>&1 || true' EXIT
 
 osascript -e "set volume output muted true" 2>/dev/null || true
 mkdir -p "$RAW"
+CAPTURED=()
 
 ab() { agent-browser "$@" >/dev/null; }
 js() { agent-browser eval --stdin >/dev/null; }
@@ -56,7 +58,12 @@ EOF
 }
 
 shot() {
+  # The marketing capture must never expose the optional mascot panel.
+  if [[ "$1" == *-chat || "$1" == *-welcome ]]; then
+    ab wait --fn '!document.querySelector("[data-right-panel-trigger]") || document.querySelector("[data-right-panel-trigger]").dataset.panelMode === "hidden"'
+  fi
   agent-browser screenshot "$RAW/$1.png" >/dev/null
+  CAPTURED+=("$RAW/$1.png")
   echo "  captured $1"
 }
 
@@ -74,8 +81,9 @@ prefs() {
 (() => {
   localStorage.setItem('claudeBotTheme', 'dark');
   localStorage.setItem('claudeBotAccent', 'terracotta');
+  localStorage.setItem('claudeBotChatPins', '[]');
   localStorage.setItem('claudeBotLang', '$lang');
-  localStorage.setItem('claudeBotChatAppearance', JSON.stringify($appearance));
+  localStorage.setItem('claudeBotChatAppearance', JSON.stringify({ ...$appearance, sidebarVisible: false }));
   location.reload();
   return 'ok';
 })()
@@ -121,16 +129,6 @@ capture_dashboard() {
   pause 1500
   tidy
   shot "$lang-memory"
-
-  go overview
-  pause 800
-  tidy
-  shot "$lang-overview"
-
-  go settings
-  pause 800
-  tidy
-  shot "$lang-settings"
 
   # The welcome screen wears the project's own painted sky, set as a custom wallpaper.
   local sky
@@ -210,7 +208,7 @@ for lang in $LANGS; do
 done
 
 # Two widths per picture: the page asks for the one that fits the slot.
-for png in "$RAW"/*.png; do
+for png in "${CAPTURED[@]}"; do
   name="$(basename "$png" .png)"
   lang="${name%%-*}"
   base="${name#*-}"

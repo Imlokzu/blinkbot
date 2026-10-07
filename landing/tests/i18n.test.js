@@ -54,7 +54,7 @@ test("translatable elements are written empty, so the prerender can fill them", 
 
 test("the prerender fills text and attributes in the default language", () => {
   const out = prerender(html, (key) => t(key, "en"));
-  assert.match(out, /<title data-i18n="meta.title">Claude Bot — an AI companion that lives on your desk<\/title>/);
+  assert.match(out, /<title data-i18n="meta.title">Blink Bot — an AI companion that lives on your desk<\/title>/);
   assert.match(out, /name="description" data-i18n-attr="content:meta.description" content="An open-source AI companion/);
   assert.doesNotMatch(out, /data-i18n="[^"]+"><\//, "an element was left empty");
 });

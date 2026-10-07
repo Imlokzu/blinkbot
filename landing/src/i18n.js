@@ -17,10 +17,10 @@ export const LANG_KEY = "claudeBotLandingLang";
 
 const DICT = {
   uk: {
-    "meta.title": "Клод Бот — AI-компаньйон, який живе на твоєму столі",
-    "meta.description": "Відкритий AI-компаньйон: чат, пам’ять, голос, зір і обличчя піксельного краба. Сьогодні працює на твоєму комп’ютері, а коли будеш готовий — переїде в робота на Raspberry Pi.",
-    "brand.name": "Клод Бот",
-    "brand.home": "Клод Бот — на початок сторінки",
+    "meta.title": "Blink Bot — AI-компаньйон, який живе на твоєму столі",
+    "meta.description": "Відкритий AI-компаньйон: чат, пам’ять, голос і зір. Сьогодні працює на твоєму комп’ютері, а коли будеш готовий — переїде в робота на Raspberry Pi.",
+    "brand.name": "Blink Bot",
+    "brand.home": "Blink Bot — на початок сторінки",
 
     "nav.product": "Продукт",
     "nav.device": "Пристрій",
@@ -34,25 +34,22 @@ const DICT = {
     "hero.eyebrow": "Відкритий AI-компаньйон",
     "hero.titleA": "Бот, який живе",
     "hero.titleB": "на твоєму столі.",
-    "hero.lead": "Чат, пам’ять, голос, зір і власне обличчя. Сьогодні він живе на твоєму комп’ютері, а коли будеш готовий — переїде в маленького робота-краба.",
+    "hero.lead": "Чат, пам’ять, голос і зір. Сьогодні Blink живе на твоєму комп’ютері, а коли будеш готовий — переїде в маленького настільного робота.",
     "hero.ctaPrimary": "Забрати з GitHub",
     "hero.ctaSecondary": "Подивитися в ділі",
     "hero.metaLangs": "українська й англійська",
-    "hero.crabLabel": "Піксельний краб бота. Натисни на нього.",
     "hero.scroll": "Гортай",
 
-    "reveal.alt": "Панель Клод Бота: чат, у якому бот перевірив погоду й пошукав у мережі, а під відповіддю — джерела.",
+    "reveal.alt": "Панель Blink: чат, у якому бот перевірив погоду й пошукав у мережі, а під відповіддю — джерела.",
     "callout.activityTitle": "Показує, що робить",
     "callout.activityText": "Кожен інструмент видно наживо: погода, пошук, пам’ять.",
     "callout.sourcesTitle": "Каже, де дивився",
     "callout.sourcesText": "Посилання з пошуку лежать просто під відповіддю.",
     "callout.modelTitle": "Обирай мозок",
     "callout.modelText": "Будь-яка модель через один шлюз — і стільки «думання», скільки треба.",
-    "callout.faceTitle": "Обличчя завжди поруч",
-    "callout.faceText": "Живий краб у кутку показує, чим бот зайнятий.",
 
-    "statement.accent": "обличчя|пам’ять|теку",
-    "statement.text": "Більшість асистентів живуть у вкладці браузера. Цей має обличчя на твоєму столі, пам’ять, яку можна відкрити й прочитати, і власну теку. А ще він каже, що саме робить, поки працює.",
+    "statement.accent": "екран|пам’ять|теку",
+    "statement.text": "Більшість асистентів живуть у вкладці браузера. Цей має екран на твоєму столі, пам’ять, яку можна відкрити й прочитати, і власну теку. А ще він каже, що саме робить, поки працює.",
 
     "tour.eyebrow": "Панель",
     "tour.titleA": "Усе, що він знає, —",
@@ -72,28 +69,18 @@ const DICT = {
 
     "device.eyebrow": "Пристрій",
     "device.titleA": "А це —",
-    "device.titleB": "його обличчя.",
-    "device.lead": "Маленький екран на столі: піксельний краб, який слухає, думає й реагує, а ще годинник, погода і шухляда застосунків.",
-    "device.moodLabel": "Спробуй настрій",
-    "device.mood.happy": "Радіє",
-    "device.mood.love": "Закохався",
-    "device.mood.thinking": "Думає",
-    "device.mood.web": "Шукає",
-    "device.mood.writing": "Пише",
-    "device.mood.sleepy": "Сонний",
-    "device.mood.celebrating": "Святкує",
+    "device.titleB": "його екран.",
+    "device.lead": "Маленький екран на столі: годинник, погода і шухляда застосунків — усе потрібне поруч.",
     "device.viewsLabel": "Що показати на екрані",
-    "device.viewFace": "Обличчя",
     "device.viewClock": "Годинник",
     "device.viewWeather": "Погода",
     "device.viewApps": "Застосунки",
-    "device.faceLabel": "очікування",
     "device.clockAlt": "Екран бота: великий піксельний годинник і дата.",
     "device.weatherAlt": "Екран бота: погода на сьогодні, погодинний графік і прогноз на тиждень.",
     "device.appsAlt": "Екран бота: шухляда застосунків у вигляді стільників.",
     "device.statApps": "застосунків у магазині",
     "device.statSkins": "скіни для екрана",
-    "device.statScreen": "пікселів характеру",
+    "device.statScreen": "пікселів на екрані",
     "device.hardware": "Raspberry Pi · екран · мікрофон · динамік · камера",
 
     "bento.eyebrow": "І ще",
@@ -142,7 +129,7 @@ const DICT = {
     "start.note": "Знадобиться Python і доступ до мовної моделі. README проведе через обидва кроки.",
 
     "final.titleA": "Збери",
-    "final.titleB": "свого краба.",
+    "final.titleB": "Blink Bot.",
     "final.lead": "Безкоштовно, з відкритим кодом — і вже чекає на GitHub.",
     "final.cta": "Відкрити на GitHub",
 
@@ -152,10 +139,10 @@ const DICT = {
   },
 
   en: {
-    "meta.title": "Claude Bot — an AI companion that lives on your desk",
-    "meta.description": "An open-source AI companion with chat, memory, voice, vision and a pixel-crab face. It runs on your computer today and moves into a Raspberry Pi robot when you are ready.",
-    "brand.name": "Claude Bot",
-    "brand.home": "Claude Bot — back to the top",
+    "meta.title": "Blink Bot — an AI companion that lives on your desk",
+    "meta.description": "An open-source AI companion with chat, memory, voice and vision. It runs on your computer today and moves into a Raspberry Pi robot when you are ready.",
+    "brand.name": "Blink Bot",
+    "brand.home": "Blink Bot — back to the top",
 
     "nav.product": "Product",
     "nav.device": "Device",
@@ -169,25 +156,22 @@ const DICT = {
     "hero.eyebrow": "Open-source AI companion",
     "hero.titleA": "An AI that lives",
     "hero.titleB": "on your desk.",
-    "hero.lead": "Chat, memory, voice, eyes and a face of its own. It runs on your computer today and moves into a little crab robot when you are ready.",
+    "hero.lead": "Chat, memory, voice and vision. Blink runs on your computer today and moves into a small desk robot when you are ready.",
     "hero.ctaPrimary": "Get it on GitHub",
     "hero.ctaSecondary": "See it in action",
     "hero.metaLangs": "Ukrainian & English",
-    "hero.crabLabel": "The bot's pixel crab. Click it.",
     "hero.scroll": "Scroll",
 
-    "reveal.alt": "The Claude Bot dashboard: a chat where the bot checked the weather and searched the web, with its sources under the answer.",
+    "reveal.alt": "The Blink dashboard: a chat where the bot checked the weather and searched the web, with its sources under the answer.",
     "callout.activityTitle": "Shows its work",
     "callout.activityText": "Every tool it calls appears live: weather, search, memory.",
     "callout.sourcesTitle": "Cites where it looked",
     "callout.sourcesText": "Links from the search sit right under the answer.",
     "callout.modelTitle": "Pick the brain",
     "callout.modelText": "Any model behind one gateway, with as much thinking as you like.",
-    "callout.faceTitle": "Its face, pinned",
-    "callout.faceText": "A live crab in the corner shows what the bot is busy with.",
 
-    "statement.accent": "face|memory|folder",
-    "statement.text": "Most assistants live in a browser tab. This one has a face on your desk, a memory you can open and read, and a folder of its own. And it tells you what it is doing while it works.",
+    "statement.accent": "screen|memory|folder",
+    "statement.text": "Most assistants live in a browser tab. This one has a screen on your desk, a memory you can open and read, and a folder of its own. And it tells you what it is doing while it works.",
 
     "tour.eyebrow": "The dashboard",
     "tour.titleA": "Everything it knows,",
@@ -207,28 +191,18 @@ const DICT = {
 
     "device.eyebrow": "The device",
     "device.titleA": "And this",
-    "device.titleB": "is its face.",
-    "device.lead": "A small screen on the desk: a pixel crab that listens, thinks and reacts — plus a clock, the weather and a drawer full of apps.",
-    "device.moodLabel": "Try a mood",
-    "device.mood.happy": "Happy",
-    "device.mood.love": "In love",
-    "device.mood.thinking": "Thinking",
-    "device.mood.web": "Searching",
-    "device.mood.writing": "Writing",
-    "device.mood.sleepy": "Sleepy",
-    "device.mood.celebrating": "Celebrating",
+    "device.titleB": "is its screen.",
+    "device.lead": "A small screen on your desk with a clock, the weather and a drawer full of apps — everything you need within reach.",
     "device.viewsLabel": "What to show on the screen",
-    "device.viewFace": "Face",
     "device.viewClock": "Clock",
     "device.viewWeather": "Weather",
     "device.viewApps": "Apps",
-    "device.faceLabel": "idle",
     "device.clockAlt": "The bot's screen: a large pixel clock and the date.",
     "device.weatherAlt": "The bot's screen: today's weather, an hourly graph and the week ahead.",
     "device.appsAlt": "The bot's screen: the app drawer laid out as a honeycomb.",
     "device.statApps": "apps in its store",
     "device.statSkins": "screen skins",
-    "device.statScreen": "pixels of personality",
+    "device.statScreen": "pixels on the screen",
     "device.hardware": "Raspberry Pi · screen · mic · speaker · camera",
 
     "bento.eyebrow": "And more",
@@ -277,7 +251,7 @@ const DICT = {
     "start.note": "You will need Python and access to a language model. The README walks you through both.",
 
     "final.titleA": "Build your",
-    "final.titleB": "own crab.",
+    "final.titleB": "Blink Bot.",
     "final.lead": "Free, open source, and already waiting on GitHub.",
     "final.cta": "Open on GitHub",
 
@@ -337,7 +311,7 @@ export function detectLang(search, stored, languages) {
 /**
  * Fill every `data-i18n` element and `data-i18n-attr` attribute under root.
  * Attributes use "attr:key" pairs separated by ";", e.g.
- * data-i18n-attr="aria-label:hero.crabLabel;title:hero.crabLabel".
+ * data-i18n-attr="aria-label:brand.home;title:brand.home".
  */
 export function applyStatic(root = document, lang = current) {
   for (const el of root.querySelectorAll("[data-i18n]")) {

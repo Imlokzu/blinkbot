@@ -2526,3 +2526,27 @@ not added to the logo commits. This clean-checkout limitation remains.
   Fable is unavailable in this runtime.
 - Jude's broader repository/landing/mobile rename is still in progress. This
   local correction publishes the primary dashboard without waiting for that PR.
+
+
+## Blink landing without the pixel mascot (2026-10-07)
+
+- Removed the pixel-crab hero, footer, marquee separator, device face/mood
+  demo, glyph, animation wrapper and Vite import bridge from the primary
+  `landing/` site. The Blink spiral is its decorative identity; device tabs
+  now show clock, weather and apps. Updated en/uk copy to Blink Bot and
+  removed character-specific promises and labels.
+- Recaptured the actual dashboard chat, notes, welcome and mobile views
+  against a throwaway backend with synthetic demo data. Captures use English
+  and close the right panel; the photo pipeline verifies that panel state.
+  Both landing locales load the same English full/half-width captures, with
+  matching preload paths. Refreshed the social-preview image as well.
+- The notes controls now use real en/uk locale keys, so English captures do
+  not depend on edited image text. Those dashboard source/runtime changes
+  were committed separately. Owner chats and preferences were untouched.
+- Validation: 8 landing tests and production build; 221 dashboard tests,
+  typecheck and production build; browser checks for en/uk switching, 390px
+  layout, mascot absence, English image sources and rapid device-tab changes;
+  real static/API smoke and invalid note extension rejected with HTTP 400.
+  Independent fallback review corrected logo specificity and English copy;
+  Fable was unavailable. Screenshot backend and test browsers were stopped.
+  The requested landing preview remains available on port 5199.

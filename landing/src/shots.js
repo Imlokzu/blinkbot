@@ -1,10 +1,7 @@
 /*
- * Dashboard and screen pictures, per language.
- *
- * Every picture exists twice (public/shots/uk, public/shots/en), captured
- * from the real UI by scripts/shots/capture.sh, plus a half-width copy. The
- * markup only names the picture (data-shot); the source is chosen here, so a
- * Ukrainian visitor never downloads the English set first.
+ * Product captures are always English, independent of the marketing copy.
+ * Desktop captures close the optional right panel before taking the picture.
+ * Full and half widths let each viewport load the appropriate size.
  */
 
 // Width in pixels of each full-size capture: the dashboard at 2x, the phone
@@ -28,16 +25,16 @@ const SLOT_SIZES = [
   [".bot__view", "(max-width: 960px) 80vw, 460px"],
 ];
 
-const BASE = `${import.meta.env.BASE_URL}shots/`;
+const BASE = `${import.meta.env.BASE_URL}shots/en/`;
 
-export function loadShots(lang, root = document) {
+export function loadShots(root = document) {
   for (const img of root.querySelectorAll("img[data-shot]")) {
     const name = img.dataset.shot;
     const full = FULL_WIDTH[name];
     if (!full) continue;
     const slot = SLOT_SIZES.find(([selector]) => img.matches(selector) || img.closest(selector));
     img.sizes = slot ? slot[1] : "100vw";
-    img.srcset = `${BASE}${lang}/${name}-half.webp ${full / 2}w, ${BASE}${lang}/${name}.webp ${full}w`;
-    img.src = `${BASE}${lang}/${name}.webp`;
+    img.srcset = `${BASE}${name}-half.webp ${full / 2}w, ${BASE}${name}.webp ${full}w`;
+    img.src = `${BASE}${name}.webp`;
   }
 }

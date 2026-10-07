@@ -1,12 +1,11 @@
 /*
  * The smaller moving parts: the navigation bar, the reading progress line,
  * magnetic buttons, the cards' pointer light, the marquee that speeds up
- * with the scroll, the terminal that types itself, and the final crab.
+ * with the scroll, and the terminal that types itself.
  */
 
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { mountCrab } from "./crab.js";
 import { t } from "./i18n.js";
 
 // Names, not words: they read the same in every language, so they are data.
@@ -94,10 +93,10 @@ export function initCards({ finePointer }) {
 }
 
 export function initMarquee({ reduced }) {
-  const crab = '<svg viewBox="0 0 10 8" aria-hidden="true" shape-rendering="crispEdges"><use href="#crab-glyph"/></svg>';
+  const mark = '<span class="marquee__mark blink-mark" aria-hidden="true"></span>';
   const rows = [...document.querySelectorAll("[data-marquee-row]")];
   rows.forEach((row, i) => {
-    const track = `<div class="marquee__track">${MARQUEE[i].map((name) => `<span>${name}</span>${crab}`).join("")}</div>`;
+    const track = `<div class="marquee__track">${MARQUEE[i].map((name) => `<span>${name}</span>${mark}`).join("")}</div>`;
     // Two identical tracks: when the first has slid fully away, the second
     // stands exactly where it started, so the loop has no seam.
     row.innerHTML = track + track;
@@ -184,13 +183,4 @@ export function initTerminal({ reduced }) {
       });
     });
   }
-}
-
-export function initFinal({ reduced }) {
-  const canvas = document.querySelector('[data-crab="final"]');
-  if (!canvas) return;
-  const crab = mountCrab(canvas, { scale: 8, still: reduced });
-  const cta = canvas.closest(".final").querySelector(".button--primary");
-  cta.addEventListener("pointerenter", () => crab.setEmotion("celebrating"));
-  cta.addEventListener("pointerleave", () => crab.setEmotion("idle"));
 }

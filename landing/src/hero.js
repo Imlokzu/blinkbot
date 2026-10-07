@@ -10,9 +10,6 @@
 
 import { gsap } from "gsap";
 import { SplitText } from "gsap/SplitText";
-import { mountCrab } from "./crab.js";
-
-const CLICK_MOODS = ["love", "celebrating", "cool", "surprised", "happy"];
 
 export function initHero({ reduced, finePointer }) {
   const hero = document.querySelector("[data-hero]");
@@ -20,22 +17,7 @@ export function initHero({ reduced, finePointer }) {
   const stage = hero.querySelector("[data-hero-stage]");
   const win = hero.querySelector("[data-window]");
   const callouts = hero.querySelectorAll("[data-callout]");
-  const crabButton = hero.querySelector("[data-hero-crab]");
-
-  const crab = mountCrab(hero.querySelector('[data-crab="hero"]'), { scale: 8, still: reduced });
-
-  // Poking the crab cycles through its happier moods, then it calms down.
-  let moodIndex = 0;
-  let calm = null;
-  crabButton.addEventListener("click", () => {
-    crab.setEmotion(CLICK_MOODS[moodIndex % CLICK_MOODS.length]);
-    moodIndex += 1;
-    calm?.kill();
-    calm = gsap.delayedCall(2.6, () => crab.setEmotion("idle"));
-  });
-  const primary = hero.querySelector(".button--primary");
-  primary.addEventListener("pointerenter", () => crab.setEmotion("happy"));
-  primary.addEventListener("pointerleave", () => crab.setEmotion("idle"));
+  const mark = hero.querySelector("[data-hero-mark]");
 
   // A warm light that drifts toward the pointer.
   if (finePointer && !reduced) {
@@ -52,7 +34,7 @@ export function initHero({ reduced, finePointer }) {
 
   if (reduced) {
     document.documentElement.classList.add("is-ready");
-    return { crab, intro: null };
+    return { intro: null };
   }
 
   // ── Entrance ──
@@ -75,19 +57,17 @@ export function initHero({ reduced, finePointer }) {
 
   gsap.set(title.chars, { yPercent: 120, rotate: 7 });
   gsap.set(items, { y: 26, opacity: 0 });
-  gsap.set(crabButton, { y: 26, opacity: 0, scale: 0.8 });
+  gsap.set(mark, { y: 26, opacity: 0, scale: 0.8 });
   gsap.set(stage, { y: 160, opacity: 0 });
   gsap.set(callouts, { opacity: 0, scale: 0.85 });
   document.documentElement.classList.add("is-ready");
 
   const intro = gsap
     .timeline({ delay: 0.1, onComplete: endEntrance })
-    .to(crabButton, { y: 0, opacity: 1, scale: 1, duration: 1.1, ease: "back.out(2.2)" }, 0)
+    .to(mark, { y: 0, opacity: 1, scale: 1, duration: 1.1, ease: "back.out(2.2)" }, 0)
     .to(title.chars, { yPercent: 0, rotate: 0, duration: 1.3, ease: "expo.out", stagger: 0.018 }, 0.08)
     .to(items, { y: 0, opacity: 1, duration: 1.1, ease: "expo.out", stagger: 0.08 }, 0.42)
-    .to(stage, { y: 0, opacity: 1, duration: 1.8, ease: "expo.out" }, 0.55)
-    .add(() => crab.setEmotion("greeting"), 0.6)
-    .add(() => crab.emotion === "greeting" && crab.setEmotion("idle"), 3.2);
+    .to(stage, { y: 0, opacity: 1, duration: 1.8, ease: "expo.out" }, 0.55);
 
   // ── Scroll: the window rises and flattens ──
   const mm = gsap.matchMedia();
@@ -147,5 +127,5 @@ export function initHero({ reduced, finePointer }) {
     );
   });
 
-  return { crab, intro };
+  return { intro };
 }

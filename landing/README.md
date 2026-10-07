@@ -1,8 +1,9 @@
-# Claude Bot — landing page
+# Blink Bot — landing page
 
 A dark, screenshot-led page for the project: the real dashboard rises out of
 the hero as you scroll, a tour walks through its panels, and the device
-section runs the bot's own pixel crab.
+section cycles through clock, weather and app-drawer views. The Blink spiral
+is the only decorative product mark; there is no character mascot.
 
 ```bash
 npm install
@@ -19,13 +20,12 @@ The old 3D version (CRT intro, asteroid tools) lives in `../landing-3d/`.
 |---|---|---|
 | Markup | `index.html` | Keys only, no visible text (see i18n below) |
 | Motion | `src/hero.js`, `src/tour.js`, `src/device.js`, `src/reveal.js`, `src/extras.js` | GSAP with ScrollTrigger, ScrollSmoother and SplitText — the default in `~/stack/ui-effects.md`, and already the dashboard's |
-| Crab | `src/crab.js` | Imports `Virtual Bot/static/crab.js` itself; `vite.config.js` turns that classic script into a module |
-| Screenshots | `public/shots/{uk,en}/` | Real captures, see below |
+| Screenshots | `public/shots/en/` | English captures, see below |
 | Type | `@fontsource` | IBM Plex Sans and Mono like the dashboard, Cormorant Garamond italic like its welcome heading. Self-hosted, Cyrillic included |
 
 Everything moving is `transform` or `opacity`. With
 `prefers-reduced-motion`, smooth scrolling, pinning, scrubbing and the
-entrances are all off, the crabs hold still, and the page reads top to bottom.
+entrances are all off, and the page reads top to bottom.
 
 ## Languages
 
@@ -39,7 +39,8 @@ screen's catalogue. In `index.html` text is a key:
 
 Elements with `data-i18n` are written empty; the build fills them in English
 (`scripts/prerender-i18n.js`), so the page reads before scripts run and to
-crawlers. The visitor's language is picked from `?lang=`, then the saved
+crawlers. Product screenshots stay in English, with the optional right panel closed.
+The visitor's language is picked from `?lang=`, then the saved
 choice, then the browser, before the hero makes its entrance.
 `scripts/i18n_check.py` at the repo root checks key parity and that every key
 the page uses exists.
@@ -48,7 +49,7 @@ the page uses exists.
 
 The pictures are the real dashboard and device screen, but never the owner's
 data: they come from a throwaway copy of the bot filled with the demo content
-in `scripts/shots/demo-data.json`.
+in `scripts/shots/demo-data.json`. The default capture language is English.
 
 ```bash
 # 1. a clean checkout of the bot (user_data/ is git-ignored, so it starts empty)
@@ -60,7 +61,7 @@ cd "/tmp/cb-shots/Virtual Bot"
 CLERK_DISABLED=1 TELEGRAM_DISABLED=1 DISCORD_DISABLED=1 \
   .venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8199
 
-# 3. seed and capture both languages (needs agent-browser and cwebp)
+# 3. seed English demo data and capture with the right panel closed
 BOT_ROOT="/tmp/cb-shots/Virtual Bot" BOT_URL=http://127.0.0.1:8199 \
   ./scripts/shots/capture.sh
 ```

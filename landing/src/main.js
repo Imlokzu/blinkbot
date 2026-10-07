@@ -15,7 +15,7 @@ import { initReveals, resplit, unsplit } from "./reveal.js";
 import { initHero } from "./hero.js";
 import { initTour } from "./tour.js";
 import { initDevice } from "./device.js";
-import { initCards, initFinal, initMagnetic, initMarquee, initNav, initScrollLinks, initTerminal } from "./extras.js";
+import { initCards, initMagnetic, initMarquee, initNav, initScrollLinks, initTerminal } from "./extras.js";
 
 gsap.registerPlugin(ScrollTrigger, ScrollSmoother, SplitText);
 
@@ -39,7 +39,7 @@ function applyLanguage(lang) {
   root.lang = lang;
   root.dataset.lang = lang;
   applyStatic(document, lang);
-  loadShots(lang);
+  loadShots();
   for (const button of document.querySelectorAll("[data-set-lang]")) {
     button.setAttribute("aria-pressed", String(button.dataset.setLang === lang));
   }
@@ -112,7 +112,6 @@ function switchLanguage(lang) {
     onComplete: () => {
       unsplit();
       applyLanguage(lang);
-      built.device.refreshLabels();
       resplit({ reduced });
       ScrollTrigger.refresh();
       gsap.to(content, { opacity: 1, duration: reduced ? 0 : 0.35, onComplete: () => (switching = false) });
@@ -129,14 +128,13 @@ fontsLoaded.then(() => {
   const { intro } = initHero({ reduced, finePointer });
   initReveals({ reduced });
   initTour({ reduced });
-  const device = initDevice({ reduced, finePointer });
+  initDevice({ reduced, finePointer });
   initCards({ finePointer });
   initMarquee({ reduced });
   initTerminal({ reduced });
-  initFinal({ reduced });
   initNav();
   if (finePointer && !reduced) initMagnetic();
-  built = { intro, device };
+  built = { intro };
 
   // "See it in action" lands where the dashboard has fully risen; without
   // the pin (phones, reduced motion) that is simply the window itself.

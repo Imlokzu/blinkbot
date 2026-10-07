@@ -92,11 +92,11 @@
       },
       {
         "id": "democrabs00001",
-        "title": "Три піксельні краби",
+        "title": "Ескізи для проєкту",
         "agoMinutes": 2900,
         "messages": [
-          { "role": "user", "content": "Знайди і покажи піксельних крабів" },
-          { "role": "assistant", "content": "Знайшов трьох — дивись у каруселі." }
+          { "role": "user", "content": "Покажи три ескізи для проєкту" },
+          { "role": "assistant", "content": "Зібрав три варіанти — дивись у каруселі." }
         ]
       },
       {
@@ -230,11 +230,11 @@
       },
       {
         "id": "democrabs00001",
-        "title": "Three pixel crabs",
+        "title": "Project sketches",
         "agoMinutes": 2900,
         "messages": [
-          { "role": "user", "content": "Find and show me some pixel crabs" },
-          { "role": "assistant", "content": "Found three — have a look in the carousel." }
+          { "role": "user", "content": "Show me three sketches for the project" },
+          { "role": "assistant", "content": "Here are three options in the carousel." }
         ]
       },
       {

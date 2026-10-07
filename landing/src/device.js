@@ -1,93 +1,30 @@
 /*
- * The device: the bot's screen in a desk-sized body.
- *
- * The face is live — the same crab engine as on the real screen — and the
- * mood chips drive it. The other views are captures of the real screen
- * (clock, weather, app drawer). While nobody touches the controls the screen
- * cycles through its views on its own, the way the real one rotates tiles;
- * the first tap hands control to the visitor for good.
+ * The desk device cycles through real clock, weather and app-drawer captures.
+ * The first interaction hands control to the visitor for the rest of the visit.
  */
 
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { mountCrab } from "./crab.js";
-import { t } from "./i18n.js";
 
-// A 3x5 pixel font for the clock in the face's corner, like the real screen's.
-const DIGITS = {
-  0: "111101101101111",
-  1: "010110010010111",
-  2: "111001111100111",
-  3: "111001111001111",
-  4: "101101111001001",
-  5: "111100111001111",
-  6: "111100111101111",
-  7: "111001001001001",
-  8: "111101111101111",
-  9: "111101111001111",
-};
-
-function drawClock(canvas) {
-  const ctx = canvas.getContext("2d");
-  const now = new Date();
-  const text = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = getComputedStyle(canvas).getPropertyValue("--crab").trim() || "#d98263";
-  let x = 0;
-  for (const ch of text) {
-    if (ch === ":") {
-      ctx.fillRect(x, 1, 1, 1);
-      ctx.fillRect(x, 3, 1, 1);
-      x += 2;
-      continue;
-    }
-    [...DIGITS[ch]].forEach((bit, i) => {
-      if (bit === "1") ctx.fillRect(x + (i % 3), Math.floor(i / 3), 1, 1);
-    });
-    x += 4;
-  }
-}
-
-const CYCLE = [
-  ["face", "happy"],
-  ["clock"],
-  ["weather"],
-  ["apps"],
-  ["face", "love"],
-];
+const CYCLE = ["clock", "weather", "apps"];
 
 export function initDevice({ reduced, finePointer }) {
   const section = document.querySelector("[data-device-section]");
-  if (!section) return { refreshLabels() {} };
+  if (!section) return;
   const bot = section.querySelector("[data-bot]");
   const body = bot.querySelector(".bot__body");
-  const moodLabel = section.querySelector("[data-bot-mood]");
   const views = new Map([...section.querySelectorAll("[data-bot-view]")].map((el) => [el.dataset.botView, el]));
   const viewButtons = [...section.querySelectorAll("[data-show-view]")];
-  const moodButtons = [...section.querySelectorAll("[data-mood]")];
-  const crab = mountCrab(section.querySelector('[data-crab="device"]'), { scale: 10, still: reduced });
 
-  let current = "face";
-  let mood = "idle";
+  let current = "clock";
   let auto = null;
   let handedOver = false;
-
-  const showLabel = () => {
-    moodLabel.textContent = mood === "idle" ? t("device.faceLabel") : t(`device.mood.${mood}`);
-  };
 
   const press = (buttons, isOn) =>
     buttons.forEach((b) => {
       b.classList.toggle("is-active", isOn(b));
       b.setAttribute("aria-pressed", String(isOn(b)));
     });
-
-  const setMood = (next) => {
-    mood = next;
-    crab.setEmotion(next);
-    press(moodButtons, (b) => b.dataset.mood === next);
-    showLabel();
-  };
 
   const show = (name) => {
     if (name === current) return;
@@ -124,26 +61,18 @@ export function initDevice({ reduced, finePointer }) {
     auto = null;
   };
 
-  let step = 0;
+  let step = 1;
   const tick = () => {
-    const [view, nextMood] = CYCLE[step % CYCLE.length];
+    const view = CYCLE[step % CYCLE.length];
     step += 1;
-    if (nextMood) setMood(nextMood);
     show(view);
-    auto = gsap.delayedCall(view === "face" ? 3.4 : 2.6, tick);
+    auto = gsap.delayedCall(2.6, tick);
   };
 
   viewButtons.forEach((button) =>
     button.addEventListener("click", () => {
       stopAuto();
       show(button.dataset.showView);
-    }),
-  );
-  moodButtons.forEach((button) =>
-    button.addEventListener("click", () => {
-      stopAuto();
-      show("face");
-      setMood(button.dataset.mood === mood ? "idle" : button.dataset.mood);
     }),
   );
 
@@ -196,12 +125,4 @@ export function initDevice({ reduced, finePointer }) {
     }
   }
 
-  const clock = section.querySelector("[data-pixel-clock]");
-  if (clock) {
-    drawClock(clock);
-    window.setInterval(() => drawClock(clock), 15000);
-  }
-
-  showLabel();
-  return { refreshLabels: showLabel };
 }
