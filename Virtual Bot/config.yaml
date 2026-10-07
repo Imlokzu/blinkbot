@@ -339,7 +339,7 @@ vision:
 
 display:
   base_url: "http://127.0.0.1:8001"
-  dir: "../claude-bot-display"
+  dir: "../blink-display"
   # Таймаут однієї відправки подій на дисплей через WS-міст (максимум 1.5 с)
   bridge_timeout_s: 1.5
 

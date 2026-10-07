@@ -274,10 +274,10 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="Клод Бот — Virtual Bot", lifespan=lifespan)
 
 # ------------------------------------------------------------------ CORS
-# Дебаг-панель роздає сам бекенд, тому їй CORS не потрібен. А застосунок
-# (claude-bot-app) — окремий фронтенд: у вебі він живе на іншому порту, в
-# Electron — на локальному http, і без цього браузер блокує кожен запит.
-# React Native (Expo Go на телефоні) CORS не застосовує взагалі.
+# The backend serves the dashboard itself, so it does not need CORS.
+# blink-app is a separate frontend: another port on the web or local HTTP
+# inside Electron. Browsers block those requests without these headers.
+# React Native (Expo Go on a phone) does not apply CORS.
 #
 # Свідомо НЕ "*": авторизація йде Bearer-токеном, і відкривати API будь-якому
 # сайту, який користувач відкриє в тому ж браузері, не варто. Список —

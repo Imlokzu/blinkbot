@@ -187,7 +187,7 @@ CODING_MODEL: str = cfg_str("coding", "model", default="qwen3-coder-next")
 CODING_MAX_TIME_S: float = cfg_float("coding", "max_time_s", default=900)
 SERVICE_LOGS_DIR = resolve_path("paths", "service_logs_dir", default="service_logs")
 VISION_DIR = resolve_path("vision", "dir", default="../Vision Agent")
-DISPLAY_DIR = resolve_path("display", "dir", default="../claude-bot-display")
+DISPLAY_DIR = resolve_path("display", "dir", default="../blink-display")
 
 # Базові URL сусідніх сервісів. Числа читаємо через cfg_float/cfg_int (стійкі до
 # null/порожнього і шанують явний 0), рядки — через cfg_str (null/порожнє → default).

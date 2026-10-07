@@ -33,7 +33,7 @@ and can do tasks that need movement/recognition ("find me and remind me").
 | **Virtual Bot** | The control panel / brain — chat UI, tools (mail, notes, weather, vision, voice, memory, web search…), memory panel, workspace, works before hardware exists |
 | **Vision Agent** | Face + motion detection over HTTP (FastAPI + OpenCV) |
 | **Voice Loop** | Whisper speech-to-text → LLM → text-to-speech |
-| **claude-bot-display** | The "face" — pixel eyes, 15+ emotions, multiple screens |
+| **blink-display** | The "face" — pixel eyes, 15+ emotions, multiple screens |
 | **Remote Control** | Physical USB remote + I2C LCD status, for the real Pi |
 | **Device Setup Wizard** | Electron desktop app for first-time hardware setup |
 | **OpenClaw Vision Plugin** | Lets the agent call the camera as a tool |

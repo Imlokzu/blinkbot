@@ -140,7 +140,7 @@ bw lock                                                # when done
   - Python modules: `pytest` in the module folder.
   - TS/JS modules: `npm test` / `tsc --noEmit` / `npm run build`.
 - Follow the API contracts already agreed in `HANDOFF.md` and
-  `claude-bot-display/API_CONTRACT.md`.
+  `blink-display/API_CONTRACT.md`.
 
 ### Delegate routine asynchronous work
 

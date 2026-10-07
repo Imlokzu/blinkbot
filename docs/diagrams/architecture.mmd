@@ -9,7 +9,7 @@ flowchart LR
   Shim["Omni shim<br>:20128"]
   OCS["opencode serve<br>:20131"]
   Vision["Vision Agent<br>:8000 HTTP + MJPEG"]
-  Disp["claude-bot-display<br>:8001 WebSocket"]
+  Disp["blink-display<br>:8001 WebSocket"]
 
   Dash -->|REST + SSE| VB
   Screen -->|events| VB

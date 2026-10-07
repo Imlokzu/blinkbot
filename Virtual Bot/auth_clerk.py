@@ -67,7 +67,7 @@ def _issuer_from_publishable_key() -> Optional[str]:
         Path(__file__).resolve().parent / ".env",
         Path(__file__).resolve().parent / "chat-panel" / ".env.local",
         Path(__file__).resolve().parent / "memory-panel" / ".env.local",
-        Path("claude-bot-display/frontend/.env.local"),
+        Path("blink-display/frontend/.env.local"),
     ]:
         try:
             text = p.read_text(encoding="utf-8")

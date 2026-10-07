@@ -2,7 +2,7 @@
 
 /* ============================================================
    Піксельні очі Клод Бота (vanilla JS).
-   Бітмапи успадковано з claude-bot-display/frontend/src/components/PixelEyes.jsx
+   Bitmaps originate from blink-display/frontend/src/components/PixelEyes.jsx
    Емоції за контрактом API:
    idle | listening | thinking | speaking | happy | sad |
    confused | surprised | love | sleepy

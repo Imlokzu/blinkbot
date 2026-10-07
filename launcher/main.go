@@ -58,7 +58,7 @@ type service struct {
 var services = map[string]service{
 	"web":      {"Virtual Bot", 8100, "/dash/", []string{"-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8100", "--timeout-graceful-shutdown", "3"}},
 	"vision":   {"Vision Agent", 8000, "/health", []string{"-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"}},
-	"display":  {"claude-bot-display", 8001, "/health", []string{"-m", "backend.server", "--host", "127.0.0.1", "--port", "8001"}},
+	"display":  {"blink-display", 8001, "/health", []string{"-m", "backend.server", "--host", "127.0.0.1", "--port", "8001"}},
 	"openclaw": {".", 18789, "/health", []string{"gateway", "run", "--bind", "loopback", "--port", "18789"}},
 }
 

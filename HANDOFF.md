@@ -46,7 +46,7 @@ See `mobile-app/README.md`, `docs/mobile-app/ARCHITECTURE.md`, and
 | `Vision Agent/` | Очі: детекція обличчя/руху | FastAPI + OpenCV | 8000 |
 | `Voice Loop/` | Вуха/рот: Whisper STT → OpenClaw → pyttsx3 TTS | Python | — |
 | `OpenClaw Vision Plugin/` | Інструмент `vision_check_camera` для агента | TypeScript | — |
-| `claude-bot-display/` | Обличчя: піксельні очі, 15 емоцій, 4 екрани | FastAPI + React/Vite | 8001 (WS) |
+| `blink-display/` | Обличчя: піксельні очі, 15 емоцій, 4 екрани | FastAPI + React/Vite | 8001 (WS) |
 | `Remote Control/` | USB-пульт (VID:PID 0627:697d) + I2C LCD статус | Python (Pi) | — |
 | `Device Setup Wizard/` | "Claude Bot Studio" — налаштування | Electron + Vite/React/TS | — |
 
@@ -59,7 +59,7 @@ OpenClaw gateway (мозок): `127.0.0.1:18789`, токен — env `OPENCLAW_T
 - **Voice Loop**: `OPENCLAW_TOKEN` env, try/except у `transcribe()`, TTS-двигун реюзається (⚠️ див. п.4 — це внесло регресію), `validate_config()`.
 - **Remote Control**: автопошук пульта за VID/PID з фолбеком, перепідключення при OSError, LCD-цикл не крашиться без aplay/arecord, помилки друкуються.
 - **Device Setup Wizard**: слайдер чутливості руху тепер в одній шкалі з API (ratio 0.002–0.05), обробка помилок Vision-fetch, очікування старту 6с → 15с. tsc чистий.
-- **claude-bot-display**: WS URL динамічний (`VITE_WS_URL` або hostname сторінки), експоненційний backoff 2с→30с, таймер-відлік реалізовано, `duration_seconds` за контрактом, ErrorBoundary, прибрано pyserial. Build + pytest (6) чисті.
+- **blink-display**: WS URL динамічний (`VITE_WS_URL` або hostname сторінки), експоненційний backoff 2с→30с, таймер-відлік реалізовано, `duration_seconds` за контрактом, ErrorBoundary, прибрано pyserial. Build + pytest (6) чисті.
 
 ## 4. ⚠️ ЗАЛИШКОВІ БАГИ (знайдені адверсарною верифікацією, ЩЕ НЕ ВИПРАВЛЕНІ)
 
@@ -86,7 +86,7 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
 Самодостатній HTML (без CDN, працює офлайн), українською, у піксельно-ретро стилі проєкту:
 - огляд проєкту і навіщо він;
 - SVG-діаграма архітектури (Edge RPi3 / Fog i5 / Cloud + компоненти + порти 8000/8001/8100/18789);
-- карта «що де лежить»: всі .md файли (спека, dev-order, README кожного модуля, `claude-bot-display/API_CONTRACT.md`, AGENTS.md/CLAUDE.md візарда) з описом;
+- карта «що де лежить»: всі .md файли (спека, dev-order, README кожного модуля, `blink-display/API_CONTRACT.md`, AGENTS.md/CLAUDE.md візарда) з описом;
 - як запускати кожен модуль (команди звірити з README!);
 - інтерактивний чек-ліст дорожньої карти (кроки 1–6 / фази 0–4; зроблено: кроки 1,3, частково 6; НЕ почато: RAG-пам'ять (крок 2), шар емоцій (крок 4), face recognition, навігація) — стан чекбоксів у localStorage;
 - журнал змін цієї сесії (розділ 3) + відомі баги (розділ 4);
@@ -108,7 +108,7 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
 
 **Шар емоцій (крок 4 спеки):** системний промпт просить модель починати відповідь тегом `[емоція:happy]`; парсити і прибирати; фолбек — евристика за ключовими словами. Проста памʼять: топ-3 нотатки з `brain/` за ключовими словами → у системний промпт.
 
-**Фронтенд-панелі:** Обличчя (піксельні очі з емоціями/морганням — надихнутись `claude-bot-display/frontend/src/components/PixelEyes.jsx`), Чат (стан «думає…»), Зір (стрім/статус), Пам'ять (перегляд/редагування нотаток), Сервіси (кнопки старт/стоп), Статус. Все українською.
+**Фронтенд-панелі:** Обличчя (піксельні очі з емоціями/морганням — надихнутись `blink-display/frontend/src/components/PixelEyes.jsx`), Чат (стан «думає…»), Зір (стрім/статус), Пам'ять (перегляд/редагування нотаток), Сервіси (кнопки старт/стоп), Статус. Все українською.
 
 **Екран пристрою (`/screen`):** окремий vanilla UI 320×240 із каруселлю тайлів, шторкою швидких дій та Android-подібною шухлядою застосунків (5 колонок, Камера, Сервіси, локальна Панель, Памʼять, Розмови й Налаштування без переходу на `/`). Памʼять читає реальні `.md`-нотатки через `/api/memory/list|file`, Розмови — збережені сесії через `/api/sessions`; при Clerk без входу показує зрозуміле повідомлення доступу. У Налаштуваннях реально працюють тема, яскравість, голос/гучність, вибір Piper-голосу та три стилі іконок: кольоровий 16×16 pixel-пак Pxlkit у шухляді, однотонні SVG з вибором кольору й окремо кольорові SVG. Додатково працюють таймер повернення додому, автосон, формат часу 12/24 години, показ дати й режим мінімальних анімацій; усі локальні параметри переживають перезавантаження та скидаються кнопкою скидання. Маленькі перемикачі та годинник лишаються у внутрішній pixel-мові бота; для Pxlkit додано локальні SVG-assets і visible attribution у Налаштуваннях. Стрічка подій прибрана; свайп угору відкриває шухляду.
 
@@ -190,7 +190,7 @@ Remote Control і Setup Wizard верифікацію пройшли повні�
   відкриття й видалення сесій; async-відповіді старого діалогу ігноруються.
 - Перевірки: `PYTHONPATH=. .venv/bin/pytest -q` → **214 passed, 1 skipped**;
   `npm run build` у `Virtual Bot/chat-panel`, `npm run typecheck`
-  у `claude-bot-app` та `node --check` для Watch — чисті.
+  у `blink-app` та `node --check` для Watch — чисті.
 
 ## 9. Сесія 2026-09-03: учасники розмови (в роботі)
 
@@ -2607,3 +2607,19 @@ current asset bytes and the server's launchd parent (PID 1).
   and asset checks, active custom-domain verification and independent Sol
   documentation review. Voice Loop executable AST is unchanged by the updated
   docstring reference; the 3D config syntax check passed. Fable unavailable.
+
+
+## Blink module directory names (2026-10-07)
+
+Renamed the tracked top-level folders `claude-bot-app/` to `blink-app/` and
+`claude-bot-display/` to `blink-display/`. Updated launcher and display config
+paths, frontend auth-config discovery, brand generator/output inventory,
+i18n baseline path keys, current docs and architecture diagram references.
+All 81 tracked module files were preserved. Package names and installed
+Android/iOS identifiers remain stable for compatibility.
+
+Validation: both frontend builds, app typecheck, all 6 display backend tests,
+3 auth tests and launcher Go tests passed. Brand output paths resolve and
+independent Sol review found no remaining operational old-folder references.
+Historical audit reports retain the paths they recorded. Owner work-in-progress
+files were preserved; only the owned HANDOFF changes were staged.

@@ -1294,97 +1294,97 @@
     "strings": 2,
     "total": 2
   },
-  "claude-bot-app/apps/app/App.tsx": {
+  "blink-app/apps/app/App.tsx": {
     "comments": 1,
     "strings": 0,
     "total": 1
   },
-  "claude-bot-app/apps/app/metro.config.js": {
+  "blink-app/apps/app/metro.config.js": {
     "comments": 6,
     "strings": 0,
     "total": 6
   },
-  "claude-bot-app/apps/app/src/api.tsx": {
+  "blink-app/apps/app/src/api.tsx": {
     "comments": 9,
     "strings": 1,
     "total": 10
   },
-  "claude-bot-app/apps/app/src/screens/ChatScreen.tsx": {
+  "blink-app/apps/app/src/screens/ChatScreen.tsx": {
     "comments": 52,
     "strings": 17,
     "total": 69
   },
-  "claude-bot-app/apps/app/src/theme.tsx": {
+  "blink-app/apps/app/src/theme.tsx": {
     "comments": 6,
     "strings": 0,
     "total": 6
   },
-  "claude-bot-app/apps/app/src/ui/Bubble.tsx": {
+  "blink-app/apps/app/src/ui/Bubble.tsx": {
     "comments": 8,
     "strings": 1,
     "total": 9
   },
-  "claude-bot-app/apps/app/src/ui/Composer.tsx": {
+  "blink-app/apps/app/src/ui/Composer.tsx": {
     "comments": 5,
     "strings": 2,
     "total": 7
   },
-  "claude-bot-app/apps/app/src/ui/Icon.tsx": {
+  "blink-app/apps/app/src/ui/Icon.tsx": {
     "comments": 4,
     "strings": 0,
     "total": 4
   },
-  "claude-bot-app/apps/app/src/ui/Segmented.tsx": {
+  "blink-app/apps/app/src/ui/Segmented.tsx": {
     "comments": 8,
     "strings": 0,
     "total": 8
   },
-  "claude-bot-app/apps/app/src/ui/SessionList.tsx": {
+  "blink-app/apps/app/src/ui/SessionList.tsx": {
     "comments": 12,
     "strings": 9,
     "total": 21
   },
-  "claude-bot-app/apps/desktop/scripts/launch.js": {
+  "blink-app/apps/desktop/scripts/launch.js": {
     "comments": 7,
     "strings": 1,
     "total": 8
   },
-  "claude-bot-app/apps/desktop/src/main.js": {
+  "blink-app/apps/desktop/src/main.js": {
     "comments": 18,
     "strings": 2,
     "total": 20
   },
-  "claude-bot-app/packages/core/src/client.ts": {
+  "blink-app/packages/core/src/client.ts": {
     "comments": 35,
     "strings": 1,
     "total": 36
   },
-  "claude-bot-app/packages/core/src/design.ts": {
+  "blink-app/packages/core/src/design.ts": {
     "comments": 24,
     "strings": 0,
     "total": 24
   },
-  "claude-bot-app/packages/core/src/format.ts": {
+  "blink-app/packages/core/src/format.ts": {
     "comments": 6,
     "strings": 0,
     "total": 6
   },
-  "claude-bot-app/packages/core/src/index.ts": {
+  "blink-app/packages/core/src/index.ts": {
     "comments": 1,
     "strings": 0,
     "total": 1
   },
-  "claude-bot-app/packages/core/src/types.ts": {
+  "blink-app/packages/core/src/types.ts": {
     "comments": 44,
     "strings": 0,
     "total": 44
   },
-  "claude-bot-display/demo_events.py": {
+  "blink-display/demo_events.py": {
     "comments": 0,
     "strings": 3,
     "total": 3
   },
-  "claude-bot-display/frontend/src/hooks/useWebSocket.js": {
+  "blink-display/frontend/src/hooks/useWebSocket.js": {
     "comments": 10,
     "strings": 0,
     "total": 10

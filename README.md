@@ -52,7 +52,7 @@ controlled by files in this repository.
 | [`Vision Agent/`](Vision%20Agent/) | Eyes: face + motion detection over HTTP | FastAPI + OpenCV | **8000** |
 | [`Voice Loop/`](Voice%20Loop/) | Ears/mouth: Whisper STT → OpenClaw → pyttsx3 TTS | Python | — |
 | [`OpenClaw Vision Plugin/`](OpenClaw%20Vision%20Plugin/) | `vision_check_camera` tool for the agent | TypeScript | — |
-| [`claude-bot-display/`](claude-bot-display/) | Face: pixel eyes, 15+ emotions, 4 screens | FastAPI + React/Vite | **8001** (WS) |
+| [`blink-display/`](blink-display/) | Face: pixel eyes, 15+ emotions, 4 screens | FastAPI + React/Vite | **8001** (WS) |
 | [`Remote Control/`](Remote%20Control/) | USB remote (VID:PID `0627:697d`) + I2C LCD status | Python (Pi) | — |
 | [`Device Setup Wizard/`](Device%20Setup%20Wizard/) | "Blink Studio" — setup UI | Electron + Vite/React/TS | — |
 | [`Virtual Bot/`](Virtual%20Bot/) | Virtual bot + control panel (runs before hardware exists) | FastAPI + vanilla JS | **8100** |
@@ -98,9 +98,9 @@ pip install -r requirements.txt --break-system-packages
 python voice_loop.py    # speak after the listening prompt, Ctrl+C to quit
 ```
 
-### claude-bot-display — port 8001
+### blink-display — port 8001
 ```bash
-cd claude-bot-display
+cd blink-display
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt && pip install -e .
 cd frontend && npm install && cd ..

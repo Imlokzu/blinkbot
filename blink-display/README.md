@@ -5,7 +5,7 @@ React-based display UI for the Blink project. Designed for a 2.4–2.6" SPI TFT 
 ## Structure
 
 ```
-claude-bot-display/
+blink-display/
 ├── backend/                    # FastAPI + WebSocket backend
 │   ├── server.py               # Main server, streaming, weather, alarms
 │   ├── services.py             # Weather & alarm services

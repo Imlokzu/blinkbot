@@ -95,7 +95,7 @@ try {
   write('assets/brand/blink-icon.svg', icon);
   write('assets/brand/blink-maskable.svg', maskable);
   raster(tile, 'assets/brand/blink-icon.png', 1024, true);
-  const publicDirs = ['landing/public', 'landing-3d/public', 'Virtual Bot/dashboard/public', 'claude-bot-display/frontend/public', 'Device Setup Wizard/public', 'Virtual Bot/chat-panel/public', 'Virtual Bot/memory-panel/public', 'Virtual Bot/static/shared'];
+  const publicDirs = ['landing/public', 'landing-3d/public', 'Virtual Bot/dashboard/public', 'blink-display/frontend/public', 'Device Setup Wizard/public', 'Virtual Bot/chat-panel/public', 'Virtual Bot/memory-panel/public', 'Virtual Bot/static/shared'];
   for (const dir of publicDirs) {
     write(`${dir}/blink-mark.svg`, mark);
     write(`${dir}/blink-mark-white.svg`, white);
@@ -113,7 +113,7 @@ try {
   write('mobile-app/androidApp/src/main/res/drawable/ic_native_notification.xml', native(24));
   raster(tile, 'mobile-app/iosApp/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png', 1024, true);
   const adaptive = svg(`<g transform="translate(128 128) scale(.72) translate(-128 -128)">${outline('#fff')}</g>`);
-  for (const dir of ['Virtual Bot/mobile-rn/assets', 'claude-bot-app/apps/app/assets']) {
+  for (const dir of ['Virtual Bot/mobile-rn/assets', 'blink-app/apps/app/assets']) {
     raster(tile, `${dir}/icon.png`, 1024, true);
     raster(icon, `${dir}/favicon.png`, 48);
     raster(white, `${dir}/splash-icon.png`, 512);
@@ -139,7 +139,7 @@ try {
       if (!error.message.includes('identify')) throw error;
     }
   }
-  for (const dir of ['Device Setup Wizard/branding', 'claude-bot-app/apps/desktop/branding', 'launcher/macos']) {
+  for (const dir of ['Device Setup Wizard/branding', 'blink-app/apps/desktop/branding', 'launcher/macos']) {
     raster(tile, `${dir}/icon.png`, 1024, true);
     const iconPath = join(root, dir, 'icon.ico');
     execFileSync('magick', [join(root, dir, 'icon.png'), '-define', 'icon:auto-resize=256,128,64,48,32,16', iconPath]);
@@ -153,7 +153,7 @@ try {
     }
     const icns = join(tmp, 'icon.icns');
     execFileSync('iconutil', ['-c', 'icns', '-o', icns, iconset]);
-    for (const dir of ['Device Setup Wizard/branding', 'claude-bot-app/apps/desktop/branding', 'launcher/macos']) write(`${dir}/icon.icns`, readFileSync(icns));
+    for (const dir of ['Device Setup Wizard/branding', 'blink-app/apps/desktop/branding', 'launcher/macos']) write(`${dir}/icon.icns`, readFileSync(icns));
   }
   write('assets/brand/generated-files.json', JSON.stringify(paths, null, 2) + '\n');
   console.log(`Generated ${paths.length} brand assets from one source.`);
