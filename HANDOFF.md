@@ -2623,3 +2623,21 @@ Validation: both frontend builds, app typecheck, all 6 display backend tests,
 independent Sol review found no remaining operational old-folder references.
 Historical audit reports retain the paths they recorded. Owner work-in-progress
 files were preserved; only the owned HANDOFF changes were staged.
+
+## 2026-10-07 — Night review: platform-specific update metadata
+
+- Fixed the beta resolver's Android-only namespace. iOS capabilities now use
+  their own versions, URLs, notes, digests and flags; Android defaults and
+  download routes retain their existing behavior. Channel-specific and legacy
+  settings, explicit empty overrides and informational records remain compatible.
+- Nine platform regressions reproduce eight failures before the fix and pass
+  afterwards; 35 focused API cases pass. Final offline Python: 1,600 passed,
+  eight skipped, 178 subtests. Dashboard: 221 plus typecheck/isolated build;
+  landing: eight plus build; display: six; launcher Go tests; mobile JVM: 278/78.
+- Independent code and architecture reviews approved the fix. Post-review
+  isolated curl smoke passed 35 status checks plus actual platform/version
+  comparisons and synthetic download-byte assertions. Invalid tokens returned
+  401 and both traversal guards 400. Smoke server stopped; Mac remains muted.
+  No release was published or provider/device configuration changed. Existing
+  dirty APK-size/native/editor work stays outside this commit. Evidence:
+  `reports/night-agent-update-platforms-2026-10-07.md`.

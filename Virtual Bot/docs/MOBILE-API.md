@@ -173,6 +173,31 @@ Every job summary (submit, retry, stop, fork) includes `id`, `session_id`,
 endpoint includes these fields plus the full delivery projection described
 below, so queued work can be reconstructed after reconnect.
 
+### Platform-specific update metadata
+
+`GET /capabilities?platform=android|ios&version_code=<installed>&channel=stable|beta`
+includes `update`, `update_stable` and `update_beta`. Each release's version,
+changelog, digest, URL and mandatory flag come from the requested platform:
+`MOBILE_UPDATE_<CHANNEL>_<PLATFORM>_<KEY>`, with the corresponding legacy
+`MOBILE_UPDATE_<PLATFORM>_<KEY>` value used when that channel override is absent.
+An explicitly empty override stays empty. An unknown channel uses stable;
+platform values other than Android/iOS are rejected.
+
+The keys are `VERSION`, `VERSION_CODE`, `CHANGELOG`, `URL`, `SHA256` and
+`MANDATORY`. Android's owned APK reader also uses `FILE` and retains its existing
+`GET /update/download?channel=stable|beta` route and byte limit. iOS uses its own
+`URL` (such as TestFlight or the App Store), repeated in the optional `ios_url`
+destination field; it never receives an Android APK URL or version. The optional
+`ios_url` field in an Android reply remains the matching iOS channel destination.
+
+Availability in the selected `update` record compares the platform's published
+version code with the installed one. No published iOS version means unavailable
+even when Android has a release. `update_stable` describes publication against
+version zero rather than the installed version.
+The informational `update_beta` record retains `available:false`. These fields
+describe publication metadata; they do not certify native signing compatibility
+or claim an iOS build has been distributed.
+
 Each pairing has two credentials sharing the same five-minute `expires_at`:
 the original case-sensitive `code` used in the QR and a human-readable
 `pairing_code` formatted as `XXXX-XXXX`. Its eight characters are chosen from

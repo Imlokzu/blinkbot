@@ -139,23 +139,23 @@ def _origin(server: str) -> str:
     return server.rstrip("/")
 
 
-def _env(channel: str, key: str) -> str:
-    """Prefer MOBILE_UPDATE_<CHANNEL>_ANDROID_<KEY>; stable is the default."""
-    specific = os.environ.get(f"MOBILE_UPDATE_{channel.upper()}_ANDROID_{key}")
+def _env(channel: str, key: str, *, platform: str = "android") -> str:
+    """Read a platform's channel override, preserving its legacy settings."""
+    specific = os.environ.get(f"MOBILE_UPDATE_{channel.upper()}_{platform.upper()}_{key}")
     if specific is not None:
         return specific.strip()
-    return os.environ.get(f"MOBILE_UPDATE_ANDROID_{key}", "").strip()
+    return os.environ.get(f"MOBILE_UPDATE_{platform.upper()}_{key}", "").strip()
 
 
 def _mobile_update(platform: str, version_code: int, channel: str = "stable") -> dict[str, Any]:
     """Return operator-published update metadata without embedding binaries."""
     try:
-        published_code = int(_env(channel, "VERSION_CODE") or "0")
+        published_code = int(_env(channel, "VERSION_CODE", platform=platform) or "0")
     except ValueError:
         published_code = 0
-    version_name = _env(channel, "VERSION")
-    changelog = [line.strip(" -*\t") for line in _env(channel, "CHANGELOG").splitlines() if line.strip()]
-    update_url = _env(channel, "URL") or None
+    version_name = _env(channel, "VERSION", platform=platform)
+    changelog = [line.strip(" -*\t") for line in _env(channel, "CHANGELOG", platform=platform).splitlines() if line.strip()]
+    update_url = _env(channel, "URL", platform=platform) or None
     if platform == "android" and not update_url:
         origin = os.environ.get("MOBILE_API_ORIGIN", "https://api-bot.waveio.me").rstrip("/")
         suffix = "" if channel == "stable" else f"?channel={channel}"
@@ -167,9 +167,9 @@ def _mobile_update(platform: str, version_code: int, channel: str = "stable") ->
         "version_code": published_code,
         "changelog": changelog[:32],
         "url": update_url,
-        "ios_url": _env(channel, "IOS_URL") or None,
-        "sha256": _env(channel, "SHA256") or None,
-        "mandatory": _env(channel, "MANDATORY").lower() in {"1", "true", "yes"},
+        "ios_url": _env(channel, "URL", platform="ios") or None,
+        "sha256": _env(channel, "SHA256", platform=platform) or None,
+        "mandatory": _env(channel, "MANDATORY", platform=platform).lower() in {"1", "true", "yes"},
     }
 
 
