@@ -311,6 +311,64 @@ the same change. The owner decides what gets built.
 
 ---
 
+## 7a. Agent email — waveio.me mailboxes
+
+Agents have their own e-mail under `ag.waveio.me`, handled by the Cloudflare
+worker `agent-mail-worker` (routes `mail.waveio.me` / `send.waveio.me`,
+KV `AG_MAILBOX`). Brevo sends outbound mail; the master Brevo key never leaves
+the worker — agents only hold an `AGENT_TOKEN`.
+
+**Inboxes (catch-all receives anything):**
+
+| Address | Purpose |
+|---|---|
+| `lokzu@ag.waveio.me` | this assistant's default mailbox (signups, correspondence) |
+| `vault@ag.waveio.me` | Bitwarden agents' vault account |
+| `ceo@waveio.me` | owner's public contact — **forwards to `lokzuhd@gmail.com`** (Cloudflare rule, not the worker) |
+
+Any other `*@ag.waveio.me` address also receives mail; mail to any other
+non-agent `*@waveio.me` address is stored in KV **and** forwarded to
+`lokzuhd@gmail.com` by the worker.
+
+**How to read/send mail — MCP `agent-mail`:**
+
+- The stdio MCP server `agent-mail-mcp` is built from this repo
+  (`agent-mail-mcp/`, `go build -o bin/agent-mail-mcp .`).
+- Registered in Claude Code user scope as MCP `agent-mail`:
+  binary `~/bin/agent-mail-mcp`, env `AGENT_TOKEN` (same value as
+  `AGENT_MAIL_API_KEY` in `Virtual Bot/.env`) and `AGENT_EMAIL=lokzu@ag.waveio.me`.
+- Tools: `my_email`, `check_inbox`, `read_email`, `download_attachment`
+  (lands in `~/agent-mail/attachments/`), `delete_email`, `send_email`,
+  `get_verification_code` (latest OTP/link, optional `service` filter).
+- Every mailbox tool accepts an optional `address` to read another
+  `*@ag.waveio.me` box (e.g. `vault@ag.waveio.me`).
+
+**Without MCP, the raw HTTP API** (same token as `Authorization: Bearer`):
+
+```
+GET  https://mail.waveio.me/api/inbox?to=<addr>&limit=20
+GET  https://mail.waveio.me/api/message?to=<addr>&id=<id>   (add &peek=1 to stay unread)
+GET  https://mail.waveio.me/api/latest-otp?to=<addr>
+GET  https://mail.waveio.me/api/attachment?to=<addr>&id=<id>&index=0
+POST https://send.waveio.me/v1/send   {"to","subject","body","sender_name"}
+DELETE https://mail.waveio.me/api/message?to=<addr>&id=<id>
+```
+
+**Rules:**
+
+- Never print the `AGENT_TOKEN` / `AGENT_MAIL_API_KEY` in chat, commits, or
+  notes. It lives in `Virtual Bot/.env` and the agents' Bitwarden.
+- `send_email` goes out as `noreply@waveio.me` (only Brevo-verified sender)
+  with `Reply-To` set to the agent address — replies land in the agent inbox.
+- Changing Cloudflare Email Routing rules (new addresses, forwards) uses the
+  account Cloudflare credentials from `.env` (zone waveio.me) — the global API
+  key works; the scoped API token does **not** cover email routing.
+- Worker source, deploy and tests: `agent-mail-worker/` (`npm run deploy`,
+  needs wrangler auth). Don't redeploy it for new mailboxes — storage is
+  catch-all, only Cloudflare rules change routing.
+
+---
+
 ## 8. Quick checklist before you finish a task
 
 - [ ] `git status` reviewed — only intended files staged
