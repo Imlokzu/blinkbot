@@ -27,7 +27,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
@@ -369,7 +368,8 @@ private fun ActivityTree(steps: List<ActivityRow>, live: Boolean) {
 
 @Composable
 private fun TypingIndicator() {
-    Box(Modifier.padding(start = 2.dp).clip(RoundedCornerShape(19.dp, 19.dp, 19.dp, 6.dp)).background(Color(0xFFFFFDF8)).padding(horizontal = 16.dp, vertical = 13.dp)) {
-        LoadingDots(color = Color(0xFF6C645D))
+    val palette = LocalPalette.current
+    Box(Modifier.padding(start = 2.dp).clip(RoundedCornerShape(19.dp, 19.dp, 19.dp, 6.dp)).background(palette.botBubble).padding(horizontal = 16.dp, vertical = 13.dp)) {
+        LoadingDots(color = palette.ink)
     }
 }
