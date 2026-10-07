@@ -5,7 +5,7 @@ Cursor, Copilot, Fable reviewers, etc.) MUST follow when working in this
 repository. Read this file fully before making any change.
 
 Project overview and full context live in `HANDOFF.md` and
-`claude-bot-full-spec-v3.md`. Everything you add to this repo is **English
+`blink-full-spec-v3.md`. Everything you add to this repo is **English
 only** — commit messages, code, comments, and docs. See section 5.
 
 ---

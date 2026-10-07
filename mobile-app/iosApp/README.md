@@ -1,4 +1,4 @@
-# Claude Bot iOS host
+# Blink iOS host
 
 The SwiftUI application hosts the shared Compose `App(PlatformBridge)` through
 `MainViewController(bridge:)`. `IosBridge` owns its `StateFlow`; Swift implements

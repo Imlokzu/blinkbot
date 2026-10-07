@@ -58,7 +58,7 @@ store/packages/<id>/
   "icon": "clock",                 // імʼя іконки з наборів екрана (див. 4c)
   "tint": "#d7a65b",               // колір для старих стилів іконок (опційно)
   "version": "1.0.0",
-  "author": "Клод Бот",
+  "author": "Blink",
   "description": "Одне речення — воно покажеться в каталозі",
   "entry": "index.html"
 }

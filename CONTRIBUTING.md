@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for contributing to Claude Bot. Documentation, identifiers, and code comments must be in English. User-visible text belongs in locale files and must be referenced through translation keys, with Ukrainian and English translations. Before making changes, read [`AGENTS.md`](AGENTS.md), never add secrets, and keep each logical change narrowly scoped.
+Thank you for contributing to Blink. Documentation, identifiers, and code comments must be in English. User-visible text belongs in locale files and must be referenced through translation keys, with Ukrainian and English translations. Before making changes, read [`AGENTS.md`](AGENTS.md), never add secrets, and keep each logical change narrowly scoped.
 
 ## Multi-agent workflow
 

@@ -15,8 +15,8 @@ hardware is purchased.
 
 **Key docs:**
 
-- [`claude-bot-full-spec-v3.md`](claude-bot-full-spec-v3.md) — full architecture (Edge/Fog/Cloud), BOM, roadmap
-- [`claude-bot-dev-order.md`](claude-bot-dev-order.md) — development order (6 steps)
+- [`blink-full-spec-v3.md`](blink-full-spec-v3.md) — full architecture (Edge/Fog/Cloud), BOM, roadmap
+- [`blink-dev-order.md`](blink-dev-order.md) — development order (6 steps)
 - [`HANDOFF.md`](HANDOFF.md) — session handoff, current state, known bugs, next tasks
 - [`AGENTS.md`](AGENTS.md) — rules for AI agents/tools working in this repo
 - [`STATUS.md`](STATUS.md) — current status summary, known bugs, and next steps
@@ -54,7 +54,7 @@ controlled by files in this repository.
 | [`OpenClaw Vision Plugin/`](OpenClaw%20Vision%20Plugin/) | `vision_check_camera` tool for the agent | TypeScript | — |
 | [`claude-bot-display/`](claude-bot-display/) | Face: pixel eyes, 15+ emotions, 4 screens | FastAPI + React/Vite | **8001** (WS) |
 | [`Remote Control/`](Remote%20Control/) | USB remote (VID:PID `0627:697d`) + I2C LCD status | Python (Pi) | — |
-| [`Device Setup Wizard/`](Device%20Setup%20Wizard/) | "Claude Bot Studio" — setup UI | Electron + Vite/React/TS | — |
+| [`Device Setup Wizard/`](Device%20Setup%20Wizard/) | "Blink Studio" — setup UI | Electron + Vite/React/TS | — |
 | [`Virtual Bot/`](Virtual%20Bot/) | Virtual bot + control panel (runs before hardware exists) | FastAPI + vanilla JS | **8100** |
 
 **Brain / gateway:** OpenClaw gateway runs at `127.0.0.1:18789`. Other optional

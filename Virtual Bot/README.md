@@ -1,6 +1,6 @@
-# "Claude Bot" — Virtual Bot
+# "Blink" — Virtual Bot
 
-Virtual embodiment of Claude Bot + web dashboard. Until the real hardware
+Virtual embodiment of Blink + web dashboard. Until the real hardware
 (Raspberry Pi 3, camera, display) is purchased, the entire bot lives locally on macOS:
 FastAPI backend at **http://127.0.0.1:8100**, frontend — static vanilla
 JS/HTML/CSS in `static/` (without build and without CDN), served by the backend itself.

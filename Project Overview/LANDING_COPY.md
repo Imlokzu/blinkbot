@@ -1,8 +1,8 @@
-# Claude Bot — Landing Page Copy
+# Blink — Landing Page Copy
 
 Raw content blocks for a landing page, ready to paste into any design. Pulled
 from the same sources as [`OVERVIEW.md`](OVERVIEW.md) — repo README, STATUS.md,
-spec doc, and the existing `landing/src/config.js`. Swap/trim freely; nothing
+spec doc, and the existing `landing-3d/src/config.js`. Swap/trim freely; nothing
 here is final wording.
 
 ---
@@ -11,7 +11,7 @@ here is final wording.
 
 **Headline:** Your AI companion, before you buy the body.
 
-**Subhead:** Claude Bot is a DIY personal AI robot you can build in software
+**Subhead:** Blink is a DIY personal AI robot you can build in software
 first — chat, memory, vision, and voice all running on your own machine —
 then grow into real hardware for $79–$149 whenever you're ready.
 
@@ -22,7 +22,7 @@ then grow into real hardware for $79–$149 whenever you're ready.
 
 ## What it is (one paragraph)
 
-Claude Bot is an open-source AI companion that starts as pure software and
+Blink is an open-source AI companion that starts as pure software and
 becomes a physical robot over time. It runs a "brain" (Claude or 12 other
 routed models), a persistent local memory, a set of tools (mail, notes,
 weather, web search, vision, voice), and an animated emotional face — all

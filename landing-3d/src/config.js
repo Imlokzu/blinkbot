@@ -207,7 +207,7 @@ export const PILLARS = [
 // before you buy it — the price shifts with the board you choose. Specs
 // are the actual sensor/output stack a build carries, not marketing chip
 // numbers: camera, mic, display, speaker — same parts list as the real
-// prototype (see claude-bot-full-spec-v3.md §3).
+// prototype (see blink-full-spec-v3.md §3).
 export const HARDWARE = [
   {
     id: "zero",

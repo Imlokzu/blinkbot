@@ -1,4 +1,4 @@
-# Claude Bot mobile: screen plan
+# Blink mobile: screen plan
 
 This is the screen/flow inventory derived from [DESIGN.md](DESIGN.md). It records
 product requirements, not a Kotlin module layout or an approved pixel mockup.

@@ -1,6 +1,6 @@
 # Vision Agent — Step 1 (OpenCV Agent Setup)
 
-Basic skeleton of the agent's "body" from `claude-bot-dev-order.md`. FastAPI server that
+Basic skeleton of the agent's "body" from `blink-dev-order.md`. FastAPI server that
 receives a frame and says: I see a face / I see motion. Tested on a laptop webcam —
 no hardware (RPi, CSI camera) needs to be awaited.
 
@@ -53,5 +53,5 @@ run on your laptop via `test_webcam.py`.
 
 ## What's next
 
-Step 2 from `claude-bot-dev-order.md` — RAG memory (ChromaDB + Claude API),
+Step 2 from `blink-dev-order.md` — RAG memory (ChromaDB + Claude API),
 connected independently of this step, still without real hardware.

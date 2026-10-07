@@ -1,6 +1,6 @@
-# Claude Bot Mobile
+# Blink Mobile
 
-Kotlin Multiplatform / Compose client for the existing Claude Bot host. Android
+Kotlin Multiplatform / Compose client for the existing Blink host. Android
 builds and native UI flows are verified; the iOS host is included but still needs
 full Xcode compilation and device testing.
 

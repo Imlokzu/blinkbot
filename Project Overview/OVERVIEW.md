@@ -1,9 +1,9 @@
-# Claude Bot — Project Overview
+# Blink — Project Overview
 
 A plain-language summary of what this repo actually is, what it's good/bad at
 right now, and what it costs. Sourced from [`README.md`](../README.md),
-[`STATUS.md`](../STATUS.md), [`claude-bot-full-spec-v3.md`](../claude-bot-full-spec-v3.md)
-and the landing page config ([`landing/src/config.js`](../landing/src/config.js)).
+[`STATUS.md`](../STATUS.md), [`blink-full-spec-v3.md`](../blink-full-spec-v3.md)
+and the landing page config ([`landing-3d/src/config.js`](../landing-3d/src/config.js)).
 Written 2026-08-15 — statuses move fast, recheck against `STATUS.md` before quoting.
 
 ---
@@ -87,7 +87,7 @@ and can do tasks that need movement/recognition ("find me and remind me").
 
 ## 6. Pricing
 
-Two separate costs — hardware (one-time, optional) and AI subscription (recurring), per the landing page (`landing/src/config.js`):
+Two separate costs — hardware (one-time, optional) and AI subscription (recurring), per the landing page (`landing-3d/src/config.js`):
 
 ### Hardware (one-time, DIY — you build it)
 | Board | Price | You get |

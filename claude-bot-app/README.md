@@ -1,4 +1,4 @@
-# "Claude Bot" — app
+# "Blink" — app
 
 A single React Native interface that works as **a site, an app on iPhone
 and Android, and a desktop app for macOS / Windows / Linux**. The backend is the same

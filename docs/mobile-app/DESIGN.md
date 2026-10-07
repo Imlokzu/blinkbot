@@ -1,4 +1,4 @@
-# Claude Bot mobile: product and design specification
+# Blink mobile: product and design specification
 
 ## Source of truth
 

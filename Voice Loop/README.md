@@ -3,7 +3,7 @@
 Closes the "smart speaker" loop on the laptop: microphone → local STT (faster-whisper)
 → OpenClaw (memory, tool use, `vision_check_camera`, Claude itself is already
 inside) → TTS into speakers. No hardware (RPi) needed — everything is on this
-computer, as planned in `claude-bot-dev-order.md`.
+computer, as planned in `blink-dev-order.md`.
 
 ## Diagram
 

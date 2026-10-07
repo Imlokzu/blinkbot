@@ -1,6 +1,6 @@
 # ytm-helper
 
-YouTube Music metadata for Claude Bot: search, albums, playlists, radio ("up
+YouTube Music metadata for Blink: search, albums, playlists, radio ("up
 next"), lyrics, new releases and charts. Built on
 [rustypipe](https://codeberg.org/ThetaDev/rustypipe) 0.11.4, keyless, no
 account.

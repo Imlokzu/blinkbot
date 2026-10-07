@@ -1,6 +1,6 @@
-# Claude Bot — Display UI (React + FastAPI)
+# Blink — Display UI (React + FastAPI)
 
-React-based display UI for the Claude Bot project. Designed for a 2.4–2.6" SPI TFT resistive touchscreen on Raspberry Pi 3, but fully testable on macOS/Linux via a browser window (the virtual screen).
+React-based display UI for the Blink project. Designed for a 2.4–2.6" SPI TFT resistive touchscreen on Raspberry Pi 3, but fully testable on macOS/Linux via a browser window (the virtual screen).
 
 ## Structure
 

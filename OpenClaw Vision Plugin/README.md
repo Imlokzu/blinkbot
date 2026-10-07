@@ -1,17 +1,17 @@
-# Claude Bot Vision — OpenClaw tool plugin
+# Blink Vision — OpenClaw tool plugin
 
 OpenClaw tool plugin, giving the agent `vision_check_camera` — the ability to "peek"
-through Claude Bot's camera right now. Communicates with **Vision Agent** (adjacent folder
+through Blink's camera right now. Communicates with **Vision Agent** (adjacent folder
 `Vision Agent/`, FastAPI + OpenCV from Step 1) via HTTP.
 
-This is the part with which we replace the custom Steps 2-3 from `claude-bot-dev-order.md`
+This is the part with which we replace the custom Steps 2-3 from `blink-dev-order.md`
 (memory, tool use) — OpenClaw takes them over, and this plugin simply connects
 our already finished and tested vision layer to it.
 
 ## How it works
 
 ```
-Claude Bot (OpenClaw agent) --tool call--> vision_check_camera
+Blink (OpenClaw agent) --tool call--> vision_check_camera
                                                   |
                                                   v
                                     GET http://127.0.0.1:8000/vision/snapshot

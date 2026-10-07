@@ -1,4 +1,4 @@
-# HANDOFF — Клод Бот (сесія 2026-07-26, Claude Code / Fable 5)
+# HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
 ## KMP phone client implementation (2026-10-03)
 
@@ -36,8 +36,8 @@ See `mobile-app/README.md`, `docs/mobile-app/ARCHITECTURE.md`, and
 
 **Клод Бот** — DIY персональний AI-компаньйон: Raspberry Pi 3 (камера, мік, динамік, SPI-екран) + домашній сервер i5 + Claude API як "особистість". Підхід — **софт спочатку, залізо потім**: власник ще НЕ купив бота, тому все має працювати віртуально на macOS.
 
-Повна спека: `claude-bot-full-spec-v3.md` (архітектура Edge/Fog/Cloud, BOM, roadmap).
-Порядок розробки: `claude-bot-dev-order.md` (6 кроків: зір → RAG → голос → емоції → камери → UI).
+Повна спека: `blink-full-spec-v3.md` (архітектура Edge/Fog/Cloud, BOM, roadmap).
+Порядок розробки: `blink-dev-order.md` (6 кроків: зір → RAG → голос → емоції → камери → UI).
 
 ## 2. Структура репозиторію (`/Users/hhh/projects/claude bot/`)
 
@@ -2582,3 +2582,28 @@ and `launchctl remove com.imlokzu.blink.landing-preview` to stop it.
 Browser smoke passed with no JavaScript errors; page, scripts, logo and native
 Android screenshot returned HTTP 200. Independent verification confirmed
 current asset bytes and the server's launchd parent (PID 1).
+
+
+## Blink repository, public site and documentation (2026-10-07)
+
+- Renamed GitHub to `Imlokzu/blinkbot` and updated local origin, landing clone
+  links/commands, repository homepage and launcher module path. GitHub keeps
+  redirects from the old repository address. Primary site: `https://waveio.me`.
+- Deployed the static landing to Cloudflare Pages project `blinkbot`, with
+  `waveio.me` and `www.waveio.me` both active and serving HTTP 200. Only the
+  two website A/CNAME records changed; mail, API and tunnel records were
+  preserved. Previous website DNS is saved in agents-vault item
+  `Blink - waveio.me DNS rollback`.
+- GitHub Actions now tests/builds/deploys landing changes on main. A Pages-only
+  account token is stored in vault item `Cloudflare - Blink Pages CI` and
+  encrypted repository secrets. No credentials are stored in source. Fixed
+  explicit test-file selection for Node 24; run 37681581368 passed all steps.
+- Sol agents renamed the root spec, development order and history documents
+  to `blink-full-spec-v3.md`, `blink-dev-order.md`, and `blink-history.md`, and
+  updated CONTRIBUTING plus current module/product documentation. All local
+  links resolve; headings, tables, code fences and historical facts remain.
+  Reserved tool filenames and actual module/provider identifiers are unchanged.
+- Validation: 8 landing tests/build, launcher Go tests, live public browser
+  and asset checks, active custom-domain verification and independent Sol
+  documentation review. Voice Loop executable AST is unchanged by the updated
+  docstring reference; the 3D config syntax check passed. Fable unavailable.

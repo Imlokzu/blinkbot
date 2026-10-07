@@ -1,4 +1,4 @@
-# Claude Bot Display — API Contract
+# Blink Display — API Contract
 
 ## Transport
 

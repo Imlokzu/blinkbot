@@ -1,5 +1,5 @@
 """
-Клод Бот — Voice Loop (Крок 3 з claude-bot-dev-order.md, підключений до OpenClaw)
+Blink — Voice Loop (Step 3 from blink-dev-order.md, connected to OpenClaw)
 
 Слухає мікрофон, розпізнає мовлення локально (faster-whisper), надсилає
 текст у OpenClaw (`/v1/chat/completions` — памʼять, tool use, включно з
