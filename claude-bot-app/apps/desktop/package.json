@@ -19,7 +19,8 @@
     "files": [
       "src/**",
       "scripts/**",
-      "package.json"
+      "package.json",
+      "branding/**"
     ],
     "extraResources": [
       {
@@ -32,19 +33,25 @@
       "target": [
         "dmg",
         "zip"
-      ]
+      ],
+      "icon": "branding/icon.icns"
     },
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "icon": "branding/icon.ico"
     },
     "linux": {
       "target": [
         "AppImage",
         "deb"
       ],
-      "category": "Utility"
+      "category": "Utility",
+      "icon": "branding/icon.png"
+    },
+    "directories": {
+      "buildResources": "branding"
     }
   }
 }

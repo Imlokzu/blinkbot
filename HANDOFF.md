@@ -2472,3 +2472,26 @@ calls were sent. Release details are in `docs/mobile-app/RELEASE-0.4.12.md`.
 - Working-tree checks passed 1,591 Python tests, 8 skipped and 178 subtests;
   221 dashboard tests and TypeScript passed. Independent review/smoke evidence
   and limits are recorded in the companion `VALIDATION.md`.
+
+
+## Blink product mark (2026-10-07)
+
+- Added the owner's spiral logo as the product identity, with canonical artwork
+  and reproducible SVG/native/raster exports in `assets/brand`. The primary
+  dashboard is `/dash`, built from `Virtual Bot/dashboard`; the animated robot
+  face and provider logos retain their own identities.
+- Integrated the mark into dashboard/chat avatars, both landings, platform
+  favicons and PWA icons, Compose onboarding/settings, Android/iOS launchers,
+  legacy React Native/Capacitor shells and desktop launcher/bundle artwork.
+  Text naming remains in the separately running Jude rebrand task.
+- Validation: dashboard 221 tests, typecheck and build; landing 8 tests and
+  build; 3D landing, setup wizard, display and panel builds; Expo typecheck/web
+  export and legacy Android JS export; launcher Go tests and macOS build;
+  Android debug/shared/native unit builds and instrumentation compilation.
+  NativeLauncherIconTest passed on the isolated Pixel 8 emulator. Browser
+  checks covered `/dash` light/dark contrast, 390px layout and landing marks.
+  Local API/static smoke returned 200 and invalid note extension returned 400.
+- Independent fallback review corrected raster resolution, 8-bit exports,
+  adaptive safe zones, writing-indicator selectors and panel favicon paths.
+  Fable was unavailable; no Fable review or full iOS runtime test is claimed.
+  Runtime dashboard publication follows in a separate build commit.

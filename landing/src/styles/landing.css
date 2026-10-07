@@ -1881,3 +1881,6 @@
     padding: 44px var(--gutter) 0;
   }
 }
+
+/* The product mark is distinct from the animated robot character. */
+.blink-mark { display: inline-block; width: 36px; height: 36px; flex: 0 0 auto; background: currentColor; mask: url('/blink-mark.svg') center / contain no-repeat; -webkit-mask: url('/blink-mark.svg') center / contain no-repeat; }

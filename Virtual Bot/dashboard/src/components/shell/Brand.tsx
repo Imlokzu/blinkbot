@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn';
 import { BotIcon } from '@/components/ui/BotIcon';
 import { t } from '@/lib/i18n';
 
-// The mark matches the sidebar character and chat avatars. Keep the existing
+// The mark matches the app icon and chat avatars. Keep the existing
 // metal wordmark, with ShinyText as the fallback when WebGL is unavailable.
 export function Brand({ compact, className }: { compact?: boolean; className?: string }) {
   const { resolved } = useTheme();

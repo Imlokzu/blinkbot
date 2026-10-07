@@ -33,7 +33,7 @@ export default defineConfig({
       // Панель живе поруч із рештою статики, тому маніфест і service worker
       // мають лежати в тій самій теці, що й бандл.
       manifestFilename: 'manifest.webmanifest',
-      includeAssets: ['icon.svg', 'solar-icons-notice.txt'],
+      includeAssets: ['icon.svg', 'blink-mark.svg', 'apple-touch-icon.png', 'solar-icons-notice.txt'],
       manifest: {
         name: 'Клод Бот — панель',
         short_name: 'Клод Бот',
@@ -47,6 +47,9 @@ export default defineConfig({
         theme_color: '#12100e',
         icons: [
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
           { src: 'icon-maskable.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
         ],
       },
@@ -54,7 +57,7 @@ export default defineConfig({
         // Кешуємо лише оболонку. API, стріми й прев'ю файлів кешувати не можна:
         // це стан бота, а не статика — застарілу відповідь показувати гірше,
         // ніж чесну помилку мережі.
-        globPatterns: ['**/*.{js,css,html,svg,jpg,jpeg,webp,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,jpeg,webp,woff2}'],
         globIgnores: ['assets/drawing/**', 'excalidraw/**'],
         runtimeCaching: [{
           // Hashed file names: a cached copy is never stale, only unused.

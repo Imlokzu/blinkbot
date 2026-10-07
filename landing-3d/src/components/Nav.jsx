@@ -62,7 +62,7 @@ export default function Nav({ onNavigate }) {
     <div className="chrome">
       {/* top-left: masthead, igloo-style copyright stack */}
       <div className="chrome__masthead">
-        <div className="chrome__wordmark">{BRAND.name}</div>
+        <div className="chrome__wordmark"><img src="/blink-mark-white.svg" width="36" height="36" alt="" aria-hidden="true" style={{ verticalAlign: "middle", marginRight: 10 }} />{BRAND.name}</div>
         <div className="chrome__meta">
           <span className="chrome__slash">//</span> Copyright © {BRAND.year}
         </div>

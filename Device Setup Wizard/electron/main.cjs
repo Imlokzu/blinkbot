@@ -54,6 +54,7 @@ ipcMain.handle('vision:baseUrl', () => visionAgent.BASE_URL)
 
 function createWindow() {
   const win = new BrowserWindow({
+    icon: path.join(__dirname, '../branding/icon.png'),
     width: 1280,
     height: 860,
     minWidth: 960,

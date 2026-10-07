@@ -43,7 +43,8 @@
       })();
     </script>
     <script type="module" src="/src/main.js"></script>
-  </head>
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+</head>
   <body>
     <a class="skip" href="#main" data-i18n="nav.skip"></a>
     <div class="progress" aria-hidden="true"><span class="progress__bar"></span></div>
@@ -51,9 +52,7 @@
 
     <header class="nav" data-nav>
       <a class="nav__brand" href="#top" data-scroll-to="#top" data-i18n-attr="aria-label:brand.home">
-        <svg class="pixel-crab" viewBox="0 0 10 8" aria-hidden="true" shape-rendering="crispEdges">
-          <use href="#crab-glyph" />
-        </svg>
+        <span class="blink-mark" aria-hidden="true"></span>
         <span class="nav__name" data-i18n="brand.name"></span>
       </a>
       <nav class="nav__links" data-i18n-attr="aria-label:nav.menu">
@@ -458,7 +457,7 @@
 
         <footer class="footer">
           <span class="footer__brand">
-            <svg class="pixel-crab" viewBox="0 0 10 8" aria-hidden="true" shape-rendering="crispEdges"><use href="#crab-glyph" /></svg>
+            <span class="blink-mark" aria-hidden="true"></span>
             <span data-i18n="brand.name"></span>
           </span>
           <span data-i18n="footer.license"></span>

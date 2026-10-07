@@ -86,6 +86,7 @@ async function createWindow() {
   await serve();
 
   win = new BrowserWindow({
+    icon: path.join(__dirname, '../branding/icon.png'),
     width: 1100,
     height: 780,
     minWidth: 380,

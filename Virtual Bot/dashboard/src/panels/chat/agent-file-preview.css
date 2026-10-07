@@ -1,7 +1,7 @@
 .agent-file-preview { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--c-surface); }
 .agent-file-status { display: flex; align-items: center; gap: 12px; padding: 16px 22px; border-bottom: 1px solid var(--c-border); }
 .agent-file-avatar { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--c-border); border-radius: 8px; background: var(--c-surface-2); }
-.agent-file-avatar.is-writing svg { animation: agent-file-working 1.4s ease-in-out infinite; }
+.agent-file-avatar.is-writing [data-bot-icon] { animation: agent-file-working 1.4s ease-in-out infinite; }
 .agent-file-paper { flex: 1; min-height: 0; overflow: auto; padding: 28px clamp(18px, 4vw, 36px); }
 .agent-file-paper.is-document { padding: 0; overflow: hidden; }
 .agent-file-paper > pre { margin: 0; font-family: var(--f-mono); font-size: 13px; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--c-text-2); }
@@ -22,4 +22,4 @@
 .agent-file-placeholder span:nth-child(3) { max-width: 72%; animation-delay: 280ms; }
 @keyframes agent-file-working { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
 @keyframes agent-file-blink { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .agent-file-avatar svg, .agent-file-caret, .agent-file-placeholder span { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .agent-file-avatar [data-bot-icon], .agent-file-caret, .agent-file-placeholder span { animation: none; } }

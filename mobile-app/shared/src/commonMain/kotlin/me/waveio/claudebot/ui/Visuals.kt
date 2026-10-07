@@ -115,13 +115,7 @@ fun IconAction(name: String, label: String, onClick: () -> Unit, modifier: Modif
 
 @Composable
 fun BotMark(modifier: Modifier = Modifier.size(44.dp)) {
-    val palette = LocalPalette.current
-    Canvas(modifier) {
-        val sx = size.width / 64f; val sy = size.height / 64f
-        drawRoundRect(palette.accent, Offset(8 * sx, 15 * sy), Size(48 * sx, 34 * sy), CornerRadius(8 * sx))
-        drawRoundRect(palette.background, Offset(20 * sx, 26 * sy), Size(7 * sx, 11 * sy), CornerRadius(1.5f * sx))
-        drawRoundRect(palette.background, Offset(37 * sx, 26 * sy), Size(7 * sx, 11 * sy), CornerRadius(1.5f * sx))
-    }
+    Icon(painterResource(Res.drawable.blink_mark), null, modifier, LocalPalette.current.ink)
 }
 
 @Composable

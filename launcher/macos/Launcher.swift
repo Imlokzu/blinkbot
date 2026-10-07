@@ -51,7 +51,14 @@ final class LauncherDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate 
         content.layer?.backgroundColor = window.backgroundColor.cgColor
 
         let heading = label("gui.heading", size: 25, weight: .semibold)
-        heading.frame = NSRect(x: 24, y: 382, width: 472, height: 34)
+        heading.frame = NSRect(x: 76, y: 382, width: 420, height: 34)
+        if let iconURL = Bundle.main.url(forResource: "icon", withExtension: "icns"),
+           let image = NSImage(contentsOf: iconURL) {
+            let mark = NSImageView(frame: NSRect(x: 24, y: 376, width: 40, height: 40))
+            mark.image = image
+            mark.imageScaling = .scaleProportionallyUpOrDown
+            content.addSubview(mark)
+        }
         content.addSubview(heading)
         let subtitle = label("gui.subtitle", size: 12)
         subtitle.textColor = .secondaryLabelColor

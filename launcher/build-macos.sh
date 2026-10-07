@@ -15,4 +15,5 @@ if [ ! -x "$EXECUTABLE" ] || [ "$LAUNCHER_DIR/macos/Launcher.swift" -nt "$EXECUT
 fi
 cp "$LAUNCHER_DIR/macos/Info.plist" "$APP_DIR/Contents/Info.plist"
 cp "$LAUNCHER_DIR/locales.json" "$APP_DIR/Contents/Resources/locales.json"
+cp "$LAUNCHER_DIR/macos/icon.icns" "$APP_DIR/Contents/Resources/icon.icns"
 printf '%s\n' "$APP_DIR"

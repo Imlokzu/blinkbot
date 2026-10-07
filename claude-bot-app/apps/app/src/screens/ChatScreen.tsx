@@ -9,7 +9,7 @@
 import React from 'react';
 import {
   ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform,
-  Pressable, StyleSheet, Text, useWindowDimensions, View,
+  Pressable, StyleSheet, Text, useWindowDimensions, View, Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -272,6 +272,7 @@ export function ChatScreen() {
               <Icon name="menu" size={22} color={palette.onSurfaceVariant} />
             </Pressable>
           )}
+          <Image source={require('../../assets/splash-icon.png')} style={{ width: 32, height: 32, tintColor: palette.onSurface }} accessible={false} />
           <Text style={[styles.brand, styles.brandWrap, { color: palette.primary, fontFamily: fonts.serif }]}>
             Клод Бот
           </Text>

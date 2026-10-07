@@ -13,7 +13,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class NativeLauncherIconTest {
-    @Test fun manifestLoadsAnAdaptiveIconWithTheExistingMascot() {
+    @Test fun manifestLoadsTheBlinkMarkInsideTheAdaptiveSafeZone() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         assertEquals(R.mipmap.ic_launcher, context.applicationInfo.icon)
         val drawable = context.applicationInfo.loadIcon(context.packageManager) as AdaptiveIconDrawable
@@ -21,9 +21,26 @@ class NativeLauncherIconTest {
         try {
             drawable.foreground.setBounds(0, 0, 64, 64)
             drawable.foreground.draw(Canvas(bitmap))
-            assertEquals(Color.rgb(224, 138, 103), bitmap.getPixel(32, 25))
-            assertEquals(Color.rgb(19, 17, 15), bitmap.getPixel(26, 32))
-            assertEquals(Color.rgb(19, 17, 15), bitmap.getPixel(38, 32))
+            // The spiral's open center and transparent surround must survive
+            // conversion to a vector; an opaque square hides themed backgrounds.
+            assertEquals(Color.TRANSPARENT, bitmap.getPixel(32, 32))
+            val safeRadius = bitmap.width * 33f / 108f
+            var opaquePixels = 0
+            for (y in 0 until bitmap.height) for (x in 0 until bitmap.width) {
+                val pixel = bitmap.getPixel(x, y)
+                val dx = x + 0.5f - bitmap.width / 2f
+                val dy = y + 0.5f - bitmap.height / 2f
+                if (dx * dx + dy * dy > safeRadius * safeRadius) {
+                    assertEquals("Mark leaves adaptive safe zone at ($x, $y)", 0, Color.alpha(pixel))
+                }
+                if (Color.alpha(pixel) >= 128) {
+                    assertEquals(255, Color.red(pixel))
+                    assertEquals(255, Color.green(pixel))
+                    assertEquals(255, Color.blue(pixel))
+                    opaquePixels++
+                }
+            }
+            assertTrue("The launcher mark must remain visible", opaquePixels > 200)
         } finally { bitmap.recycle() }
     }
 }

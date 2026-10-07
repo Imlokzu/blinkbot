@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   ActivityIndicator, KeyboardAvoidingView, Platform, Pressable,
-  StyleSheet, Text, TextInput, View,
+  StyleSheet, Text, TextInput, View, Image,
 } from 'react-native';
 import { T } from './theme';
 import { t } from './i18n';
@@ -46,6 +46,7 @@ export function ConnectScreen({ onConnected }) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={s.inner}>
+        <Image source={require('../assets/splash-icon.png')} style={{ width: 72, height: 72, marginBottom: 16 }} accessible={false} />
         <Text style={s.title}>{t('connect.title')}</Text>
         <Text style={s.lead}>{t('connect.lead')}</Text>
         <Text style={s.label}>{t('connect.label')}</Text>
