@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="color-scheme" content="light dark" />
-    <title>Клод Бот — панель</title>
+    <title>Blink — панель</title>
     <link rel="icon" href="/static/dash/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/static/dash/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -38,15 +38,18 @@
           r.dataset.popupGlassTargets = popupTargets.join(' ');
           if (popupTargets.length) r.dataset.popup = 'glass';
         } catch (e) {}
+        var productTitles = {"uk":"Blink — панель","en":"Blink — dashboard"};
+        document.title = productTitles[document.documentElement.lang === 'uk' ? 'uk' : 'en'];
       })();
     </script>
-    <script type="module" crossorigin src="/static/dash/assets/index-_2F3i-N6.js"></script>
+    <script type="module" crossorigin src="/static/dash/assets/index-AsaF-4Q9.js"></script>
     <link rel="modulepreload" crossorigin href="/static/dash/assets/rolldown-runtime-Dqfqb5bO.js">
     <link rel="modulepreload" crossorigin href="/static/dash/assets/jsx-runtime-Cc3nFHAr.js">
     <link rel="modulepreload" crossorigin href="/static/dash/assets/cn-PFXJ9h-O.js">
     <link rel="modulepreload" crossorigin href="/static/dash/assets/useQuery-CqJA3c2V.js">
     <link rel="modulepreload" crossorigin href="/static/dash/assets/compat-DmFDD_Q7.js">
     <link rel="modulepreload" crossorigin href="/static/dash/assets/reactbits-cS8JqK1F.js">
+    <link rel="modulepreload" crossorigin href="/static/dash/assets/Button-yUyJSU_d.js">
     <link rel="stylesheet" crossorigin href="/static/dash/assets/reactbits-CtnYK9m-.css">
     <link rel="stylesheet" crossorigin href="/static/dash/assets/index-Cz3c7zcF.css">
   <link rel="manifest" href="/static/dash/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/static/dash/registerSW.js"></script></head>
