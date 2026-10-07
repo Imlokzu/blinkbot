@@ -17,7 +17,10 @@ REPO="$(cd "$LANDING/.." && pwd)"
 BOT_ROOT="${BOT_ROOT:?set BOT_ROOT to the throwaway Virtual Bot folder}"
 BOT_URL="${BOT_URL:-http://127.0.0.1:8199}"
 LANGS="${LANGS:-en}"
-PARTS="${PARTS:-dashboard mobile screen}"
+PARTS="${PARTS:-dashboard screen}"
+for part in $PARTS; do
+  case "$part" in dashboard|screen) ;; *) echo "Use capture-android.sh for native mobile screenshots." >&2; exit 1 ;; esac
+done
 RAW="$HERE/raw"
 SKY="$REPO/Virtual Bot/dashboard/src/panels/chat/assets/chat-sky-v2.webp"
 export AGENT_BROWSER_SESSION="landing-shots-$$"
@@ -147,33 +150,6 @@ EOF
   tidy
   shot "$lang-welcome"
   prefs "$lang" "{\"background\":\"none\"}"
-}
-
-capture_mobile() {
-  local lang="$1"
-  echo "mobile ($lang)"
-  ab set viewport 390 844 3
-  ab open "$BOT_URL/dash/"
-  prefs "$lang" "{\"background\":\"none\"}"
-  go chat
-  # On a phone the conversation list hides behind a toolbar button (its uk/en label).
-  js <<'EOF2'
-(() => {
-  const list = [...document.querySelectorAll('button[aria-expanded]')].find(b => /розмови|conversations/i.test(b.getAttribute('aria-label') || b.textContent));
-  list && list.click();
-  return !!list;
-})()
-EOF2
-  pause 900
-  ab find text "$(title_of "$lang")" click
-  pause 1800
-  ab press Escape
-  js <<'EOF'
-(() => { const thread = document.querySelector('.chat-thread-viewport'); if (thread) thread.scrollTop = 0; return 'ok'; })()
-EOF
-  pause 500
-  tidy
-  shot "$lang-mobile"
 }
 
 capture_screen() {

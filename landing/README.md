@@ -40,6 +40,8 @@ screen's catalogue. In `index.html` text is a key:
 Elements with `data-i18n` are written empty; the build fills them in English
 (`scripts/prerender-i18n.js`), so the page reads before scripts run and to
 crawlers. Product screenshots stay in English, with the optional right panel closed.
+The phone image comes from the native Kotlin Multiplatform Android app in
+`mobile-app/`, with its conversation drawer closed.
 The visitor's language is picked from `?lang=`, then the saved
 choice, then the browser, before the hero makes its entrance.
 `scripts/i18n_check.py` at the repo root checks key parity and that every key
@@ -65,6 +67,21 @@ CLERK_DISABLED=1 TELEGRAM_DISABLED=1 DISCORD_DISABLED=1 \
 BOT_ROOT="/tmp/cb-shots/Virtual Bot" BOT_URL=http://127.0.0.1:8199 \
   ./scripts/shots/capture.sh
 ```
+
+Capture the phone separately from the real Android Compose app on a dedicated
+running emulator (JDK17, Android SDK, `adb`, `cwebp`, and Python are required):
+
+```bash
+./scripts/shots/capture-android.sh emulator-5580
+```
+
+The script builds and installs the Android app/test APKs, runs
+`LandingScreenshotTest` with an English conversation fixture, and exports the
+native screenshot at 1170x2532 plus a half-width WebP. The fixture uses the real
+app shell/controller/UI with an in-memory mock host and silent platform bridge;
+it never pairs with a real bot. Display and font settings are restored on exit.
+`capture.sh` handles desktop and device-screen captures only and cannot overwrite
+the phone image with a mobile browser screenshot.
 
 `seed.py` refuses to write into the real `Virtual Bot/`. For the screen's app
 drawer, install a few store apps in the copy first

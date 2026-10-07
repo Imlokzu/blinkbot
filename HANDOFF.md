@@ -2550,3 +2550,21 @@ not added to the logo commits. This clean-checkout limitation remains.
   Independent fallback review corrected logo specificity and English copy;
   Fable was unavailable. Screenshot backend and test browsers were stopped.
   The requested landing preview remains available on port 5199.
+
+
+## Native Android capture on the landing (2026-10-07)
+
+- Replaced the responsive-dashboard phone picture with a capture of the real
+  Kotlin Multiplatform/Compose Android app in `mobile-app/`. It uses English,
+  the dark theme and a closed conversation drawer, with synthetic conversation
+  data from an instrumentation-only fixture. No real bot or credentials are used.
+- Added `landing/scripts/shots/capture-android.sh`: dedicated-emulator guard,
+  native app/test builds, instrumentation success check, 1170x2532 capture and
+  full/half-width WebP output. Display/font overrides are restored on exit.
+  The web screenshot script now handles desktop/device views only and cannot
+  overwrite the native phone image. Updated both landing locales and provenance.
+- Validation: Android app/test builds and the native capture test passed;
+  all 8 landing tests and final production build passed. Inspected the native
+  PNG and the rendered 390px landing block, confirmed image dimensions and
+  no horizontal overflow. Independent fallback review approved; Fable was
+  unavailable. The dedicated emulator and test browser were stopped after QA.

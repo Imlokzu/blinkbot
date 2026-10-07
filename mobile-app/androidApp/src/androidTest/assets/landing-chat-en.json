@@ -1,0 +1,19 @@
+{
+  "messages": [
+    {
+      "id": "landing-user",
+      "role": "user",
+      "content": "What's the weather in Kyiv on Saturday? We want to go out with friends."
+    },
+    {
+      "id": "landing-reply",
+      "role": "assistant",
+      "model": "fixture/gpt",
+      "content": "Saturday looks dry and sunny: up to **17°C** in the afternoon, with a light breeze.\n\nA few ideas:\n\n- **Hryshko Botanical Garden** — autumn colours and city views.\n- **Andriyivskyy Descent** — coffee, galleries and a walk through Podil.\n\nWant me to remind everyone at 10 am?",
+      "steps": [
+        { "id": "weather", "label": "weather", "detail": "Kyiv · Saturday", "status": "done", "startedAt": 1791378000000, "endedAt": 1791378001400 },
+        { "id": "search", "label": "web_search", "detail": "Places to visit in Kyiv", "status": "done", "startedAt": 1791378001600, "endedAt": 1791378003700 }
+      ]
+    }
+  ]
+}

@@ -64,8 +64,8 @@ const DICT = {
     "tour.styleText": "Ім’я, характер, теми, акценти й шпалери. Із коробки — темний графіт і теракота.",
     "tour.styleAlt": "Нова розмова на тлі намальованого неба з привітанням бота.",
     "tour.phoneTitle": "І з дивана теж",
-    "tour.phoneText": "Панель ставиться на телефон як застосунок, тож ті самі розмови завжди під рукою.",
-    "tour.phoneAlt": "Та сама розмова в панелі на екрані телефона.",
+    "tour.phoneText": "Окремий застосунок для Android: розмови, файли й голосове введення, підключені до того самого бота.",
+    "tour.phoneAlt": "Розмова в нативному Android-застосунку Blink, із закритим меню.",
 
     "device.eyebrow": "Пристрій",
     "device.titleA": "А це —",
@@ -186,8 +186,8 @@ const DICT = {
     "tour.styleText": "A name, a personality, themes, accents and wallpapers. Dark graphite and terracotta out of the box.",
     "tour.styleAlt": "A new conversation over a painted sky, with the bot's greeting.",
     "tour.phoneTitle": "From the couch, too",
-    "tour.phoneText": "The dashboard installs as an app on your phone, so the same chats are always within reach.",
-    "tour.phoneAlt": "The same conversation in the dashboard on a phone screen.",
+    "tour.phoneText": "A native Android app for your chats, files and voice input, connected to the same bot.",
+    "tour.phoneAlt": "A conversation in the native Blink Android app, with its drawer closed.",
 
     "device.eyebrow": "The device",
     "device.titleA": "And this",

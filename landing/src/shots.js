@@ -5,7 +5,7 @@
  */
 
 // Width in pixels of each full-size capture: the dashboard at 2x, the phone
-// at 3x, the 320x240 device screen at 4x.
+// captured from the native KMP Android app at 3x, and the device screen at 4x.
 const FULL_WIDTH = {
   chat: 2880,
   memory: 2880,
