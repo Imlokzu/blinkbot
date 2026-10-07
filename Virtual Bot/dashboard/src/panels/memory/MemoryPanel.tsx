@@ -1,3 +1,4 @@
+import { memoryT } from '@/locales/memory';
 import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Brain, Plus, Save, Trash2 } from '../../vendor/solar-icons/compat.ts';
@@ -121,10 +122,10 @@ export default function MemoryPanel() {
       <div className="shrink-0 space-y-2 px-3 py-3">
         <PanelHead
           className="mb-0"
-          label="нотатки"
+          label={memoryT('notes')}
           hint={`${shown.length}`}
           actions={
-            <Button variant="ghost" size="icon-sm" aria-label="Нова нотатка" onClick={() => void createNote()}>
+            <Button variant="ghost" size="icon-sm" aria-label={memoryT('newNote')} onClick={() => void createNote()}>
               <Plus />
             </Button>
           }
@@ -132,7 +133,7 @@ export default function MemoryPanel() {
         <Input
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
-          placeholder="Пошук…"
+          placeholder={memoryT('search')}
           className="h-8 text-[13px]"
         />
       </div>
@@ -184,14 +185,14 @@ export default function MemoryPanel() {
             <PanelHead
               className="mb-0"
               label={current}
-              hint={dirty ? 'незбережено' : 'збережено'}
+              hint={memoryT(dirty ? 'unsaved' : 'saved')}
               actions={
                 <>
                   {/* Видалення з ґнотом: кілька секунд на «Відмінити» замість
                       модального «ви впевнені?». Нотатки памʼяті пише сам бот,
                       і помилково стерта — це втрачений факт про людину. */}
                   <FuseButton
-                    label="Видалити"
+                    label={memoryT('delete')}
                     undoLabel="Відмінити"
                     doneLabel="Видалено"
                     icon={<Trash2 size={15} />}
@@ -205,7 +206,7 @@ export default function MemoryPanel() {
                   />
                   <Button variant={dirty ? 'solid' : 'ghost'} size="sm" disabled={!dirty} onClick={() => void save()}>
                     <Save />
-                    Зберегти
+                    {memoryT('save')}
                   </Button>
                 </>
               }
