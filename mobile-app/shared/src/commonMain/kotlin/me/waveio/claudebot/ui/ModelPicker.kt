@@ -66,7 +66,7 @@ fun ModelPicker(state: AppState, actions: AppActions) {
                 Row(Modifier.padding(12.dp, 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     BrandMark(selected?.brand.orEmpty(), Modifier.size(22.dp)); Spacer(Modifier.width(10.dp))
                     Text(selected?.label ?: state.selectedModel, color = palette.muted, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    state.intelligence[state.selectedModel]?.let { IntelGauge(it, Modifier.padding(start = 8.dp), large = true) }
+                    IntelGaugeLargeButton(state, state.selectedModel, Modifier.padding(start = 8.dp))
                 }
                 val efforts = selected?.efforts.orEmpty().ifEmpty { listOf("none") }
                 Column(Modifier.weight(1f, fill = false).heightIn(max = 350.dp).verticalScroll(rememberScrollState()).selectableGroup()) {
@@ -107,7 +107,7 @@ fun ModelPicker(state: AppState, actions: AppActions) {
                                     Text(model.label, color = if (model.available) palette.ink else palette.muted, fontSize = 14.sp, lineHeight = if (denseRows) 18.sp else 24.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text(if (model.available) model.provider else tr("model.unavailable"), color = palette.muted, fontSize = 11.sp, lineHeight = if (denseRows) 14.sp else 24.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
-                                state.intelligence[model.id]?.let { IntelGauge(it, modifier = Modifier.padding(horizontal = 5.dp)) }
+                                IntelGaugeButton(state, model.id, modifier = Modifier.padding(horizontal = 5.dp))
                                 if (picked) Glyph("check", modifier = Modifier.size(17.dp), tint = palette.accent)
                             }
                         }

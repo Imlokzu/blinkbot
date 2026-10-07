@@ -4,6 +4,9 @@ import kotlinx.serialization.Serializable
 import me.waveio.claudebot.data.MobileSkill
 import me.waveio.claudebot.data.WorkFile
 import me.waveio.claudebot.data.WebPreview
+import me.waveio.claudebot.data.IntelligenceBenchmark
+import me.waveio.claudebot.data.IntelligenceEntry
+import me.waveio.claudebot.data.IntelligenceSource
 import kotlinx.serialization.json.JsonElement
 
 enum class Screen { Chat, Search, Files, Agents, Profile, Appearance, Models, Notifications, Personalization, Queue, Skills, Updates }
@@ -53,7 +56,7 @@ data class MobileUpdate(
     }
 }
 data class ModelRow(val id: String, val label: String, val provider: String, val brand: String, val available: Boolean = true, val efforts: List<String> = emptyList(), val vision: Boolean? = null)
-data class IntelligenceRow(val index: Float, val coverage: Int, val total: Int)
+data class IntelligenceRow(val index: Float, val coverage: Int, val total: Int, val entry: IntelligenceEntry = IntelligenceEntry())
 data class ActivityRow(val id: String, val label: String, val detail: String = "", val status: String = "running", val input: JsonElement? = null, val result: JsonElement? = null)
 data class ContentPart(val type: String, val text: String = "", val stepIds: List<String> = emptyList(), val noteId: String? = null, val note: Boolean = false)
 data class MessageRow(
@@ -148,6 +151,8 @@ data class AppState(
     val modelsLoading: Boolean = false,
     val intelligence: Map<String, IntelligenceRow> = emptyMap(),
     val intelligenceLoading: Boolean = false,
+    val intelligenceBenchmarks: List<IntelligenceBenchmark> = emptyList(),
+    val intelligenceSource: IntelligenceSource = IntelligenceSource(),
     val selectedModel: String = "",
     val effort: String = "none",
     val busy: Boolean = false,

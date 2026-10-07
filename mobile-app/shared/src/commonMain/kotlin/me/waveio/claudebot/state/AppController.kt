@@ -350,9 +350,9 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             if (version != connectionVersion) return
             val total = catalog.benchmarks.size
             val entries = catalog.models.mapValues { (_, entry) ->
-                IntelligenceRow(entry.index.toFloat().coerceIn(0f, 100f), entry.scores.keys.count { key -> catalog.benchmarks.any { it.key == key } }, total)
+                IntelligenceRow(entry.index.toFloat().coerceIn(0f, 100f), entry.scores.keys.count { key -> catalog.benchmarks.any { it.key == key } }, total, entry)
             }
-            update { it.copy(intelligence = entries, intelligenceLoading = false) }
+            update { it.copy(intelligence = entries, intelligenceLoading = false, intelligenceBenchmarks = catalog.benchmarks, intelligenceSource = catalog.source) }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) {
             if (version == connectionVersion) update { it.copy(intelligence = emptyMap(), intelligenceLoading = false) }

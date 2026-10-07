@@ -2460,29 +2460,6 @@ The separate math QA AVD and the originally started shared emulator were stopped
 once no instrumentation was active. No production chat messages or paid model
 calls were sent. Release details are in `docs/mobile-app/RELEASE-0.4.12.md`.
 
-## 2026-10-06 — Night review: live paired-device revocation
-
-- Revoked or expired phones now lose their already-open job stream after the
-  next credential check. Checks run before each replay batch and event, including
-  buffered events and the empty local owner. Other devices and accepted jobs
-  continue; new revoked-device requests still return 401. Frames already handed
-  to the HTTP transport cannot be recalled. Nonmobile policy is unchanged.
-- Seven regression cases include real HTTP EOF and surviving-device delivery.
-  Final Python suite: 1,559 passed, 7 skipped, 178 subtests; shared/Android JVM
-  tests: 231/78; dashboard tests: 215 plus typecheck. An earlier known PID-file
-  fixture race passed on isolated rerun and the final full suite was clean.
-- Independent code and architecture reviews approved the fix. Post-review
-  isolated curl smoke passed 26 checks, including traversal guards returning
-  400; test servers stopped and Mac output remains muted. No real devices/jobs
-  or provider settings changed. Other agents' staged/native release drafts
-  remain preserved. Evidence: `reports/night-agent-device-revocation-2026-10-05.md`.
-
-## 2026-10-06 — Night review: mobile contract hardening
-
-- Android update download and native handoff now share a 20 MiB maximum. A package above that boundary is rejected by the server before streaming and by the Kotlin client before installer handoff. Added the boundary regression without touching release metadata or signing.
-- Rechecked paired-device stream revocation with seven tests and actual HTTP EOF; other devices/jobs continue. Final Python suite was 1,559 passed, 7 skipped, 178 subtests; dashboard 215 plus typecheck; shared/Android 231/78. Isolated HTTP smoke passed 26 checks and traversal guards returned 400.
-- Independent stream code and architecture review approved the existing revocation fix; updater-size review was requested under the supported fallback because the configured reviewer model was unavailable. Evidence: `reports/night-agent-mobile-contracts-2026-10-06.md`.
-
 
 ## 2026-10-07 — Search and release-contract audit
 

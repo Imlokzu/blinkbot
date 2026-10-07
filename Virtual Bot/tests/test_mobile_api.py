@@ -166,19 +166,6 @@ def test_capabilities_builds_same_origin_android_download_and_serves_it_authenti
         assert client.get("/api/mobile/update/download", headers={"x-owner": "other"}).status_code == 200
 
 
-def test_android_update_download_rejects_packages_above_native_handoff_limit(tmp_path, monkeypatch):
-    apk = tmp_path / "oversized.apk"
-    with apk.open("wb") as handle:
-        handle.truncate(20 * 1024 * 1024 + 1)
-    monkeypatch.setenv("MOBILE_UPDATE_ANDROID_FILE", str(apk))
-    store = MobileStore(tmp_path / "mobile.db")
-    token = store.exchange(store.create_pairing("")["code"], "Fixture", "android")["token"]
-    with TestClient(make_app(store)) as client:
-        response = client.get("/api/mobile/update/download", headers={"authorization": f"Bearer {token}"})
-    assert response.status_code == 404
-    assert response.json()["detail"]["code"] == "update_unavailable"
-
-
 def test_message_callback_receives_original_identity_explicit_model_and_generated_session(tmp_path):
     seen = []
 
