@@ -2568,3 +2568,17 @@ not added to the logo commits. This clean-checkout limitation remains.
   PNG and the rendered 390px landing block, confirmed image dimensions and
   no horizontal overflow. Independent fallback review approved; Fable was
   unavailable. The dedicated emulator and test browser were stopped after QA.
+
+
+## Local landing preview recovery (2026-10-07)
+
+The temporary Vite development process had stopped; port 5199 had no listener.
+The current `landing/dist` build is now served on loopback port 5199 by the
+runtime launchd job `com.imlokzu.blink.landing-preview` (`launchctl submit`).
+It is independent of the agent terminal; no login LaunchAgent plist was added.
+After editing the landing, run `npm run build` in `landing/` to refresh this
+preview. Use `launchctl list com.imlokzu.blink.landing-preview` to inspect it
+and `launchctl remove com.imlokzu.blink.landing-preview` to stop it.
+Browser smoke passed with no JavaScript errors; page, scripts, logo and native
+Android screenshot returned HTTP 200. Independent verification confirmed
+current asset bytes and the server's launchd parent (PID 1).
