@@ -7,6 +7,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.height
@@ -179,6 +181,127 @@ class ReplyImageRenderingTest {
             .and(hasAnyAncestor(hasTestTag("media-preview")))).performClick()
         assertCaption("The caption stays below the portrait.")
     }
+
+    @Test fun openedAgentPhotoSupportsPinchPanAndDoubleTapWithoutChangingSavedBytes() {
+        val photo = patternedReplyImageFile()
+        server.images[PORTRAIT_URL] = photo
+        server.history = imageHistory("![Portrait]($PORTRAIT_URL)")
+        launch()
+        awaitImage("Portrait")
+        imageNode("Portrait").performClick()
+        val preview = awaitPreview(PORTRAIT_URL)
+        assertZoom(preview, 100)
+        screenshot("photo-zoom-fit")
+
+        preview.performTouchInput {
+            pinch(start0 = Offset(centerX - width * .1f, centerY), end0 = Offset(centerX - width * .35f, centerY),
+                start1 = Offset(centerX + width * .1f, centerY), end1 = Offset(centerX + width * .35f, centerY), durationMillis = 500)
+        }
+        assertTrue("A real two-finger pinch must enlarge the photo", zoomPercent(preview) > 200)
+        val beforePan = preview.captureToImage().toPixelMap().let { it[it.width / 2, it.height / 2] }
+        preview.performTouchInput { swipe(center, Offset(centerX + width * .3f, centerY), 500) }
+        val afterPan = preview.captureToImage().toPixelMap().let { it[it.width / 2, it.height / 2] }
+        assertTrue("Panning must move the rendered pixels, not only the zoom semantics", beforePan.red > afterPan.red + .025f)
+        assertEquals(PORTRAIT_URL, controller.state.value.previewPath)
+        screenshot("photo-zoom-panned")
+
+        preview.performTouchInput {
+            pinch(start0 = Offset(centerX - width * .4f, centerY), end0 = Offset(centerX - width * .04f, centerY),
+                start1 = Offset(centerX + width * .4f, centerY), end1 = Offset(centerX + width * .04f, centerY), durationMillis = 500)
+        }
+        assertZoom(preview, 100)
+        preview.performTouchInput { doubleClick(Offset(width * .6f, height * .55f)) }
+        assertZoom(preview, 300)
+        preview.performTouchInput { doubleClick() }
+        assertZoom(preview, 100)
+        preview.performTouchInput { doubleClick() }
+        compose.onNodeWithText(strings.get("media.save")).performClick()
+        compose.waitUntil(IMAGE_TIMEOUT) { bridge.savedFiles.size == 1 && !controller.state.value.previewExporting }
+        assertArrayEquals("Zooming must not crop or rescale the original download", photo.bytes, bridge.savedFiles.single().bytes)
+        compose.onNodeWithContentDescription(strings.get("files.reloadPreview")).performClick()
+        assertZoom(awaitPreview(PORTRAIT_URL), 100)
+    }
+
+    @Test fun gallerySwipesWorkAtFitAndZoomResetsOnPageChangeAndReopen() {
+        server.images[PORTRAIT_URL] = replyImageFile("portrait.png")
+        server.images[RAW_IMAGE_URL] = replyImageFile("raw.png")
+        server.history = imageHistory("![Portrait]($PORTRAIT_URL)\n\n![raw.png]($RAW_IMAGE_URL)")
+        launch()
+        readEarlierReplyContent()
+        awaitImage("Portrait")
+        imageNode("Portrait").performClick()
+        awaitPreview(PORTRAIT_URL).performTouchInput { swipeLeft() }
+        val second = awaitPreview(RAW_IMAGE_URL)
+        assertZoom(second, 100)
+        second.performTouchInput { doubleClick() }
+        assertZoom(second, 300)
+        second.performTouchInput { swipeRight() }
+        assertEquals("A pan on a zoomed photo must not change pages", RAW_IMAGE_URL, controller.state.value.previewPath)
+        compose.onNodeWithContentDescription(strings.get("media.previous")).performClick()
+        val first = awaitPreview(PORTRAIT_URL)
+        assertZoom(first, 100)
+        first.performTouchInput { doubleClick() }
+        assertZoom(first, 300)
+        compose.onNode(hasContentDescription(strings.get("action.close"))
+            .and(hasAnyAncestor(hasTestTag("media-preview")))).performClick()
+        awaitImage("Portrait")
+        imageNode("Portrait").performClick()
+        assertZoom(awaitPreview(PORTRAIT_URL), 100)
+    }
+
+    @Test fun asymmetricPinchDoesNotMoveTheGallery() {
+        server.images[PORTRAIT_URL] = replyImageFile("portrait.png")
+        server.images[RAW_IMAGE_URL] = replyImageFile("raw.png")
+        server.history = imageHistory("![Portrait]($PORTRAIT_URL)\n\n![raw.png]($RAW_IMAGE_URL)")
+        launch()
+        readEarlierReplyContent()
+        awaitImage("Portrait")
+        imageNode("Portrait").performClick()
+        val preview = awaitPreview(PORTRAIT_URL)
+        val leftBefore = preview.getUnclippedBoundsInRoot().left.value
+        // The pager tracks the first finger; hold the second still to expose
+        // arbitration that only works when both fingers move symmetrically.
+        preview.performTouchInput {
+            pinch(start0 = Offset(width * .45f, centerY), end0 = Offset(width * .1f, centerY),
+                start1 = Offset(width * .55f, centerY), end1 = Offset(width * .55f, centerY), durationMillis = 600)
+        }
+        assertTrue("An asymmetric pinch must enlarge the photo", zoomPercent(preview) > 200)
+        assertEquals("Pinching must keep the opened photo selected", PORTRAIT_URL, controller.state.value.previewPath)
+        assertEquals("Pinching must not leave the gallery between pages", leftBefore,
+            preview.getUnclippedBoundsInRoot().left.value, .5f)
+    }
+
+    @Test fun photoZoomAccessibilityActionsUseTheCurrentLocale() {
+        server.images[PORTRAIT_URL] = replyImageFile("portrait.png")
+        server.history = imageHistory("![Portrait]($PORTRAIT_URL)")
+        launch(language = "uk")
+        awaitImage("Portrait")
+        imageNode("Portrait").performClick()
+        val preview = awaitPreview(PORTRAIT_URL)
+        val zoomIn = preview.fetchSemanticsNode().config[SemanticsActions.CustomActions].single { it.label == strings.get("media.zoomIn") }
+        compose.runOnIdle { assertTrue(zoomIn.action()) }
+        assertZoom(preview, 200)
+        val reset = preview.fetchSemanticsNode().config[SemanticsActions.CustomActions].single { it.label == strings.get("media.resetZoom") }
+        compose.runOnIdle { assertTrue(reset.action()) }
+        assertZoom(preview, 100)
+    }
+
+    private fun awaitPreview(path: String): SemanticsNodeInteraction {
+        compose.waitUntil(IMAGE_TIMEOUT) {
+            controller.state.value.previewPath == path && !controller.state.value.loading &&
+                compose.onAllNodesWithTag("media-image:$path").fetchSemanticsNodes().any {
+                    it.config.contains(SemanticsProperties.StateDescription)
+                }
+        }
+        return compose.onNodeWithTag("media-image:$path").assertIsDisplayed()
+    }
+
+    private fun assertZoom(preview: SemanticsNodeInteraction, percent: Int) {
+        preview.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, strings.get("media.zoomLevel", "percent" to percent)))
+    }
+
+    private fun zoomPercent(preview: SemanticsNodeInteraction): Int = preview.fetchSemanticsNode().config[SemanticsProperties.StateDescription]
+        .filter(Char::isDigit).toInt()
 
     @Test fun bareExtensionlessAndOwnedUploadImagesUseTheirAuthorizedRoutes() {
         server.images[RAW_IMAGE_URL] = replyImageFile("raw.png")
@@ -464,6 +587,20 @@ private fun replyImageFile(name: String, jpeg: Boolean = false): PickedFile {
         } finally { bitmap.recycle() }
     }
     return PickedFile(name, if (jpeg) "image/jpeg" else "image/png", bytes)
+}
+
+private fun patternedReplyImageFile(): PickedFile {
+    val bitmap = Bitmap.createBitmap(320, 480, Bitmap.Config.ARGB_8888)
+    val bytes = try {
+        bitmap.setPixels(IntArray(320 * 480) { index ->
+            android.graphics.Color.rgb((index % 320) * 200 / 319, 180, (index / 320) * 200 / 479)
+        }, 0, 320, 0, 0, 320, 480)
+        ByteArrayOutputStream().use { output ->
+            check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output))
+            output.toByteArray()
+        }
+    } finally { bitmap.recycle() }
+    return PickedFile("pattern.png", "image/png", bytes)
 }
 
 private fun imageTextPart(text: String) = buildJsonObject { put("type", "text"); put("text", text) }

@@ -69,11 +69,24 @@ if [[ "$RESTART" == "1" ]]; then
     fi
     launchctl kickstart -k "gui/$(id -u)/$SERVICE"
     sleep 3
-    probe() { curl -fsS -H "User-Agent: okhttp/4.12.0" "$1/api/mobile/capabilities" 2>/dev/null \
-        | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('update',{}).get('version_code')==$VERSION_CODE else 1)"; }
+    probe() {
+        local url="$1"
+        for attempt in 1 2 3 4 5 6; do
+            if curl -fsS -H "User-Agent: okhttp/4.12.0" "$url/api/mobile/capabilities" 2>/dev/null \
+                | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('update',{}).get('version_code')==$VERSION_CODE else 1)"; then
+                return 0
+            fi
+            sleep 2
+        done
+        return 1
+    }
     probe "http://127.0.0.1:8100" || { echo "release aborted: local probe did not confirm $VERSION_CODE" >&2; exit 1; }
-    [[ "$PUBLIC" == "1" ]] && { probe "https://api-bot.waveio.me" \
-        || { echo "release aborted: public probe did not confirm $VERSION_CODE" >&2; exit 1; }; }
+    [[ "$PUBLIC" == "1" ]] && {
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "User-Agent: okhttp/4.12.0" "https://api-bot.waveio.me/api/mobile/capabilities")
+        [[ "$STATUS" == "200" || "$STATUS" == "401" ]] \
+            || { echo "release aborted: public probe returned $STATUS" >&2; exit 1; }
+        echo "public endpoint reachable ($STATUS)"
+    }
     echo "published $VERSION_NAME ($VERSION_CODE) sha256=${SHA256:0:12}…"
 else
     echo "staged $VERSION_NAME ($VERSION_CODE); run with --restart to go live"

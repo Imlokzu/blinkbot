@@ -34,6 +34,7 @@ internal fun MediaPreview(state: AppState, actions: AppActions) {
         it.path == state.previewPath && it.source == state.previewSource
     }.coerceAtLeast(0), pageCount = { items.size })
     val visibleItem = items.getOrNull(pager.currentPage)
+    val imageZoom = remember(pager.settledPage, state.previewRevision) { PreviewImageZoomState() }
     val web = state.previewWeb
     val canExport = !state.loading && !state.previewExporting && !pager.isScrollInProgress &&
         (if (web != null) state.previewMimeType == "text/html" else
@@ -76,12 +77,15 @@ internal fun MediaPreview(state: AppState, actions: AppActions) {
                     Text(tr("files.buildRequired"), color = p.muted, fontSize = 14.sp)
                 }
             } else {
-            HorizontalPager(pager, modifier = Modifier.fillMaxWidth().weight(1f).testTag("media-pages"), key = { items[it].cacheKey() }) { index ->
+            HorizontalPager(pager, modifier = Modifier.fillMaxWidth().weight(1f).testTag("media-pages"),
+                userScrollEnabled = imageZoom.scale == 1f, key = { items[it].cacheKey() }) { index ->
                 val item = items[index]
                 val current = item.path == state.previewPath && item.source == state.previewSource
                 val bitmap = rememberMediaBitmap(if (current) state.previewBytes else state.attachmentThumbnails[item.cacheKey()])
                 Box(Modifier.fillMaxSize().padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
-                    if (bitmap != null) Image(bitmap, item.name, Modifier.fillMaxSize().testTag("media-image:${item.path}"), contentScale = ContentScale.Fit)
+                    if (bitmap != null && current && index == pager.settledPage) {
+                        ZoomablePreviewImage(bitmap, item.name, imageZoom, Modifier.fillMaxSize().testTag("media-image:${item.path}"))
+                    } else if (bitmap != null) Image(bitmap, item.name, Modifier.fillMaxSize().testTag("media-image:${item.path}"), contentScale = ContentScale.Fit)
                     else if (current && state.loading) LoadingDots()
                     else if (current) SelectionContainer(Modifier.widthIn(max = ChatContentMaxWidth).fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp)) {
                         if (state.previewText.isNotBlank()) {

@@ -2654,3 +2654,31 @@ product fixes were applied by this audit. Synthetic probes reproduced all five
 findings; 82 focused store/document tests passed. Independent review, real-router
 HTTP checks and their limits are recorded in the companion `VALIDATION.md`.
 Other agents' work and personal runtime data remain outside the audit commit.
+
+
+## Mobile photo zoom (2026-10-08)
+
+Opened images in the shared KMP media viewer now support pinch zoom from 1x to
+5x, bounded dragging while enlarged, and double-tap zoom to 3x/reset. Scaling
+keeps the image point beneath the fingers stationary. Pan limits follow the
+actual fitted bitmap, including letterboxing. One-finger gallery swipes remain
+available at fit; page arrows work while enlarged. Changing the page, reloading
+or reopening the viewer resets zoom. Original Save/Share bytes and bounded image
+decoding are unchanged. Accessibility zoom/reset actions use English/Ukrainian
+locale keys. The implementation adds no dependency.
+
+Final validation used an isolated snapshot of committed source plus this feature:
+278 shared Kotlin tests, 78 Android JVM tests, debug/instrumentation APK builds,
+and all eight reply-image emulator scenarios passed on API 35. The four new UI
+cases exercise actual pinch/pan pixels, asymmetric pinching inside a gallery,
+page/reload/reopen resets, localized accessibility and exact original-byte Save.
+Fit/zoom screenshots were inspected. The full backend suite during initial
+implementation passed 1,592 tests, six skips and 178 subtests. An independent
+adversarial reviewer approved the final scoped change using an available model
+at maximum effort; Fable was unavailable. Post-review isolated server/curl smoke
+returned 200 for capabilities, queued-message reads and static assets, 401 without
+credentials, and 400 for workspace traversal. Server and emulator were stopped.
+
+The shared implementation is included for Android/iOS, but full Xcode is absent
+and Apple compilation/runtime remain unverified. App version and the in-app
+update channel are unchanged; this task does not publish a mobile release.

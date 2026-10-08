@@ -39,7 +39,9 @@ rendered tail, smooth scrolling through tall final replies, short fast drawer
 swipes and a brief typing-indicator delay without delaying streamed text.
 
 Select multiple photos/files, browse a compact image contact sheet and page
-through the full viewer. Successful agent workspace tools expose their real
+through the full viewer. Opened images support pinch zoom from 1x to 5x, dragging
+while enlarged, and double-tap zoom/reset. Gallery swipes work at the original
+fit; the page arrows also work while zoomed. Successful agent workspace tools expose their real
 outputs in the conversation. Save and Share use original file bytes through the
 native OS, including workspace images and PDFs. Large photos use bounded
 thumbnails. See [RELEASE-0.4.0.md](../docs/mobile-app/RELEASE-0.4.0.md).
