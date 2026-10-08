@@ -2641,3 +2641,16 @@ files were preserved; only the owned HANDOFF changes were staged.
   No release was published or provider/device configuration changed. Existing
   dirty APK-size/native/editor work stays outside this commit. Evidence:
   `reports/night-agent-update-platforms-2026-10-07.md`.
+
+
+## 2026-10-08 — Repository audit: package and document contracts
+
+Added `reports/repository-audit-2026-10-08/` beside the earlier agent audits.
+Five new observations cover orphaned imported HTML losing its sandbox policy,
+source-import rollback, corrupt archive errors, export/import size symmetry,
+and UTF-16 DOCX declaration filtering. The report includes repair examples,
+acceptance criteria, and three product additions. These are proposals; no
+product fixes were applied by this audit. Synthetic probes reproduced all five
+findings; 82 focused store/document tests passed. Independent review, real-router
+HTTP checks and their limits are recorded in the companion `VALIDATION.md`.
+Other agents' work and personal runtime data remain outside the audit commit.
