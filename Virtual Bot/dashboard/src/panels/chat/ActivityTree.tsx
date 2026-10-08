@@ -10,6 +10,8 @@ import { t, type ChatKey } from '@/locales/chat';
 import type { ToolStep } from './types';
 import { collectSources } from './sources';
 import { SiteIcon } from './SiteIcon';
+import { InteractiveToolCard } from './InteractiveToolCard';
+import { interactiveToolData } from './interactiveToolData';
 import { useDisclosureMotion } from '@/hooks/useDisclosureMotion';
 import './activity-tree.css';
 
@@ -146,6 +148,7 @@ function ToolBranch({ step, animateEntry }: { step: ToolStep; animateEntry: bool
       : <div className="chat-activity-row" data-tool-row>{content}</div>}
     <div className="chat-activity-followup">
       <div className="chat-activity-followup-content">
+        <InteractiveToolCard step={step} />
         {sites.length || signedOut ? <div className="chat-activity-source-zone" data-activity-source-zone={animateEntry ? '' : undefined}>
           <div className="chat-activity-source-zone-content">
             {sites.length ? <div className="chat-activity-sites" role="group" aria-label={t('sources.label', { count: sites.length })}>
@@ -168,7 +171,9 @@ function ToolBranch({ step, animateEntry }: { step: ToolStep; animateEntry: bool
 
 /** Adjacent real calls share a trunk; the reply may continue after they finish. */
 export function ActivityLine({ steps, running }: { steps: ToolStep[]; running: boolean }) {
-  const { ref: branches, open, phase, setOpen, toggle: toggleOpen } = useDisclosureMotion(running);
+  const hasInteractiveTool = steps.some((step) => Boolean(interactiveToolData(step)));
+  const keepOpen = running || hasInteractiveTool;
+  const { ref: branches, open, phase, setOpen, toggle: toggleOpen } = useDisclosureMotion(keepOpen);
   const branchesId = useId();
   const toggle = useRef<HTMLButtonElement>(null);
   const toggleActivity = () => {
@@ -183,8 +188,8 @@ export function ActivityLine({ steps, running }: { steps: ToolStep[]; running: b
     if (!running && branches.current?.contains(document.activeElement)) {
       toggle.current?.focus({ preventScroll: true });
     }
-    setOpen(running);
-  }, [running]);
+    setOpen(keepOpen);
+  }, [keepOpen]);
   if (!steps.length) return null;
   const active = steps.some(step => step.status === 'active');
   const summary = activityT(active ? 'activity.runningCount' : 'activity.summary', { count: steps.length });

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check, Send, X } from '../../vendor/solar-icons/compat.ts';
 import { useBotEvents } from '@/hooks/useBotEvents';
 import { t } from '@/lib/i18n';
+import { useRoute } from '@/app/useRoute';
 
 interface UiPayload {
   id?: string;
@@ -25,6 +26,7 @@ function send(text: string): void {
 }
 
 export function BotUiOverlay() {
+  const [section] = useRoute();
   const [card, setCard] = useState<BotUi | null>(null);
   const [custom, setCustom] = useState('');
 
@@ -44,7 +46,13 @@ export function BotUiOverlay() {
     return () => window.removeEventListener('keydown', onKey);
   }, [card]);
 
-  if (!card) return null;
+  useEffect(() => {
+    if (section === 'chat') setCard(null);
+  }, [section]);
+
+  // Chat renders tool UI inline with the activity that produced it. Keep the
+  // global overlay for spontaneous UI while the user is in another section.
+  if (section === 'chat' || !card) return null;
   const { data } = card;
   const options = (data.options ?? []).map((option) => typeof option === 'string'
     ? { label: option, description: '' }
