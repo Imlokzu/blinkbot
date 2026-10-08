@@ -1,5 +1,1 @@
-"CFBundleDisplayName" = "Claude Bot";
-"NSCameraUsageDescription" = "Use the camera to scan your bot's pairing QR code or attach a photo you take.";
-"NSMicrophoneUsageDescription" = "Record voice messages to send to your bot.";
-"NSPhotoLibraryUsageDescription" = "Choose a photo attachment or a wallpaper for your bot.";
-"NSLocalNetworkUsageDescription" = "Connect to the bot server you choose on your local network.";
+"CFBundleDisplayName" = "Blink";
