@@ -39,6 +39,7 @@ const DICT = {
     "hero.ctaSecondary": "Подивитися в ділі",
     "hero.metaLangs": "українська й англійська",
     "hero.scroll": "Гортай",
+    "hero.pauseBackground": "Призупинити анімацію фону",
 
     "reveal.alt": "Панель Blink: чат, у якому бот перевірив погоду й пошукав у мережі, а під відповіддю — джерела.",
     "callout.activityTitle": "Показує, що робить",
@@ -161,6 +162,7 @@ const DICT = {
     "hero.ctaSecondary": "See it in action",
     "hero.metaLangs": "Ukrainian & English",
     "hero.scroll": "Scroll",
+    "hero.pauseBackground": "Pause background animation",
 
     "reveal.alt": "The Blink dashboard: a chat where the bot checked the weather and searched the web, with its sources under the answer.",
     "callout.activityTitle": "Shows its work",

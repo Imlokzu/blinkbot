@@ -13,6 +13,7 @@ import { LANG_KEY, applyStatic, detectLang, getLang, setCurrentLang } from "./i1
 import { loadShots } from "./shots.js";
 import { initReveals, resplit, unsplit } from "./reveal.js";
 import { initHero } from "./hero.js";
+import { initDrift } from "./drift.js";
 import { initTour } from "./tour.js";
 import { initDevice } from "./device.js";
 import { initCards, initMagnetic, initMarquee, initNav, initScrollLinks, initTerminal } from "./extras.js";
@@ -126,6 +127,8 @@ for (const button of document.querySelectorAll("[data-set-lang]")) {
 
 fontsLoaded.then(() => {
   const { intro } = initHero({ reduced, finePointer });
+  const destroyDrift = initDrift(document.querySelector("[data-hero]"));
+  if (import.meta.hot) import.meta.hot.dispose(destroyDrift);
   initReveals({ reduced });
   initTour({ reduced });
   initDevice({ reduced, finePointer });

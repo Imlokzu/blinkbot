@@ -2698,3 +2698,31 @@ checks at 320/390/844/1280px in en/uk. Document width matches viewport width,
 horizontal scroll remains zero, vertical scroll works and GitHub stays
 inside the screen. Chromium checks covered 11 widths from 320px to 1280px.
 Independent fallback review checked the causes; Fable was unavailable.
+
+
+## Chromatic Drift landing hero (2026-10-08)
+
+Adapted the owner's `chromatic-drift.html` particle field into the current
+landing hero, replacing its dot grid. The original five-colour trails sit
+behind a dark reading area; the Blink mark, copy and dashboard reveal remain
+in place. The canvas is decorative and never intercepts touch or scrolling.
+A localized pause toggle is keyboard accessible. Reduced motion paints a
+static field; hidden tabs, offscreen content and page navigation stop drawing.
+Disposal also rejects already queued observer callbacks.
+
+The renderer batches strokes by colour, limits touch devices to 2,600
+particles, caps backing resolution at 1.8M pixels, and draws at up to 30 Hz.
+No dependency was added. Validation: 12 landing tests and production build;
+Chromium and WebKit at 320/390/768/1280px in both locales, covering movement,
+pause, offscreen suspension, reduced motion, and top/bottom overflow. Native
+Android Chrome 124 on a Pixel 8 emulator with host GPU measured 30 draws/sec,
+55ms initial still, and equal 412px viewport/document widths. The software
+GPU emulator was much slower; these are emulator measurements, not a device
+performance guarantee. Hero accessibility scan found no automatic violations;
+canvas/gradient contrast was checked visually.
+
+An independent supported reviewer (Fable unavailable) fixed teardown and
+context-loss handling. Post-review curl smoke returned 200 for landing JS/CSS,
+API status and static assets, and 400 for workspace traversal; the temporary
+API server was stopped. Main-branch push deploys this change through the
+existing Cloudflare Pages workflow to waveio.me.

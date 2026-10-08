@@ -6,9 +6,8 @@
  * as lifted panels rather than as holes cut into a blue-black. The accent is
  * the dashboard's dark terracotta.
  *
- * Gradients stay inside one hue (light terracotta to deep terracotta), the
- * way the screen's app icons are drawn: the owner turned down multi-hue
- * glows as a generic "AI" look.
+ * UI gradients stay inside one terracotta hue. The hero's Chromatic Drift
+ * field uses the owner's supplied multicolour particle artwork.
  */
 
 :root {

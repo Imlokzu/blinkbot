@@ -81,8 +81,11 @@
           <!-- Hero + the product reveal share one pinned stage: the dashboard
                rises out of the hero and flattens into view as you scroll. -->
           <section class="hero" id="top" data-hero>
+            <div class="hero__drift" aria-hidden="true"><canvas data-drift></canvas></div>
             <div class="hero__glow" aria-hidden="true"></div>
-            <div class="hero__grid" aria-hidden="true"></div>
+            <button class="drift-toggle" type="button" data-drift-toggle aria-pressed="false" data-i18n-attr="aria-label:hero.pauseBackground;title:hero.pauseBackground" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path class="drift-toggle__pause" d="M8 6v12M16 6v12" /><path class="drift-toggle__play" d="m9 6 9 6-9 6Z" /></svg>
+            </button>
 
             <div class="hero__content" data-hero-content>
               <span class="hero__mark blink-mark" data-hero-mark aria-hidden="true"></span>

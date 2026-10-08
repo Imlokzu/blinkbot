@@ -107,8 +107,59 @@
   transition: background-position 0.2s;
 }
 
+.hero__drift {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: clip;
+  pointer-events: none;
+  opacity: 0.85;
+  mask-image: linear-gradient(#000 65%, transparent 100%);
+  -webkit-mask-image: linear-gradient(#000 65%, transparent 100%);
+}
+
+.hero__drift canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* Keep the fine trails at the edges and a quiet reading area behind the copy. */
+.hero__drift::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 48% 66% at 50% 37%, rgb(7 6 5 / 0.94) 10%, rgb(7 6 5 / 0.76) 45%, transparent 100%);
+}
+
+.drift-toggle {
+  position: absolute;
+  top: calc(var(--nav-h) + 14px);
+  right: var(--gutter);
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 10px;
+  color: var(--ink-2);
+  background: rgb(7 6 5 / 0.7);
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.drift-toggle:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.drift-toggle[hidden] { display: none; }
+.drift-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.drift-toggle__play { display: none; }
+.drift-toggle[aria-pressed="true"] .drift-toggle__pause { display: none; }
+.drift-toggle[aria-pressed="true"] .drift-toggle__play { display: block; }
+
 /* The dashboard's dot grid, fading out toward the edges. */
-.hero__grid,
 .final::before {
   position: absolute;
   inset: 0;
