@@ -2682,3 +2682,19 @@ credentials, and 400 for workspace traversal. Server and emulator were stopped.
 The shared implementation is included for Android/iOS, but full Xcode is absent
 and Apple compilation/runtime remain unverified. App version and the in-app
 update channel are unchanged; this task does not publish a mobile release.
+
+
+## Mobile landing horizontal scroll (2026-10-08)
+
+Reproduced the live bug in mobile WebKit: a 390px viewport produced a 429px
+page with 39px of horizontal scrolling, while the fixed GitHub link itself
+stayed inside the viewport. The hero glow extended 10% beyond each side in
+the mobile layout. Kept the glow within the hero width, and scaled the
+320x240 device statistic to fit its column on the narrowest 320px phones.
+
+Validation: 8 landing tests and production build passed; mobile WebKit
+passed 14 normal-motion top/bottom cases from 320px to 961px and reduced-motion
+checks at 320/390/844/1280px in en/uk. Document width matches viewport width,
+horizontal scroll remains zero, vertical scroll works and GitHub stays
+inside the screen. Chromium checks covered 11 widths from 320px to 1280px.
+Independent fallback review checked the causes; Fable was unavailable.

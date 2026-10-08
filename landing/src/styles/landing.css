@@ -99,7 +99,8 @@
 
 .hero__glow {
   position: absolute;
-  inset: -20% -10% auto;
+  /* Mobile WebKit includes horizontal glow overhang in the page's scroll width. */
+  inset: -20% 0 auto;
   height: 90%;
   z-index: -1;
   background: radial-gradient(50% 50% at var(--gx, 50%) var(--gy, 38%), rgb(var(--accent-rgb) / 0.16), transparent 70%);
@@ -1738,6 +1739,11 @@
 
   .stats {
     gap: 12px;
+  }
+
+  .stats dt {
+    /* Keep the 320×240 value inside its column on compact phones. */
+    font-size: clamp(1.125rem, 5vw, 1.8rem);
   }
 
   .footer > :last-child {
