@@ -1434,6 +1434,8 @@
 
 .terminal__body {
   display: grid;
+  /* Long commands scroll inside their code slot, keeping Copy in view. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 22px;
   padding: 26px 24px 30px;
 }
