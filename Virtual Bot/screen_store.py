@@ -38,6 +38,7 @@ import io
 import hashlib
 import json
 import logging
+import os
 import re
 import shutil
 import stat
@@ -45,7 +46,7 @@ import sys
 import tempfile
 import zipfile
 from pathlib import Path, PurePosixPath
-from threading import Lock
+from threading import RLock
 from typing import Any
 
 import app_config
@@ -53,7 +54,7 @@ import app_config
 log = logging.getLogger("virtual_bot.screen_store")
 
 # Lowercase letters, digits, dashes: safe both as a folder name and in a URL.
-PKG_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,31}$")
+PKG_ID_RE = re.compile(r"[a-z0-9][a-z0-9_-]{0,31}\Z")
 
 # Unknown types are skipped quietly so a stray file in packages/ cannot break
 # the whole catalog.
@@ -83,7 +84,7 @@ _HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 # list on a 320px screen, so the caps are generous for a UI but tiny for abuse.
 _TEXT_FIELDS = {"label": 40, "description": 200, "author": 60, "version": 20, "icon": 32, "tint": 7, "entry": 64}
 
-_store_lock = Lock()
+_store_lock = RLock()
 
 
 class StoreError(Exception):
@@ -153,8 +154,7 @@ def _trusted_install(pkg_id: str) -> bool:
 
 def validate_pkg_id(pkg_id: str) -> str:
     """Validate an id: without this, /../ and reserved names would reach a path."""
-    pkg_id = (pkg_id or "").strip()
-    if not PKG_ID_RE.match(pkg_id):
+    if not isinstance(pkg_id, str) or not PKG_ID_RE.fullmatch(pkg_id):
         raise StoreError("invalid package id", code="invalid_id")
     return pkg_id
 
@@ -169,9 +169,35 @@ def _source_root(pkg_id: str) -> tuple[Path, str] | None:
     if (builtin / "package.json").is_file():
         return builtin, "builtin"
     shared = shared_dir() / pkg_id
+    with _store_lock:
+        _recover_import(pkg_id)
     if (shared / "package.json").is_file():
         return shared, "shared"
     return None
+
+
+def _recover_import(pkg_id: str) -> None:
+    """Recover a recorded source swap before catalog lookup or another import."""
+    base = shared_dir()
+    marker = base / f".{pkg_id}-import.json"
+    if not marker.is_file():
+        return
+    try:
+        transaction = json.loads(marker.read_text("utf-8"))
+        staging_name = transaction["staging"]
+        if (transaction.get("id") != pkg_id or not isinstance(staging_name, str)
+                or not staging_name.startswith(f".{pkg_id}-")
+                or Path(staging_name).name != staging_name):
+            raise ValueError("invalid recovery marker")
+        final, previous, staging = base / pkg_id, base / f".{pkg_id}-old", base / staging_name
+        if previous.exists() and not final.exists():
+            previous.rename(final)
+        if final.exists() and previous.exists():
+            shutil.rmtree(previous)
+        shutil.rmtree(staging, ignore_errors=True)
+        marker.unlink()
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise StoreError("source recovery is pending", code="io_error") from exc
 
 
 def check_manifest(manifest: Any, pkg_id: str | None = None) -> dict[str, Any]:
@@ -182,7 +208,7 @@ def check_manifest(manifest: Any, pkg_id: str | None = None) -> dict[str, Any]:
     if not isinstance(manifest, dict) or manifest.get("type") not in PKG_TYPES:
         raise StoreError("manifest must be an object with type app or skin", code="bad_manifest")
     mid = manifest.get("id")
-    if not isinstance(mid, str) or not PKG_ID_RE.match(mid):
+    if not isinstance(mid, str) or not PKG_ID_RE.fullmatch(mid):
         raise StoreError("manifest id is invalid", code="bad_manifest")
     if pkg_id is not None and mid != pkg_id:
         # The id inside the file guards against a folder copied under a
@@ -246,6 +272,11 @@ def _manifests() -> list[dict[str, Any]]:
     """Every valid manifest from both sources, built-in first, by id."""
     out: list[dict[str, Any]] = []
     seen: set[str] = set()
+    with _store_lock:
+        for marker in shared_dir().glob(".*-import.json"):
+            pkg_id = marker.name[1:-len("-import.json")]
+            if PKG_ID_RE.fullmatch(pkg_id):
+                _recover_import(pkg_id)
     for base in (packages_dir(), shared_dir()):
         try:
             entries = sorted(base.iterdir())
@@ -319,7 +350,6 @@ def install(pkg_id: str) -> dict[str, Any]:
             raise StoreError("package not found or broken", code="not_found")
         src, _source = _source_root(pkg_id)
         try:
-            _receipt_path(pkg_id).unlink(missing_ok=True)
             if manifest["type"] == "app":
                 files = _package_files(src)
                 if len(files) > MAX_PACKAGE_FILES or sum(f.stat().st_size for f in files) > MAX_UNPACKED_BYTES:
@@ -366,7 +396,8 @@ def uninstall(pkg_id: str) -> dict[str, Any]:
 
 def _remove_installed(pkg_id: str, kind: str) -> None:
     try:
-        _receipt_path(pkg_id).unlink(missing_ok=True)
+        # Keep built-in reservations after removal: an already-open trusted
+        # document must never fetch imported scripts under the same URL.
         if kind == "app":
             dst = installed_dir("apps") / pkg_id
             if dst.exists():
@@ -589,6 +620,8 @@ def import_archive(data: bytes, *, install_now: bool = False) -> dict[str, Any]:
     with _store_lock:
         if (packages_dir() / pkg_id / "package.json").is_file():
             raise StoreError("a built-in package already uses this id", code="id_taken")
+        if _receipt_path(pkg_id).exists():
+            raise StoreError("an installed built-in package reserves this id", code="id_taken")
         previous_manifest = load_manifest(pkg_id)
         other_kind_exists = (
             (installed_dir("skins") / f"{pkg_id}.json").exists()
@@ -607,16 +640,33 @@ def import_archive(data: bytes, *, install_now: bool = False) -> dict[str, Any]:
                     target.write_bytes(content)
                 final = base / pkg_id
                 previous = None
+                marker = base / f".{pkg_id}-import.json"
+                backup = base / f".{pkg_id}-old"
+                if backup.exists():
+                    raise StoreError("unrecorded source backup requires recovery", code="io_error")
+                with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=base,
+                        prefix=f".{pkg_id}-marker-", delete=False) as record:
+                    json.dump({"id": pkg_id, "staging": staging.name}, record)
+                    record.flush()
+                    os.fsync(record.fileno())
+                os.replace(record.name, marker)
                 if final.exists():
-                    previous = base / f".{pkg_id}-old"
-                    if previous.exists():
-                        shutil.rmtree(previous)
+                    previous = backup
                     final.rename(previous)
-                # Rename, not copy: a crash halfway leaves either the old
-                # package or the new one, never a mix of both.
-                staging.rename(final)
+                try:
+                    staging.rename(final)
+                except OSError as promotion_error:
+                    if previous is not None:
+                        try:
+                            previous.rename(final)
+                        except OSError as rollback_error:
+                            raise StoreError("source promotion and recovery failed", code="io_error") from ExceptionGroup(
+                                "source swap failed", [promotion_error, rollback_error])
+                    marker.unlink(missing_ok=True)
+                    raise
                 if previous is not None:
-                    shutil.rmtree(previous, ignore_errors=True)
+                    shutil.rmtree(previous)
+                marker.unlink(missing_ok=True)
             except BaseException:
                 shutil.rmtree(staging, ignore_errors=True)
                 raise
