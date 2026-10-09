@@ -1,0 +1,10 @@
+{
+  "title": "Workspace editor", "loading": "Opening file…", "document": "Document", "source": "Source", "preview": "Preview", "view": "Editor view",
+  "saved": "Saved", "saving": "Saving…", "pending": "Saved on this device", "error": "Could not save", "conflict": "File changed elsewhere", "readonly": "Read only",
+  "toolbar": "Formatting", "undo": "Undo", "redo": "Redo", "find": "Find", "bold": "Bold", "italic": "Italic", "strike": "Strikethrough", "code": "Inline code",
+  "paragraph": "Paragraph", "heading1": "Heading 1", "heading2": "Heading 2", "heading3": "Heading 3", "bullets": "Bulleted list", "numbers": "Numbered list", "tasks": "Task list", "quote": "Quote",
+  "table": "Insert table", "addRow": "Add row", "addColumn": "Add column", "deleteTable": "Delete table", "link": "Insert link", "image": "Insert image", "drawing": "New drawing", "url": "Address", "insert": "Insert", "cancel": "Cancel", "invalidUrl": "Use a workspace path or an HTTPS address.",
+  "openDrawing": "Open drawing", "openImage": "Open image", "externalImage": "External image", "unavailableImage": "Image unavailable", "drawingFailed": "This drawing could not be opened.", "mermaidFailed": "This diagram could not be rendered.", "editSource": "Edit source", "convert": "Save as drawing", "retry": "Try again", "editorFailed": "This editor could not be opened.", "fit": "Fit drawing",
+  "findPlaceholder": "Find in file", "next": "Next match", "previous": "Previous match", "closeFind": "Close search", "caseSensitive": "Match case", "regexp": "Regular expression", "wholeWord": "Whole word", "replace": "Replace", "replaceAll": "Replace all", "all": "All", "goToLine": "Go to line", "go": "Go", "selection": "Selection", "noMatches": "No matches",
+  "exportPng": "Export PNG", "exporting": "Exporting…", "exportTooLarge": "This image is too large to export. Try a smaller drawing.", "exportFailed": "The image could not be exported. Your drawing is unchanged."
+}

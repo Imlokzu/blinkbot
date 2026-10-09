@@ -47,3 +47,19 @@ https://github.com/google/fonts/tree/main/ofl/lora .
 The instantiated Lora-derived font uses the internal family name **Claude Greeting**
 to respect Lora's reserved font name. Original author, copyright and license
 metadata remain in the font; its outlines are from the upstream Lora source.
+
+## Bundled workspace editors
+
+The local editor pack includes Tiptap 3.31.3, CodeMirror 6, Excalidraw 0.18.1,
+Mermaid-to-Excalidraw 2.2.2, UIW React CodeMirror 4.25.11 and React 19.3.0.
+They retain their upstream licenses; direct package notices are reproduced in
+`licenses/workspace-editors.txt`, `licenses/excalidraw-MIT.txt` and
+`licenses/uiw-react-codemirror-MIT.txt`. Exact dependency and transitive versions are
+in `editor-web/pnpm-lock.yaml`. Production chunks retain upstream legal comments.
+
+Manrope reuses the licensed mobile font above. Excalidraw's local font assets
+come from its pinned package and retain embedded copyright/license metadata.
+The optional Xiaolai font is excluded, matching the dashboard's font bundle.
+The upstream runtime patches remove its external CDN font fallback and unused
+Firebase configuration. `editor-web/vite.config.mjs` records and verifies these
+narrow transforms; no upstream API key is needed by the mobile editor.

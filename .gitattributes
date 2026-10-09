@@ -1,0 +1,3 @@
+# Vendored generated JavaScript contains significant spaces inside template literals.
+# Preserve those bytes; its source files retain ordinary whitespace checks.
+mobile-app/shared/src/commonMain/composeResources/files/workspace-editor/** linguist-generated=true -whitespace

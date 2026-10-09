@@ -19,8 +19,8 @@ boundaries. The UI must remain useful on a small phone with the keyboard open.
 | HTML and built web apps | Existing isolated interactive preview with relative assets | CodeMirror source, reload, original-byte export |
 | Markdown | Formatted document with tables, tasks and workspace links | Tiptap, source mode, undo/redo, mobile formatting tools |
 | Text and code | Readable wrapping and syntax highlighting | CodeMirror with search, selection and undo/redo |
-| Excalidraw JSON | Real canvas, fit and zoom, including AI skeleton scenes | Excalidraw, persisted interoperable scene JSON |
-| Mermaid | Rendered diagram | Source editor and conversion to a sibling Excalidraw file |
+| Excalidraw JSON | Real canvas, fit and zoom, including AI skeleton scenes | Excalidraw, persisted interoperable scene JSON, bounded PNG export through the OS save picker |
+| Mermaid | Rendered diagram | Source editor, conversion to a sibling Excalidraw file, and bounded PNG export |
 | Raster images and SVG | Visual preview, fit/zoom where supported | Original-byte Save and Share |
 | Unsupported binary formats | Explicit format/size information | Preserve and export the original; never silently convert it to text |
 
