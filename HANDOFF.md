@@ -2726,3 +2726,17 @@ context-loss handling. Post-review curl smoke returned 200 for landing JS/CSS,
 API status and static assets, and 400 for workspace traversal; the temporary
 API server was stopped. Main-branch push deploys this change through the
 existing Cloudflare Pages workflow to waveio.me.
+
+
+## 2026-10-09 — Repository audit: interactive tool-card contracts
+
+Added `reports/repository-audit-2026-10-09/` beside the previous agent audits.
+Four new findings cover valid free-text questions disappearing, a stale message
+bridge claiming an answer sent while dropping it, checklist progress lost on
+remount, and divergent backend/inline normalization. The report includes repair
+examples, acceptance checks, and three product additions. Repairs remain
+proposals; this audit applies no product changes. Synthetic Python/React probes
+reproduced the behaviors. All 227 dashboard tests, TypeScript, and 20 focused
+backend tests passed. Independent review and isolated real-router smoke evidence
+and limits are recorded in `VALIDATION.md`. Other agents' unfinished work stays
+outside this audit commit; no credentials or personal runtime data were used.
