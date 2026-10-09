@@ -38,6 +38,11 @@ internal class FakePlatformBridge : PlatformBridge {
     var recordingAmplitude: ((Float) -> Unit)? = null
     val notifications = mutableListOf<Triple<String, String, String>>()
     val openedLinks = mutableListOf<String>()
+    val copiedTexts = mutableListOf<String>()
+    var failCopy: Boolean = false
+    val savedFiles = mutableListOf<PickedFile>()
+    var deferFileSave: Boolean = false
+    var saveFileResult: ((Boolean) -> Unit)? = null
     val installedPackages = mutableListOf<PickedFile>()
     var packageDigest: String? = null
     var packageAccepted: Boolean = true
@@ -59,8 +64,16 @@ internal class FakePlatformBridge : PlatformBridge {
     override fun stopRecording() = Unit
     override fun cancelRecording() = Unit
     override fun haptic() = Unit
-    override fun copyText(value: String) = Unit
+    override fun copyText(value: String) {
+        if (failCopy) error("Clipboard unavailable")
+        copiedTexts += value
+    }
     override fun shareText(value: String) = Unit
+    override fun saveFile(file: PickedFile, onResult: (Boolean) -> Unit) {
+        savedFiles += file
+        saveFileResult = onResult
+        if (!deferFileSave) onResult(false)
+    }
     override fun openExternalUrl(url: String) { openedLinks += url }
     override fun sha256(bytes: ByteArray): String? = packageDigest
     override fun installPackage(file: PickedFile, onResult: (Boolean) -> Unit) { installedPackages += file; onResult(packageAccepted) }

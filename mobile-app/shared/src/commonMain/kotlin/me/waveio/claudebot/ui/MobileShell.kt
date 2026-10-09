@@ -41,6 +41,16 @@ import me.waveio.claudebot.state.*
 @Composable
 fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
     val palette = LocalPalette.current
+    val fileNavigation = rememberWorkspaceEditorNavigation(state.fileEditorGeneration.toString())
+    // A persistent tablet drawer can navigate while the editor is still mounted.
+    val drawerActions = remember(actions, fileNavigation) {
+        object : AppActions by actions {
+            override fun navigate(screen: Screen) = fileNavigation.afterFlush { actions.navigate(screen) }
+            override fun openChat(id: String) = fileNavigation.afterFlush { actions.openChat(id) }
+            override fun newChat() = fileNavigation.afterFlush(actions::newChat)
+            override fun deleteChat(id: String) = fileNavigation.afterFlush { actions.deleteChat(id) }
+        }
+    }
     BoxWithConstraints(Modifier.fillMaxSize()) {
     val adaptive = AdaptiveLayout(maxWidth, maxHeight, state.connected)
     val modalMenuOpen = state.menuOpen && !adaptive.persistentSidebar
@@ -50,7 +60,7 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             state.attachmentPickerOpen -> actions.attachments(false)
             state.dictationOpen -> actions.cancelDictation()
             modalMenuOpen -> actions.menu(false)
-            state.openFile != null -> actions.closeFile()
+            state.openFile != null -> fileNavigation.afterFlush(actions::closeFile)
             state.screen in listOf(Screen.Appearance, Screen.Models, Screen.Notifications, Screen.Personalization, Screen.Queue, Screen.Updates) -> actions.navigate(Screen.Profile)
             else -> actions.navigate(Screen.Chat)
         }
@@ -77,13 +87,13 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
                 StartupScreen(state, actions)
             else ConnectionScreen(state, actions)
         } else RevealDrawer(modalMenuOpen, actions::menu, state.openFile == null && !state.dictationOpen,
-            menu = { ConversationDrawer(state, actions) }) {
+            menu = { ConversationDrawer(state, drawerActions) }) {
             Box(Modifier.fillMaxSize()) {
                 Wallpaper(state.preferences, state.customWallpaper, state.screen, state.connected)
                 Column(Modifier.fillMaxSize().windowInsetsPadding(
                     if (state.screen == Screen.Chat) WindowInsets.ime else WindowInsets.safeDrawing
                 ).imePadding()) {
-                    if (state.screen != Screen.Chat) TopBar(state, actions)
+                    if (state.screen != Screen.Chat) TopBar(state, actions, fileNavigation)
                     Box(Modifier.weight(1f)) {
                         AnimatedContent(state.screen, transitionSpec = {
                             screenTransforms.getOrPut(targetState to reducedMotion) {
@@ -97,9 +107,9 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
                         }, label = "screen") { screen ->
                         Box(Modifier.fillMaxSize().transitionInput(screen == state.screen)) {
                         when (screen) {
-                            Screen.Chat -> ChatSurface(state, actions, reducedMotion, topBarHeight()) { TopBar(state.copy(screen = screen), actions) }
+                            Screen.Chat -> ChatSurface(state, actions, reducedMotion, topBarHeight()) { TopBar(state.copy(screen = screen), actions, fileNavigation) }
                             Screen.Search -> SearchScreen(state, actions)
-                            Screen.Files -> FilesScreen(state, actions)
+                            Screen.Files -> FilesScreen(state, actions, fileNavigation)
                             Screen.Skills -> SkillsScreen(state, actions)
                             Screen.Agents -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { BotMark(); Spacer(Modifier.height(12.dp)); Text(tr("agents.empty"), color = palette.muted) } }
                             else -> SettingsScreen(state.copy(screen = screen), actions)
@@ -162,7 +172,7 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             if (state.updateError != null) Text(tr(state.updateError), color = MaterialTheme.colorScheme.error, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
             ActionButton(
                 tr(if (state.updateInstalling) "update.downloading" else "update.install"),
-                actions::installUpdate,
+                { fileNavigation.afterFlush(actions::installUpdate) },
                 Modifier.fillMaxWidth(),
                 primary = true,
                 enabled = !state.updateInstalling,
@@ -256,10 +266,10 @@ private fun topBarHeight(): androidx.compose.ui.unit.Dp {
 }
 
 @Composable
-private fun TopBar(state: AppState, actions: AppActions) {
+private fun TopBar(state: AppState, actions: AppActions, fileNavigation: WorkspaceEditorNavigation? = null) {
     val p = LocalPalette.current
     Row(Modifier.fillMaxWidth().height(topBarHeight()).padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (state.openFile != null) IconAction("back", tr("nav.back"), actions::closeFile)
+        if (state.openFile != null) IconAction("back", tr("nav.back"), { fileNavigation?.afterFlush(actions::closeFile) ?: actions.closeFile() })
         else if (state.screen !in listOf(Screen.Chat, Screen.Files, Screen.Agents, Screen.Search, Screen.Profile)) IconAction("back", tr("nav.back"), { actions.navigate(if (state.screen == Screen.Skills) Screen.Chat else Screen.Profile) })
         else if (!LocalAdaptiveLayout.current.persistentSidebar) IconAction("menu", tr("nav.menu"), { actions.menu(true) })
         else Spacer(Modifier.size(44.dp))
@@ -277,7 +287,10 @@ private fun TopBar(state: AppState, actions: AppActions) {
                 }
             } else Text(state.openFile?.substringAfterLast('/') ?: screenTitle(state.screen), fontSize = 16.sp, fontWeight = FontWeight.Medium, color = p.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        IconAction("new", tr("nav.new"), actions::newChat)
+        IconAction("new", tr("nav.new"), {
+            if (state.openFile != null) fileNavigation?.afterFlush(actions::newChat) ?: actions.newChat()
+            else actions.newChat()
+        })
     }
 }
 

@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,55 +15,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import kotlinx.datetime.*
 import me.waveio.claudebot.state.*
 import kotlin.math.PI
 import kotlin.math.sin
 
 @Composable
-fun FilesScreen(state: AppState, actions: AppActions) {
-    val p = LocalPalette.current
+fun FilesScreen(state: AppState, actions: AppActions,
+    navigation: WorkspaceEditorNavigation = rememberWorkspaceEditorNavigation(state.fileEditorGeneration.toString())) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-    Box(Modifier.widthIn(max = if (state.openFile != null) MediaContentMaxWidth else ChatContentMaxWidth).fillMaxSize()) {
-    if (state.openFile != null) {
-        Column(Modifier.fillMaxSize().padding(18.dp)) {
-            Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(tr(if (state.fileEditable) "files.editor" else "files.readOnly"), fontSize = 12.sp, color = p.muted, modifier = Modifier.weight(1f))
-                if (state.fileSaveState == "failed") QuietAction(tr("files.failed"), actions::retryFileSave)
-                else Text(tr("files.${state.fileSaveState}"), fontSize = 12.sp, color = p.muted)
-            }
-            if (state.loading && state.fileText.isEmpty()) LoadingDots(Modifier.padding(16.dp))
-            else if (state.fileEditable) BasicTextField(state.fileText, actions::fileText, modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()), textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, color = p.ink, lineHeight = 22.sp), cursorBrush = SolidColor(p.accent))
-            else Text(state.fileText.ifBlank { tr("files.previewUnavailable") }, color = p.ink, modifier = Modifier.verticalScroll(rememberScrollState()))
+        Box(Modifier.widthIn(max = if (state.openFile != null) MediaContentMaxWidth else ChatContentMaxWidth).fillMaxSize()) {
+            FileWorkspace(state, actions, navigation)
         }
-    } else Column(Modifier.fillMaxSize().padding(horizontal = 18.dp)) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (state.directory.isNotBlank()) IconAction("back", tr("nav.back"), { actions.openDirectory(state.directory.substringBeforeLast('/', "")) })
-            Text(state.directory.ifBlank { tr("files.root") }, color = p.muted, fontSize = 12.sp, modifier = Modifier.weight(1f))
-            IconAction("retry", tr("action.retry"), { actions.openDirectory(state.directory) })
-        }
-        if (state.loading) LoadingDots(Modifier.padding(vertical = 10.dp))
-        LazyColumn {
-            items(state.files, key = { it.path }) { file ->
-                Row(Modifier.fillMaxWidth().clickable { if (file.directory) actions.openDirectory(file.path) else actions.openFile(file.path) }.padding(vertical = 17.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Glyph(if (file.directory) "folder" else "file", tint = if (file.directory) p.accent else p.muted)
-                    Spacer(Modifier.width(13.dp)); Text(file.name, color = p.ink, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                }
-                Hairline()
-            }
-            if (!state.loading && state.files.isEmpty()) item { Text(tr("files.empty"), color = p.muted, modifier = Modifier.padding(vertical = 40.dp)) }
-        }
-    }
-    }
     }
 }
 

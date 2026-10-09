@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.HttpAuthHandler
@@ -161,6 +162,10 @@ private class AndroidPreviewSession(
         // Percentage-height HTML/SVG roots need a viewport, not Chromium's
         // WRAP_CONTENT document-sizing mode inherited from AndroidView.
         web.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        // AndroidView does not clip native drawing to its Compose bounds.
+        // Keep the WebView compositor below adjacent native header controls.
+        web.outlineProvider = ViewOutlineProvider.BOUNDS
+        web.clipToOutline = true
         if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) {
             WebView.setWebContentsDebuggingEnabled(false)
         }

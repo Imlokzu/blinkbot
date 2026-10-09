@@ -63,8 +63,23 @@ interface AppActions {
     fun search(value: String)
     fun openDirectory(path: String)
     fun openFile(path: String)
+    /** Browsing opens a reader; openFile remains the explicit editing action. */
+    fun browseFile(path: String) { openFile(path) }
     fun closeFile()
     fun fileText(value: String)
+    fun editorChanged(id: String, content: String) {}
+    fun copyEditorContent(id: String) {}
+    fun saveEditorDrawing(id: String, content: String) {}
+    fun previewEditedFile(id: String) {}
+    fun reloadFile() {}
+    fun reloadRemoteFile() {}
+    fun keepLocalFile() {}
+    fun saveFileCopy(name: String) {}
+    fun createFile(name: String, kind: String) {}
+    fun openEditorLink(id: String, path: String) {}
+    fun createEditorDrawing(id: String, onCreated: (String?) -> Unit) { onCreated(null) }
+    fun convertEditorMermaid(id: String, content: String) {}
+    suspend fun loadEditorResource(id: String, path: String): WebPreviewResource? = null
     fun retryFileSave()
     fun preferences(value: Preferences)
     fun resetWallpaper()

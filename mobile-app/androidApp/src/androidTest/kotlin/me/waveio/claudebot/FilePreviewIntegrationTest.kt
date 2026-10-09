@@ -10,11 +10,9 @@ import android.view.inspector.WindowInspector
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.text.font.FontWeight
 import androidx.test.platform.app.InstrumentationRegistry
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -114,16 +112,11 @@ class FilePreviewIntegrationTest {
         assertEquals("chat_1", controller.state.value.sessionId)
         assertEquals("chat_2", controller.state.value.previewSessionId)
         assertEquals("session/notes.md", controller.state.value.previewPath)
-        waitForText("Linked report")
-        compose.onNodeWithText("Linked report", useUnmergedTree = true)
-            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Heading, Unit))
-        val paragraph = "The important detail stays readable."
-        waitForText(paragraph)
-        val important = paragraph.indexOf("important")
-        assertTrue("The internal preview must preserve Markdown emphasis", textLayout(paragraph).layoutInput.text.spanStyles.any {
-            it.start <= important && it.end >= important + "important".length &&
-                (it.item.fontWeight?.weight ?: 0) >= FontWeight.Bold.weight
-        })
+        val reader = editorWebView(".prose-note h1")
+        assertEquals("\"Linked report\"", javascript(reader, "document.querySelector('.prose-note h1').textContent"))
+        assertEquals("\"important\"", javascript(reader, "document.querySelector('.prose-note strong').textContent"))
+        assertEquals("\"false\"", javascript(reader, "document.querySelector('.prose-note').getAttribute('contenteditable')"))
+        assertTrue("Opening the rich reader must never rewrite the file", host.writes.isEmpty())
         compose.onNodeWithText(PREVIEW_MARKDOWN).assertDoesNotExist()
         capturePreview("markdown")
 
@@ -132,14 +125,23 @@ class FilePreviewIntegrationTest {
         assertEquals(Screen.Files, controller.state.value.screen)
         assertEquals("chat_2", controller.state.value.fileSessionId)
         compose.onNodeWithTag("media-preview").assertDoesNotExist()
-        val edited = "# Linked report\n\nChanged through the native editor."
-        compose.onNode(hasSetTextAction()).performTextReplacement(edited)
+        val editor = editorWebView(".prose-note[contenteditable=true]")
+        javascript(editor, """(() => {
+            const paragraph = document.querySelector('.prose-note p');
+            document.querySelector('.prose-note').focus();
+            const range = document.createRange(); range.selectNodeContents(paragraph);
+            const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range);
+            document.execCommand('insertText', false, 'Changed through the native editor.');
+        })()""".trimIndent())
         compose.waitUntil(PREVIEW_TIMEOUT) { host.writes.isNotEmpty() && controller.state.value.fileSaveState == "saved" }
         val saved = host.writes.single()
         assertEquals("session/notes.md", saved.getValue("path").jsonPrimitive.content)
         assertEquals("chat_2", saved.getValue("session_id").jsonPrimitive.content)
         assertEquals("before-edit", saved.getValue("revision").jsonPrimitive.content)
-        assertEquals(edited, saved.getValue("content").jsonPrimitive.content)
+        val edited = saved.getValue("content").jsonPrimitive.content
+        assertTrue(edited.contains("# Linked report"))
+        assertTrue(edited.contains("Changed through the native editor."))
+        assertFalse(edited.contains("important"))
         assertFalse(saved.getValue("append").jsonPrimitive.boolean)
         assertTrue(host.fileReads.isNotEmpty())
         assertTrue("Preview, editor, and save-conflict reads must all retain the linked session",
@@ -222,6 +224,22 @@ class FilePreviewIntegrationTest {
         }
         assertTrue("The native page must answer without blocking its UI thread", completed.await(3, TimeUnit.SECONDS))
         return requireNotNull(value.get())
+    }
+
+    private fun editorWebView(selector: String): WebView {
+        fun find(view: View): WebView? {
+            if (view is WebView) return view
+            if (view is ViewGroup) for (index in 0 until view.childCount) find(view.getChildAt(index))?.let { return it }
+            return null
+        }
+        var selected: WebView? = null
+        compose.waitUntil(20_000) {
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                selected = WindowInspector.getGlobalWindowViews().firstNotNullOfOrNull(::find)
+            }
+            selected?.let { javascript(it, "Boolean(window.BlinkWorkspace && document.querySelector(${JsonPrimitive(selector)}))") == "true" } == true
+        }
+        return requireNotNull(selected)
     }
 }
 

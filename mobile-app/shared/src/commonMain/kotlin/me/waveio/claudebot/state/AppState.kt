@@ -79,6 +79,8 @@ data class MessageRow(
     val presentationId: String? = null,
 )
 data class FileRow(val path: String, val name: String, val directory: Boolean, val size: Long = 0)
+/** Both versions remain available until the owner explicitly resolves a conflict. */
+data class FileConflict(val localContent: String, val remoteContent: String?, val remoteRevision: String?)
 data class PreviewItem(val path: String, val name: String, val mimeType: String, val source: String)
 @Serializable
 data class DraftAttachment(val path: String, val name: String, val mimeType: String, val size: Long)
@@ -174,6 +176,16 @@ data class AppState(
     val fileText: String = "",
     val fileEditable: Boolean = false,
     val fileSaveState: String = "saved",
+    val fileEditorGeneration: Long = 0,
+    val fileConflict: FileConflict? = null,
+    val fileRecovery: Boolean = false,
+    val fileLoadError: String? = null,
+    val fileStorageError: Boolean = false,
+    val fileLoading: Boolean = false,
+    val fileWriteActive: Boolean = false,
+    val fileExternallyChanged: Boolean = false,
+    val fileCreating: Boolean = false,
+    val editorExporting: Boolean = false,
     val profileName: String = "",
     val profilePersona: String = "",
     val customWallpaper: ByteArray? = null,
@@ -188,6 +200,7 @@ data class AppState(
     val previewWorkspacePath: String? = null,
     val previewRevision: Long = 0,
     val previewEditable: Boolean = false,
+    val previewWriteActive: Boolean = false,
     val previewWeb: WebPreview? = null,
     val previewWebError: Boolean = false,
     val previewItems: List<PreviewItem> = emptyList(),

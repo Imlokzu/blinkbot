@@ -116,7 +116,7 @@ class MobileUiTest {
                             fileText = Json.parseToJsonElement((request.body as TextContent).text).jsonObject.getValue("content").jsonPrimitive.content
                             """{"ok":true,"path":"notes.md","revision":"after"}"""
                         }
-                        path == "/api/mobile/workspace/file" -> buildJsonObject { put("path", "notes.md"); put("content", fileText); put("binary", false); put("revision", "before") }.toString()
+                        path in setOf("/api/mobile/workspace/file", "/api/workspace/file") && request.method == HttpMethod.Get -> buildJsonObject { put("path", "notes.md"); put("content", fileText); put("binary", false); put("revision", "before") }.toString()
                         path == "/api/asr" || path == "/api/asr/partial" -> """{"text":"A dictated message"}"""
                         else -> error("Unexpected test route: ${request.method.value} $path")
                     }
@@ -254,9 +254,61 @@ class MobileUiTest {
         compose.onNodeWithText("Files").performClick()
         waitFor("notes.md")
         compose.onNodeWithText("notes.md").performClick()
-        waitFor("Text editor")
-        compose.onNode(hasSetTextAction()).performTextReplacement("# Updated on the phone")
-        compose.waitUntil(10000) { fileText == "# Updated on the phone" }
+        compose.waitUntil(10000) {
+            controller.state.value.previewPath == "notes.md" &&
+                controller.state.value.previewEditable && !controller.state.value.loading
+        }
+        compose.onNodeWithTag("media-preview").assertIsDisplayed()
+        val editFileLabel = runBlocking { LocaleText.load("en") }.get("files.edit")
+        compose.onNodeWithContentDescription(editFileLabel).assertIsEnabled().performClick()
+        compose.waitUntil(10000) {
+            controller.state.value.openFile == "notes.md" && controller.state.value.fileEditable &&
+                !controller.state.value.fileLoading && controller.state.value.previewTitle == null
+        }
+        compose.onNodeWithTag("workspace-file-editor").assertIsDisplayed()
+        compose.onNodeWithTag("media-preview").assertDoesNotExist()
+
+        // Native dialogs have separate view trees; poll the real bundled editor
+        // rather than accidentally typing into the Compose chat composer.
+        fun findWebView(view: android.view.View): android.webkit.WebView? {
+            if (view is android.webkit.WebView && view.isAttachedToWindow && view.isShown) return view
+            if (view is android.view.ViewGroup) for (index in 0 until view.childCount) {
+                findWebView(view.getChildAt(index))?.let { return it }
+            }
+            return null
+        }
+        fun editorJavascript(source: String): String? {
+            val result = java.util.concurrent.atomic.AtomicReference<String?>()
+            val completed = java.util.concurrent.CountDownLatch(1)
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                val web = android.view.inspector.WindowInspector.getGlobalWindowViews()
+                    .firstNotNullOfOrNull(::findWebView)
+                if (web == null) completed.countDown()
+                else web.evaluateJavascript(source) { value -> result.set(value); completed.countDown() }
+            }
+            assertTrue("The bundled file editor must answer without blocking the UI thread",
+                completed.await(3, java.util.concurrent.TimeUnit.SECONDS))
+            return result.get()
+        }
+        compose.waitUntil(20000) {
+            editorJavascript("""Boolean(window.BlinkWorkspace && document.querySelector('[data-testid="rich-editor"] [contenteditable="true"] h1')?.textContent === 'Shared workspace')""") == "true"
+        }
+        assertEquals("The file edit must use Tiptap's DOM input path", "true", editorJavascript("""
+            (() => {
+                const editable = document.querySelector('[data-testid="rich-editor"] [contenteditable="true"]');
+                const heading = editable.querySelector('h1');
+                editable.focus();
+                const range = document.createRange(); range.selectNodeContents(heading);
+                const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range);
+                return document.execCommand('insertText', false, 'Updated on the phone');
+            })()
+        """.trimIndent()))
+        compose.waitUntil(10000) {
+            fileText.startsWith("# Updated on the phone") &&
+                fileText.contains("A note from the computer.") && controller.state.value.fileSaveState == "saved"
+        }
+        assertEquals("Autosave must persist the content produced by the bundled editor",
+            fileText, controller.state.value.fileText)
         waitFor("Saved")
         screenshot("mobile-file-editor")
         compose.onNodeWithContentDescription("Back").performClick()
