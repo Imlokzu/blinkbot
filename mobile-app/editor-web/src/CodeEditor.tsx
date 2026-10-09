@@ -16,6 +16,7 @@ import { text } from './locale';
 export default function SourceEditor({ document: doc, session }: EditorSnapshot) {
   const editor = useRef<ReactCodeMirrorRef>(null);
   const touched = useRef(false);
+  const locked = doc.readOnly || doc.saveState === 'writing';
   const t = (key: Parameters<typeof text>[1]) => text(doc.language, key);
   const extensions = useMemo(() => {
     const ext = doc.path.split('.').pop()?.toLowerCase();
@@ -48,14 +49,14 @@ export default function SourceEditor({ document: doc, session }: EditorSnapshot)
   return <div className="editor-pane" data-testid="source-editor">
     <div className="toolbar" role="toolbar" aria-label={t('toolbar')}>
       {!doc.readOnly && <>
-        <button aria-label={t('undo')} title={t('undo')} onClick={() => { if (editor.current?.view) undo(editor.current.view); }}>↶</button>
-        <button aria-label={t('redo')} title={t('redo')} onClick={() => { if (editor.current?.view) redo(editor.current.view); }}>↷</button>
+        <button aria-label={t('undo')} title={t('undo')} disabled={locked} onClick={() => { if (!locked && editor.current?.view) undo(editor.current.view); }}>↶</button>
+        <button aria-label={t('redo')} title={t('redo')} disabled={locked} onClick={() => { if (!locked && editor.current?.view) redo(editor.current.view); }}>↷</button>
       </>}
       <button className="text-button" aria-label={t('find')} onClick={() => { if (editor.current?.view) openSearchPanel(editor.current.view); }}>{t('find')}</button>
     </div>
-    <CodeMirror ref={editor} value={doc.content} readOnly={doc.readOnly} editable={!doc.readOnly}
+    <CodeMirror ref={editor} value={doc.content} readOnly={locked} editable={!locked}
       theme={doc.theme} extensions={extensions} height="100%" className="source-content"
-      basicSetup={{ foldGutter: false, highlightActiveLine: !doc.readOnly }}
+      basicSetup={{ foldGutter: false, highlightActiveLine: !locked }}
       onChange={(value) => { touched.current = true; changeDocument(session, value); }} />
   </div>;
 }

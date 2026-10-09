@@ -224,3 +224,100 @@ test('drawing exports reject destinations and malformed or oversized payloads wi
   api.flush('still-usable');
   assert.deepEqual(messages.at(-1), { type: 'flushed', id: session.id, token: 'still-usable' });
 });
+
+test('PNG export follows the latest writing state and becomes available after the writer finishes', async context => {
+  const { bridge, api, messages } = await setup(context);
+  for (const kind of ['drawing', 'mermaid']) {
+    for (const readOnly of [false, true]) {
+      const document = documentValue(`writing-${kind}-${readOnly}`, { kind, readOnly, saveState: 'writing' });
+      api.openDocument(document);
+      const session = bridge.getSnapshot().session;
+      const before = messages.length;
+      bridge.action(session, 'exportDrawing', { content: pngDataUrl });
+      assert.equal(messages.length, before, 'an active writer owns the scene even when the view is otherwise editable');
+      api.updateHost({ id: document.id, saveState: 'saved' });
+      bridge.action(session, 'exportDrawing', { content: pngDataUrl });
+      assert.equal(messages.at(-1).action, 'exportDrawing');
+      assert.equal(messages.at(-1).sequence, 1);
+      const accepted = messages.length;
+      api.updateHost({ id: document.id, saveState: 'writing' });
+      bridge.action(session, 'exportDrawing', { content: pngDataUrl });
+      assert.equal(messages.length, accepted, 'a late encoder must check current host metadata, not its starting snapshot');
+      api.flush('writer-active');
+      assert.deepEqual(messages.at(-1), { type: 'flushed', id: document.id, token: 'writer-active' });
+    }
+  }
+});
+
+test('temporary writing locks flush a queued editor transaction before acknowledging close', async context => {
+  const { bridge, api, messages } = await setup(context);
+  const document = documentValue('pending-transaction');
+  api.openDocument(document);
+  const session = bridge.getSnapshot().session;
+  bridge.registerFlush(session, () => bridge.changeDocument(session, 'The final queued editor transaction.'));
+  api.updateHost({ id: document.id, saveState: 'writing' });
+  assert.equal(bridge.getSnapshot().document.readOnly, false);
+  api.flush('close-with-final-input');
+  assert.deepEqual(messages.slice(1), [
+    { type: 'change', id: document.id, sequence: 1, content: 'The final queued editor transaction.' },
+    { type: 'flushed', id: document.id, token: 'close-with-final-input' },
+  ]);
+  assert.equal(bridge.getSnapshot().document.saveState, 'writing');
+});
+
+test('permanent read-only previews still reject a queued transaction during flush', async context => {
+  const { bridge, api, messages } = await setup(context);
+  const document = documentValue('permanent-preview', { readOnly: true, saveState: 'writing' });
+  api.openDocument(document);
+  const session = bridge.getSnapshot().session;
+  bridge.registerFlush(session, () => bridge.changeDocument(session, 'A forbidden preview edit.'));
+  api.flush('close-readonly');
+  assert.equal(bridge.getSnapshot().document.content, document.content);
+  assert.deepEqual(messages.slice(1), [{ type: 'flushed', id: document.id, token: 'close-readonly' }]);
+});
+
+test('an issued drawing creation may finish during writing while new creation stays blocked', async context => {
+  const { bridge, api, messages } = await setup(context);
+  const document = documentValue('pending-drawing');
+  api.openDocument(document);
+  const session = bridge.getSnapshot().session;
+  const resolved = [];
+  bridge.action(session, 'createDrawing', {}, path => {
+    resolved.push(path);
+    bridge.changeDocument(session, `![Created drawing](${path})`);
+  });
+  const issued = messages.at(-1);
+  api.updateHost({ id: document.id, saveState: 'writing' });
+  bridge.action(session, 'createDrawing', {}, () => assert.fail('A second creation must not start while writing'));
+  api.resolveAction({ id: document.id, sequence: issued.sequence, path: 'notes/created.excalidraw' });
+  api.flush('flush-created-link');
+  assert.deepEqual(resolved, ['notes/created.excalidraw']);
+  assert.deepEqual(messages.slice(1), [
+    { type: 'action', id: document.id, sequence: 1, action: 'createDrawing' },
+    { type: 'change', id: document.id, sequence: 2, content: '![Created drawing](notes/created.excalidraw)' },
+    { type: 'flushed', id: document.id, token: 'flush-created-link' },
+  ]);
+});
+
+test('pending drawing replies cannot cross read-only permission or document generation changes', async context => {
+  const { bridge, api, messages } = await setup(context);
+  const resolved = [];
+  api.openDocument(documentValue('permission-changed'));
+  bridge.action(bridge.getSnapshot().session, 'createDrawing', {}, path => resolved.push(path));
+  const permissionRequest = messages.at(-1);
+  api.updateHost({ id: 'permission-changed', readOnly: true, saveState: 'writing' });
+  api.resolveAction({ id: 'permission-changed', sequence: permissionRequest.sequence, path: 'forbidden.excalidraw' });
+  assert.deepEqual(resolved, []);
+
+  api.openDocument(documentValue('old-drawing-generation'));
+  const originalSession = bridge.getSnapshot().session;
+  bridge.action(originalSession, 'createDrawing', {}, path => resolved.push(path));
+  const staleRequest = messages.at(-1);
+  api.openDocument(documentValue('new-drawing-generation'));
+  api.resolveAction({ id: 'old-drawing-generation', sequence: staleRequest.sequence, path: 'stale.excalidraw' });
+  api.openDocument(documentValue('old-drawing-generation'));
+  assert.notEqual(bridge.getSnapshot().session.generation, originalSession.generation);
+  api.resolveAction({ id: 'old-drawing-generation', sequence: staleRequest.sequence, path: 'stale-after-reopen.excalidraw' });
+  assert.deepEqual(resolved, []);
+  assert.equal(messages.some(message => message.type === 'change'), false);
+});

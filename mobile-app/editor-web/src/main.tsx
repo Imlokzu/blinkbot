@@ -33,7 +33,7 @@ function DocumentEditor(context: EditorSnapshot) {
     document.title = t('title');
   }, [doc.theme, doc.language]);
   const status: Label = doc.readOnly ? 'readonly' : doc.saveState === 'failed' ? 'error'
-    : ['saved', 'saving', 'pending', 'error', 'conflict'].includes(doc.saveState) ? doc.saveState as Label : 'pending';
+    : ['saved', 'saving', 'pending', 'error', 'conflict', 'writing'].includes(doc.saveState) ? doc.saveState as Label : 'pending';
   const switchMode = (next: 'preview' | 'source') => { if (flushCurrent(context.session)) setMode(next); };
   return <main className="workspace-editor">
     <header className="editor-heading">

@@ -77,6 +77,7 @@ export function changeDocument(session: EditorSession, content: string) {
 
 export function action(session: EditorSession, name: EditorAction, extra: { path?: string; content?: string } = {}, resolve?: (path?: string) => void) {
   if (!currentSession(session) || !snapshot) return;
+  if (snapshot.document.saveState === 'writing' && ['createDrawing', 'convertMermaid', 'exportDrawing'].includes(name)) return;
   if (name === 'exportDrawing') {
     if (!['drawing', 'mermaid'].includes(snapshot.document.kind) || extra.path !== undefined ||
       typeof extra.content !== 'string' || !extra.content.startsWith('data:image/png;base64,')) return;

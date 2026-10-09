@@ -6,9 +6,10 @@ import { action, changeDocument, currentSession, editorError, registerFlush, typ
 import { text } from './locale';
 import { readDrawing, readMermaid, type Scene } from './drawing';
 import { MAX_EXPORT_DIMENSION, pngDataUrl } from './drawingExport';
+import { isExternal, workspacePath } from './paths';
 
-export default function DrawingEditor({ document: doc, session, embedded = false, source, onSource }: EditorSnapshot & {
-  embedded?: boolean; source?: string; onSource?: () => void;
+export default function DrawingEditor({ document: doc, session, embedded = false, source, scenePath, onSource }: EditorSnapshot & {
+  embedded?: boolean; source?: string; scenePath?: string; onSource?: () => void;
 }) {
   const [opened] = useState(source ?? doc.content);
   const [scene, setScene] = useState<Scene | null>(null);
@@ -23,7 +24,10 @@ export default function DrawingEditor({ document: doc, session, embedded = false
   const dirty = useRef(false);
   const fitted = useRef(false);
   const mermaid = !embedded && doc.kind === 'mermaid';
-  const editable = !embedded && !doc.readOnly && !mermaid;
+  // A temporary writer lock freezes controls, but an already queued edit still
+  // belongs to this document and must reach native recovery before close.
+  const canPersist = !embedded && !doc.readOnly && !mermaid;
+  const interactive = canPersist && doc.saveState !== 'writing';
   const t = (key: Parameters<typeof text>[1]) => text(doc.language, key);
   useEffect(() => () => { mounted.current = false; api.current = null; }, []);
   useEffect(() => {
@@ -42,11 +46,11 @@ export default function DrawingEditor({ document: doc, session, embedded = false
   }, [opened, mermaid, session]);
   useEffect(() => {
     if (embedded) return;
-    return registerFlush(session, () => { if (editable && dirty.current) changeDocument(session, latest.current); });
-  }, [session, editable, embedded]);
+    return registerFlush(session, () => { if (canPersist && dirty.current) changeDocument(session, latest.current); });
+  }, [session, canPersist, embedded]);
   const exportPng = async () => {
     const instance = api.current;
-    if (!instance || exportPending.current || !currentSession(session)) return;
+    if (!instance || exportPending.current || doc.saveState === 'writing' || !currentSession(session)) return;
     exportPending.current = true; setExporting(true); setExportError(null);
     try {
       const blob = await exportToBlob({
@@ -75,8 +79,8 @@ export default function DrawingEditor({ document: doc, session, embedded = false
   return <div className={embedded ? 'embedded-canvas' : 'editor-pane'} data-testid="drawing-editor">
     {!embedded && <div className="toolbar">
       <button className="text-button" onClick={() => api.current?.scrollToContent(undefined, { fitToViewport: true, viewportZoomFactor: .8 })}>{t('fit')}</button>
-      <button className="text-button" disabled={exporting} onClick={() => { void exportPng(); }}>{t(exporting ? 'exporting' : 'exportPng')}</button>
-      {mermaid && <button className="text-button" onClick={() => {
+      <button className="text-button" disabled={exporting || doc.saveState === 'writing'} onClick={() => { void exportPng(); }}>{t(exporting ? 'exporting' : 'exportPng')}</button>
+      {mermaid && <button className="text-button" disabled={doc.saveState === 'writing'} onClick={() => {
         if (latest.current) action(session, 'convertMermaid', { content: latest.current });
       }}>{t('convert')}</button>}
     </div>}
@@ -84,12 +88,15 @@ export default function DrawingEditor({ document: doc, session, embedded = false
     <div className="drawing-content">
       <Excalidraw initialData={{ ...scene, appState: { ...scene.appState, theme: doc.theme, collaborators: new Map() }, scrollToContent: true }}
         excalidrawAPI={(instance) => { api.current = instance; }}
-        theme={doc.theme} langCode={doc.language === 'uk' ? 'uk-UA' : 'en'} viewModeEnabled={!editable}
+        theme={doc.theme} langCode={doc.language === 'uk' ? 'uk-UA' : 'en'} viewModeEnabled={!interactive}
         detectScroll={false} handleKeyboardGlobally={false} validateEmbeddable={false}
         UIOptions={{ canvasActions: { loadScene: false, saveToActiveFile: false, toggleTheme: false, export: false, saveAsImage: false } }}
         onLinkOpen={(element, event) => {
           event.preventDefault();
-          if (typeof element.link === 'string') action(session, 'openExternal', { path: element.link });
+          if (typeof element.link !== 'string') return;
+          const path = workspacePath(element.link, scenePath ?? doc.path);
+          if (path) action(session, 'openWorkspace', { path });
+          else if (isExternal(element.link)) action(session, 'openExternal', { path: element.link });
         }}
         onChange={(elements, appState, files) => {
           if (!fitted.current && elements.length && api.current) {
@@ -101,7 +108,7 @@ export default function DrawingEditor({ document: doc, session, embedded = false
           if (mermaid) { latest.current = serializeAsJSON(elements, appState, files, 'local'); return; }
           const version = getSceneVersion(elements);
           if (baseline.current === null) { baseline.current = version; return; }
-          if (version === baseline.current || !editable) return;
+          if (version === baseline.current || !canPersist) return;
           baseline.current = version;
           dirty.current = true;
           latest.current = serializeAsJSON(elements, appState, files, 'local');
@@ -109,7 +116,7 @@ export default function DrawingEditor({ document: doc, session, embedded = false
         }}>
         <MainMenu>
           <MainMenu.DefaultItems.SearchMenu />
-          {editable && <MainMenu.DefaultItems.ClearCanvas />}
+          {interactive && <MainMenu.DefaultItems.ClearCanvas />}
         </MainMenu>
       </Excalidraw>
     </div>

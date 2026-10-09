@@ -39,7 +39,7 @@ function DocumentImage({ node }: NodeViewProps) {
       <button className="text-button" onClick={() => action(context.session, 'openWorkspace', { path })}>{t('openDrawing')}</button></div>
     {failed ? <p className="resource-error">{t('drawingFailed')}</p> : scene ?
       <Suspense fallback={<p className="resource-error">{t('loading')}</p>}>
-        <DrawingEditor key={path} {...context} embedded source={scene} />
+        <DrawingEditor key={path} {...context} embedded source={scene} scenePath={path} />
       </Suspense> : <p className="resource-error">{t('loading')}</p>}
   </NodeViewWrapper>;
   if (!path) return <NodeViewWrapper className="resource-error" contentEditable={false}>
@@ -73,6 +73,7 @@ const WorkspaceImage = Image.extend({
 
 function Toolbar({ editor, context }: { editor: Editor; context: EditorSnapshot }) {
   const { document: doc, session } = context;
+  const locked = doc.readOnly || doc.saveState === 'writing';
   const [dialog, setDialog] = useState<'link' | 'image' | null>(null);
   const [url, setUrl] = useState('');
   const [invalid, setInvalid] = useState(false);
@@ -86,13 +87,14 @@ function Toolbar({ editor, context }: { editor: Editor; context: EditorSnapshot 
     undo: e.can().undo(), redo: e.can().redo(),
   }) });
   const button = (label: Label, icon: string, run: () => void, active?: boolean, disabled = false) => <button key={label}
-    aria-label={t(label)} title={t(label)} aria-pressed={active} disabled={disabled}
-    onMouseDown={(event) => event.preventDefault()} onClick={run}><span aria-hidden="true">{icon}</span></button>;
+    aria-label={t(label)} title={t(label)} aria-pressed={active} disabled={disabled || locked}
+    onMouseDown={(event) => event.preventDefault()} onClick={() => { if (!locked) run(); }}><span aria-hidden="true">{icon}</span></button>;
   return <>
     <div className="toolbar" role="toolbar" aria-label={t('toolbar')}>
       {button('undo', '↶', () => { editor.chain().focus().undo().run(); }, undefined, !state.undo)}
       {button('redo', '↷', () => { editor.chain().focus().redo().run(); }, undefined, !state.redo)}
-      <select aria-label={t('paragraph')} value={state.heading} onChange={(event) => {
+      <select aria-label={t('paragraph')} value={state.heading} disabled={locked} onChange={(event) => {
+        if (locked) return;
         const level = Number(event.target.value) as 1 | 2 | 3;
         if (level) editor.chain().focus().setHeading({ level }).run(); else editor.chain().focus().setParagraph().run();
       }}><option value="0">{t('paragraph')}</option>{([1, 2, 3] as const).map((level) => <option key={level} value={level}>{t(`heading${level}`)}</option>)}</select>
@@ -125,14 +127,14 @@ function Toolbar({ editor, context }: { editor: Editor; context: EditorSnapshot 
     {creationFailed && <p className="resource-error" role="alert">{t('drawingFailed')}</p>}
     {dialog && <div className="url-panel" role="dialog" aria-label={t(dialog)}>
       <form onSubmit={(event) => {
-        event.preventDefault(); const value = url.trim();
+        event.preventDefault(); if (locked) return; const value = url.trim();
         if ((!isExternal(value) && !workspacePath(value, doc.path)) || /\s/.test(value)) { setInvalid(true); return; }
         if (dialog === 'image') editor.chain().focus().setImage({ src: value }).run();
         else editor.chain().focus().extendMarkRange('link').setLink({ href: value }).run();
         setDialog(null);
-      }}><label>{t('url')}<input autoFocus value={url} onChange={(event) => setUrl(event.target.value)} /></label>
+      }}><label>{t('url')}<input autoFocus value={url} disabled={locked} onChange={(event) => setUrl(event.target.value)} /></label>
         {invalid && <p role="alert">{t('invalidUrl')}</p>}
-        <div><button type="button" className="text-button" onClick={() => setDialog(null)}>{t('cancel')}</button><button className="text-button primary" type="submit">{t('insert')}</button></div>
+        <div><button type="button" className="text-button" onClick={() => setDialog(null)}>{t('cancel')}</button><button className="text-button primary" type="submit" disabled={locked}>{t('insert')}</button></div>
       </form>
     </div>}
   </>;
@@ -142,13 +144,14 @@ export default function RichEditor(context: EditorSnapshot) {
   const { document: doc, session } = context;
   const [opened] = useState(doc.content);
   const touched = useRef(false);
+  const locked = doc.readOnly || doc.saveState === 'writing';
   const editor = useEditor({
     extensions: [StarterKit.configure({ link: { openOnClick: false } }), Markdown, TableKit.configure({ table: { resizable: true } }), TaskList, TaskItem.configure({ nested: true }), WorkspaceImage],
-    content: opened, contentType: 'markdown', editable: !doc.readOnly, immediatelyRender: false,
+    content: opened, contentType: 'markdown', editable: !locked, immediatelyRender: false,
     editorProps: { attributes: { class: 'prose-note', 'aria-label': text(doc.language, 'document') } },
     onUpdate: ({ editor: instance }) => { touched.current = true; changeDocument(session, instance.getMarkdown()); },
   });
-  useEffect(() => { editor?.setEditable(!doc.readOnly, false); }, [editor, doc.readOnly]);
+  useEffect(() => { editor?.setEditable(!locked, false); }, [editor, locked]);
   useEffect(() => registerFlush(session, () => {
     if (editor && !editor.isDestroyed && touched.current) changeDocument(session, editor.getMarkdown());
   }), [editor, session]);

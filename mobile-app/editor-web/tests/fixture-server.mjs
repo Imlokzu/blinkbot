@@ -44,6 +44,9 @@ export async function startFixtureServer() {
     ['/workspace/session/notes/old.png', pixel],
     ['/workspace/notes/shared.png', pixel],
     ['/workspace/notes/nested/note.md.drawings/new.excalidraw', { type: 'application/json', body: JSON.stringify({ elements: [] }) }],
+    ['/workspace/notes/nested/note.md.drawings/pending.excalidraw', { type: 'application/json', body: JSON.stringify({ elements: [
+      { type: 'text', x: 0, y: 0, text: 'Created drawing', fontSize: 20, fontFamily: 5 },
+    ] }) }],
   ]);
   const server = createServer(async (request, response) => {
     const entry = { method: request.method, path: request.url, status: 500,

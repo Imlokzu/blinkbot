@@ -63,6 +63,11 @@ the same strings through `webkit.messageHandlers.BlinkNative.postMessage`.
 `updateHost({id, readOnly?, theme?, language?, saveState?})` updates metadata.
 Content echoes are deliberately ignored: native save acknowledgements must not
 replace newer typing or reset selection. Reloaded file contents require a new ID.
+`readOnly` is a permanent permission. A temporary AI writer uses
+`saveState:"writing"` to freeze interaction and create/convert/export actions,
+while queued final editor transactions and close flushing still reach native
+local recovery. Native suppresses server autosave until the writer finishes;
+the temporary lock must never be represented by toggling `readOnly`.
 
 Edits emit `{type:"change",id,sequence,content}` immediately. Actions share the
 same monotonic per-document sequence and emit `{type:"action",id,sequence,
@@ -82,6 +87,8 @@ Supported actions are:
   Both canvas dimensions are capped at 4096 pixels and the encoded message at
   2,000,000 UTF-8 bytes. Export never rewrites the source or embeds its scene JSON.
   Size/render failures are localized, nonfatal alerts inside the editor.
+  Export is disabled while the host reports `saveState:"writing"`; a delayed
+  encoder result also checks the latest host state before issuing an action.
 - `retry`: asks the host to reopen the failed editor.
 
 Markdown uses the same deterministic path convention as the web workbench:
@@ -97,6 +104,9 @@ Local GET requests encode each canonical path segment separately under
 `/workspace/`. Native validates the path and serves allowed image/scene bytes.
 Embedded drawings have a real read-only canvas plus an Open drawing action;
 editing occurs in the native-owned drawing document with normal revision checks.
+Scene hyperlinks use the same validated path/HTTPS routing on an explicit click.
+Embedded scene links resolve against the scene file, not the surrounding note;
+Excalidraw never opens a browser window or navigates the trusted editor itself.
 
 `flush(token)` drains the active editor, then emits `{type:"flushed",id,token}`.
 Oversized unsent content or serialization failures withhold that acknowledgement,

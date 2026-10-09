@@ -173,6 +173,63 @@ try {
     assert.equal((await changes(document.id)).length, count, 'failed save status must retain the same local draft');
   });
 
+  await scenario('Writing locks rich input while preserving a queued genuine Tiptap transaction through flush', async () => {
+    const document = documentValue('rich-pending-lock', 'markdown', '# Pending note\n\nLast accepted input.');
+    await openDocument(document, rich);
+    await expectNoRewrite(document);
+    await evaluate(`const editor = document.querySelector('.prose-note').editor;
+      if (!editor?.view) throw new Error('The real Tiptap editor must be mounted');
+      window.__fixture.pendingRichInput = { editor, transaction: editor.state.tr.insertText(' Queued final input.', editor.state.doc.content.size - 1) };`);
+    await evaluate(`window.BlinkWorkspace.updateHost({ id: ${JSON.stringify(document.id)}, saveState: 'writing' })`);
+    await browser('wait', '--fn', 'document.querySelector(".prose-note")?.getAttribute("contenteditable") === "false"');
+    assert.equal(await evaluate('return [...document.querySelectorAll("[data-testid=rich-editor] [role=toolbar] button, [data-testid=rich-editor] [role=toolbar] select")].some(control => control.getClientRects().length && !control.disabled)'), false, 'formatting and drawing creation must stop accepting new input');
+    await expectNoRewrite(document);
+    await evaluate('const pending = window.__fixture.pendingRichInput; pending.editor.view.dispatch(pending.transaction)');
+    const events = await flush(document.id, 'flush-queued-rich-input');
+    const editIndex = events.findLastIndex(message => message.type === 'change' && message.id === document.id);
+    const flushIndex = events.findIndex(message => message.type === 'flushed' && message.id === document.id && message.token === 'flush-queued-rich-input');
+    assert.ok(editIndex >= 0 && editIndex < flushIndex, 'the real editor transaction must precede native close acknowledgement');
+    assert.match(events[editIndex].content, /Last accepted input\. Queued final input\./);
+    assert.equal(await evaluate('return document.querySelector(".prose-note").getAttribute("contenteditable")'), 'false');
+    await evaluate(`window.BlinkWorkspace.updateHost({ id: ${JSON.stringify(document.id)}, saveState: 'saved' })`);
+    await browser('wait', rich);
+    assert.match(await evaluate(`return ${query(rich)}.textContent`), /Queued final input\./);
+
+    const preview = documentValue('permanent-rich-preview', 'markdown', 'Permanent preview.', { readOnly: true, saveState: 'writing' });
+    await openDocument(preview, '.prose-note[contenteditable=false]');
+    await evaluate(`const editor = document.querySelector('.prose-note').editor;
+      editor.view.dispatch(editor.state.tr.insertText(' Must never save.', editor.state.doc.content.size - 1));`);
+    await expectNoRewrite(preview);
+  });
+
+  await scenario('Writing metadata freezes source and canvas controls without rewriting their initial content', async () => {
+    const sourceDocument = documentValue('source-writing-lock', 'code', 'const untouched = 1;\n', { path: 'src/untouched.ts' });
+    await openDocument(sourceDocument, source);
+    await expectNoRewrite(sourceDocument);
+    await evaluate(`window.BlinkWorkspace.updateHost({ id: ${JSON.stringify(sourceDocument.id)}, saveState: 'writing' })`);
+    await browser('wait', '--fn', `${query(source)}?.getAttribute('contenteditable') === 'false'`);
+    assert.equal(await evaluate('return [...document.querySelectorAll("[data-testid=source-editor] button")].some(button => ["Undo", "Redo"].includes(button.getAttribute("aria-label")) && button.getClientRects().length && !button.disabled)'), false);
+    await expectNoRewrite(sourceDocument);
+    await evaluate(`window.BlinkWorkspace.updateHost({ id: ${JSON.stringify(sourceDocument.id)}, saveState: 'saved' })`);
+    await browser('wait', '--fn', `${query(source)}?.getAttribute('contenteditable') === 'true'`);
+    await expectNoRewrite(sourceDocument);
+
+    for (const kind of ['drawing', 'mermaid']) {
+      const content = kind === 'drawing' ? '{"elements":[]}' : 'flowchart LR\n A[Locked] --> B[Writer]';
+      const document = documentValue(`canvas-writing-${kind}`, kind, content);
+      await openDocument(document, `${drawing} canvas`);
+      await expectNoRewrite(document);
+      await evaluate(`window.BlinkWorkspace.updateHost({ id: ${JSON.stringify(document.id)}, saveState: 'writing' })`);
+      await browser('wait', '--fn', '!document.querySelector("[data-testid=toolbar-rectangle]") || document.querySelector("[data-testid=toolbar-rectangle]").disabled');
+      assert.equal(await evaluate('return [...document.querySelectorAll("button")].some(button => ["Export PNG", "Save as drawing"].includes(button.textContent.trim()) && !button.disabled)'), false, 'export and Mermaid conversion must stay blocked during the write');
+      await expectNoRewrite(document);
+      await evaluate(`window.BlinkWorkspace.updateHost({ id: ${JSON.stringify(document.id)}, saveState: 'saved' })`);
+      if (kind === 'drawing') await browser('wait', '[data-testid=toolbar-rectangle]');
+      else await browser('wait', '--fn', '[...document.querySelectorAll("button")].some(button => button.textContent.trim() === "Save as drawing" && !button.disabled)');
+      await expectNoRewrite(document);
+    }
+  });
+
   await scenario('Immediate close flush delivers the last edit before its acknowledgement', async () => {
     const document = documentValue('close-flush', 'text', 'Starting value');
     await openDocument(document, source);
@@ -243,6 +300,53 @@ try {
     assert.equal(opened.path, path, 'embedded links return canonical workspace paths to native');
   });
 
+  await scenario('Issued drawing creation survives a writing lock but rejects read-only and stale replies', async () => {
+    const path = 'notes/nested/note.md.drawings/pending.excalidraw';
+    const beginCreation = async id => {
+      const document = documentValue(id, 'markdown', '# Pending drawing\n\nKeep this text.', { path: 'notes/nested/note.md' });
+      await openDocument(document, rich);
+      await expectNoRewrite(document);
+      await evaluate(`const editable = ${query(rich)}; editable.focus();
+        const selection = getSelection(); selection.selectAllChildren(editable); selection.collapseToEnd()`);
+      await clickButton('New drawing');
+      await browser('wait', '--fn', `window.__fixture.messages.some(message => message.id === ${JSON.stringify(id)} && message.type === 'action' && message.action === 'createDrawing')`);
+      return { document, request: (await messages()).find(message => message.id === id && message.action === 'createDrawing') };
+    };
+    const pending = await beginCreation('drawing-created-during-lock');
+    await evaluate(`window.BlinkWorkspace.updateHost({ id: ${JSON.stringify(pending.document.id)}, saveState: 'writing' })`);
+    await browser('wait', '.prose-note[contenteditable=false]');
+    assert.equal(await evaluate(`return ${query('button[aria-label="New drawing"]')}.disabled`), true);
+    await evaluate(`window.BlinkWorkspace.resolveAction(${JSON.stringify({ id: pending.document.id, sequence: pending.request.sequence, path })})`);
+    await browser('wait', '.document-drawing canvas');
+    const events = await flush(pending.document.id, 'pending-drawing-saved');
+    const changeIndex = events.findLastIndex(message => message.id === pending.document.id && message.type === 'change');
+    const flushIndex = events.findIndex(message => message.id === pending.document.id && message.type === 'flushed' && message.token === 'pending-drawing-saved');
+    assert.ok(changeIndex >= 0 && changeIndex < flushIndex);
+    assert.ok(events[changeIndex].sequence > pending.request.sequence);
+    assert.match(events[changeIndex].content, /!\[[^\]]*\]\(\.\/note\.md\.drawings\/pending\.excalidraw\)/);
+    assert.match(events[changeIndex].content, /Keep this text\./);
+    assert.equal(await evaluate('return document.querySelector(".prose-note").getAttribute("contenteditable")'), 'false');
+    await evaluate(`${query('button[aria-label="New drawing"]')}.click()`);
+    assert.equal((await messages()).filter(message => message.id === pending.document.id && message.action === 'createDrawing').length, 1);
+
+    const revoked = await beginCreation('drawing-permission-revoked');
+    await evaluate(`window.BlinkWorkspace.updateHost({ id: ${JSON.stringify(revoked.document.id)}, readOnly: true, saveState: 'writing' });
+      window.BlinkWorkspace.resolveAction(${JSON.stringify({ id: revoked.document.id, sequence: revoked.request.sequence, path })});`);
+    await browser('wait', '.prose-note[contenteditable=false]');
+    await expectNoRewrite(revoked.document);
+    assert.equal(await evaluate('return document.querySelector(".document-drawing") === null'), true);
+
+    const stale = await beginCreation('drawing-old-generation');
+    const replacement = documentValue('drawing-new-generation', 'markdown', 'New generation content.', { path: stale.document.path });
+    await openDocument(replacement, rich);
+    await evaluate(`window.BlinkWorkspace.resolveAction(${JSON.stringify({ id: stale.document.id, sequence: stale.request.sequence, path })})`);
+    await settle();
+    await expectNoRewrite(replacement);
+    assert.deepEqual(await changes(stale.document.id), []);
+    assert.equal(await evaluate(`return ${query(rich)}.textContent`), replacement.content);
+    assert.equal(await evaluate('return document.querySelector(".document-drawing") === null'), true);
+  });
+
   await scenario('Malformed drawings report an error and never overwrite their source', async () => {
     const document = documentValue('invalid-scene', 'drawing', '{"elements": [broken');
     await openDocument(document);
@@ -296,7 +400,11 @@ try {
     await browser('mouse', 'up');
     await browser('wait', '--fn', `window.__fixture.messages.some(message => message.type === 'change' && message.id === ${JSON.stringify(document.id)} && JSON.parse(message.content).elements.some(element => element.type === 'rectangle'))`);
     assert.equal(await evaluate(zoomValue), zoomBefore, 'drawing the first shape must not auto-fit a partially drawn element');
+    await evaluate(`window.BlinkWorkspace.updateHost({ id: ${JSON.stringify(document.id)}, saveState: 'writing' })`);
+    await browser('wait', '--fn', '!document.querySelector("[data-testid=toolbar-rectangle]")');
     await flush(document.id, 'drawing-save');
+    await evaluate(`window.BlinkWorkspace.updateHost({ id: ${JSON.stringify(document.id)}, saveState: 'saved' })`);
+    await browser('wait', '[data-testid=toolbar-rectangle]');
     await screenshot('drawing-desktop');
     const saved = (await latestChange(document.id)).content;
     const scene = JSON.parse(saved);
@@ -322,6 +430,53 @@ try {
     await evaluate('await document.fonts.ready');
     await expectNoRewrite(document);
     await screenshot('drawing-text-phone');
+  });
+
+  await scenario('Scene hyperlinks delegate owned paths and HTTPS to native without navigating the editor', async () => {
+    await browser('set', 'viewport', '900', '800');
+    await evaluate(`window.__fixture.sceneLinkClicks = [];
+      document.addEventListener('click', event => {
+        const link = event.target.closest?.('.excalidraw-hyperlinkContainer-link');
+        if (link) window.__fixture.sceneLinkClicks.push({ event, href: link.getAttribute('href') });
+      }, true);`);
+    for (const [index, entry] of [
+      { link: './target.md', action: 'openWorkspace', path: 'notes/diagrams/target.md' },
+      { link: '/preview/site/index.html', action: 'openWorkspace', path: 'site/index.html' },
+      { link: 'session/notes.md', action: 'openWorkspace', path: 'session/notes.md' },
+      { link: 'https://fixture.invalid/reference', action: 'openExternal', path: 'https://fixture.invalid/reference' },
+      { link: 'javascript:window.__sceneLinkExecuted=true', action: null },
+    ].entries()) {
+      const document = documentValue(`scene-hyperlink-${index}`, 'drawing', JSON.stringify({
+        elements: [{ id: 'linked-shape', type: 'rectangle', x: 0, y: 0, width: 240, height: 120, link: entry.link }],
+        appState: { selectedElementIds: { 'linked-shape': true }, showHyperlinkPopup: 'info' },
+      }), { path: 'notes/diagrams/scene.excalidraw' });
+      await openDocument(document, `${drawing} canvas`);
+      await browser('wait', '.excalidraw-hyperlinkContainer-link');
+      await expectNoRewrite(document);
+      const location = (await browser('get', 'url')).trim();
+      const clicksBefore = await evaluate('return window.__fixture.sceneLinkClicks.length');
+      // Activate the real anchor directly: Excalidraw repositions its floating
+      // popup after fit/resize, so a cached pointer coordinate can hit the canvas.
+      await evaluate(`const link = document.querySelector('.excalidraw-hyperlinkContainer-link');
+        if (!link?.getClientRects().length) throw new Error('The scene hyperlink must be visible');
+        link.click();`);
+      await settle();
+      assert.equal((await browser('get', 'url')).trim(), location);
+      const clicks = await evaluate('return window.__fixture.sceneLinkClicks.map(click => ({ prevented: click.event.defaultPrevented, href: click.href }))');
+      assert.equal(clicks.length, clicksBefore + 1, 'the rendered Excalidraw hyperlink must receive the click');
+      assert.equal(clicks.at(-1).prevented, true, 'native routing must cancel browser link navigation');
+      const actions = (await messages()).filter(message => message.type === 'action' && message.id === document.id);
+      if (entry.action) {
+        assert.equal(actions.length, 1);
+        assert.equal(actions[0].action, entry.action);
+        assert.equal(actions[0].path, entry.path);
+      } else {
+        assert.deepEqual(actions, [], 'unsafe link schemes cannot become native actions');
+        assert.equal(await evaluate('return window.__sceneLinkExecuted === true'), false);
+      }
+      await expectNoRewrite(document);
+    }
+    await browser('set', 'viewport', '390', '844');
   });
 
   await scenario('Editable and read-only drawings and Mermaid export real PNGs without changing source', async () => {
@@ -385,6 +540,46 @@ try {
     } finally {
       await evaluate('HTMLCanvasElement.prototype.toBlob = window.__fixture.exportGate.original');
     }
+  });
+
+  await scenario('PNG export stays disabled during writing and drops an encoder overtaken by a host update', async () => {
+    const document = documentValue('png-writing', 'drawing', JSON.stringify({ elements: [
+      { type: 'rectangle', x: 0, y: 0, width: 220, height: 100 },
+      { type: 'text', x: 20, y: 30, text: 'Writer-owned scene', fontSize: 20, fontFamily: 5 },
+    ] }), { saveState: 'writing' });
+    await openDocument(document, `${drawing} canvas`);
+    await evaluate(`const original = HTMLCanvasElement.prototype.toBlob;
+      const gate = window.__fixture.writingExportGate = { original, pending: [], calls: 0 };
+      HTMLCanvasElement.prototype.toBlob = function(callback, ...args) {
+        gate.calls += 1; const canvas = this;
+        gate.pending.push(() => new Promise(resolve => original.call(canvas, blob => { callback(blob); resolve(); }, ...args)));
+      };`);
+    const exportButton = `[...document.querySelectorAll('button')].find(button => button.textContent.trim() === 'Export PNG')`;
+    try {
+      assert.equal(await evaluate(`return ${exportButton}?.disabled`), true);
+      await evaluate(`${exportButton}.click()`);
+      await settle();
+      assert.equal(await evaluate('return window.__fixture.writingExportGate.calls'), 0);
+      await evaluate(`window.BlinkWorkspace.updateHost({ id: ${JSON.stringify(document.id)}, saveState: 'saved' })`);
+      await browser('wait', '--fn', `${exportButton}?.disabled === false`);
+      await clickButton('Export PNG');
+      await browser('wait', '--fn', 'window.__fixture.writingExportGate.pending.length === 1');
+      await evaluate(`window.BlinkWorkspace.updateHost({ id: ${JSON.stringify(document.id)}, saveState: 'writing' })`);
+      await evaluate('await Promise.all(window.__fixture.writingExportGate.pending.splice(0).map(release => release()))');
+      await browser('wait', '--fn', `${exportButton}?.disabled === true`);
+      assert.deepEqual((await messages()).filter(message => message.id === document.id && ['action', 'error', 'change'].includes(message.type)), [], 'an in-flight export must honor the latest writing metadata');
+      await expectNoRewrite(document);
+    } finally {
+      await evaluate('HTMLCanvasElement.prototype.toBlob = window.__fixture.writingExportGate.original');
+    }
+    await evaluate(`window.BlinkWorkspace.updateHost({ id: ${JSON.stringify(document.id)}, saveState: 'saved' })`);
+    await browser('wait', '--fn', `${exportButton}?.disabled === false`);
+    await clickButton('Export PNG');
+    await browser('wait', '--fn', `window.__fixture.messages.some(message => message.type === 'action' && message.action === 'exportDrawing' && message.id === ${JSON.stringify(document.id)})`);
+    const exports = (await messages()).filter(message => message.id === document.id && message.type === 'action');
+    assert.equal(exports.length, 1);
+    pngBytes(exports[0], document.id);
+    await expectNoRewrite(document);
   });
 
   await scenario('PNG failures stay local, preserve flushing and recover on the next real export', async () => {
