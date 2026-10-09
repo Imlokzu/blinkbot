@@ -2740,3 +2740,28 @@ reproduced the behaviors. All 227 dashboard tests, TypeScript, and 20 focused
 backend tests passed. Independent review and isolated real-router smoke evidence
 and limits are recorded in `VALIDATION.md`. Other agents' unfinished work stays
 outside this audit commit; no credentials or personal runtime data were used.
+
+
+## 2026-10-09 — October 8–9 audit repairs
+
+Fixed all nine findings: installed-package sandbox/provenance, recoverable
+source promotion, corrupt ZIP rejection, bounded round-trip exports, DOCX
+declaration rejection across encodings, valid free-text questions, reliable
+answer receipts, revision-checked checklist state and canonical tool UI replay.
+Busy answers remain editable; accepted answers carry source call/option/value
+metadata in the same atomic transcript write and cannot be sent twice on retry.
+Independent review also closed ID aliases, routing/recovery ordering, namespace
+compatibility, overlay replacement and receipt redaction/Unicode edge cases.
+
+Validation: 1,668 backend tests passed, eight skipped and 178 subtests;
+231 dashboard tests, TypeScript, frozen-source build and real React browser
+regressions passed. Actual-app smoke passed 35 checks; all 155 newly published
+dashboard resources returned 200. Traversal guards return 400 and mobile-host
+authentication remains 401. Review verdicts: APPROVE / CLEAR using supported
+maximum-effort native reviewers because Fable/installed models were unavailable.
+
+Source and release are pushed on main. The guarded dashboard release points
+to source afc2ebe3; the registered backend was reloaded with zero active mobile
+jobs. Test processes are stopped and the Mac remains muted. Other agents'
+pending changes, including required untracked integration build support, were
+preserved. Full repair and evidence record: reports/audit-fixes-2026-10-09.md.
