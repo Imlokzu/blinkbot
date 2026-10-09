@@ -274,6 +274,7 @@ def append(
     participant: str = "",
     parts: list | None = None,
     reaction: str | None = None,
+    tool_answer: dict | None = None,
 ) -> tuple[str, str] | None:
     """
     Дописує обмін до історії сесії (створює файл за потреби).
@@ -312,6 +313,7 @@ def append(
         **({"attachments": attachments[:8]} if attachments else {}),
         **({"participant": human["name"]} if human else {}),
         **({"reaction": reaction} if reaction else {}),
+        **({"tool_answer": tool_answer} if tool_answer else {}),
     })
     data["messages"].append({
         "id": assistant_id,

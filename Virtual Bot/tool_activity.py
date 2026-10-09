@@ -43,6 +43,41 @@ def safe_payload(value):
     return clean if len(encoded) <= 8000 else encoded[:8000] + "…"
 
 
+def bounded_ui_text(value, limit: int) -> str:
+    """Redact before publication, without cutting a redaction marker in half."""
+    clean = redact(" ".join(str(value or "").split()))
+    bounded = clean[:limit]
+    marker = clean.rfind("[redacted]", 0, limit + len("[redacted]"))
+    if 0 <= marker < limit < marker + len("[redacted]"):
+        bounded = clean[:marker]
+    return bounded.rstrip()
+
+
+def safe_result_payload(value):
+    """Lift UI receipts out of transport wrappers before depth redaction."""
+    candidates = [value]
+    if isinstance(value, dict):
+        candidates.extend([value.get("result"), value.get("structuredContent")])
+        for block in value.get("content", []) if isinstance(value.get("content"), list) else []:
+            if isinstance(block, dict) and block.get("type") == "text":
+                try:
+                    parsed = json.loads(str(block.get("text", ""))[:8000])
+                except ValueError:
+                    continue
+                candidates.append(parsed)
+                if isinstance(parsed, dict):
+                    candidates.append(parsed.get("result"))
+    for candidate in candidates:
+        ui = candidate.get("ui") if isinstance(candidate, dict) else None
+        if (isinstance(ui, dict) and ui.get("version") == 1
+                and ui.get("kind") in {"question", "choice", "todo"}):
+            # Keep the bounded receipt at the same depth regardless of transport.
+            clean = safe_payload({"ok": not result_failed(value), "ui": ui})
+            if isinstance(clean, dict):
+                return clean
+    return safe_payload(value)
+
+
 def detail_for(args: dict) -> str:
     if not isinstance(args, dict):
         return ""
@@ -110,7 +145,7 @@ class ActivityLog:
         if detail:
             step["detail"] = redact(str(detail))[:240]
         if "result" in event:
-            step["result"] = safe_payload(event["result"])
+            step["result"] = safe_result_payload(event["result"])
         if kind in ("tool_done", "tool_result", "tool_error"):
             step["status"] = "failed" if (kind == "tool_error" or event.get("is_error")
                                              or result_failed(event.get("result"))) else "done"

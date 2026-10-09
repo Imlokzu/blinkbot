@@ -70,6 +70,7 @@ export interface ChatHandlers {
 }
 
 export interface ChatPayload {
+  tool_answer?: { owner_id?: string; call_id: string; option_id: string; value: string; expected_revision: number };
   message: string;
   session_id?: string;
   attachments?: ChatAttachment[];

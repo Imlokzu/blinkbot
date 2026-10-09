@@ -15,6 +15,7 @@ import { useToast } from '@/components/ui/Toaster';
 import { estimateTokens } from './tokens';
 import type { ChatMessage, SessionDetail, SessionSummary, ToolStep } from './types';
 import { readChatSelection, rememberChatSelection } from './chatNavigation';
+import type { ChatSubmission, ToolAnswerRequest } from './chatSubmission';
 
 /*
  * Зшивання нашого бекенда з assistant-ui.
@@ -196,10 +197,12 @@ export function useChatRuntime(project = '') {
   }, [client, project]);
 
   const send = useCallback(
-    async (text: string, attachments: unknown[] = []) => {
+    async (text: string, attachments: unknown[] = [], expectedSession?: string, toolAnswer?: ToolAnswerRequest): Promise<ChatSubmission> => {
+      if (expectedSession !== undefined && expectedSession !== sessionIdRef.current) return { accepted: false, reason: 'stale' };
       const trimmed = text.trim() || (attachments.length ? uploadT('upload.filePrompt') : '');
-      if (!trimmed || abortRef.current) return;
-      if (queuedTicket.current) { toast.error(chatT('composer.waitHistory')); return; }
+      if (!trimmed) return { accepted: false, reason: 'empty' };
+      if (abortRef.current) return { accepted: false, reason: 'busy' };
+      if (queuedTicket.current) { toast.error(chatT('composer.waitHistory')); return { accepted: false, reason: 'busy' }; }
       const pendingHistory = restoration.current;
       const selectedGeneration = generation.current;
       if (pendingHistory) {
@@ -208,8 +211,9 @@ export function useChatRuntime(project = '') {
         setQueuedSend(true);
         try {
           await pendingHistory;
-          if (queuedTicket.current !== ticket || selectedGeneration !== generation.current || abortRef.current) return;
-        } catch { return; }
+          if (queuedTicket.current !== ticket || selectedGeneration !== generation.current) return { accepted: false, reason: 'stale' };
+          if (abortRef.current) return { accepted: false, reason: 'busy' };
+        } catch { return { accepted: false, reason: 'failed' }; }
         finally {
           if (queuedTicket.current === ticket) {
             queuedTicket.current = null;
@@ -248,6 +252,7 @@ export function useChatRuntime(project = '') {
       setStreamModel('');
 
       let terminal = false;
+      let submission: ChatSubmission = { accepted: false, reason: 'failed' };
       const updateTimeline = (next: LiveEntry[]) => {
         timelineRef.current = next;
         setTimeline(next);
@@ -276,6 +281,7 @@ export function useChatRuntime(project = '') {
       await streamChat(
         {
           message: trimmed,
+          ...(toolAnswer ? { tool_answer: toolAnswer } : {}),
           session_id: targetSession || undefined,
           attachments: safeAttachments,
           // reasoning_effort тут більше не шлемо. Він діяв лише на прямий
@@ -321,6 +327,9 @@ export function useChatRuntime(project = '') {
           onDone: (result) => {
             if (!isCurrent() || terminal) return;
             terminal = true;
+            if (result.user_message_id && result.session_id) {
+              submission = { accepted: true, messageId: result.user_message_id, sessionId: result.session_id };
+            }
             replySettled.current = true;
             const finished = result.steps ?? finishActivity(stepsRef.current);
             const parts = restoreParts(result.parts, result.reply, finished);
@@ -373,6 +382,7 @@ export function useChatRuntime(project = '') {
       });
 
       if (abortRef.current === controller) abortRef.current = null;
+      return submission;
     },
     [client, sessionId, toast, setSessionId],
   );

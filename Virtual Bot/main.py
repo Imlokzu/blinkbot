@@ -62,6 +62,7 @@ import brains
 import chat_bubbles
 import screen_widgets
 import chat_store
+import chat_interactions
 import openclaw_config
 import jev_router
 import openclaw_models
@@ -536,6 +537,7 @@ async def api_auth_config():
 # ------------------------------------------------------------------ моделі
 
 class ChatRequest(BaseModel):
+    tool_answer: chat_interactions.AnswerRequest | None = None
     # 8000 було замало: вставлений у чат уривок статті просто відскакував 422-ю
     # («String should have at most 8000 characters»), і на екрані це виглядало
     # як мовчання бота. 32000 ≈ 8k токенів — вміщається у контекст будь-якого
@@ -1979,6 +1981,7 @@ def _save_history(
     parts: list | None = None,
     reaction: str | None = None,
     mobile_model: dict | None = None,
+    tool_answer: chat_interactions.AnswerRequest | None = None,
 ) -> tuple[str, str] | None:
     """Append a turn to shared history, including mobile model disclosure."""
     history.append({"role": "user", "content": _participant_message(user, participant_name)})
@@ -1995,6 +1998,7 @@ def _save_history(
         ids = chat_store.append(
             sid, user, assistant, steps, attachments, participant_name,
             parts=parts, reaction=reaction,
+            tool_answer=tool_answer.model_dump(exclude={"expected_revision"}) if tool_answer else None,
         )
         if ids and mobile_model:
             mobile_bridge.persist_model(sid, ids[1], mobile_model)
@@ -2244,6 +2248,10 @@ async def api_chat(request: Request, req: ChatRequest):
 
 async def chat_turn(req: ChatRequest, clerk_uid: str, turn_source: str = "chat", on_note=None):
     """Use the same conversation lease for phone, PC, and messenger requests."""
+    if req.tool_answer and (req.session_id != req.session_id.strip() or not chat_store.is_valid_id(req.session_id)):
+        raise HTTPException(400, detail={"code": "interaction_invalid"})
+    if req.tool_answer and req.tool_answer.owner_id != clerk_uid:
+        raise HTTPException(403, detail={"code": "interaction_owner_changed"})
     return await mobile_bridge.serialized_turn(req, clerk_uid, turn_source, _chat_turn_unlocked, on_note=on_note)
 
 
@@ -2281,6 +2289,12 @@ async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str
     except chat_attachments.AttachmentError as exc:
         raise HTTPException(status_code=400, detail=exc.code) from exc
     sid = _get_or_create_session_id(req)
+    if req.tool_answer:
+        with brain_context.set_clerk_user(clerk_uid):
+            try:
+                await asyncio.to_thread(chat_interactions.validate_answer, sid, req.tool_answer, message)
+            except chat_interactions.InteractionError as error:
+                raise HTTPException(error.status, detail={"code": error.code}) from error
     participant_name = chat_store.normalize_participant_name(req.participant_name)
     if participant_name:
         # Прямий API-клієнт може пропустити UI-крок «приєднатися», але агент
@@ -2364,6 +2378,7 @@ async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str
                 sid, history, message, reply,
                 attachments=req.attachments, participant_name=participant_name,
                 parts=parts, reaction=reaction,
+                tool_answer=req.tool_answer,
             )
             # Назву чату генеруємо у фоні — відповідь на неї не чекає
             mobile_api.create_background_task(_autoname_chat(sid, message, reply))
@@ -2608,6 +2623,7 @@ async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str
                     attachments=req.attachments, participant_name=participant_name,
                     parts=parts, reaction=reaction["emoji"],
                     mobile_model=mobile_model,
+                    tool_answer=req.tool_answer,
                 )
                 saved = True
                 mobile_api.create_background_task(_autoname_chat(sid, message, reply))
@@ -2693,7 +2709,7 @@ async def _chat_turn_unlocked(req: ChatRequest, clerk_uid: str, turn_source: str
                                   steps=activity.finish(), attachments=req.attachments,
                                   participant_name=participant_name,
                                   parts=build_parts(partial), reaction=reaction["emoji"],
-                                  mobile_model=mobile_model)
+                                  mobile_model=mobile_model, tool_answer=req.tool_answer)
                     trace_log.end_turn(error="interrupted")
                 await asyncio.gather(chat_task, return_exceptions=True)
 
@@ -4508,6 +4524,10 @@ import mobile_workspace
 app.include_router(mobile_workspace.router(_require_user, resolve_file=workspace._resolve))
 import mobile_web_preview
 app.include_router(mobile_web_preview.router(_require_user, resolve_file=workspace._resolve))
+
+
+# Interaction state shares the owner and conversation namespace of history.
+app.include_router(chat_interactions.router(_require_user))
 
 
 @app.get("/{asset_path:path}", include_in_schema=False)

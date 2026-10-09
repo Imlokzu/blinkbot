@@ -18,6 +18,7 @@ import uuid
 import events
 import brain_context
 from tools.locales import t
+from tool_activity import bounded_ui_text
 
 log = logging.getLogger("virtual_bot.tools.ui")
 
@@ -26,7 +27,12 @@ MAX_ITEMS = 20
 
 
 def _clean(text: object, limit: int = 200) -> str:
-    return " ".join(str(text or "").split())[:limit]
+    return bounded_ui_text(text, limit)
+
+
+def _descriptor(kind: str, payload: dict) -> dict:
+    """Return the same bounded descriptor that live UI consumers receive."""
+    return {"version": 1, "id": payload["id"], "kind": kind, "data": payload}
 
 
 async def ask_question(
@@ -45,12 +51,14 @@ async def ask_question(
         "id": uuid.uuid4().hex[:12],
         "question": text,
         "options": items,
+        "option_ids": [f"option-{index}" for index in range(len(items))],
         "allow_custom": bool(allow_custom),
     }
     events.publish_ui("question", payload, audience=brain_context.get_active_clerk_user())
     return {
         "ok": True,
         "shown": "question",
+        "ui": _descriptor("question", payload),
         "note": "Питання показано користувачу кнопками. Його відповідь прийде звичайним повідомленням — просто чекай на неї, не перепитуй текстом.",
     }
 
@@ -66,12 +74,12 @@ async def todo_list(title: str = "", items: list | None = None) -> dict:
             text = _clean(item)
             done = False
         if text:
-            entries.append({"text": text, "done": done})
+            entries.append({"id": f"item-{len(entries)}", "text": text, "done": done})
     if not entries:
         return {"error": "Потрібен хоча б один пункт"}
     payload = {"id": uuid.uuid4().hex[:12], "title": _clean(title, 120), "items": entries}
     events.publish_ui("todo", payload, audience=brain_context.get_active_clerk_user())
-    return {"ok": True, "shown": "todo", "count": len(entries)}
+    return {"ok": True, "shown": "todo", "count": len(entries), "ui": _descriptor("todo", payload)}
 
 
 async def show_choice(title: str, options: list) -> dict:
@@ -84,12 +92,13 @@ async def show_choice(title: str, options: list) -> dict:
         else:
             label, desc = _clean(option, 80), ""
         if label:
-            cards.append({"label": label, "description": desc})
+            cards.append({"id": f"option-{len(cards)}", "label": label, "description": desc})
     if not cards:
         return {"error": "Потрібні варіанти"}
     payload = {"id": uuid.uuid4().hex[:12], "title": _clean(title, 160), "options": cards}
     events.publish_ui("choice", payload, audience=brain_context.get_active_clerk_user())
-    return {"ok": True, "shown": "choice", "note": "Вибір користувача прийде повідомленням."}
+    return {"ok": True, "shown": "choice", "ui": _descriptor("choice", payload),
+            "note": "Вибір користувача прийде повідомленням."}
 
 
 SCHEMAS: list[dict] = [

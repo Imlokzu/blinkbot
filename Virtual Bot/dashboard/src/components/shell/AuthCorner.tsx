@@ -2,6 +2,7 @@ import { Show, SignInButton, SignUpButton, UserButton, useAuth } from '@clerk/re
 import { useEffect } from 'react';
 import { isAuthDisabled, setTokenGetter } from '@/lib/auth';
 import { Button } from '@/components/ui/Button';
+import { ToolOwnerContext } from '@/panels/chat/InteractiveSessionContext';
 
 /*
  * Кут авторизації. Токен Clerk кладемо в модуль lib/auth, бо його просять
@@ -38,6 +39,7 @@ export function AuthCorner() {
 
 /** Повноекранний гейт: без входу панель не показуємо взагалі. */
 export function AuthGate({ children }: { children: React.ReactNode }) {
+  const { userId } = useAuth();
   return (
     <>
       <TokenBridge />
@@ -65,7 +67,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </Show>
-      <Show when="signed-in">{children}</Show>
+      <Show when="signed-in"><ToolOwnerContext.Provider key={userId || ""} value={userId || ""}>{children}</ToolOwnerContext.Provider></Show>
     </>
   );
 }

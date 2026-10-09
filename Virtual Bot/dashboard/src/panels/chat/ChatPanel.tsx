@@ -32,6 +32,7 @@ import { t as chatT } from '@/locales/chat';
 import { t as uploadT } from '@/locales/attachments';
 import { useChatFileDrop } from './useChatFileDrop';
 import './file-drop.css';
+import { InteractiveSessionContext } from './InteractiveSessionContext';
 
 /*
  * Desktop chat keeps conversations, the thread and optional panels separate.
@@ -184,18 +185,11 @@ export default function ChatPanel() {
   const benchFiles = useMemo(() => collectFiles(chat.visibleMessages).length, [chat.visibleMessages]);
 
   useEffect(() => {
-    window.__vbotSendMessage = (text: string) => {
-      // UI questions can arrive while the originating tool turn is still
-      // winding down. Cancel that turn first so the selected answer is not
-      // silently rejected by the single-flight send guard.
-      if (chat.running) {
-        void chat.cancel().then(() => chat.send(text));
-      } else {
-        void chat.send(text);
-      }
-    };
+    // Busy answers stay editable. Cancelling a browser stream does not prove
+    // that the originating tool's server-side work has stopped.
+    window.__vbotSendMessage = (text, expectedSession = chat.sessionId, answer) => chat.send(text, [], expectedSession, answer);
     return () => { delete window.__vbotSendMessage; };
-  }, [chat.send]);
+  }, [chat.send, chat.sessionId]);
 
   /*
    * Проєкт із адреси (`#/chat?project=cats`) — так тека проєктів з «Огляду»
@@ -243,6 +237,7 @@ export default function ChatPanel() {
 
   return (
     <AssistantRuntimeProvider runtime={chat.runtime}>
+      <InteractiveSessionContext.Provider value={chat.sessionId}>
       <WorkspaceLinksProvider sessionId={chat.sessionId} onOpen={(path) => {
         setBenchFocus((old) => ({ path, nonce: (old?.nonce ?? 0) + 1 }));
         if (isDesk) setBench(true);
@@ -475,6 +470,7 @@ export default function ChatPanel() {
         <SelectionActions onAsk={(text) => void chat.send(text)} />
       </div>
       </WorkspaceLinksProvider>
+      </InteractiveSessionContext.Provider>
     </AssistantRuntimeProvider>
   );
 }
