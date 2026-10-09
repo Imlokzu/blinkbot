@@ -50,9 +50,21 @@ test('normalizes a todo list and preserves checked state', () => {
 
 test('ignores unrelated tools and incomplete payloads', () => {
   assert.equal(interactiveToolData({ id: 'search', label: 'web_search', status: 'done', detail: '', input: {} }), null);
-  assert.equal(interactiveToolData({ id: 'question', label: 'ask_question', status: 'done', detail: '', input: { question: 'Pick' } }), null);
+  assert.equal(interactiveToolData({ id: 'question', label: 'ask_question', status: 'done', detail: '', input: { question: 'Pick', allow_custom: false } }), null);
   assert.equal(interactiveToolData({ id: 'todo', label: 'todo_list', status: 'done', detail: '', input: { items: [] } }), null);
   assert.equal(interactiveToolData({ id: 'failed', label: 'ask_question', status: 'failed', detail: '', input: { question: 'Pick', options: ['A'] } }), null);
+});
+
+test('valid free-text questions survive history restoration in both locales', () => {
+  for (const question of ['What is the name?', 'Як назвати?']) {
+    for (const options of [undefined, []]) {
+      const data = interactiveToolData({ id: 'custom', label: 'ask_question', status: 'done', detail: '', input: { question, options } });
+      assert.equal(data?.kind, 'question');
+      assert.equal(data?.title, question);
+      assert.equal(data?.allowCustom, true);
+      assert.deepEqual(data?.options, []);
+    }
+  }
 });
 
 test('bounds model-controlled card content', () => {

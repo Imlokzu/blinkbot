@@ -70,11 +70,12 @@ export function interactiveToolData(step: ToolStep): InteractiveToolData | null 
   }
 
   const options = choices(input.options);
-  if (!options.length) return null;
+  const allowCustom = name === 'ask_question' && input.allow_custom !== false;
+  if (!options.length && !allowCustom) return null;
   return {
     kind: name === 'ask_question' ? 'question' : 'choice',
     title: cleanText(input.question ?? input.title, MAX_TITLE),
     options,
-    allowCustom: name === 'ask_question' && input.allow_custom !== false,
+    allowCustom,
   };
 }

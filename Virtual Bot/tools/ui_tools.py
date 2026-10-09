@@ -17,6 +17,7 @@ import uuid
 
 import events
 import brain_context
+from tools.locales import t
 
 log = logging.getLogger("virtual_bot.tools.ui")
 
@@ -33,11 +34,13 @@ async def ask_question(
     options: list | None = None,
     allow_custom: bool = True,
 ) -> dict:
-    """Питання з варіантами відповіді — картка з кнопками в чаті."""
+    """Show a question with preset options, free text, or both."""
     text = _clean(question, 400)
     if not text:
-        return {"error": "Потрібен текст питання"}
+        return {"error": t("ui.empty_question"), "code": "empty_question"}
     items = [_clean(o, 120) for o in (options or []) if _clean(o, 120)][:MAX_OPTIONS]
+    if not items and not allow_custom:
+        return {"error": t("ui.no_answers"), "code": "no_answers"}
     payload = {
         "id": uuid.uuid4().hex[:12],
         "question": text,
