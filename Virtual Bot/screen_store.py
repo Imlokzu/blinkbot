@@ -38,6 +38,7 @@ import io
 import hashlib
 import json
 import logging
+import lzma
 import os
 import re
 import shutil
@@ -45,6 +46,7 @@ import stat
 import sys
 import tempfile
 import zipfile
+import zlib
 from pathlib import Path, PurePosixPath
 from threading import RLock
 from typing import Any
@@ -551,7 +553,7 @@ def inspect_archive(data: bytes) -> tuple[dict[str, Any], dict[str, bytes]]:
         raise StoreError("archive is empty or too large", code="too_large")
     try:
         archive = zipfile.ZipFile(io.BytesIO(data))
-    except zipfile.BadZipFile as exc:
+    except (zipfile.BadZipFile, UnicodeError, NotImplementedError, EOFError) as exc:
         raise StoreError("not a .cbp archive", code="bad_archive") from exc
 
     with archive:
@@ -591,8 +593,14 @@ def inspect_archive(data: bytes) -> tuple[dict[str, Any], dict[str, bytes]]:
             total += info.file_size
             if total > MAX_UNPACKED_BYTES:
                 raise StoreError("package too large", code="too_large")
-            with archive.open(info) as handle:
-                content = handle.read(MAX_UNPACKED_BYTES + 1)
+            try:
+                with archive.open(info) as handle:
+                    content = handle.read(MAX_UNPACKED_BYTES + 1)
+            except (zipfile.BadZipFile, EOFError, NotImplementedError, RuntimeError,
+                    zlib.error, lzma.LZMAError, OSError, UnicodeError) as exc:
+                # The archive is in memory: OSError here is a decoder failure,
+                # not a source/install filesystem failure.
+                raise StoreError("invalid archive member", code="bad_archive") from exc
             if len(content) != info.file_size:
                 raise StoreError("archive entry size mismatch", code="bad_archive")
             files[name] = content

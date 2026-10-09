@@ -4,6 +4,8 @@ import json
 import shutil
 from pathlib import Path
 import zipfile
+import zlib
+import lzma
 
 import pytest
 from fastapi.testclient import TestClient
@@ -185,3 +187,52 @@ def test_unrecorded_recovery_bytes_are_not_deleted(shelf):
         store.import_archive(bundle(version="2"))
     assert error.value.code == "io_error"
     assert (backup / "recovery.txt").read_text() == "Preserve me"
+
+
+def test_bad_crc_returns_400_and_leaves_existing_install_unchanged(shelf):
+    store.import_archive(bundle(), install_now=True)
+    data = bytearray(bundle())
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
+        entry = archive.getinfo("index.html")
+        offset = entry.header_offset
+        start = offset + 30 + int.from_bytes(data[offset + 26:offset + 28], "little") + int.from_bytes(data[offset + 28:offset + 30], "little")
+    data[start] ^= 1
+    from main import app
+    response = TestClient(app).post("/api/screen-store/import", content=bytes(data))
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "bad_archive"
+    assert shelf.joinpath("installed/apps/fixture/index.html").read_text() == "<p>Fixture</p>"
+
+
+@pytest.mark.parametrize("failure", [EOFError, NotImplementedError, RuntimeError, zlib.error, lzma.LZMAError, OSError, UnicodeError])
+def test_archive_decoder_failures_have_stable_rejection(shelf, monkeypatch, failure):
+    def broken_read(*args, **kwargs):
+        raise failure("fixture decoder failure")
+    monkeypatch.setattr(zipfile.ZipExtFile, "read", broken_read)
+    with pytest.raises(store.StoreError) as error:
+        store.import_archive(bundle())
+    assert error.value.code == "bad_archive"
+    assert not shelf.joinpath("shared/fixture").exists()
+
+
+def test_invalid_utf8_archive_metadata_returns_400(shelf):
+    store.import_archive(bundle(), install_now=True)
+    data = bytearray(bundle())
+    central = data.index(b"PK\x01\x02")
+    data[central + 8:central + 10] = (0x800).to_bytes(2, "little")
+    data[central + 46] = 0xff
+    from main import app
+    response = TestClient(app).post("/api/screen-store/import", content=bytes(data))
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "bad_archive"
+    assert shelf.joinpath("installed/apps/fixture/index.html").read_text() == "<p>Fixture</p>"
+
+
+def test_unsupported_archive_version_returns_400(shelf):
+    data = bytearray(bundle())
+    central = data.index(b"PK\x01\x02")
+    data[central + 6:central + 8] = (99).to_bytes(2, "little")
+    from main import app
+    response = TestClient(app).post("/api/screen-store/import", content=bytes(data))
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "bad_archive"
