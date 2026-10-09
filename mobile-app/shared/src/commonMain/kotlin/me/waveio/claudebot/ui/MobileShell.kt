@@ -2,6 +2,8 @@ package me.waveio.claudebot.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -59,7 +61,14 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
     LaunchedEffect(adaptive.persistentSidebar, state.menuOpen) {
         if (adaptive.persistentSidebar && state.menuOpen) actions.menu(false)
     }
-    CompositionLocalProvider(LocalReducedMotion provides reducedMotion, LocalIndication provides QuietIndication,
+    val indication = remember(palette.ink, reducedMotion) { PressIndication(palette.ink, reducedMotion) }
+    val screenTransforms = remember { mutableMapOf<Pair<Screen, Boolean>, ContentTransform>() }
+    // Compose reuses a reversing page in its old child order. Keep its cached
+    // transform above every exiting sibling so retained guards cannot eat taps.
+    screenTransforms.forEach { (key, transform) ->
+        transform.targetContentZIndex = if (key.first == state.screen) 1f else 0f
+    }
+    CompositionLocalProvider(LocalReducedMotion provides reducedMotion, LocalIndication provides indication,
         LocalAdaptiveLayout provides adaptive) {
     Box(Modifier.fillMaxSize().background(palette.background)) {
         if (!state.connected) {
@@ -77,24 +86,33 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
                     if (state.screen != Screen.Chat) TopBar(state, actions)
                     Box(Modifier.weight(1f)) {
                         AnimatedContent(state.screen, transitionSpec = {
-                            fadeIn(tween(if (reducedMotion) 0 else 160)) togetherWith fadeOut(tween(if (reducedMotion) 0 else 90))
+                            screenTransforms.getOrPut(targetState to reducedMotion) {
+                                val duration = if (reducedMotion) 0 else MotionTiming.Panel
+                                val direction = if (targetState == Screen.Chat || targetState == Screen.Profile) -1 else 1
+                                (fadeIn(tween(duration)) + slideInHorizontally(tween(duration, easing = FastOutSlowInEasing)) { it / 24 * direction } togetherWith
+                                    fadeOut(tween(if (reducedMotion) 0 else MotionTiming.Exit)))
+                                    .using(SizeTransform(sizeAnimationSpec = { _, _ -> tween(duration) }))
+                                    .apply { targetContentZIndex = 1f }
+                            }
                         }, label = "screen") { screen ->
-                        EnterMotion(true) { transition -> Box(transition.fillMaxSize()) {
+                        Box(Modifier.fillMaxSize().transitionInput(screen == state.screen)) {
                         when (screen) {
-                            Screen.Chat -> ChatSurface(state, actions, reducedMotion, topBarHeight()) { TopBar(state, actions) }
+                            Screen.Chat -> ChatSurface(state, actions, reducedMotion, topBarHeight()) { TopBar(state.copy(screen = screen), actions) }
                             Screen.Search -> SearchScreen(state, actions)
                             Screen.Files -> FilesScreen(state, actions)
                             Screen.Skills -> SkillsScreen(state, actions)
                             Screen.Agents -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { BotMark(); Spacer(Modifier.height(12.dp)); Text(tr("agents.empty"), color = palette.muted) } }
-                            else -> SettingsScreen(state, actions)
+                            else -> SettingsScreen(state.copy(screen = screen), actions)
                         }
-                        } }
+                        }
                         }
                     }
                 }
             }
         }
         val notice = state.error ?: state.notice
+        var retainedNotice by remember { mutableStateOf<Triple<String, Boolean, String>?>(null) }
+        if (notice != null) SideEffect { retainedNotice = Triple(notice, state.error != null, state.noticeDetail.orEmpty()) }
         LaunchedEffect(notice) {
             val shown = notice ?: return@LaunchedEffect
             kotlinx.coroutines.delay(2600)
@@ -103,11 +121,11 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
         AnimatedVisibility(
             visible = notice != null,
             modifier = Modifier.align(Alignment.TopCenter),
-            enter = fadeIn(tween(180)) + scaleIn(tween(220), initialScale = .92f),
-            exit = fadeOut(tween(180)) + scaleOut(tween(180), targetScale = .94f),
+            enter = fadeIn(tween(if (reducedMotion) 0 else MotionTiming.Panel)) +
+                slideInVertically(tween(if (reducedMotion) 0 else MotionTiming.Panel)) { -it / 5 },
+            exit = fadeOut(tween(if (reducedMotion) 0 else MotionTiming.Exit)),
         ) {
-            notice?.let { shown ->
-                val isError = state.error != null
+            retainedNotice?.let { (shown, isError, detail) ->
                 val shape = RoundedCornerShape(30.dp)
                 Row(Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(top = 62.dp, start = 16.dp, end = 16.dp)
                     .clip(shape).background(palette.surface.copy(alpha = .96f)).border(1.dp, palette.line, shape)
@@ -115,9 +133,9 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
                     Box(Modifier.size(32.dp).clip(CircleShape).background(if (isError) MaterialTheme.colorScheme.error.copy(alpha = .12f) else palette.accent.copy(alpha = .12f)), contentAlignment = Alignment.Center) {
                         Glyph(if (isError) "close" else "check", modifier = Modifier.size(16.dp), tint = if (isError) MaterialTheme.colorScheme.error else palette.accent)
                     }
-                    Text(tr(shown, "model" to state.noticeDetail.orEmpty()), fontSize = 12.sp, color = palette.ink,
+                    Text(tr(shown, "model" to detail), fontSize = 12.sp, color = palette.ink,
                         modifier = Modifier.weight(1f).padding(horizontal = 10.dp), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    IconAction("close", tr("action.close"), actions::dismissNotice, Modifier.size(40.dp))
+                    IconAction("close", tr("action.close"), actions::dismissNotice, Modifier.size(40.dp), enabled = notice != null)
                 }
             }
         }
@@ -248,11 +266,13 @@ private fun TopBar(state: AppState, actions: AppActions) {
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
             if (state.screen == Screen.Chat) {
                 val model = state.models.firstOrNull { it.id == state.selectedModel }
+                val rotation by animateFloatAsState(if (state.modelPickerOpen) 180f else 0f,
+                    tween(if (LocalReducedMotion.current) 0 else MotionTiming.Panel), label = "modelChevron")
                 Row(Modifier.clip(RoundedCornerShape(14.dp)).clickable { actions.modelPicker(true) }.heightIn(min = 44.dp).padding(horizontal = 9.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     BrandMark(model?.brand ?: "", Modifier.size(18.dp))
                     Text(model?.label ?: state.selectedModel.takeIf { it.isNotBlank() }?.substringAfterLast('/') ?: tr(if (state.modelsLoading) "model.loading" else "model.choose"), color = p.ink, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, false))
                     Glyph("down", modifier = Modifier.size(13.dp).graphicsLayer {
-                        rotationZ = if (state.modelPickerOpen) 180f else 0f
+                        rotationZ = rotation
                     }, tint = p.muted)
                 }
             } else Text(state.openFile?.substringAfterLast('/') ?: screenTitle(state.screen), fontSize = 16.sp, fontWeight = FontWeight.Medium, color = p.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)

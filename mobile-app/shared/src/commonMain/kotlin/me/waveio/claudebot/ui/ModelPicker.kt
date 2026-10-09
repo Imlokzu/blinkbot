@@ -7,6 +7,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -26,8 +27,20 @@ import me.waveio.claudebot.state.AppState
 /** Pick a model first, then tune its effort without hunting through a chip strip. */
 @Composable
 fun ModelPicker(state: AppState, actions: AppActions) {
-    var query by remember(state.modelPickerOpen) { mutableStateOf("") }
-    var effortPage by remember(state.modelPickerOpen) { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    var effortPage by remember { mutableStateOf(false) }
+    val modelListState = rememberLazyListState()
+    val pageTransforms = remember { mutableMapOf<Pair<Boolean, Boolean>, ContentTransform>() }
+    pageTransforms.forEach { (key, transform) ->
+        transform.targetContentZIndex = if (key.first == effortPage) 1f else 0f
+    }
+    LaunchedEffect(state.modelPickerOpen) {
+        if (state.modelPickerOpen) {
+            query = ""
+            effortPage = false
+            modelListState.scrollToItem(0)
+        }
+    }
     val palette = LocalPalette.current
     val density = LocalDensity.current
     val focus = LocalFocusManager.current
@@ -61,8 +74,17 @@ fun ModelPicker(state: AppState, actions: AppActions) {
             IconAction("close", tr("action.close"), { actions.modelPicker(false) })
         }
         val reduced = LocalReducedMotion.current
-        AnimatedContent(effortPage, modifier = Modifier.weight(1f, fill = false), transitionSpec = { fadeIn(tween(if (reduced) 0 else 140)) togetherWith fadeOut(tween(if (reduced) 0 else 90)) }, label = "modelPage") { effortsVisible ->
-            if (effortsVisible) Column(Modifier.fillMaxWidth()) {
+        AnimatedContent(effortPage, modifier = Modifier.weight(1f, fill = false), transitionSpec = {
+            pageTransforms.getOrPut(targetState to reduced) {
+                val duration = if (reduced) 0 else 180
+                val direction = if (targetState) 1 else -1
+                (fadeIn(tween(duration)) + slideInHorizontally(tween(duration)) { it / 16 * direction } togetherWith
+                    fadeOut(tween(if (reduced) 0 else 110)) + slideOutHorizontally(tween(duration)) { -it / 16 * direction })
+                    .using(SizeTransform(clip = false, sizeAnimationSpec = { _, _ -> tween(duration) }))
+                    .apply { targetContentZIndex = 1f }
+            }
+        }, label = "modelPage") { effortsVisible ->
+            if (effortsVisible) Column(Modifier.fillMaxWidth().transitionInput(effortPage)) {
                 Row(Modifier.padding(12.dp, 10.dp), verticalAlignment = Alignment.CenterVertically) {
                     BrandMark(selected?.brand.orEmpty(), Modifier.size(22.dp)); Spacer(Modifier.width(10.dp))
                     Text(selected?.label ?: state.selectedModel, color = palette.muted, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
@@ -90,7 +112,7 @@ fun ModelPicker(state: AppState, actions: AppActions) {
             } else {
                 val choices: @Composable (Modifier) -> Unit = { modifier ->
                     val filtered = state.models.filter { it.label.contains(query, true) || it.provider.contains(query, true) }
-                    LazyColumn(modifier.heightIn(max = 400.dp).selectableGroup()) {
+                    LazyColumn(modifier.heightIn(max = 400.dp).selectableGroup(), state = modelListState) {
                         if (state.modelsLoading) item {
                             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 LoadingDots(); Spacer(Modifier.width(10.dp))
@@ -129,11 +151,11 @@ fun ModelPicker(state: AppState, actions: AppActions) {
                 val stableChoices = remember { movableContentOf<Modifier> { currentChoices(it) } }
                 // Moving these slots keeps focus and list position during host
                 // resizes. Only short, wide panes need the compact two columns.
-                if (landscape) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                if (landscape) Row(Modifier.fillMaxWidth().transitionInput(!effortPage), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
                     stableSearch(Modifier.weight(.45f))
                     stableChoices(Modifier.weight(.55f))
                     IconAction("close", tr("action.close"), { actions.modelPicker(false) })
-                } else Column(Modifier.fillMaxWidth()) {
+                } else Column(Modifier.fillMaxWidth().transitionInput(!effortPage)) {
                     stableSearch(Modifier.fillMaxWidth())
                     Spacer(Modifier.height(10.dp))
                     stableChoices(Modifier.weight(1f, fill = false))

@@ -104,11 +104,8 @@ fun Glyph(name: String, label: String? = null, modifier: Modifier = Modifier.siz
 
 @Composable
 fun IconAction(name: String, label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed && !LocalReducedMotion.current) .9f else 1f, spring(stiffness = 850f), label = "iconPress")
-    Box(modifier.size(48.dp).graphicsLayer { scaleX = scale; scaleY = scale }.clip(RoundedCornerShape(15.dp))
-        .clickable(interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
+    Box(modifier.size(48.dp).clip(RoundedCornerShape(15.dp))
+        .clickable(enabled = enabled, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
         Glyph(name, label, tint = LocalPalette.current.ink.copy(alpha = if (enabled) 1f else 0.35f))
     }
 }

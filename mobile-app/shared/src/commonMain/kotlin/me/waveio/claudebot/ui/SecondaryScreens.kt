@@ -4,18 +4,24 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -109,10 +115,20 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
             Screen.Models -> {
                 Text(tr("defaults.help"), color = p.muted, fontSize = 13.sp)
                 Choices(listOf("last" to "defaults.last", "fixed" to "defaults.fixed"), preferences.defaultModelMode) { actions.preferences(preferences.copy(defaultModelMode = it)) }
-                state.models.forEach { model ->
-                    Row(Modifier.fillMaxWidth().clickable { actions.preferences(preferences.copy(defaultModel = model.id, defaultModelMode = "fixed")) }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { if (preferences.defaultModelMode == "fixed" && preferences.defaultModel == model.id) Glyph("check", modifier = Modifier.size(18.dp), tint = p.accent) }
-                        BrandMark(model.brand); Spacer(Modifier.width(8.dp)); Text(model.label, color = p.ink)
+                Column(Modifier.selectableGroup()) {
+                    state.models.forEach { model ->
+                        val picked = preferences.defaultModelMode == "fixed" && preferences.defaultModel == model.id
+                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (picked) p.secondary else p.surface)
+                            .selectable(selected = picked, enabled = model.available, role = Role.RadioButton) {
+                                actions.preferences(preferences.copy(defaultModel = model.id, defaultModelMode = "fixed"))
+                            }.padding(vertical = 8.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { if (picked) Glyph("check", modifier = Modifier.size(18.dp), tint = p.accent) }
+                            BrandMark(model.brand); Spacer(Modifier.width(8.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(model.label, color = if (model.available) p.ink else p.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                if (!model.available) Text(tr("model.unavailable"), color = p.muted, fontSize = 11.sp)
+                            }
+                        }
                     }
                 }
             }
@@ -152,7 +168,7 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
 
 @Composable
 private fun SettingsLink(icon: String, key: String, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) { Glyph(icon, tint = LocalPalette.current.muted); Spacer(Modifier.width(14.dp)); Text(tr(key), color = LocalPalette.current.ink, modifier = Modifier.weight(1f)); Glyph("down", modifier = Modifier.size(14.dp)) }
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(role = Role.Button, onClick = onClick).heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) { Glyph(icon, tint = LocalPalette.current.muted); Spacer(Modifier.width(14.dp)); Text(tr(key), color = LocalPalette.current.ink, modifier = Modifier.weight(1f)); Glyph("down", modifier = Modifier.size(14.dp).rotate(-90f)) }
 }
 
 @Composable

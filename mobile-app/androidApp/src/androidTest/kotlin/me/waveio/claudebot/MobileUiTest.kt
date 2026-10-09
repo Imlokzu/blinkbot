@@ -214,13 +214,36 @@ class MobileUiTest {
         compose.onNodeWithText("High").performClick()
         screenshot("mobile-model-picker")
         compose.onNodeWithText("Done").performClick()
-        compose.onNode(hasSetTextAction()).performTextInput("Find the project notes")
-        // Native IME motion runs outside the Compose clock; let the Send target
-        // settle before injecting a physical tap at its window coordinates.
-        android.os.SystemClock.sleep(300)
-        compose.waitForIdle()
-        compose.onNodeWithContentDescription("Send").performClick()
-        waitFor("They are in your shared workspace.")
+        try {
+            compose.onNode(hasSetTextAction()).performTextInput("Find the project notes")
+            compose.runOnIdle {
+                assertEquals("The composer must accept input immediately after closing the picker",
+                    "Find the project notes", controller.state.value.draft)
+            }
+            // Native IME motion runs outside the Compose clock; let the Send target
+            // settle before injecting a physical tap at its window coordinates.
+            android.os.SystemClock.sleep(300)
+            compose.waitForIdle()
+            compose.runOnIdle {
+                assertEquals("Native IME startup must preserve the accepted draft",
+                    "Find the project notes", controller.state.value.draft)
+            }
+            compose.onNodeWithContentDescription("Send").assertIsEnabled().performClick()
+            compose.waitUntil(10000) { sent.isNotEmpty() }
+            assertEquals("One Send tap must submit exactly one fixture request", 1, sent.size)
+            waitFor("They are in your shared workspace.")
+        } catch (failure: Throwable) {
+            val state = controller.state.value
+            val diagnostic = "Paired flow: screen=${state.screen}, connected=${state.connected}, " +
+                "session=${state.sessionId}, loading=${state.loading}, busy=${state.busy}, " +
+                "picker=${state.modelPickerOpen}, menu=${state.menuOpen}, " +
+                "draft=${JsonPrimitive(state.draft)}, sent=${sent.size}, answered=$answered, " +
+                "messages=${state.messages.map { Triple(it.id, it.role, it.text.length) }}, " +
+                "pending=${state.pending.map { it.id to it.state }}, error=${state.error}"
+            println(diagnostic)
+            runCatching { screenshot("failure-${testName.methodName}") }
+            throw AssertionError(diagnostic, failure)
+        }
         assertEquals("high", sent.single().getValue("reasoning_effort").jsonPrimitive.content)
         compose.onNodeWithText("Details").performClick()
         compose.onNodeWithText("Search workspace").assertIsDisplayed()

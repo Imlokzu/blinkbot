@@ -71,6 +71,22 @@ and respect for reduced motion/transparency and system haptic preferences.
 Gestures supplement reachable controls and must not steal text selection,
 editor input, table scrolling, or platform back navigation.
 
+## Motion and interaction tuning (2026-10-09)
+
+- Keep the existing Blink surfaces and identity. Give every clickable control
+  consistent, subtle press feedback, with a visible keyboard-focus state.
+- Use a 70 ms press, 120 ms release, 180 ms panel/page entrance and 100 ms
+  panel exit. New messages arrive in 220 ms with a short lift and modest scale.
+  Actions fire immediately; animations never delay navigation or submission.
+- Keep blur brief and bounded to moving panels, dialogs, the drawer and new
+  bubbles. Settled content stays sharp; avoid blurring the entire screen.
+- Retain the composer input instance and model-list scroll position. Closing
+  panels retain their visual content while rejecting further interactions.
+- System reduced motion removes translation, scaling, blur and animated size
+  changes. Static tint/focus feedback remains available.
+- Verify taps, cancelled gestures, rapid navigation, picker back/close, keyboard
+  use, light/dark themes and large text against the actual native app.
+
 ## Navigation and lifecycle
 
 - Chat's persistent top row is **Menu / centered model control / New chat**.

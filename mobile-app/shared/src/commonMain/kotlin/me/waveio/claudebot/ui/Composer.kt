@@ -1,6 +1,7 @@
 package me.waveio.claudebot.ui
 
 import androidx.compose.animation.core.*
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -30,6 +31,7 @@ import me.waveio.claudebot.state.*
 @Composable
 fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.dp) {
     val p = LocalPalette.current
+    val reduced = LocalReducedMotion.current
     val landscape = LocalAdaptiveLayout.current.compactHeight
     val keyboard = LocalSoftwareKeyboardController.current
     val popupRise = with(LocalDensity.current) { (-58).dp.roundToPx() }
@@ -46,7 +48,9 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
             drawRoundRect(brush, cornerRadius = radius, style = Stroke((4f + amplitude.value * 4f).dp.toPx()), alpha = .045f + amplitude.value * .08f)
             drawRoundRect(brush, cornerRadius = radius, style = Stroke((1f + amplitude.value * 1.5f).dp.toPx()), alpha = .4f + amplitude.value * .4f)
         }
-    }.clip(corners).background(p.surface).border(1.dp, if (dictating) p.accent.copy(alpha = .65f) else p.line, corners).padding(if (landscape) 0.dp else 8.dp)) {
+    }.clip(corners).background(p.surface).border(1.dp, if (dictating) p.accent.copy(alpha = .65f) else p.line, corners)
+        .animateContentSize(tween(if (reduced) 0 else MotionTiming.Panel, easing = FastOutSlowInEasing), alignment = Alignment.BottomStart)
+        .padding(if (landscape) 0.dp else 8.dp)) {
         if (question != null) {
             BotQuestionPanel(question, actions, questionMaxHeight,
                 backEnabled = !state.menuOpen && !state.modelPickerOpen && !state.attachmentPickerOpen &&
@@ -98,7 +102,8 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
                     val enabled = !state.uploading && (state.draft.isNotBlank() || state.attachments.isNotEmpty())
                     Box(Modifier.size(44.dp).clip(CircleShape).background(if (enabled) p.ink else p.secondary)
                         .semantics { contentDescription = sendLabel; if (!enabled) disabled() }
-                        .combinedClickable(enabled = enabled, role = Role.Button, onClick = { actions.send() }, onLongClick = { actions.sendModes(true) }), contentAlignment = Alignment.Center) {
+                        .combinedClickable(interactionSource = null, indication = remember(p.background, reduced) { PressIndication(p.background, reduced) },
+                            enabled = enabled, role = Role.Button, onClick = { actions.send() }, onLongClick = { actions.sendModes(true) }), contentAlignment = Alignment.Center) {
                         Glyph("send", modifier = Modifier.size(20.dp), tint = if (enabled) p.background else p.muted)
                     }
                     MotionPopup(state.sendModeOpen, { actions.sendModes(false) }, Modifier.width(260.dp), Alignment.BottomEnd, IntOffset(0, popupRise), focusable = false) {
@@ -124,7 +129,9 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
 @Composable
 private fun RoundComposerAction(icon: String, label: String, onClick: () -> Unit, accent: Boolean = false) {
     val p = LocalPalette.current
-    Box(Modifier.size(46.dp).clip(CircleShape).background(if (accent) p.accent else p.ink).clickable(role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
+    val reduced = LocalReducedMotion.current
+    Box(Modifier.size(46.dp).clip(CircleShape).background(if (accent) p.accent else p.ink)
+        .clickable(interactionSource = null, indication = remember(p.background, reduced) { PressIndication(p.background, reduced) }, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
         Glyph(icon, label, Modifier.size(20.dp), if (accent) Color.White else p.background)
     }
 }

@@ -2765,3 +2765,29 @@ to source afc2ebe3; the registered backend was reloaded with zero active mobile
 jobs. Test processes are stopped and the Mac remains muted. Other agents'
 pending changes, including required untracked integration build support, were
 preserved. Full repair and evidence record: reports/audit-fixes-2026-10-09.md.
+
+
+## Blink mobile motion and interaction pass (2026-10-09)
+
+Updated the emulator from the old 0.4.12 install to current GitHub Blink 0.4.14
+before implementing Android 0.4.15 (version code 22). Shared Compose controls
+now have consistent press/focus feedback, fast panel and message transitions,
+bounded entrance blur, animated composer sizing and reduced-motion handling.
+Model-picker scroll and closing content are preserved. Interrupted navigation
+keeps the active page above fading pages, whose stale actions are disabled.
+Unavailable default models are disabled and settings links point forward.
+
+Validation: 278 shared and 78 Android unit tests; nine motion scenarios, 19 main
+UI scenarios and 20 chat regressions across final focused runs; six additional
+compact-phone cases at 160% text size. Earlier native timing failures and their
+retries are recorded in docs/mobile-app/RELEASE-0.4.15.md. The strengthened
+picker-to-keyboard flow passed four consecutive runs. Independent adversarial
+review fixed outgoing-page input and layering bugs; Fable was unavailable.
+The full backend run had 1,669 passes, six skips and one unrelated process
+cleanup failure; its 18-test module passed on retry. Isolated live HTTP smoke
+passed 28 expectations, including traversal 400 responses, and stopped its
+server. iOS runtime and physical-phone frame rates remain unverified.
+
+Artifact: mobile-app/build/Blink-0.4.15.apk. Existing owner work in progress is
+preserved. Action-tree caption contrast over bright wallpaper remains a visual
+follow-up, separate from this motion pass.

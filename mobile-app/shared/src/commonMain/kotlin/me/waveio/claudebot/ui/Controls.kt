@@ -56,7 +56,9 @@ fun MotionPopup(
     val reduced = LocalReducedMotion.current
     val blurSteps = remember { (1..5).map { BlurEffect(it.toFloat(), it.toFloat()) } }
     val motion = updateTransition(target, label = "panel")
-    val progress = motion.animateFloat(transitionSpec = { tween(if (reduced) 0 else 190, easing = FastOutSlowInEasing) }, label = "panelReveal") { if (it) 1f else 0f }
+    val progress = motion.animateFloat(transitionSpec = {
+        tween(if (reduced) 0 else if (targetState) MotionTiming.Panel else MotionTiming.Exit, easing = FastOutSlowInEasing)
+    }, label = "panelReveal") { if (it) 1f else 0f }
     val edgePx = with(LocalDensity.current) { 8.dp.toPx() }
     if (target.currentState || target.targetState) {
         val popupAlignment = if (anchorBounds != null) Alignment { popupSize, windowSize, layoutDirection ->
@@ -73,13 +75,13 @@ fun MotionPopup(
             }
             IntOffset(x.roundToInt(), y.roundToInt().coerceIn(0, (windowH - popupH).toInt().coerceAtLeast(0)))
         } else alignment
-        Popup(alignment = popupAlignment, offset = offset, onDismissRequest = onDismiss, properties = PopupProperties(focusable = focusable)) {
+        Popup(alignment = popupAlignment, offset = offset, onDismissRequest = { if (open) onDismiss() }, properties = PopupProperties(focusable = focusable && open)) {
             val palette = LocalPalette.current
-            Column(modifier.graphicsLayer {
+            Column(modifier.transitionInput(open).graphicsLayer {
                 val value = progress.value
                 alpha = value
-                scaleX = 0.96f + value * 0.04f; scaleY = scaleX
-                translationY = (1f - value) * -5.dp.toPx()
+                scaleX = if (reduced) 1f else 0.96f + value * 0.04f; scaleY = scaleX
+                translationY = if (reduced) 0f else (1f - value) * -5.dp.toPx()
                 transformOrigin = TransformOrigin(0.5f, 0f)
                 val blur = ((1f - value) * 5f).toInt()
                 renderEffect = if (blurEntrance && !reduced && value in 0.02f..0.97f && blur > 0) blurSteps[blur - 1] else null
@@ -94,10 +96,9 @@ fun MotionPopup(
 fun BotDialog(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         val p = LocalPalette.current
-        var entered by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) { entered = true }
-        val progress by animateFloatAsState(if (entered) 1f else 0f, tween(if (LocalReducedMotion.current) 0 else 190), label = "dialog")
-        Column(Modifier.padding(16.dp).widthIn(max = 480.dp).fillMaxWidth().graphicsLayer { alpha = progress; scaleX = .97f + progress * .03f; scaleY = scaleX }.clip(RoundedCornerShape(26.dp)).background(p.surface).border(1.dp, p.line, RoundedCornerShape(26.dp)).padding(16.dp), content = content)
+        EnterMotion(true, Modifier.padding(16.dp).widthIn(max = 480.dp).fillMaxWidth()) { transition ->
+            Column(transition.clip(RoundedCornerShape(26.dp)).background(p.surface).border(1.dp, p.line, RoundedCornerShape(26.dp)).padding(16.dp), content = content)
+        }
     }
 }
 
@@ -108,12 +109,12 @@ fun ActionButton(
     maxLines: Int = 2,
 ) {
     val p = LocalPalette.current
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed && !LocalReducedMotion.current) .975f else 1f, spring(stiffness = 700f), label = "press")
-    Row(modifier.heightIn(min = 46.dp).graphicsLayer { scaleX = scale; scaleY = scale; alpha = if (enabled) 1f else .4f }
+    val reduced = LocalReducedMotion.current
+    Row(modifier.heightIn(min = 48.dp).graphicsLayer { alpha = if (enabled) 1f else .4f }
         .clip(RoundedCornerShape(15.dp)).background(if (primary) p.ink else p.secondary)
-        .clickable(interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
+        .clickable(interactionSource = null, indication = remember(primary, p, reduced) {
+            PressIndication(if (primary) p.background else p.ink, reduced)
+        }, enabled = enabled, role = Role.Button, onClick = onClick)
         .padding(horizontal = 16.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
         val ink = if (primary) p.background else p.ink
         if (icon != null) { Glyph(icon, modifier = Modifier.size(18.dp), tint = ink); Spacer(Modifier.width(8.dp)) }
@@ -131,10 +132,13 @@ fun QuietAction(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
 @Composable
 fun ChoicePill(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val p = LocalPalette.current
-    Box(modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(14.dp)).background(if (selected) p.ink else p.secondary)
+    val reduced = LocalReducedMotion.current
+    val surface by animateColorAsState(if (selected) p.ink else p.secondary, tween(if (reduced) 0 else MotionTiming.Release), label = "choiceSurface")
+    val ink by animateColorAsState(if (selected) p.background else p.ink, tween(if (reduced) 0 else MotionTiming.Release), label = "choiceInk")
+    Box(modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(14.dp)).background(surface)
         .semantics { this.selected = selected }.clickable(role = Role.RadioButton, onClick = onClick)
         .padding(horizontal = 14.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
-        Text(text, color = if (selected) p.background else p.ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(text, color = ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
