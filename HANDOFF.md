@@ -2822,3 +2822,22 @@ Optimized APK: `mobile-app/build/Blink-0.4.16.apk` (about 17 MiB), installed on
 the dedicated Pixel_8 test emulator. SHA-256 and release checks are in the release
 notes. iOS runtime remains unverified without Xcode. PDF/Office originals can be
 saved/shared but are not edited. Existing unrelated owner changes remain intact.
+
+
+## 2026-10-09 — Night-agent release input hardening
+
+Closed audit R-01 in the mobile release workflow: context expressions now enter
+as environment data, version metadata is validated before writes, and release
+notes stay literal through a temporary notes file. Stable/beta tags and manual
+dispatch retain automatic code increments; the manual code default is now zero.
+Invalid publication metadata or missing/empty APKs fail before GitHub calls.
+
+Validation: 52 final workflow regressions, 1,719 backend tests with eight skips
+and 178 subtests, plus 23 editor unit tests, TypeScript and 22 packaged browser
+scenarios passed. Separate maximum-effort native reviewers returned APPROVE /
+CLEAR; Fable/configured specialist models were unavailable. Post-review actual-app
+smoke passed 28 curl expectations, including traversal 400, and stopped its server.
+No real release, signing change or production restart was performed. Existing
+signing/asset-name/pull-code/release-replacement risks remain separate. Other
+agents' pending work is preserved and the Mac remains muted. Evidence and limits:
+`reports/night-agent-release-inputs-2026-10-09.md`.

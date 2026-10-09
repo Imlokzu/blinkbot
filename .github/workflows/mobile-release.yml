@@ -10,9 +10,9 @@ on:
         required: true
         default: '0.4.13'
       version-code:
-        description: 'Version code (integer, must increase)'
+        description: 'Version code (0 = auto increment; otherwise must increase)'
         required: true
-        default: '20'
+        default: '0'
       channel:
         description: 'Release channel'
         required: true
@@ -45,78 +45,93 @@ jobs:
       - name: Resolve version
         id: version
         shell: bash
+        env:
+          INPUT_VERSION_NAME: ${{ inputs.version-name }}
+          INPUT_VERSION_CODE: ${{ inputs.version-code }}
+          INPUT_CHANNEL: ${{ inputs.channel }}
         run: |
           set -euo pipefail
-          CHANNEL="stable"
-          if [[ "${{ github.ref_name }}" == mobile-v* ]]; then
-            NAME="${GITHUB_REF_NAME#mobile-v}"
-          else
-            NAME="${{ inputs.version-name }}"
-          fi
-          if [[ "$NAME" == *-beta ]]; then
-            CHANNEL="beta"
-            NAME="${NAME%-beta}"
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.channel }}" == "beta" ]]; then
-            CHANNEL="beta"
-          fi
-          CODE="${{ inputs.version-code }}"
-          : "${CODE:=0}"
-          if [[ "$CODE" == "0" ]]; then
-            CURRENT=$(python3 - <<'PY'
+          # Context values stay in the environment, never in executable source.
+          python3 - <<'PY'
+          import os
           import re
-          text = open('mobile-app/androidApp/build.gradle.kts').read()
-          print(re.search(r'versionCode\s*=\s*(\d+)', text).group(1))
-          PY
-          )
-            CODE=$((CURRENT + 1))
-          fi
-          CURRENT="$(
-            python3 - <<'PY'
-          import re
-          text = open('mobile-app/androidApp/build.gradle.kts').read()
-          print(re.search(r'versionName\s*=\s*"([^"]+)"', text).group(1))
-          PY
-          )"
-          python3 - "$NAME" "$CODE" <<'PY'
-          import re, sys
-          name, code = sys.argv[1], sys.argv[2]
-          path = 'mobile-app/androidApp/build.gradle.kts'
-          text = open(path).read()
-          text = re.sub(r'versionCode\s*=\s*\d+', f'versionCode = {code}', text)
+          from pathlib import Path
+
+          event = os.environ['GITHUB_EVENT_NAME']
+          ref = os.environ['GITHUB_REF_NAME']
+          tagged = os.environ['GITHUB_REF_TYPE'] == 'tag' and ref.startswith('mobile-v')
+          if event not in {'push', 'workflow_dispatch'} or (event == 'push' and not tagged):
+              raise SystemExit('Expected a mobile version tag or manual dispatch')
+          channel = os.environ.get('INPUT_CHANNEL') or 'stable'
+          if channel not in {'stable', 'beta'}:
+              raise SystemExit('Release channel must be stable or beta')
+          name = ref[len('mobile-v'):] if tagged else os.environ.get('INPUT_VERSION_NAME', '')
+          if name.endswith('-beta'):
+              name, channel = name[:-len('-beta')], 'beta'
+          if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', name):
+              raise SystemExit('Version name must be major.minor.patch with optional -beta')
+
+          path = Path('mobile-app/androidApp/build.gradle.kts')
+          text = path.read_text(encoding='utf-8')
+          codes = re.findall(r'versionCode\s*=\s*([0-9]+)', text)
+          names = re.findall(r'versionName\s*=\s*"[^"]*"', text)
+          if len(codes) != 1 or len(names) != 1:
+              raise SystemExit('Expected one Gradle versionCode and versionName')
+          current = int(codes[0])
+          raw_code = os.environ.get('INPUT_VERSION_CODE') or '0'
+          if not re.fullmatch(r'[0-9]{1,10}', raw_code):
+              raise SystemExit('Version code must be a decimal integer')
+          code = int(raw_code) or current + 1
+          if not current < code <= 2100000000:
+              raise SystemExit('Version code must increase and be at most 2100000000')
+
+          # Validate everything before changing Gradle or exporting step outputs.
+          output_path = Path(os.environ['GITHUB_OUTPUT'])
+          text = re.sub(r'versionCode\s*=\s*[0-9]+', f'versionCode = {code}', text)
           text = re.sub(r'versionName\s*=\s*"[^"]*"', f'versionName = "{name}"', text)
-          open(path, 'w').write(text)
+          path.write_text(text, encoding='utf-8')
+          with output_path.open('a', encoding='utf-8') as output:
+              output.write(f'name={name}\ncode={code}\nchannel={channel}\n')
           PY
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
-          echo "code=$CODE" >> "$GITHUB_OUTPUT"
-          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
 
       - name: Build signed release APK
         working-directory: mobile-app
         run: ./gradlew :androidApp:assembleRelease :shared:testDebugUnitTest
 
       - name: Publish GitHub Release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_NAME: ${{ steps.version.outputs.name }}
+          RELEASE_CHANNEL: ${{ steps.version.outputs.channel }}
+          RELEASE_NOTES: ${{ inputs.changelog }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         working-directory: mobile-app
         run: |
+          set -euo pipefail
+          [[ "$RELEASE_NAME" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid release version' >&2; exit 1; }
+          [[ "$RELEASE_CHANNEL" == stable || "$RELEASE_CHANNEL" == beta ]] || { echo 'Invalid release channel' >&2; exit 1; }
           APK="androidApp/build/outputs/apk/release/androidApp-release.apk"
-          TAG="mobile-v${{ steps.version.outputs.name }}"
-          if [[ "${{ steps.version.outputs.channel }}" == "beta" ]]; then
+          [[ -s "$APK" ]] || { echo 'Release APK is missing or empty' >&2; exit 1; }
+          TAG="mobile-v${RELEASE_NAME}"
+          TITLE="Claude Bot ${RELEASE_NAME}"
+          RELEASE_ARGS=(--repo "$GITHUB_REPOSITORY")
+          if [[ "$RELEASE_CHANNEL" == "beta" ]]; then
             TAG="${TAG}-beta"
+            TITLE="${TITLE} (beta)"
+            RELEASE_ARGS+=(--prerelease)
           fi
-          NOTES="${{ inputs.changelog }}"
-          if [[ -z "$NOTES" && "${{ github.event_name }}" == "push" ]]; then
-            NOTES="${{ github.event.head_commit.message }}"
+          NOTES="${RELEASE_NOTES:-}"
+          if [[ -z "$NOTES" && "$GITHUB_EVENT_NAME" == "push" ]]; then
+            NOTES="${COMMIT_MESSAGE:-}"
           fi
           NOTES="${NOTES:-Mobile app update}"
+          NOTES_FILE=$(mktemp)
+          trap 'rm -f -- "$NOTES_FILE"' EXIT
+          printf '%s' "$NOTES" > "$NOTES_FILE"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release delete "$TAG" --yes --repo "$GITHUB_REPOSITORY"
           fi
-          PRERELEASE=""
-          if [[ "${{ steps.version.outputs.channel }}" == "beta" ]]; then
-            PRERELEASE="--prerelease"
-          fi
-          gh release create "$TAG" "$APK#ClaudeBot-${{ steps.version.outputs.name }}.apk" \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "Claude Bot ${{ steps.version.outputs.name }}${{ steps.version.outputs.channel == 'beta' && ' (beta)' || '' }}" \
-            --notes "$NOTES" $PRERELEASE
+          gh release create "$TAG" "$APK#ClaudeBot-${RELEASE_NAME}.apk" \
+            --title "$TITLE" \
+            --notes-file "$NOTES_FILE" "${RELEASE_ARGS[@]}"
