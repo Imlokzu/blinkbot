@@ -14,6 +14,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from xml.etree import ElementTree
+from xml.parsers import expat
 
 MAX_BYTES = 20 * 1024 * 1024
 MAX_TEXT = 40_000
@@ -130,9 +131,15 @@ def extract_document(path: Path) -> ExtractedDocument:
                 if entry.file_size > 2 * 1024 * 1024:
                     raise AttachmentError('unreadable_document')
                 xml = archive.read(entry)
-                # Word documents do not need DTDs or expanded XML entities.
-                if b'<!DOCTYPE' in xml or b'<!ENTITY' in xml:
+                # Parser callbacks reject declarations in every XML encoding,
+                # before either parser can expand an internal entity.
+                parser = expat.ParserCreate()
+                def reject_declaration(*_args):
                     raise AttachmentError('unreadable_document')
+                parser.StartDoctypeDeclHandler = reject_declaration
+                parser.EntityDeclHandler = reject_declaration
+                parser.ExternalEntityRefHandler = reject_declaration
+                parser.Parse(xml, True)
                 tree = ElementTree.fromstring(xml)
             ns = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
             paragraphs = []
