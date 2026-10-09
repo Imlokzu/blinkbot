@@ -33,6 +33,7 @@ import kotlinx.coroutines.withTimeout
 import me.waveio.claudebot.data.WebPreviewResource
 import me.waveio.claudebot.ui.NativeWebAppPreview
 import org.json.JSONObject
+import org.json.JSONTokener
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Rule
@@ -95,6 +96,32 @@ class WebAppPreviewTest {
     }
 
     private fun text(value: String, mime: String) = WebPreviewResource(value.toByteArray(), mime)
+
+    @Test fun percentageHeightRootsFillTheNativeViewportAndRemainHittableWithoutABridge() {
+        mount { path -> if (path == "/index.html") text("""
+            <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+            <style>
+              html,body,#stage { margin:0; width:100%; height:100%; overflow:hidden; }
+              #stage { position:relative; background:#e0eedf; }
+              #target { position:absolute; left:20px; top:20px; width:160px; height:48px; }
+            </style></head><body><main id="stage"><button id="target">Fixture action</button></main></body></html>
+        """.trimIndent(), "text/html") else null }
+        waitForJavascript("document.getElementById('target') !== null")
+        val raw = javascript("""JSON.stringify((() => {
+            const roots = [document.documentElement,document.body,document.getElementById('stage')];
+            const bounds = roots.map(node => { const r=node.getBoundingClientRect(); return {tag:node.tagName,width:r.width,height:r.height}; });
+            const target=document.getElementById('target'), rect=target.getBoundingClientRect();
+            const hit=document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2);
+            return {bounds,viewport:{width:innerWidth,height:innerHeight},
+                fillsViewport:bounds.every(r => Math.abs(r.width-innerWidth)<2 && Math.abs(r.height-innerHeight)<2 && r.height>100),
+                hitTarget:hit===target || target.contains(hit),hitTag:hit?.tagName};
+        })())""".trimIndent())
+        val diagnostics = JSONObject(JSONTokener(raw).nextValue() as String)
+        assertTrue("Percentage roots must fill the measured native viewport: $diagnostics", diagnostics.getBoolean("fillsViewport"))
+        assertTrue("Rendered controls must receive DOM hit tests: $diagnostics", diagnostics.getBoolean("hitTarget"))
+        assertEquals("\"undefined\"", javascript("typeof window.BlinkNative"))
+        assertEquals(0, errors.get())
+    }
 
     private fun builtApp(path: String): WebPreviewResource? = when (path) {
         "/index.html" -> text("""

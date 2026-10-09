@@ -129,6 +129,9 @@ private class AndroidWorkspaceEditor(
     @Suppress("DEPRECATION")
     fun createView(context: Context): WebView = WebView(context).also { web ->
         view = web
+        // Chromium changes percentage-height layout for WRAP_CONTENT even when
+        // Compose measures the native view to a full-size rectangle.
+        web.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         web.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = false

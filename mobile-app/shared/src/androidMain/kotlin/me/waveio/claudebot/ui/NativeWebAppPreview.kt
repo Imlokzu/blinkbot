@@ -158,6 +158,9 @@ private class AndroidPreviewSession(
     @Suppress("DEPRECATION")
     fun createView(context: Context): WebView = WebView(context).also { web ->
         view = web
+        // Percentage-height HTML/SVG roots need a viewport, not Chromium's
+        // WRAP_CONTENT document-sizing mode inherited from AndroidView.
+        web.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) {
             WebView.setWebContentsDebuggingEnabled(false)
         }

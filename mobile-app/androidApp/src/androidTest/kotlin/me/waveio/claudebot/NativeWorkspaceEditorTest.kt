@@ -18,6 +18,7 @@ import me.waveio.claudebot.data.WorkspaceEditorDocument
 import me.waveio.claudebot.data.WorkspaceEditorSession
 import me.waveio.claudebot.ui.NativeWorkspaceEditor
 import org.json.JSONObject
+import org.json.JSONTokener
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Rule
@@ -35,7 +36,9 @@ class NativeWorkspaceEditorTest {
 
     @After fun cleanup() { compose.runOnIdle { shown.value = false } }
 
-    private fun mount(readOnly: Boolean = false) {
+    private fun mount(readOnly: Boolean = false, drawing: Boolean = false) {
+        if (drawing) document.value = document.value.copy(path = "session/scene.excalidraw", kind = "drawing",
+            content = """{"type":"excalidraw","version":2,"source":"blink","elements":[],"appState":{},"files":{}}""")
         document.value = document.value.copy(readOnly = readOnly)
         compose.setContent {
             if (shown.value) NativeWorkspaceEditor(document.value, session,
@@ -49,9 +52,35 @@ class NativeWorkspaceEditorTest {
                     }
                 }, modifier = Modifier.fillMaxSize())
         }
-        compose.waitUntil(20_000) { javascript("Boolean(window.BlinkWorkspace && document.body.textContent.includes('Native editor fixture'))") == "true" }
+        val ready = if (drawing) "document.querySelector('[data-testid=toolbar-rectangle]')"
+            else "document.body.textContent.includes('Native editor fixture')"
+        compose.waitUntil(20_000) { javascript("Boolean(window.BlinkWorkspace && $ready)") == "true" }
         assertTrue("Opening a document must not autosave a normalized replacement", changes.isEmpty())
         assertTrue("Bundled editor must initialize without native errors: $errors", errors.isEmpty())
+        assertVisibleHitTarget(if (drawing) "[data-testid=toolbar-rectangle]" else ".view-tabs button")
+    }
+
+    private fun assertVisibleHitTarget(selector: String) {
+        val encoded = javascript("""JSON.stringify((() => {
+            const element = document.querySelector(${JSONObject.quote(selector)});
+            if (!element) return {found:false};
+            const target = element.closest('label') || element;
+            const rect = target.getBoundingClientRect();
+            const hit = document.elementFromPoint(rect.x + rect.width/2, rect.y + rect.height/2);
+            const ancestors = [];
+            for (let node = target; node; node = node.parentElement) {
+                const bounds = node.getBoundingClientRect(), style = getComputedStyle(node);
+                ancestors.push({tag:node.tagName,id:node.id,height:bounds.height,width:bounds.width,
+                    cssHeight:style.height,overflow:style.overflow,visibility:style.visibility});
+            }
+            const roots = [document.documentElement,document.body,document.getElementById('root')];
+            return {found:true, rootsSized:roots.every(node => node && node.getBoundingClientRect().height > 100 && node.getBoundingClientRect().width > 100),
+                hitTarget:target === hit || target.contains(hit), hitTag:hit?.tagName,
+                viewport:{width:innerWidth,height:innerHeight}, ancestors};
+        })())""".trimIndent())
+        val diagnostics = JSONObject(JSONTokener(encoded).nextValue() as String)
+        assertTrue("Editor DOM roots must occupy the native viewport: $diagnostics", diagnostics.optBoolean("rootsSized"))
+        assertTrue("Visible editor controls must receive real DOM hit tests: $diagnostics", diagnostics.optBoolean("hitTarget"))
     }
 
     private fun findWebView(node: View): WebView? {
@@ -95,6 +124,11 @@ class NativeWorkspaceEditorTest {
         compose.waitForIdle()
         assertEquals(selectionBefore, javascript("getSelection().anchorOffset"))
         assertTrue(javascript("document.body.textContent.includes('typed on the phone')") == "true")
+    }
+
+    @Test fun drawingToolbarHasVisibleAncestorsAndReceivesHitTests() {
+        mount(drawing = true)
+        assertEquals("true", javascript("Boolean(document.querySelector('canvas')?.getBoundingClientRect().height > 100)"))
     }
 
     @Test fun wrongDocumentReadonlyAndChildFrameMessagesCannotSave() {
