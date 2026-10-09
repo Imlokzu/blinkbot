@@ -20,7 +20,22 @@ The client does not call model providers directly. Conversations, workspace,
 models and bot personalization come from the existing host and owner identity.
 Backend contract and deployment assumptions: [MOBILE-API.md](../Virtual%20Bot/docs/MOBILE-API.md).
 
-## Version 0.4.2
+## Version 0.4.16
+
+Files now opens formatted Markdown, interactive HTML, images and drawings in
+their appropriate readers. Bundled Tiptap, CodeMirror and Excalidraw provide
+rich Markdown, source and canvas editing, including embedded workspace drawings
+and Mermaid conversion. Search, sorting, breadcrumbs and new note/drawing
+actions make the workspace usable from a phone.
+
+Edits retain revision checks and recovery, with explicit conflict resolution,
+save-copy and flush-before-navigation. AI writes refresh completed text/drawing
+previews without replacing unsaved edits. See
+[RELEASE-0.4.16.md](../docs/mobile-app/RELEASE-0.4.16.md) for verification and
+format/platform limits, and [editor-web/README.md](editor-web/README.md) for
+rebuilding the bundled editors.
+
+## Earlier releases
 
 Custom model/effort picker, opaque bubbles, inline dictation with live transcript,
 large attachment tiles, a genuine installed-skills picker, and a drawer revealed
@@ -58,8 +73,8 @@ loading, portrait geometry and the native full viewer. See
   progressive blur, custom images, per-screen scope, dimming, light/dark themes.
 - Dictation with actual audio amplitude and incremental ASR; manual Stop inserts
   transcription into the composer. No TTS or automatic sending.
-- Workspace browsing and revision-aware text/Markdown autosave, with retained
-  local recovery when the remote file changes or saving fails.
+- Workspace browsing, rich Markdown/source/drawing editors and revision-aware
+  autosave, with local recovery, conflict comparison and save-copy actions.
 - Durable server queue, explicit Stop/pause/resume, scheduled messages,
   idempotent delivery and event replay. Android WorkManager retries approved
   offline submissions under the operating system's scheduling limits.
@@ -68,10 +83,11 @@ loading, portrait geometry and the native full viewer. See
 
 ## Current limits
 
-- Owned file links now open in-app with revision-checked text editing. Built
-  HTML/Vite/React outputs run in an isolated native preview. Build with the bot
-  uses the normal chat queue. Preview networking and browser storage are limited;
-  see [RELEASE-0.4.8.md](../docs/mobile-app/RELEASE-0.4.8.md).
+- Built HTML/Vite/React outputs run in an isolated native preview with local
+  assets. Remote assets and services remain blocked. PDF/Office and unsupported
+  binary files offer original-file Save/Share; this release adds no PDF or
+  Office editor. Rich Markdown transformations are not byte-preserving for every
+  extension; source mode remains available.
 
 - The installed gateway cannot guarantee updating the current task through its
   exported API. Steer is disabled by capability rather than emulated as another

@@ -2791,3 +2791,34 @@ server. iOS runtime and physical-phone frame rates remain unverified.
 Artifact: mobile-app/build/Blink-0.4.15.apk. Existing owner work in progress is
 preserved. Action-tree caption contrast over bright wallpaper remains a visual
 follow-up, separate from this motion pass.
+
+
+## Blink mobile file workspace (2026-10-09)
+
+Shipped Android 0.4.16 (code 23), completing the owner's selected file-workspace
+scope. Files and chat artifacts now share formatted readers, bundled Tiptap
+Markdown, CodeMirror source and Excalidraw editing, Mermaid conversion, embedded
+drawings, image/SVG previews and original-byte export. Native search/sort, new
+notes/drawings, explicit save conflicts, copy/export, close flushing and recovery
+are integrated with existing revision/account/session boundaries. AI writes
+preserve queued user edits and refresh only completed matching previews.
+
+The editor is a separate trusted local bundle without credentials or generic
+native writes; arbitrary HTML retains its isolated untrusted preview. Fixed
+blank percentage-height WebViews, native SVG overdraw, pending-edit AI locks,
+persistent storage warnings and failed-copy feedback. Existing motion improvements
+from 0.4.15 remain. Other web administration panels are outside this goal.
+
+Validation: 322 shared and 78 Android unit tests; 23 editor unit tests and 22
+distinct browser scenarios; 18 distinct native scenarios plus compact dark-mode
+reruns. Failures/retries and screenshots are recorded in
+`docs/mobile-app/RELEASE-0.4.16.md`. Independent review returned APPROVE/CLEAR;
+Fable was unavailable. Post-review isolated HTTP smoke passed 28 expectations
+including traversal 400 and shut down. The full backend suite had 1,669 passes,
+six skips and one unrelated connector process timing failure; its 15-test module
+passed on retry. The full backend run was not clean on its first attempt.
+
+Optimized APK: `mobile-app/build/Blink-0.4.16.apk` (about 17 MiB), installed on
+the dedicated Pixel_8 test emulator. SHA-256 and release checks are in the release
+notes. iOS runtime remains unverified without Xcode. PDF/Office originals can be
+saved/shared but are not edited. Existing unrelated owner changes remain intact.

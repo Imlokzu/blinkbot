@@ -1,6 +1,10 @@
 # Blink mobile file workspace
 
-Status: implementation in progress, 2026-10-09.
+Status: implemented and verified for Android 0.4.16, 2026-10-09.
+
+All five checkpoints below are complete. Evidence, screenshots, retries and
+platform/format limits are recorded in [RELEASE-0.4.16.md](RELEASE-0.4.16.md).
+The iOS bridge is source-only on this host; an iOS release is not certified.
 
 The owner selected the complete file workspace as this goal's scope. Other web
 panels (memory, integrations and device administration) remain separate work.
