@@ -525,9 +525,10 @@ def pack(pkg_id: str) -> tuple[str, bytes]:
 
 def _pack_dir(root: Path, manifest: dict[str, Any]) -> tuple[str, bytes]:
     files = _package_files(root)
-    if len(files) > MAX_PACKAGE_FILES:
+    if len(files) > MAX_PACKAGE_FILES or sum(file.stat().st_size for file in files) > MAX_UNPACKED_BYTES:
         raise StoreError("package too large", code="too_large")
     buffer = io.BytesIO()
+    total = 0
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         # package.json first: a reader can identify the file from its head.
         ordered = sorted(files, key=lambda p: (p.name != "package.json" or p.parent != root, str(p)))
@@ -535,10 +536,25 @@ def _pack_dir(root: Path, manifest: dict[str, Any]) -> tuple[str, bytes]:
             info = zipfile.ZipInfo(file.relative_to(root).as_posix(), date_time=(2020, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = (stat.S_IFREG | 0o644) << 16
-            archive.writestr(info, file.read_bytes())
+            try:
+                descriptor = os.open(file, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                with os.fdopen(descriptor, "rb") as source:
+                    if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+                        raise StoreError("invalid package file", code="bad_archive")
+                    content = source.read(MAX_UNPACKED_BYTES - total + 1)
+            except OSError as exc:
+                raise StoreError("filesystem error during export", code="io_error") from exc
+            total += len(content)
+            if total > MAX_UNPACKED_BYTES:
+                raise StoreError("package too large", code="too_large")
+            archive.writestr(info, content)
     data = buffer.getvalue()
     if len(data) > MAX_ARCHIVE_BYTES:
         raise StoreError("package too large", code="too_large")
+    checked, _files = inspect_archive(data)
+    if checked["id"] != manifest["id"] or checked["type"] != manifest["type"]:
+        raise StoreError("package changed during export", code="bad_manifest")
+    manifest = checked
     version = re.sub(r"[^0-9A-Za-z.]", "", str(manifest.get("version") or "")) or "0"
     return f"{manifest['id']}-{version}{CBP_SUFFIX}", data
 

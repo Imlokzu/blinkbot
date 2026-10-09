@@ -236,3 +236,38 @@ def test_unsupported_archive_version_returns_400(shelf):
     response = TestClient(app).post("/api/screen-store/import", content=bytes(data))
     assert response.status_code == 400
     assert response.json()["detail"]["code"] == "bad_archive"
+
+
+def test_export_rejects_unpacked_budget_before_reading_payload(shelf, monkeypatch):
+    store.import_archive(bundle())
+    source = shelf / "shared/fixture"
+    (source / "payload.txt").write_text("a" * (store.MAX_UNPACKED_BYTES + 1))
+    def no_allocation(*args, **kwargs):
+        raise AssertionError("over-budget source must be rejected before open")
+    monkeypatch.setattr(store.os, "open", no_allocation)
+    with pytest.raises(store.StoreError) as error:
+        store.pack("fixture")
+    assert error.value.code == "too_large"
+
+
+def test_export_counts_actual_bytes_when_source_grows(shelf, monkeypatch):
+    store.import_archive(bundle())
+    source = shelf / "shared/fixture/payload.txt"
+    source.write_text("a")
+    real_open = store.os.open
+    def grow_before_open(path, flags, *args, **kwargs):
+        if Path(path) == source:
+            source.write_text("a" * (store.MAX_UNPACKED_BYTES + 1))
+        return real_open(path, flags, *args, **kwargs)
+    monkeypatch.setattr(store.os, "open", grow_before_open)
+    with pytest.raises(store.StoreError) as error:
+        store.pack("fixture")
+    assert error.value.code == "too_large"
+
+
+def test_export_requires_receiver_entry_contract(shelf):
+    store.import_archive(bundle())
+    shelf.joinpath("shared/fixture/index.html").unlink()
+    with pytest.raises(store.StoreError) as error:
+        store.pack("fixture")
+    assert error.value.code == "bad_manifest"
