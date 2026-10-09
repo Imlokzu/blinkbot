@@ -295,8 +295,9 @@ def test_a_newer_builtin_version_refreshes_the_installed_copy(store_dir):
     import json
     screen_store.install("metronome")
     installed = store_dir / "installed" / "apps" / "metronome"
+    assert screen_store.refresh_builtin_apps() == []  # Unchanged, verified generation.
     (installed / "index.html").write_text("old copy", "utf-8")
-    assert screen_store.refresh_builtin_apps() == []                 # same version: left alone
+    assert screen_store.refresh_builtin_apps() == ["metronome"]
 
     manifest_path = store_dir / "packages" / "metronome" / "package.json"
     manifest = json.loads(manifest_path.read_text("utf-8"))

@@ -35,6 +35,7 @@ deleting it.
 from __future__ import annotations
 
 import io
+import hashlib
 import json
 import logging
 import re
@@ -108,6 +109,46 @@ def shared_dir() -> Path:
 
 def installed_dir(kind: str) -> Path:
     return _store_dir() / "installed" / kind
+
+
+def _receipt_path(pkg_id: str) -> Path:
+    # Receipts live outside package-controlled files and never travel in a .cbp.
+    return installed_dir("receipts") / f"{pkg_id}.json"
+
+
+def _installed_digest(pkg_id: str) -> str:
+    """Bind trust to all installed bytes, including scripts loaded by the HTML."""
+    root = installed_dir("apps") / pkg_id
+    if root.is_symlink() or not root.is_dir():
+        raise OSError("invalid installed directory")
+    digest = hashlib.sha256()
+    total = count = 0
+    for path in sorted(root.rglob("*")):
+        if path.is_symlink():
+            raise OSError("symlink in installed package")
+        if path.is_dir():
+            continue
+        count += 1
+        if count > MAX_PACKAGE_FILES:
+            raise OSError("too many installed files")
+        with path.open("rb") as handle:
+            content = handle.read(MAX_UNPACKED_BYTES - total + 1)
+        total += len(content)
+        if total > MAX_UNPACKED_BYTES:
+            raise OSError("installed package too large")
+        name = path.relative_to(root).as_posix().encode("utf-8")
+        digest.update(len(name).to_bytes(4, "big") + name)
+        digest.update(len(content).to_bytes(8, "big") + content)
+    return digest.hexdigest()
+
+
+def _trusted_install(pkg_id: str) -> bool:
+    try:
+        receipt = json.loads(_receipt_path(pkg_id).read_text("utf-8"))
+        return (receipt.get("source") == "builtin"
+                and receipt.get("digest") == _installed_digest(pkg_id))
+    except (OSError, ValueError, AttributeError):
+        return False
 
 
 def validate_pkg_id(pkg_id: str) -> str:
@@ -278,6 +319,7 @@ def install(pkg_id: str) -> dict[str, Any]:
             raise StoreError("package not found or broken", code="not_found")
         src, _source = _source_root(pkg_id)
         try:
+            _receipt_path(pkg_id).unlink(missing_ok=True)
             if manifest["type"] == "app":
                 files = _package_files(src)
                 if len(files) > MAX_PACKAGE_FILES or sum(f.stat().st_size for f in files) > MAX_UNPACKED_BYTES:
@@ -290,6 +332,11 @@ def install(pkg_id: str) -> dict[str, Any]:
                     target = dst / file.relative_to(src)
                     target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(file, target)
+                if _source == "builtin":
+                    receipt = _receipt_path(pkg_id)
+                    receipt.parent.mkdir(parents=True, exist_ok=True)
+                    receipt.write_text(json.dumps({"source": "builtin",
+                        "digest": _installed_digest(pkg_id)}), "utf-8")
             else:
                 # A skin is just its manifest; installed/ keeps a copy of it.
                 dst = installed_dir("skins") / (pkg_id + ".json")
@@ -319,6 +366,7 @@ def uninstall(pkg_id: str) -> dict[str, Any]:
 
 def _remove_installed(pkg_id: str, kind: str) -> None:
     try:
+        _receipt_path(pkg_id).unlink(missing_ok=True)
         if kind == "app":
             dst = installed_dir("apps") / pkg_id
             if dst.exists():
@@ -357,7 +405,8 @@ def refresh_builtin_apps() -> list[str]:
         root = _source_root(pkg_id)
         if not root or root[1] != "builtin":
             continue
-        if _installed_version(pkg_id) == str(manifest.get("version") or ""):
+        if (_installed_version(pkg_id) == str(manifest.get("version") or "")
+                and _trusted_install(pkg_id)):
             continue
         try:
             install(pkg_id)
@@ -540,6 +589,13 @@ def import_archive(data: bytes, *, install_now: bool = False) -> dict[str, Any]:
     with _store_lock:
         if (packages_dir() / pkg_id / "package.json").is_file():
             raise StoreError("a built-in package already uses this id", code="id_taken")
+        previous_manifest = load_manifest(pkg_id)
+        other_kind_exists = (
+            (installed_dir("skins") / f"{pkg_id}.json").exists()
+            if manifest["type"] == "app" else (installed_dir("apps") / pkg_id).exists()
+        )
+        if (previous_manifest and previous_manifest["type"] != manifest["type"]) or other_kind_exists:
+            raise StoreError("package updates cannot change type", code="bad_manifest")
         base = shared_dir()
         try:
             base.mkdir(parents=True, exist_ok=True)
@@ -590,8 +646,8 @@ def remove_shared(pkg_id: str) -> dict[str, Any]:
         found = _source_root(pkg_id)
         if found is None or found[1] != "shared":
             raise StoreError("not a shared package", code="not_found")
-        manifest = load_manifest(pkg_id)
-        _remove_installed(pkg_id, (manifest or {}).get("type", "app"))
+        _remove_installed(pkg_id, "app")
+        _remove_installed(pkg_id, "skin")
         try:
             shutil.rmtree(found[0])
         except OSError as exc:
@@ -621,7 +677,11 @@ SHARED_APP_CSP = (
 def shared_app_csp(path: str) -> str | None:
     """CSP for a /store-apps/<id>/... request, or None for trusted apps."""
     first = path.strip("/").split("/", 1)[0]
-    return SHARED_APP_CSP if first and is_shared(first) else None
+    try:
+        pkg_id = validate_pkg_id(first)
+    except StoreError:
+        return SHARED_APP_CSP
+    return None if _trusted_install(pkg_id) else SHARED_APP_CSP
 
 
 # ------------------------------------------------------------------ CLI
