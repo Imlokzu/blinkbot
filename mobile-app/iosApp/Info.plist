@@ -19,6 +19,7 @@
         <key>CFBundleURLSchemes</key><array><string>claudebot</string></array>
     </dict></array>
     <key>LSRequiresIPhoneOS</key><true/>
+    <key>CADisableMinimumFrameDurationOnPhone</key><true/>
     <!-- The descriptions resolve through each locale's InfoPlist.strings. -->
     <key>NSCameraUsageDescription</key><string>privacy.camera</string>
     <key>NSMicrophoneUsageDescription</key><string>privacy.microphone</string>

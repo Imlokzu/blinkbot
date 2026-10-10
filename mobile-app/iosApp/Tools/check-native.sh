@@ -3,6 +3,7 @@ set -eu
 cd "$(dirname "$0")/.."
 swiftc -parse Sources/*.swift Tests/*.swift Tools/*.swift
 plutil -lint Info.plist Resources/PrivacyInfo.xcprivacy Resources/en.lproj/*.strings Resources/uk.lproj/*.strings
+test "$(/usr/libexec/PlistBuddy -c 'Print :CADisableMinimumFrameDurationOnPhone' Info.plist)" = true
 check_directory=$(mktemp -d "${TMPDIR:-/tmp}/claudebot-native.XXXXXX")
 trap 'rm -rf "$check_directory"' EXIT HUP INT TERM
 swiftc Sources/BoundedData.swift Sources/NativeStorage.swift Tools/BoundedDataChecks.swift -o "$check_directory/reader-checks"
