@@ -166,6 +166,7 @@ class AppControllerTest {
         runCurrent()
         assertTrue(fixture.requests.any { it.path == "/api/mobile/messages" && it.method == HttpMethod.Get })
         val rows = fixture.controller.state.value.allPending.associateBy { it.id }
+        assertTrue(rows.containsKey("scheduled"), "Queue load failed: ${fixture.controller.state.value.error}; rows=${rows.keys}")
         assertEquals("other_chat", rows.getValue("scheduled").sessionId)
         assertNotNull(rows.getValue("scheduled").scheduledAt)
         assertEquals("third_chat", rows.getValue("server_failed").sessionId)

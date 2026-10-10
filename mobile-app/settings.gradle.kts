@@ -5,4 +5,4 @@ dependencyResolutionManagement {
     repositories { google(); mavenCentral() }
 }
 rootProject.name = "ClaudeBotMobile"
-include(":shared", ":androidApp")
+include(":shared", ":androidApp", ":desktopApp")

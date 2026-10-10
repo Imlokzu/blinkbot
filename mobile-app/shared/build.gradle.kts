@@ -10,6 +10,7 @@ plugins {
 
 kotlin {
     androidTarget { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }
+    jvm("desktop") { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }
     listOf(iosArm64(), iosSimulatorArm64()).forEach {
         it.binaries.framework { baseName = "ClaudeBot"; isStatic = true }
     }
@@ -35,6 +36,19 @@ kotlin {
             implementation("androidx.webkit:webkit:1.16.0")
         }
         iosMain.dependencies { implementation("io.ktor:ktor-client-darwin:3.3.3") }
+        val desktopMain by getting {
+            dependencies {
+                implementation(compose.desktop.currentOs)
+                implementation("io.ktor:ktor-client-okhttp:3.3.3")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.2")
+                // Desktop Material3 uses 0.7; retain the Instant ABI used by shared 0.6 code.
+                implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1-0.6.x-compat")
+                compileOnly(files(rootProject.layout.buildDirectory.dir("desktop-runtime/jcef-api/classes")))
+            }
+        }
+        val desktopTest by getting {
+            dependencies { implementation(compose.desktop.uiTestJUnit4) }
+        }
         commonTest.dependencies {
             implementation(kotlin("test"))
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
@@ -54,3 +68,28 @@ android {
 }
 
 compose.resources { publicResClass = true; packageOfResClass = "me.waveio.claudebot.resources" }
+
+val prepareDesktopRuntime by tasks.registering(Exec::class) {
+    commandLine("python3", rootProject.file("desktopApp/scripts/prepare-runtime.py"))
+    outputs.dir(rootProject.layout.buildDirectory.dir("desktop-runtime/jcef-api/classes"))
+    outputs.dir(rootProject.layout.buildDirectory.dir("desktop-runtime/jbrsdk_jcef-25.0.4.1-osx-aarch64-b635.70/Contents/Home"))
+}
+tasks.named("compileKotlinDesktop") { dependsOn(prepareDesktopRuntime) }
+
+tasks.named<Test>("desktopTest") {
+    exclude("**/DesktopEditorIntegrationTest*")
+}
+
+tasks.register<JavaExec>("desktopBrowserTest") {
+    dependsOn(prepareDesktopRuntime, "desktopTestClasses")
+    val compilation = kotlin.targets.getByName("desktop").compilations.getByName("test") as org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJvmCompilation
+    classpath(compilation.output.allOutputs, compilation.runtimeDependencyFiles)
+    executable = rootProject.layout.buildDirectory.file("desktop-runtime/jbrsdk_jcef-25.0.4.1-osx-aarch64-b635.70/Contents/Home/bin/java").get().asFile.absolutePath
+    mainClass.set("org.junit.runner.JUnitCore")
+    args("me.waveio.claudebot.ui.DesktopEditorIntegrationTest")
+    jvmArgs("--add-modules=jcef", "--enable-native-access=jcef,ALL-UNNAMED",
+        "--add-opens=java.desktop/sun.awt=ALL-UNNAMED", "--add-opens=java.desktop/sun.lwawt=ALL-UNNAMED",
+        "--add-opens=java.desktop/sun.lwawt.macosx=ALL-UNNAMED")
+    systemProperty("blink.nativeBrowserTests", "true")
+    systemProperty("blink.browserLog", "/tmp/blink-macos-cef-test.log")
+}

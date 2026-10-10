@@ -4,6 +4,10 @@ Kotlin Multiplatform / Compose client for the existing Blink host. Android
 builds and native UI flows are verified; the iOS host is included but still needs
 full Xcode compilation and device testing.
 
+The same shared app also builds for Apple Silicon macOS with bundled native
+editors and previews. See [Blink for macOS](desktopApp/README.md) for the desktop
+build, connection flow and platform limits.
+
 ## Connect a phone
 
 1. Install the backend changes and Python requirements in `Virtual Bot`.

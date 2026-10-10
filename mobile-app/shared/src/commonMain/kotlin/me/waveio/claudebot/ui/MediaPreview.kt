@@ -52,7 +52,7 @@ internal fun MediaPreview(state: AppState, actions: AppActions) {
         val target = (pager.currentPage + delta).coerceIn(0, items.lastIndex)
         scope.launch { if (reduced) pager.scrollToPage(target) else pager.animateScrollToPage(target) }
     }
-    Dialog(actions::closePreview, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+    Dialog(actions::closePreview, properties = mediaPreviewDialogProperties()) {
         NativeDialogChrome(p.dark)
         // A dialog has its own constraints; its size can differ from the host.
         BoxWithConstraints(Modifier.fillMaxSize().background(p.background).windowInsetsPadding(WindowInsets.safeDrawing)) {
