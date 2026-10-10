@@ -105,7 +105,6 @@ run_logged "$run_dir/simulator-build.log" env BLINK_IOS_UI_FIXTURES=YES xcodebui
   -project ClaudeBot.xcodeproj \
   -scheme ClaudeBot \
   -destination "$simulator_destination" \
-  -arch arm64 \
   -parallel-testing-enabled NO \
   'SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) DEBUG BLINK_IOS_UI_FIXTURES' \
   -derivedDataPath "$derived_data" \
@@ -116,7 +115,6 @@ run_logged "$run_dir/simulator-tests.log" xcodebuild \
   -project ClaudeBot.xcodeproj \
   -scheme ClaudeBot \
   -destination "$simulator_destination" \
-  -arch arm64 \
   -parallel-testing-enabled NO \
   -derivedDataPath "$derived_data" \
   -resultBundlePath "$run_dir/Blink-Simulator-Tests.xcresult" \
