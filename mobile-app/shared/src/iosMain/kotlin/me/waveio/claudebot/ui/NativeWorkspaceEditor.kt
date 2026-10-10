@@ -50,9 +50,12 @@ import platform.Foundation.NSURL
 import platform.Foundation.NSURLComponents
 import platform.Foundation.NSURLRequest
 import platform.Foundation.NSUUID
+import platform.Foundation.HTTPMethod
+import platform.Foundation.valueForHTTPHeaderField
 import platform.Foundation.create
 import platform.UIKit.UIApplicationDidEnterBackgroundNotification
 import platform.WebKit.*
+import platform.WebKit.WKNavigationTypeReload
 import platform.darwin.NSObject
 import platform.darwin.NSObjectProtocol
 import kotlin.coroutines.resume
@@ -186,7 +189,12 @@ private class IosWorkspaceEditorHost(
                 withTimeout(WorkspaceEditorResourceTimeoutMillis) {
                     manifest = withContext(Dispatchers.Default) { loadWorkspaceEditorManifest() }
                     val rules = suspendCancellableCoroutine<WKContentRuleList> { continuation ->
-                        WKContentRuleListStore.defaultStore().compileContentRuleListForIdentifier(
+                        val ruleListStore = WKContentRuleListStore.defaultStore()
+                        if (ruleListStore == null) {
+                            continuation.resumeWithException(IllegalStateException("editor_failed"))
+                            return@suspendCancellableCoroutine
+                        }
+                        ruleListStore.compileContentRuleListForIdentifier(
                             "blink-workspace-network-v1", encodedContentRuleList = WorkspaceNetworkRules,
                         ) { result, error ->
                             if (continuation.isActive) {
@@ -204,7 +212,7 @@ private class IosWorkspaceEditorHost(
                     }.URL
                     if (url == null) fail("editor_failed") else {
                         pendingDocumentUrl = url.absoluteString
-                        web.loadRequest(NSURLRequest(URL = url))
+                        web.loadRequest(NSURLRequest(uRL = url))
                     }
                 }
             } catch (_: CancellationException) {
@@ -267,7 +275,7 @@ private class IosWorkspaceEditorHost(
                 val result = allowed ?: WebPreviewResource(ByteArray(0), "text/plain", if (request.HTTPMethod == "GET") 404 else 405)
                 val response = url?.let {
                     NSHTTPURLResponse(
-                        URL = it, statusCode = result.status.toLong(), HTTPVersion = "HTTP/1.1",
+                        uRL = it, statusCode = result.status.toLong(), HTTPVersion = "HTTP/1.1",
                         headerFields = WorkspaceEditorResponseHeaders + ("Content-Type" to result.mimeType),
                     )
                 }
@@ -314,7 +322,7 @@ private class IosWorkspaceEditorHost(
         val action = decidePolicyForNavigationAction
         val requested = action.request.URL?.absoluteString.orEmpty()
         val displayed = webView.URL?.absoluteString
-        val fragmentOnly = action.navigationType != WKNavigationType.WKNavigationTypeReload && '#' in requested &&
+        val fragmentOnly = action.navigationType != WKNavigationTypeReload && '#' in requested &&
             requested.substringBefore('#') == displayed?.substringBefore('#')
         val initial = !documentNavigationStarted && requested == pendingDocumentUrl
         val allowed = alive && action.targetFrame?.mainFrame == true && action.request.HTTPMethod == "GET" &&

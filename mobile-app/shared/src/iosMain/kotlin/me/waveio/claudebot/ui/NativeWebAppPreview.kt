@@ -33,8 +33,11 @@ import platform.Foundation.NSURL
 import platform.Foundation.NSURLComponents
 import platform.Foundation.NSURLRequest
 import platform.Foundation.NSUUID
+import platform.Foundation.HTTPMethod
+import platform.Foundation.valueForHTTPHeaderField
 import platform.Foundation.create
 import platform.WebKit.*
+import platform.WebKit.WKNavigationTypeReload
 import platform.darwin.NSObject
 
 @Composable
@@ -107,7 +110,11 @@ private class IosPreviewSession(
         web.allowsBackForwardNavigationGestures = false
         // Fail closed: custom-scheme handling cannot intercept WebKit's built-in
         // network schemes, so install engine-level blocking before any HTML loads.
-        WKContentRuleListStore.defaultStore().compileContentRuleListForIdentifier(
+        val ruleListStore = WKContentRuleListStore.defaultStore() ?: run {
+            fail()
+            return web
+        }
+        ruleListStore.compileContentRuleListForIdentifier(
             "claudebot-preview-network-v1",
             encodedContentRuleList = PreviewNetworkRules,
         ) { rules, error ->
@@ -119,7 +126,7 @@ private class IosPreviewSession(
                 val url = NSURLComponents().apply { scheme = PreviewScheme; host = this@IosPreviewSession.host; path = entry }.URL
                 if (url == null) fail() else {
                     pendingDocumentUrl = url.absoluteString?.substringBefore('#')
-                    web.loadRequest(NSURLRequest(URL = url))
+                    web.loadRequest(NSURLRequest(uRL = url))
                 }
             }
         }
@@ -165,7 +172,7 @@ private class IosPreviewSession(
                 }
                 val result = allowed ?: WebPreviewResource(ByteArray(0), "text/plain", if (htmlSubresource) 415 else 404)
                 val response = url?.let { NSHTTPURLResponse(
-                    URL = it, statusCode = result.status.toLong(), HTTPVersion = "HTTP/1.1",
+                    uRL = it, statusCode = result.status.toLong(), HTTPVersion = "HTTP/1.1",
                     headerFields = PreviewResponseHeaders + ("Content-Type" to "${result.mimeType}; charset=utf-8"),
                 ) }
                 if (response == null) {
@@ -216,7 +223,7 @@ private class IosPreviewSession(
         if (allowed) {
             val requested = action.request.URL?.absoluteString.orEmpty()
             val displayed = webView.URL?.absoluteString
-            val fragmentOnly = action.navigationType != WKNavigationType.WKNavigationTypeReload &&
+            val fragmentOnly = action.navigationType != WKNavigationTypeReload &&
                 requested.substringBefore('#') == displayed?.substringBefore('#') &&
                 (requested != displayed || '#' in requested)
             if (!fragmentOnly) pendingDocumentUrl = requested.substringBefore('#')
