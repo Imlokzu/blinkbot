@@ -45,8 +45,9 @@ private object IosEditorFixtureState {
 }
 
 /** Test-only host for the actual Compose iOS editor and preview implementations. */
-fun iosEditorFixtureViewController(): UIViewController {
+fun iosEditorFixtureViewController(mode: String): UIViewController {
     IosEditorFixtureState.reset()
+    IosEditorFixtureState.select(mode)
     return ComposeUIViewController { IosEditorFixtureContent() }
 }
 

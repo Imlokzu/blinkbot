@@ -173,7 +173,7 @@ final class NativeWorkspaceEditorTests: XCTestCase {
         let mainBridgeAvailable = try await evaluate("Boolean(window.webkit?.messageHandlers?.BlinkNative)", in: web) as? Bool
         XCTAssertEqual(mainBridgeAvailable, true)
 
-        _ = try await evaluate("window.webkit.messageHandlers.BlinkNative.postMessage(JSON.stringify({type:'change',id:'ios-ui-markdown-1',sequence:1,content:'main bridge positive control'}))", in: web)
+        _ = try await evaluate("(() => { window.webkit.messageHandlers.BlinkNative.postMessage(JSON.stringify({type:'change',id:'ios-ui-markdown-1',sequence:1,content:'main bridge positive control'})); return true; })()", in: web)
         try await waitForChange(containing: "main bridge positive control")
         XCTAssertEqual(IosEditorFixtureKt.iosEditorFixtureChangeCount(), 1)
 
@@ -208,10 +208,9 @@ final class NativeWorkspaceEditorTests: XCTestCase {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let hostWindow = UIWindow(windowScene: scene)
         hostWindow.frame = scene.coordinateSpace.bounds
-        hostWindow.rootViewController = IosEditorFixtureKt.iosEditorFixtureViewController()
+        hostWindow.rootViewController = IosEditorFixtureKt.iosEditorFixtureViewController(mode: mode)
         hostWindow.makeKeyAndVisible()
         window = hostWindow
-        IosEditorFixtureKt.iosEditorFixtureSelect(mode: mode)
 
         let expectedHost = mode == "preview" ? "claudebot-preview://" : "blink-workspace://"
         let deadline = Date().addingTimeInterval(15)
@@ -225,7 +224,7 @@ final class NativeWorkspaceEditorTests: XCTestCase {
                 // A blank WebView may never call its evaluation completion on
                 // the simulator. Wait for the owned navigation before polling JS.
                 if web.url?.absoluteString.hasPrefix(expectedHost) == true {
-                    let ready = (try? await evaluate("document.readyState === 'complete'", in: web) as? Bool) ?? false
+                    let ready = (try? await evaluate("location.href.startsWith('" + expectedHost + "') && document.readyState === 'complete'", in: web) as? Bool) ?? false
                     if ready { return web }
                 }
             }
