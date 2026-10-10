@@ -33,7 +33,7 @@ fun conversationDay(updatedAt: Long?, now: Instant, zone: TimeZone): String {
 fun ConversationDrawer(state: AppState, actions: AppActions) {
     val p = LocalPalette.current
     val zone = remember { TimeZone.currentSystemDefault() }
-    val now = remember(state.conversations) { Clock.System.now() }
+    val now = remember(state.conversations) { Instant.fromEpochMilliseconds(kotlin.time.Clock.System.now().toEpochMilliseconds()) }
     var selected by remember { mutableStateOf<ConversationRow?>(null) }
     var editing by remember { mutableStateOf<ConversationRow?>(null) }
     var deleting by remember { mutableStateOf<ConversationRow?>(null) }

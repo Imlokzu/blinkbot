@@ -18,8 +18,8 @@ import kotlinx.datetime.*
 @Composable
 fun SchedulePopup(actions: AppActions) {
     val zone = remember { TimeZone.currentSystemDefault() }
-    val initial = remember { Instant.fromEpochMilliseconds(Clock.System.now().toEpochMilliseconds() + 300_000).toLocalDateTime(zone) }
-    val today = remember { Clock.System.now().toLocalDateTime(zone).date }
+    val initial = remember { Instant.fromEpochMilliseconds(kotlin.time.Clock.System.now().toEpochMilliseconds() + 300_000).toLocalDateTime(zone) }
+    val today = remember { Instant.fromEpochMilliseconds(kotlin.time.Clock.System.now().toEpochMilliseconds()).toLocalDateTime(zone).date }
     var selected by remember { mutableStateOf(initial.date) }
     var month by remember { mutableStateOf(LocalDate(selected.year, selected.monthNumber, 1)) }
     var hour by remember { mutableIntStateOf(initial.hour) }

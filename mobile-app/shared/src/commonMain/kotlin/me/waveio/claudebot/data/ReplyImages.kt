@@ -58,7 +58,10 @@ fun replyImages(text: String, origin: String, live: Boolean = false): List<Reply
         if (node.type == M.LINK_DEFINITION) {
             val key = node.descendant(M.LINK_LABEL)?.value()
             val target = node.descendant(M.LINK_DESTINATION)?.value()
-            if (key != null && target != null) definitions.putIfAbsent(label(key), target)
+            if (key != null && target != null) {
+                val normalized = label(key)
+                if (normalized !in definitions) definitions[normalized] = target
+            }
         } else node.children.forEach(::collectDefinitions)
     }
     collectDefinitions(root)
