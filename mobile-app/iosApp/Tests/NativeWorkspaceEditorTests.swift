@@ -291,8 +291,14 @@ final class NativeWorkspaceEditorTests: XCTestCase {
             if (try? await evaluate(source, in: web) as? Bool) == true { return }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
+        let probe = try? await evaluate("""
+        JSON.stringify({url:location.href, origin:globalThis.origin,
+          api:Boolean(window.BlinkWorkspace), bridge:Boolean(window.webkit?.messageHandlers?.BlinkNative),
+          body:document.body?.innerText.slice(0,400), scripts:[...document.scripts].map(script=>script.src)})
+        """, in: web)
+        let diagnostics = "page=\(String(describing: probe)), errors=\(IosEditorFixtureKt.iosEditorFixtureErrors())"
         throw NSError(domain: "NativeWorkspaceEditorTests", code: 2,
-                      userInfo: [NSLocalizedDescriptionKey: "Timed out waiting for JavaScript condition: \(source)"])
+                      userInfo: [NSLocalizedDescriptionKey: "Timed out waiting for JavaScript condition: \(source); \(diagnostics)"])
     }
 
     private func waitForChange(containing text: String) async throws {

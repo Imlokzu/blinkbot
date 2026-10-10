@@ -157,7 +157,7 @@ private val PREVIEW_HTML = """
           catch (error) { storage = error.name; }
           document.cookie = 'fixture=secret';
           window.fixturePreviewProbe = {
-            origin: location.origin,
+            origin: globalThis.origin,
             bridge: Boolean(window.webkit?.messageHandlers?.BlinkNative),
             storage,
             cookie: document.cookie,
