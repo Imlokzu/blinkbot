@@ -28,6 +28,35 @@ Use Xcode Product > Test for the hosted XCTest target. Command Line Tools alone
 cannot compile UIKit/SwiftUI, export the iOS Kotlin framework, link an iOS app,
 or exercise camera/microphone/notification behavior.
 
+## Simulator build in GitHub Actions
+
+The manual `iOS build and tests` workflow uses an Apple Silicon runner with
+Xcode 26.3 and JDK 17. To build the simulator app without Apple signing:
+
+```sh
+gh workflow run ios-build.yml -f build-device-archive=false
+```
+
+The workflow builds Blink 0.4.16 (build 23), runs the hosted XCTest target and
+uploads the simulator app, test results, screenshots and build logs. The app
+product is `Blink.app`; the scheme and shared framework retain their existing
+`ClaudeBot` names for compatibility. An optional device archive is explicitly
+unsigned and is not suitable for installation on a phone by itself.
+
+Native workspace tests use the actual Compose/UIKitView and WKWebView hosts
+with synthetic documents. The Kotlin fixture source is included only when
+`-PblinkIosUiFixtures=true`; its Swift tests are gated by
+`BLINK_IOS_UI_FIXTURES`. Ordinary builds and Release archives exclude those
+fixture exports. The CI script enables both flags for its debug test build.
+No test uses an owner's connection, invokes a model provider or records audio.
+
+After downloading and extracting the simulator app on a Mac with full Xcode:
+
+```sh
+xcrun simctl install booted Blink.app
+xcrun simctl launch booted me.waveio.claudebot.mobile
+```
+
 ## Checks available without Xcode
 
 ```sh
@@ -94,13 +123,14 @@ exported Kotlin framework header.
   Ukrainian. ATS allows local networking for the user-selected bot; public
   endpoints should use HTTPS. No third-party network service is introduced.
 
-On an actual Xcode build, inspect `ClaudeBot.framework/Headers/ClaudeBot.h` and
-confirm `IosNativeDelegate` callback boxing (`KotlinFloat`, `KotlinBoolean`,
-`KotlinUnit`), the three recording callbacks including `onPartial`, `IosSecretResult`,
-`IosBridgeKt.iosPickedFile`'s `NSData`/Swift
-`Data` mapping, and `MainViewControllerKt.MainViewController(bridge:)`. These
-follow the Kotlin Objective-C export contract but have not been verified against
-an exported iOS header on the Command Line Tools-only development machine.
+The Xcode 26.3 build exports `IosNativeDelegate` callbacks with Swift `Void`
+returns and boxed `KotlinFloat`/`KotlinBoolean` payloads. Keep the exported
+`writeSecret(key:value_:)` and `doCopyText(value:)` spellings in the Swift
+implementation. The framework header also exports the three recording callbacks
+including `onPartial`, `IosSecretResult`, `IosBridgeKt.iosPickedFile` with
+`NSData`/Swift `Data`, and `MainViewControllerKt.MainViewController(bridge:)`.
+These bindings are checked by the GitHub Actions build; the local preflight
+cannot verify them with Command Line Tools alone.
 
 ## Wallpaper decoding and launcher assets
 
@@ -109,8 +139,9 @@ geometry without caching source pixels, and creates an oriented first-frame
 thumbnail before handing its bounded PNG to Skia. Output is at most 2048 pixels
 per edge (4,194,304 pixels). Sources above 32,768 pixels on an edge or 268,435,456
 pixels are rejected. CF image/data/options ownership is released explicitly.
-This Kotlin/ImageIO integration still requires an actual Xcode framework build
-and iOS device test; the macOS-only script does not typecheck it.
+The Kotlin/ImageIO integration compiles in the Xcode framework build. Its
+decoding behavior still needs iOS runtime coverage; the macOS-only script does
+not exercise it.
 
 Android uses a matching encoded/source/output cap with bounds-first
 `BitmapFactory` power-of-two subsampling. Real Android instrumentation covers
