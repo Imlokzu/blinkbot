@@ -1,0 +1,59 @@
+name: iOS build and tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      build-device-archive:
+        description: Also build an unsigned iPhoneOS archive
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  ios-build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      IOS_BUILD_DEVICE_ARCHIVE: ${{ inputs.build-device-archive }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          lfs: false
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
+
+      - name: Verify Xcode and install XcodeGen
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(uname -m)" == arm64 ]] || { echo 'The iOS workflow requires an Apple Silicon runner.' >&2; exit 1; }
+          [[ -d "$DEVELOPER_DIR" ]] || { echo 'Xcode 26.3 is not installed at the expected runner path.' >&2; exit 1; }
+          osascript -e 'set volume output muted true'
+          xcodebuild -version
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Build and test iOS app
+        env:
+          IOS_ARTIFACTS_DIR: ${{ runner.temp }}/ios-build-artifacts
+        run: mobile-app/iosApp/Tools/build-ios.sh
+
+      - name: Upload simulator app, test results, logs, and optional unsigned archive
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ios-build-${{ github.run_number }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ios-build-artifacts/
+          if-no-files-found: warn
+          retention-days: 14

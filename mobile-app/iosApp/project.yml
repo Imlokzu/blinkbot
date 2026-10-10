@@ -10,10 +10,11 @@ settings:
     SWIFT_VERSION: "5.0"
     SWIFT_STRICT_CONCURRENCY: minimal
     ENABLE_USER_SCRIPT_SANDBOXING: NO
-    CURRENT_PROJECT_VERSION: 21
-    MARKETING_VERSION: "0.4.14"
+    CURRENT_PROJECT_VERSION: 23
+    MARKETING_VERSION: "0.4.16"
 targets:
   ClaudeBot:
+    productName: Blink
     type: application
     platform: iOS
     sources:
@@ -23,7 +24,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.waveio.claudebot.mobile
-        PRODUCT_NAME: ClaudeBot
+        PRODUCT_NAME: Blink
         PRODUCT_MODULE_NAME: ClaudeBotApp
         INFOPLIST_FILE: Info.plist
         GENERATE_INFOPLIST_FILE: NO
@@ -46,7 +47,11 @@ targets:
             exit 0
           fi
           cd "$SRCROOT/.."
-          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+          if [ "${BLINK_IOS_UI_FIXTURES:-NO}" = "YES" ]; then
+            ./gradlew --no-daemon --max-workers=2 --no-parallel -PblinkIosUiFixtures=true :shared:embedAndSignAppleFrameworkForXcode
+          else
+            ./gradlew --no-daemon --max-workers=2 --no-parallel :shared:embedAndSignAppleFrameworkForXcode
+          fi
     dependencies:
       - sdk: UIKit.framework
       - sdk: SwiftUI.framework

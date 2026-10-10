@@ -34,6 +34,7 @@
 		CAAFF0196639960324CC9327 /* PhotosUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 924A94E485EB309946337779 /* PhotosUI.framework */; };
 		E2D281B6B5E9187791EDFB31 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 95C7745200398B7A9D38FEF2 /* Assets.xcassets */; };
 		E2F54D018047B05A3660495A /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 16F1EF7A4D5CF1A820C124BF /* Localizable.strings */; };
+		FCA4845CE52B66F267B4B51A /* NativeWorkspaceEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5B653E861BD9BF006FC244 /* NativeWorkspaceEditorTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -47,13 +48,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0C5B653E861BD9BF006FC244 /* NativeWorkspaceEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeWorkspaceEditorTests.swift; sourceTree = "<group>"; };
 		1EF311B13B94C1A60CCD5DEE /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
 		2803617BEA1D244A2176F128 /* NativeRecording.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeRecording.swift; sourceTree = "<group>"; };
 		29F4E90722204F4B341E4C88 /* RecordingPCM.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingPCM.swift; sourceTree = "<group>"; };
 		3A7360CB5ACAFC63A9A12465 /* NativeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBridge.swift; sourceTree = "<group>"; };
 		46E7E2234A18ACDCA14FDBCD /* NativePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePicker.swift; sourceTree = "<group>"; };
 		4E90DD3DBE956C292746B0F2 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
-		505148F896B65EB4789B5769 /* ClaudeBot.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ClaudeBot.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5B68717EFE907F49605697A8 /* NativeExportFilesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeExportFilesTests.swift; sourceTree = "<group>"; };
 		5C7619111708D724A3A19A3F /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		5FEF59A4AAF027EEBC38DFF9 /* UserNotifications.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UserNotifications.framework; path = System/Library/Frameworks/UserNotifications.framework; sourceTree = SDKROOT; };
@@ -69,6 +70,7 @@
 		AA421D0F439B92B23D2E758E /* BoundedData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoundedData.swift; sourceTree = "<group>"; };
 		C216A6D864E6FB6CFC39AFB4 /* NativeFileExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFileExport.swift; sourceTree = "<group>"; };
 		C49155430C973E73264C166E /* NativeStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeStorage.swift; sourceTree = "<group>"; };
+		C577446B7D81B9E6E9BB6DD1 /* Blink.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Blink.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C7F17326D893968C535E6476 /* NativeLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeLifecycleTests.swift; sourceTree = "<group>"; };
 		DE013BDD868021E735F5C21E /* RecordingPCMTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingPCMTests.swift; sourceTree = "<group>"; };
 		E570E96C23858CD603BC30E2 /* ClaudeBotNativeTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ClaudeBotNativeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -101,7 +103,7 @@
 		299D72121A0A4BDB15A6496D /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				505148F896B65EB4789B5769 /* ClaudeBot.app */,
+				C577446B7D81B9E6E9BB6DD1 /* Blink.app */,
 				E570E96C23858CD603BC30E2 /* ClaudeBotNativeTests.xctest */,
 			);
 			name = Products;
@@ -143,6 +145,7 @@
 				5B68717EFE907F49605697A8 /* NativeExportFilesTests.swift */,
 				C7F17326D893968C535E6476 /* NativeLifecycleTests.swift */,
 				FDB64046D81366A7E8EF338D /* NativeStorageTests.swift */,
+				0C5B653E861BD9BF006FC244 /* NativeWorkspaceEditorTests.swift */,
 				DE013BDD868021E735F5C21E /* RecordingPCMTests.swift */,
 			);
 			path = Tests;
@@ -193,7 +196,7 @@
 			packageProductDependencies = (
 			);
 			productName = ClaudeBot;
-			productReference = 505148F896B65EB4789B5769 /* ClaudeBot.app */;
+			productReference = C577446B7D81B9E6E9BB6DD1 /* Blink.app */;
 			productType = "com.apple.product-type.application";
 		};
 		F0CB0757E7417342F70F182F /* ClaudeBotNativeTests */ = {
@@ -281,7 +284,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -eu\nif [ \"${OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED:-NO}\" = \"YES\" ]; then\n  exit 0\nfi\ncd \"$SRCROOT/..\"\n./gradlew :shared:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "set -eu\nif [ \"${OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED:-NO}\" = \"YES\" ]; then\n  exit 0\nfi\ncd \"$SRCROOT/..\"\nif [ \"${BLINK_IOS_UI_FIXTURES:-NO}\" = \"YES\" ]; then\n  ./gradlew --no-daemon --max-workers=2 --no-parallel -PblinkIosUiFixtures=true :shared:embedAndSignAppleFrameworkForXcode\nelse\n  ./gradlew --no-daemon --max-workers=2 --no-parallel :shared:embedAndSignAppleFrameworkForXcode\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -295,6 +298,7 @@
 				3E9880C41B0A94892D929CE1 /* NativeExportFilesTests.swift in Sources */,
 				15C0BBCD88F3A439B9D96E56 /* NativeLifecycleTests.swift in Sources */,
 				7CCE172E95B41920ADF32C94 /* NativeStorageTests.swift in Sources */,
+				FCA4845CE52B66F267B4B51A /* NativeWorkspaceEditorTests.swift in Sources */,
 				4A52E6D1705BADD3434C232B /* RecordingPCMTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -368,7 +372,7 @@
 				OTHER_LDFLAGS = "$(inherited) -framework ClaudeBot -lc++";
 				PRODUCT_BUNDLE_IDENTIFIER = me.waveio.claudebot.mobile;
 				PRODUCT_MODULE_NAME = ClaudeBotApp;
-				PRODUCT_NAME = ClaudeBot;
+				PRODUCT_NAME = Blink;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -396,7 +400,7 @@
 				OTHER_LDFLAGS = "$(inherited) -framework ClaudeBot -lc++";
 				PRODUCT_BUNDLE_IDENTIFIER = me.waveio.claudebot.mobile;
 				PRODUCT_MODULE_NAME = ClaudeBotApp;
-				PRODUCT_NAME = ClaudeBot;
+				PRODUCT_NAME = Blink;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -438,7 +442,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 23;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -458,7 +462,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MARKETING_VERSION = 0.4.8;
+				MARKETING_VERSION = 0.4.16;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -484,7 +488,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = me.waveio.claudebot.mobile.tests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClaudeBot.app/ClaudeBot";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Blink.app/Blink";
 			};
 			name = Release;
 		};
@@ -522,7 +526,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 23;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -536,7 +540,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MARKETING_VERSION = 0.4.8;
+				MARKETING_VERSION = 0.4.16;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -561,7 +565,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = me.waveio.claudebot.mobile.tests;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ClaudeBot.app/ClaudeBot";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Blink.app/Blink";
 			};
 			name = Debug;
 		};

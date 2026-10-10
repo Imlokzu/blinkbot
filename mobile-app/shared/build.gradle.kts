@@ -36,6 +36,9 @@ kotlin {
             implementation("androidx.webkit:webkit:1.16.0")
         }
         iosMain.dependencies { implementation("io.ktor:ktor-client-darwin:3.3.3") }
+        if (providers.gradleProperty("blinkIosUiFixtures").orNull == "true") {
+            iosMain.get().kotlin.srcDir("src/iosUiTestFixtures/kotlin")
+        }
         val desktopMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
