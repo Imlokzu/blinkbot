@@ -1,7 +1,8 @@
 # Mobile implementation architecture
 
-Status: Android implementation validated, iOS device validation pending, 2026-10-03. The owner has now requested
-implementation of the application. Routine layout parameters may be refined
+Status: Android implementation validated; iOS simulator build and 26 native tests
+validated on 2026-10-10; iOS physical-device validation pending. See
+[the iOS validation record](IOS-SIMULATOR-0.4.16.md). Routine layout parameters may be refined
 within the agreed reference; the product behavior in [DESIGN.md](DESIGN.md)
 remains binding.
 
@@ -23,7 +24,7 @@ remains binding.
 
 ## Build baseline
 
-Pin Kotlin 2.3.21, Compose Multiplatform 1.10.3, AGP 8.11.1, Gradle 8.14.3,
+Pin Kotlin 2.3.21, Compose Multiplatform 1.10.3, AGP 8.13.2, Gradle 8.14.3,
 and JDK 17. This uses a verified compatible toolchain already available on the
 host rather than changing every installed build tool during app creation.
 The Android minimum is API 26, compile/target API 36. Native targets include
@@ -33,8 +34,9 @@ arm64 devices and Apple Silicon simulators.
 the newer Android KMP library plugin is a future build migration, not a
 reason to combine an AGP upgrade with this product implementation.
 
-The initial Android debug build passed. Full Xcode is missing on the current
-Mac, so Apple compilation and device/simulator behavior are not yet verified.
+The initial Android debug build passed. Full Xcode is missing on the development
+Mac; GitHub's Apple Silicon runner subsequently verified iOS compilation,
+simulator startup and the hosted native tests. Physical-device behavior remains pending.
 
 ## State and correctness
 
@@ -54,7 +56,8 @@ Mac, so Apple compilation and device/simulator behavior are not yet verified.
 Compile the Android app, run shared state/transport tests, exercise an Android
 emulator, and inspect actual screenshots. Test service extensions independently
 with isolated data before integration. Preserve existing staged backend edits.
-Apple verification remains explicitly pending until a full Xcode SDK is available.
+Run the manual iOS workflow for Apple compilation and hosted simulator tests.
+Physical-device and signed-distribution verification remain separate.
 
 Sources: [KMP compatibility](https://kotlinlang.org/docs/multiplatform/multiplatform-compatibility-guide.html),
 [Compose compatibility](https://kotlinlang.org/docs/multiplatform/compose-compatibility-and-versioning.html),
@@ -82,7 +85,8 @@ Same-provider fallback happens only before observed output/tool work; persisted
 assistant records retain the effective model. The gateway's exported API does
 not guarantee strict steering, so the capability remains false. APNs/FCM remote
 push is unconfigured. iOS outbox retry currently requires a foreground opportunity.
-Full Apple compilation remains unverified because this Mac lacks full Xcode.
+Apple compilation and simulator tests were subsequently verified through GitHub
+Actions; the development Mac still lacks full Xcode.
 
 
 ## Custom interface and live reply refinement (0.2.0)

@@ -155,8 +155,9 @@ cd ..
 
 ## Limits
 
-- iOS has a source implementation, but this Mac has no full Xcode installation;
-  an iOS build/runtime is not certified by the Android checks.
+- iOS simulator compilation, startup and 26 hosted native tests were verified
+  separately on October 10. See [the iOS validation record](IOS-SIMULATOR-0.4.16.md).
+  Physical-device behavior and signed distribution remain pending.
 - PDF/Office/binary files are preserved for original-file export. This release
   does not add an Office converter or PDF editor that the web workbench lacks.
 - Interactive HTML uses bundled/relative assets. Remote assets, network services

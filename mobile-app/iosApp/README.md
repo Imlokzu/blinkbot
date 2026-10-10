@@ -50,9 +50,18 @@ with synthetic documents. The Kotlin fixture source is included only when
 fixture exports. The CI script enables both flags for its debug test build.
 No test uses an owner's connection, invokes a model provider or records audio.
 
-After downloading and extracting the simulator app on a Mac with full Xcode:
+Blink 0.4.16 (build 23) passed all 26 hosted native tests on an iPhone SE
+(3rd generation) simulator running iOS 26.2. Startup, Tiptap, CodeMirror,
+Excalidraw and isolated HTML preview screenshots were inspected. The successful
+[GitHub run](https://github.com/Imlokzu/blinkbot/actions/runs/38080622410) and
+[validation record](../../docs/mobile-app/IOS-SIMULATOR-0.4.16.md) include the
+artifact checksum and the limits of those checks.
+
+On an Apple Silicon Mac with full Xcode, start an iPhone simulator in the
+Simulator app. From the folder containing the downloaded ZIP:
 
 ```sh
+ditto -x -k Blink-0.4.16-ios-simulator.app.zip .
 xcrun simctl install booted Blink.app
 xcrun simctl launch booted me.waveio.claudebot.mobile
 ```

@@ -1,8 +1,10 @@
 # Blink Mobile
 
 Kotlin Multiplatform / Compose client for the existing Blink host. Android
-builds and native UI flows are verified; the iOS host is included but still needs
-full Xcode compilation and device testing.
+builds and native UI flows are verified. Blink 0.4.16 also builds and launches in
+the iOS simulator, with 26 native tests passing. See the
+[iOS simulator validation](../docs/mobile-app/IOS-SIMULATOR-0.4.16.md) and
+[installation instructions](iosApp/README.md). Physical-device validation remains pending.
 
 The same shared app also builds for Apple Silicon macOS with bundled native
 editors and previews. See [Blink for macOS](desktopApp/README.md) for the desktop
@@ -99,8 +101,9 @@ loading, portrait geometry and the native full viewer. See
 - Native local reply notifications exist. Remote APNs/FCM push from a closed app
   is not configured. iOS has no background outbox worker yet; retained pending
   submissions retry on the next permitted foreground opportunity.
-- Full Xcode is absent on the development Mac. Swift source checks and portable
-  audio/file checks passed; an iOS app or IPA has not been compiled or tested.
+- Full Xcode is absent on the development Mac. GitHub's Apple Silicon runner
+  built and tested the iOS simulator app with Xcode 26.3. No signed iPhone IPA
+  or physical-device validation is included.
 - Real provider calls, real microphone recognition and signed store distribution
   are not certified by the deterministic test fixtures. Public hostname routing
   was checked separately; see [TUNNEL.md](../docs/mobile-app/TUNNEL.md).

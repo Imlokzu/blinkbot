@@ -2855,3 +2855,33 @@ four findings; 30 focused tests and four subtests passed. Independent review
 and post-review API/static smoke evidence and limits are in `VALIDATION.md`.
 The October 8–9 repairs are acknowledged, not re-reported. Other agents' work,
 credentials and personal runtime data remain outside the audit commit.
+
+
+## Blink iOS simulator build and native editors (2026-10-10)
+
+Built Blink 0.4.16 (build 23) for the Apple Silicon iOS simulator. The successful
+GitHub Actions run 38080622410 built commit 39282107 with Xcode 26.3 and iOS 26.2
+on an iPhone SE (3rd generation); all 26 hosted native tests passed. Native
+Tiptap and CodeMirror input/flush, Excalidraw scene input/flush, trusted-frame
+bridge checks and isolated HTML preview resource/security checks are verified.
+Startup and editor screenshots were inspected.
+
+Fixed UIKit dialog parameters, portable common map/clock calls, Foundation and
+WebKit bindings, Swift delegate exports and the audio-engine notification name.
+Enabled Compose's required frame-rate plist option. Split WebKit content-rule
+regex alternations and replaced Kotlin-wrapper referential equality in the
+WebView message guard with native-object equality, retaining the other trust
+checks. Test fixtures gained explicit width, initial-mode selection, real URL
+readiness, bounded waits and primitive JavaScript results. The workflow saves
+the app and startup screenshot before tests and exports failure attachments.
+
+Local artifact: mobile-app/build/Blink-0.4.16-ios-simulator.app.zip. SHA-256 and
+run history are in docs/mobile-app/IOS-SIMULATOR-0.4.16.md. Earlier failed and
+cancelled runs are recorded; supported independent reviewers were used because
+Fable was unavailable. Post-review isolated backend smoke passed 29 curl checks
+including traversal 400 and static assets, and stopped its temporary server.
+
+The build is a debug simulator app with test fixtures, not a signed phone IPA.
+Physical-device permissions, hardware audio, background delivery, frame rates
+and dedicated ImageIO runtime coverage remain pending. Existing owner work in
+progress is preserved, and the Mac remains muted.
