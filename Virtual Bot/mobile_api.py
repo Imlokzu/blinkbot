@@ -149,6 +149,18 @@ def _env(channel: str, key: str, *, platform: str = "android") -> str:
 
 def _mobile_update(platform: str, version_code: int, channel: str = "stable") -> dict[str, Any]:
     """Return operator-published update metadata without embedding binaries."""
+    if platform == "macos":
+        return {
+            "available": False,
+            "channel": channel,
+            "version_name": "",
+            "version_code": 0,
+            "changelog": [],
+            "url": None,
+            "ios_url": None,
+            "sha256": None,
+            "mandatory": False,
+        }
     try:
         published_code = int(_env(channel, "VERSION_CODE", platform=platform) or "0")
     except ValueError:
@@ -182,7 +194,7 @@ class ExchangeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     code: str = Field(min_length=1, max_length=128)
     device_name: str = Field(min_length=1, max_length=80)
-    platform: Literal["android", "ios"]
+    platform: Literal["android", "ios", "macos"]
 
     @field_validator("device_name")
     @classmethod
@@ -586,7 +598,7 @@ def router(require_user, require_operator, run_turn: RunTurn, *, store: MobileSt
 
     @routes.get("/capabilities")
     async def capabilities(
-        platform: Literal["android", "ios"] = Query(default="android"),
+        platform: Literal["android", "ios", "macos"] = Query(default="android"),
         version_code: int = Query(default=0, ge=0, le=10_000_000),
         channel: str = Query(default="stable"),
         user_id: str = Depends(identity),
