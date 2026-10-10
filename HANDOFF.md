@@ -2841,3 +2841,17 @@ No real release, signing change or production restart was performed. Existing
 signing/asset-name/pull-code/release-replacement risks remain separate. Other
 agents' pending work is preserved and the Mac remains muted. Evidence and limits:
 `reports/night-agent-release-inputs-2026-10-09.md`.
+
+
+## 2026-10-10 — Repository audit: project and action-state boundaries
+
+Added `reports/repository-audit-2026-10-10/` beside earlier agent audits.
+Four new findings cover project metadata symlink escapes, malformed metadata
+blocking the list, concurrent rename staging collisions, and expired checklist
+calls exhausting action capacity. The report includes repair examples, explicit
+preconditions and acceptance checks, plus three additions. Repairs remain
+proposals; no product changes were applied. Synthetic probes reproduced all
+four findings; 30 focused tests and four subtests passed. Independent review
+and post-review API/static smoke evidence and limits are in `VALIDATION.md`.
+The October 8–9 repairs are acknowledged, not re-reported. Other agents' work,
+credentials and personal runtime data remain outside the audit commit.
