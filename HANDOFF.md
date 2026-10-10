@@ -2885,3 +2885,27 @@ The build is a debug simulator app with test fixtures, not a signed phone IPA.
 Physical-device permissions, hardware audio, background delivery, frame rates
 and dedicated ImageIO runtime coverage remain pending. Existing owner work in
 progress is preserved, and the Mac remains muted.
+
+
+## 2026-10-10 — Night-agent project symlink repair
+
+Project metadata operations now reject directory/metadata links and use pinned
+POSIX directory descriptors. Exclusive unique staging prevents the fixed-temp
+link write and ordinary rename collisions; receipts retain the submitted name.
+Trash moves preserve project data and reject detectable directory substitutions.
+New messages use the English/Ukrainian project catalog, validated by the checker.
+
+Validation: 1,750 backend tests passed, eight skipped and 178 subtests; 41 focused
+project tests plus four subtests, 21 i18n tests, catalog validation, 231 dashboard
+tests and TypeScript passed. Recent iOS native preflight passed in an isolated
+copy after correcting the runner's username environment. Separate native review
+returned APPROVE / WATCH; synthesis COMMENT retains the authorized-inode/trusted
+root boundary and does not promise an OS sandbox or revision-CAS. Fable was
+unavailable. Post-review real-app smoke passed 37 curl expectations, including
+project-link rejection, unchanged outside bytes, preserved trash data, traversal
+400 and static assets. The temporary server stopped and the Mac remains muted.
+
+P-02 malformed metadata, I-01 expired actions, and full P-03 conflict/history
+semantics remain separate follow-ups. Global language ratchet debt remains; no
+baseline was relaxed. Existing shared drafts are preserved. Evidence and limits:
+`reports/night-agent-project-paths-2026-10-10.md`.

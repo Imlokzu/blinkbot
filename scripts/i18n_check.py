@@ -26,7 +26,7 @@ def is_catalog_or_ignored(path_str):
         return True
     if path_str.startswith("Virtual Bot/dashboard/src/locales/") and path_str.endswith(".ts"):
         return True
-    if path_str == "Virtual Bot/integrations/locales.py":
+    if path_str in ("Virtual Bot/integrations/locales.py", "Virtual Bot/project_locales.py"):
         return True
     if path_str == "landing/src/i18n.js":
         return True
@@ -370,11 +370,11 @@ def check_catalogs(args):
             en_pairs, en_dups = extract_js_object_pairs(content[en_match.end()-1:])
             check_catalog_file(str(file_path), uk_pairs, en_pairs, {"uk": uk_dups, "en": en_dups}, rc)
 
-    # 2. Integrations catalog
-    integrations_path = Path("Virtual Bot/integrations/locales.py")
-    if integrations_path.exists():
-        u_pairs, e_pairs, d_dups = extract_python_dict(integrations_path.read_text(encoding="utf-8"))
-        check_catalog_file(str(integrations_path), u_pairs, e_pairs, d_dups, rc)
+    # 2. Python catalogs
+    for catalog in (Path("Virtual Bot/integrations/locales.py"), Path("Virtual Bot/project_locales.py")):
+        if catalog.exists():
+            u_pairs, e_pairs, d_dups = extract_python_dict(catalog.read_text(encoding="utf-8"))
+            check_catalog_file(str(catalog), u_pairs, e_pairs, d_dups, rc)
 
     # 3. Screen catalog
     screen_path = Path("Virtual Bot/static/screen/i18n.js")

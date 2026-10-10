@@ -10,6 +10,21 @@ sys.path.insert(0, os.path.dirname(__file__))
 import i18n_check
 
 class TestCatalogs(unittest.TestCase):
+    def test_project_catalog_is_checked_and_excluded_from_debt(self):
+        catalog = "Virtual Bot/project_locales.py"
+        self.assertTrue(i18n_check.is_catalog_or_ignored(catalog))
+        content = 'STRINGS = {"uk": {"project.invalid_path": "Шлях"}, "en": {}}'
+        original = Path.read_text
+
+        def read(path, *args, **kwargs):
+            return content if path.as_posix() == catalog else original(path, *args, **kwargs)
+
+        with patch.object(Path, 'read_text', read), patch('builtins.print') as output:
+            result = i18n_check.check_catalogs(None)
+        self.assertEqual(result, 1)
+        messages = [args[0] for args, _ in output.call_args_list]
+        self.assertTrue(any(catalog in message and 'project.invalid_path' in message for message in messages))
+
     def test_extract_js_object_pairs(self):
         text = """
         const uk = {
