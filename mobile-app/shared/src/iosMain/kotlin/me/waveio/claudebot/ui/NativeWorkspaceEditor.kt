@@ -230,7 +230,8 @@ private class IosWorkspaceEditorHost(
         val message = didReceiveScriptMessage
         val frame = message.frameInfo
         val origin = frame.securityOrigin
-        if (!alive || message.webView !== view || message.name != WorkspaceBridgeName || !frame.mainFrame ||
+        // Objective-C callbacks can wrap the same WebView in a fresh Kotlin object.
+        if (!alive || message.webView != view || message.name != WorkspaceBridgeName || !frame.mainFrame ||
             origin.protocol != WorkspaceScheme || origin.host != host || origin.port != 0L ||
             frame.request.HTTPMethod != "GET" || path(frame.request.URL) != WorkspaceEntryPath) return
         (message.body as? String)?.let(bridge::receive)
