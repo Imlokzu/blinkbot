@@ -102,7 +102,7 @@ final class NativeBridge: NSObject, IosNativeDelegate, UNUserNotificationCenterD
         }
     }
 
-    func writeSecret(key: String, value: String?) -> String? {
+    func writeSecret(key: String, value_ value: String?) -> String? {
         do {
             try keychainQueue.sync { try NativeStorage.writeSecret(key, value: value) }
             return nil
@@ -114,17 +114,17 @@ final class NativeBridge: NSObject, IosNativeDelegate, UNUserNotificationCenterD
         return nativeString("error.keychain")
     }
 
-    func scanQr(onResult: @escaping (String?) -> KotlinUnit) {
+    func scanQr(onResult: @escaping (String?) -> Void) {
         onMain { [weak self] in
             guard let self, let presenter = self.availablePresenter() else {
-                _ = onResult(nil); return
+                onResult(nil); return
             }
             let scanner = QRScanController()
             scanner.onError = { [weak self] in self?.showError($0) }
             scanner.onResult = { [weak self, weak scanner] value in
                 guard let self, let scanner, self.operation === scanner else { return }
                 self.operation = nil
-                _ = onResult(value)
+                onResult(value)
                 self.flushErrors()
             }
             self.operation = scanner
@@ -135,12 +135,12 @@ final class NativeBridge: NSObject, IosNativeDelegate, UNUserNotificationCenterD
         }
     }
 
-    func pickFile(kind: String, onResult: @escaping (PickedFile?) -> KotlinUnit) {
-        startPicker(kind: kind, multiple: false) { _ = onResult($0.first) }
+    func pickFile(kind: String, onResult: @escaping (PickedFile?) -> Void) {
+        startPicker(kind: kind, multiple: false) { onResult($0.first) }
     }
 
-    func pickFiles(kind: String, onResult: @escaping ([PickedFile]) -> KotlinUnit) {
-        startPicker(kind: kind, multiple: true) { _ = onResult($0) }
+    func pickFiles(kind: String, onResult: @escaping ([PickedFile]) -> Void) {
+        startPicker(kind: kind, multiple: true) { onResult($0) }
     }
 
     private func startPicker(kind: String, multiple: Bool, onResult: @escaping ([PickedFile]) -> Void) {
@@ -164,26 +164,26 @@ final class NativeBridge: NSObject, IosNativeDelegate, UNUserNotificationCenterD
         }
     }
 
-    func saveFile(file: PickedFile, onResult: @escaping (KotlinBoolean) -> KotlinUnit) {
+    func saveFile(file: PickedFile, onResult: @escaping (KotlinBoolean) -> Void) {
         exportFile(file, sharing: false, onResult: onResult)
     }
 
-    func shareFile(file: PickedFile, onResult: @escaping (KotlinBoolean) -> KotlinUnit) {
+    func shareFile(file: PickedFile, onResult: @escaping (KotlinBoolean) -> Void) {
         exportFile(file, sharing: true, onResult: onResult)
     }
 
     private func exportFile(_ file: PickedFile, sharing: Bool,
-                            onResult: @escaping (KotlinBoolean) -> KotlinUnit) {
+                            onResult: @escaping (KotlinBoolean) -> Void) {
         onMain { [weak self] in
             guard let self, let presenter = self.availablePresenter(),
                   let data = IosBridgeKt.iosFileData(file: file) else {
-                _ = onResult(KotlinBoolean(bool: false)); return
+                onResult(KotlinBoolean(bool: false)); return
             }
             let exporter = NativeFileExport(presenter: presenter, name: file.name, mime: file.mimeType, data: data)
             exporter.onResult = { [weak self, weak exporter] success in
                 guard let self, let exporter, self.operation === exporter else { return }
                 self.operation = nil
-                _ = onResult(KotlinBoolean(bool: success))
+                onResult(KotlinBoolean(bool: success))
                 self.flushErrors()
             }
             self.operation = exporter
@@ -194,22 +194,22 @@ final class NativeBridge: NSObject, IosNativeDelegate, UNUserNotificationCenterD
         }
     }
 
-    func startRecording(onAmplitude: @escaping (KotlinFloat) -> KotlinUnit,
-                        onResult: @escaping (PickedFile?) -> KotlinUnit,
-                        onPartial: @escaping (PickedFile) -> KotlinUnit) {
+    func startRecording(onAmplitude: @escaping (KotlinFloat) -> Void,
+                        onResult: @escaping (PickedFile?) -> Void,
+                        onPartial: @escaping (PickedFile) -> Void) {
         onMain { [weak self] in
             guard let self, self.operation == nil,
                   self.controller != nil, self.bridge != nil,
-                  UIApplication.shared.applicationState == .active else { _ = onResult(nil); return }
+                  UIApplication.shared.applicationState == .active else { onResult(nil); return }
             self.recording.start(amplitude: { [weak self] in
                 guard self != nil else { return }
-                _ = onAmplitude(KotlinFloat(float: $0))
+                onAmplitude(KotlinFloat(float: $0))
             }, result: { [weak self] in
                 guard self != nil else { return }
-                _ = onResult($0)
+                onResult($0)
             }, partial: { [weak self] in
                 guard self != nil else { return }
-                _ = onPartial($0)
+                onPartial($0)
             })
         }
     }
@@ -219,7 +219,7 @@ final class NativeBridge: NSObject, IosNativeDelegate, UNUserNotificationCenterD
     func haptic() {
         onMain { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
     }
-    func copyText(value: String) { onMain { UIPasteboard.general.string = value } }
+    func doCopyText(value: String) { onMain { UIPasteboard.general.string = value } }
 
     func shareText(value: String) {
         onMain { [weak self] in
@@ -235,13 +235,13 @@ final class NativeBridge: NSObject, IosNativeDelegate, UNUserNotificationCenterD
         }
     }
 
-    func requestNotifications(onResult: @escaping (KotlinBoolean) -> KotlinUnit) {
+    func requestNotifications(onResult: @escaping (KotlinBoolean) -> Void) {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) {
             [weak self] allowed, error in
             onMain { [weak self] in
                 guard let self else { return }
                 if error != nil { self.showError("error.notifications") }
-                _ = onResult(KotlinBoolean(bool: allowed && error == nil))
+                onResult(KotlinBoolean(bool: allowed && error == nil))
             }
         }
     }

@@ -259,7 +259,6 @@ final class NativeWorkspaceEditorTests: XCTestCase {
         IosEditorFixtureKt.iosEditorFixtureFlush { value in
                 result = value.boolValue
                 completed.fulfill()
-                return KotlinUnit()
         }
         await fulfillment(of: [completed], timeout: 4)
         return try XCTUnwrap(result, "The native editor flush callback did not return a result")
