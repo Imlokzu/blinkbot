@@ -25,13 +25,13 @@ final class NativeRecording: NSObject {
         super.init()
         let center = NotificationCenter.default
         for name in [AVAudioSession.interruptionNotification, AVAudioSession.mediaServicesWereResetNotification,
-                     AVAudioEngine.configurationChangeNotification] {
+                     Notification.Name.AVAudioEngineConfigurationChange] {
             observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
                 if note.name == AVAudioSession.interruptionNotification,
                    let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
                    raw != AVAudioSession.InterruptionType.began.rawValue { return }
                 guard let self, let request = self.token else { return }
-                if note.name == AVAudioEngine.configurationChangeNotification,
+                if note.name == Notification.Name.AVAudioEngineConfigurationChange,
                    let changed = note.object as? AVAudioEngine, changed !== self.engine { return }
                 // A notification can be posted synchronously inside engine/session mutation.
                 // Complete that operation before teardown, and discard notifications from an old generation.
