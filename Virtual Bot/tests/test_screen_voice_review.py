@@ -27,6 +27,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import {{readFileSync}} from 'node:fs';
 import {{VoiceTurnDetector}} from {json.dumps((SCREEN / 'voice-turn.js').as_uri())};
+import {{WakeCueCache}} from {json.dumps((SCREEN / 'wake-cues.js').as_uri())};
 import {{parseWake, findWake, isStopCommand}} from {json.dumps((SCREEN / 'wake.js').as_uri())};
 import {{ReplyTurn}} from {json.dumps((SCREEN / 'reply.js').as_uri())};
 const source = readFileSync({json.dumps(str(SCREEN / 'screen.js'))}, 'utf8');
@@ -51,6 +52,7 @@ class Element {{
 function environment(extra={{}}) {{
   const ctx=vm.createContext({{
     Blob, FormData, AbortController, TextDecoder, ReplyTurn, VoiceTurnDetector, parseWake, findWake, isStopCommand,
+    wakeCueCache:new WakeCueCache(async()=>null), warmWakeReplies(){{}}, handleWakeInterim(){{}},
     clock:0, timers:new Map(), nextTimer:0, log:[], sent:[], recorders:[], plays:0,
     speechQueue:[], speechRunning:false, speechController:null, speechEpoch:0, speechEnded:null,
     spokenReplyText:'', voiceOn:true, ttsAvailable:true, voiceSpeed:1, volume:70, voiceUrl:null,

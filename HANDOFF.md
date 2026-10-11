@@ -2964,3 +2964,33 @@ The ordinary TruffleHog archive wrapper exhausted disk space. The complete stage
 snapshot was scanned through a streamed archive with the committed hook's policy
 and verified by tree hash before commit; Gitleaks still ran normally. The
 uncommitted stricter scanner draft and other existing work were preserved.
+
+
+## 2026-10-11 — Immediate wake-name acknowledgment
+
+Calling the configured name alone now shows and speaks a short localized Hi or
+What do you need cue in Always listening and Wake word modes. The full name and
+its first-word shorthand use the existing phonetic matching. Name-only calls
+do not reach Luna. Two voice clips warm when listening starts and are reused
+for the current language, speed and screen voice choice. Recognition latency
+remains; immediate feedback begins once the name is recognized.
+
+Repeated interim/final results greet once. Actual requests over the greeting
+remain available, named stop cancels without another model turn, and voice cue
+echo cannot become a chat message. Pause/settings changes cancel obsolete
+cues. Captured follow-up intent survives expiry during an active utterance,
+while empty/noise results do not retain it.
+
+Validation: 1,832 Python tests passed, 7 skipped and 178 subtests passed; 131
+focused wake/voice checks passed. Independent supported maximum-effort review
+added 34 adversarial cases and approved the software behavior; Fable was
+unavailable. Post-review curl smoke passed 19 checks, including both traversal
+guards returning 400 and the new wake-cue module. JavaScript syntax is clean.
+
+Browser controls confirmed two cached greetings with zero model calls, a
+normal request and named stop, with recording continuing. Real ElevenLabs
+returned valid English MP3 cue clips; cached Hi playback started about 88 ms
+after a simulated recognition result. Physical ASR latency and speaker echo
+remain untested. Temporary test services are stopped, and Mac output stays
+muted. Setup/evidence: `Virtual Bot/docs/SCREEN-VOICE.md`. Existing drafts
+remain untouched; open screen tabs should reload to pick up the new modules.

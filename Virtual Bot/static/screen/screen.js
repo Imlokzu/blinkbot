@@ -10,6 +10,7 @@ import { drawGlyphString, makeIcon, paintIcon } from "./pixel-ui.js";
    перевіряти напряму, не маючи мікрофона (див. wake.js) */
 import { parseWake, findWake, isStopCommand } from "./wake.js";
 import { VoiceTurnDetector } from "./voice-turn.js";
+import { WakeCueCache } from "./wake-cues.js";
 import { ReplyTurn } from "./reply.js";
 import { activities as islandActivities, selectKey as islandSelect, fmtClock } from "./island.js";
 import { ScreenKeyboard } from "./keyboard.js";
@@ -927,6 +928,7 @@ let voiceOn = false;
 let VOICE_SPEEDS = [1, 1.5, 2];
 let voiceSpeed = 1;
 let ttsAvailable = false;
+let ttsVoiceSignature = "";
 let editing = false;
 let picked = null;      // id плитки, обраної першою в режимі перестановки
 
@@ -1006,6 +1008,7 @@ let speechController = null;
 let speechEpoch = 0;              // нова репліка ⇒ хвіст попередньої не грає
 let speechEnded = null;           // resolve поточного playBlob
 let spokenReplyText = "";         // що вже озвучив сам екран (щоб не читати двічі)
+const wakeCueCache = new WakeCueCache((text, signal, speed) => ttsBlob(text, signal, speed));
 
 function speechAudioDone() {
   const resolve = speechEnded;
@@ -1023,11 +1026,12 @@ function speechReset() {
   try { voiceAudio.pause(); } catch (e) { /* ще нічого не грало */ }
   speechAudioDone();
   botSpeaking = false;
+  voiceAudio.wakeCueActive = false;
   musicDucked = false;
   syncMusicVolume();
 }
 
-async function ttsBlob(text, signal) {
+async function ttsBlob(text, signal, speed = voiceSpeed) {
   try {
     const r = await fetch("/api/tts", {
       method: "POST",
@@ -1035,7 +1039,7 @@ async function ttsBlob(text, signal) {
       headers: { "Content-Type": "application/json" },
       // Стеля — 1000 символів (стільки бере бекенд), ріжемо по межі речення:
       // обірване на півслові звучить як збій.
-      body: JSON.stringify({ text: cutForSpeech(text, 1000), speed: voiceSpeed }),
+      body: JSON.stringify({ text: cutForSpeech(text, 1000), speed }),
     });
     if (!r.ok) return null;                  // 503 — голос просто мовчить
     return await r.blob();
@@ -1071,6 +1075,17 @@ async function speechPump() {
   const epoch = speechEpoch;
   const controller = new AbortController();
   speechController = controller;
+  const audioFor = (item) => {
+    if (!item.audio) return ttsBlob(item.text, controller.signal);
+    // A cue may still be warming. Cancelling playback must not wait for it.
+    return new Promise((resolve) => {
+      const finish = (blob) => { controller.signal.removeEventListener("abort", cancel); resolve(blob); };
+      const cancel = () => finish(null);
+      if (controller.signal.aborted) { resolve(null); return; }
+      controller.signal.addEventListener("abort", cancel, { once: true });
+      Promise.resolve(item.audio).then(finish, () => finish(null));
+    });
+  };
   // Поки бот говорить — музика притихає, щоб було чутно мову
   musicDucked = true;
   syncMusicVolume();
@@ -1087,14 +1102,14 @@ async function speechPump() {
       let current = ready;
       if (!current) {
         const item = speechQueue.shift();
-        current = { item, audio: await ttsBlob(item.text, controller.signal) };
+        current = { item, audio: await audioFor(item) };
       }
       ready = null;
       if (epoch !== speechEpoch) break;
       let ahead = null;
       if (speechQueue.length) {
         const next = speechQueue.shift();
-        ahead = ttsBlob(next.text, controller.signal).then((audio) => ({ item: next, audio }));
+        ahead = audioFor(next).then((audio) => ({ item: next, audio }));
       }
       if (typeof current.item.onStart === "function") {
         try { current.item.onStart(); } catch (e) { /* a caption must not stop the voice */ }
@@ -1107,6 +1122,7 @@ async function speechPump() {
     if (speechController === controller) speechController = null;
     if (epoch === speechEpoch) {
       botSpeaking = false;
+      voiceAudio.wakeCueActive = false;
       musicDucked = false;
       syncMusicVolume();
       captionSpeechEnded();
@@ -1119,13 +1135,13 @@ async function speechPump() {
 
 /* Queues a piece of text for speech without cutting what is playing.
    onStart runs when this piece starts to sound. */
-function speechSay(raw, onStart) {
+function speechSay(raw, onStart, audio = null) {
   // Image markup is never read aloud, or it would dictate "exclamation
   // mark bracket h-t-t-p-s…" instead of the reply. Links and the rest of
   // the markdown are stripped by the backend (tts_text.clean_for_speech).
   const text = splitImages(String(raw || "")).text;
   if (!speechWanted() || !text.trim()) return false;
-  speechQueue.push({ text, onStart });
+  speechQueue.push({ text, onStart, audio });
   speechPump();
   return true;
 }
@@ -1230,6 +1246,7 @@ async function checkTts() {
     const r = await fetch("/api/tts/status");
     const d = await r.json();
     ttsAvailable = !!d.enabled;
+    ttsVoiceSignature = String(d.provider || "") + ":" + String(d.selected ?? "");
     if (Array.isArray(d.speeds) && d.speeds.length) {
       VOICE_SPEEDS = d.speeds.map(Number).filter((v) => v > 0);
       // Збережений темп може бути з іншого провайдера (1.5× у ElevenLabs
@@ -1243,6 +1260,7 @@ async function checkTts() {
   } catch (e) {
     ttsAvailable = false;
   }
+  if (listening) warmWakeReplies();
   if (!ttsAvailable) {
     voiceOn = false;
     volRange.disabled = true;
@@ -1299,6 +1317,7 @@ function cycleVoiceSpeed() {
   const i = VOICE_SPEEDS.indexOf(voiceSpeed);
   voiceSpeed = VOICE_SPEEDS[(i + 1) % VOICE_SPEEDS.length];
   writePref(SPEED_KEY, voiceSpeed);
+  if (listening) warmWakeReplies();
   // Уже озвучена репліка лишається у старому темпі — наступна піде в новому.
   // Перезапитувати аудіо на льоту не варто: це зайвий синтез заради півсекунди.
 }
@@ -1308,9 +1327,10 @@ function toggleVoice() {
   voiceOn = !voiceOn;
   writePref(VOICE_KEY, voiceOn ? "1" : "0");
   if (!voiceOn) {
+    wakeCueCache.cancel();
     speechReset();
     captionSpeechEnded();
-  }
+  } else if (listening) warmWakeReplies();
 }
 
 function toggleTheme() {
@@ -1836,6 +1856,8 @@ let voiceMode = "open";
 let wakeWord = t("voice.defaultWake");
 let wakeWordFromBot = false;  // ім'я прийшло з налаштувань — мовою не чіпаємо
 let wakeArmed = false;        // ім'я почули, чекаємо саму команду
+let wakeCuePendingFinal = false;
+let wakeCueNumber = 0;
 
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
 const meter = window.AudioLevelMeter
@@ -2307,7 +2329,7 @@ function hideCaption() {
     const r = await fetch("/api/setup");
     const d = await r.json();
     const name = ((d.profile || {}).name || "").trim().toLowerCase();
-    if (name) { wakeWord = name.split(/\s+/)[0]; wakeWordFromBot = true; }
+    if (name) { wakeWord = name; wakeWordFromBot = true; }
   } catch (e) { /* лишається типове слово поточної мови */ }
 
   // initPrefs уже виставив стиль до першого рендера; тут лишається
@@ -2340,6 +2362,12 @@ function micStateLabel() {
 
 function setListening(on) {
   listening = on;
+  if (on) warmWakeReplies();
+  else {
+    if (voiceAudio.wakeCueActive) speechReset();
+    wakeCueCache.cancel();
+    wakeCuePendingFinal = false;
+  }
   const label = micStateLabel();
   micButtons.forEach((b) => {
     b.classList.toggle("listening", on);
@@ -2411,9 +2439,16 @@ function onMicLevel(level) {
 
   const now = Date.now();
   const boundary = voiceDetector.update(level, now);
+  // A confirmed start can follow the first sound by 180 ms. Preserve the
+  // window that covered that sound, and discard an unconfirmed noise spike.
+  if (!spoke) {
+    if (voiceDetector.candidate == null) mediaRec.wakeArmed = false;
+    else if (voiceMode === "wake" && wakeArmed) mediaRec.wakeArmed = true;
+  }
   if (boundary.start) {
     spoke = true;
     if (voiceMode !== "push" && (botSpeaking || activeChat)) bargeIn(false);
+    mediaRec.wakeArmed = !!mediaRec.wakeArmed || (voiceMode === "wake" && wakeArmed);
   }
   if (boundary.end || now - recStartAt > REC_MAX_MS) {
     try { mediaRec.stop(); } catch (e) { /* уже зупинений */ }
@@ -2458,6 +2493,37 @@ function startFollowUp() {
   if (voiceMode === "wake" && listening) armWake(FOLLOW_UP_MS);
 }
 
+function wakeCueScope() {
+  return [getLang(), voiceSpeed, ttsVoiceSignature].join(":");
+}
+
+function warmWakeReplies() {
+  if (!listening || !speechWanted()) return;
+  const scope = wakeCueScope();
+  // Cached audio belongs to its original settings, including a cue awaiting it.
+  if (scope !== wakeCueCache.scope && voiceAudio.wakeCueActive) speechReset();
+  wakeCueCache.prepare(scope, [t("voice.wakeHi"), t("voice.wakeNeed")], voiceSpeed);
+}
+
+function acknowledgeWake(interim = false) {
+  if (!listening || voiceMode === "push") return;
+  if (interim && wakeCuePendingFinal) return;
+  wakeCuePendingFinal = interim;
+  if (activeChat || botSpeaking) bargeIn(false);
+  if (voiceMode === "wake") armWake(WAKE_ARM_MS);
+  const text = t(wakeCueNumber++ % 2 ? "voice.wakeNeed" : "voice.wakeHi");
+  warmWakeReplies();
+  showCaption(text, "bot");
+  crab.setEmotion("listening");
+  voiceAudio.wakeCueActive = speechWanted();
+  speechSay(text, () => showCaption(text, "bot"), wakeCueCache.get(wakeCueScope(), text));
+}
+
+function handleWakeInterim(text) {
+  if (!listening || voiceMode === "push" || isPlaybackEcho(text)) return;
+  if (parseWake(text, wakeWord, false).action === "arm") acknowledgeWake(true);
+}
+
 /* "Claude, stop" while the bot talks: cut the voice, keep the mic */
 function bargeIn(showStopped = true) {
   followUpPending = false;
@@ -2465,27 +2531,42 @@ function bargeIn(showStopped = true) {
   if (activeChat) activeChat.abort();
   speechReset();
   clearBusy();
-  if (showStopped) showCaption(t("voice.stopped"), "bot");
+  if (showStopped) {
+    wakeCuePendingFinal = false;
+    showCaption(t("voice.stopped"), "bot");
+  }
   // Whoever said "stop" usually says the next thing right away
   if (voiceMode === "wake" && listening) armWake(FOLLOW_UP_MS);
 }
 
-function handleFinalText(said) {
+function handleFinalText(said, armed) {
   const text = (said || "").trim();
   if (!text) return;
-  if (isStopCommand(text)) { bargeIn(); return; }
+  if (voiceMode !== "push" && !listening) return;
+  if (isStopCommand(text)) { wakeCuePendingFinal = false; bargeIn(); return; }
   if (isPlaybackEcho(text)) return;
+  const call = parseWake(text, wakeWord, false);
+  if (voiceMode !== "push" && call.action === "stop") {
+    wakeCuePendingFinal = false;
+    bargeIn();
+    return;
+  }
+  if (voiceMode !== "push" && call.action === "arm") {
+    if (wakeCuePendingFinal) { wakeCuePendingFinal = false; return; }
+    acknowledgeWake();
+    return;
+  }
+  wakeCuePendingFinal = false;
 
   if (voiceMode === "wake") {
-    const { action, text: command } = parseWake(text, wakeWord, wakeArmed);
+    const { action, text: command } = parseWake(text, wakeWord, armed ?? wakeArmed);
     if (action === "ignore") {
       if (!wakeArmed) setListening(listening);   // undo an early "listening" from interim
       return;
     }
     if (action === "stop") { disarmWake(); bargeIn(); return; }
     if (action === "arm") {
-      armWake(WAKE_ARM_MS);                        // only the name: wait for the command
-      showCaption(t("voice.yes"), "bot");
+      acknowledgeWake();
       return;
     }
     disarmWake();                                  // command taken
@@ -2498,7 +2579,8 @@ function handleFinalText(said) {
 
 function isPlaybackEcho(text) {
   const recent = (voiceAudio.speechEchoes || []).filter((item) => item.expires >= Date.now());
-  return VoiceTurnDetector.isEcho(text, recent.map((item) => item.text).join(" "));
+  return recent.some((item) => VoiceTurnDetector.isEcho(text, item.text))
+    || VoiceTurnDetector.isEcho(text, recent.map((item) => item.text).join(" "));
 }
 
 /* Echo cancellation can still leave a recognized fragment of our audio.
@@ -2510,12 +2592,15 @@ function heardWhileSpeaking(text) {
   if (voiceMode === "open" && text.trim()) { bargeIn(false); return; }
   const { action } = parseWake(text, wakeWord, false);
   if (action === "stop") bargeIn();
+  else if (action === "arm" || action === "send") bargeIn(false);
 }
 
 /* Браузерний SR: єдиний шлях із проміжними результатами */
 function startRecognition(continuous) {
   if (!SR) return false;
   let finalText = "";
+  const finalResults = new Set();
+  let utteranceArmed = false;
   const sr = new SR();
   const epoch = micEpoch;
   recognition = sr;
@@ -2530,14 +2615,27 @@ function startRecognition(continuous) {
     srRestarts = 0;                              // recognition is alive
     let interim = "";
     for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (continuous && e.results[i].isFinal) {
+        if (finalResults.has(i)) continue;
+        finalResults.add(i);
+      }
       const chunk = e.results[i][0].transcript;
-      if (botSpeaking) {
+      if (!isStopCommand(chunk) && isPlaybackEcho(chunk)) {
+        if (e.results[i].isFinal) utteranceArmed = false;
+        continue;
+      }
+      const armed = utteranceArmed || wakeArmed;
+      if (e.results[i].isFinal) utteranceArmed = false;
+      else if (chunk.trim()) utteranceArmed = armed;
+      // The cue is an invitation: its own final name and the next command
+      // still belong to the listener, even while the greeting is playing.
+      if (botSpeaking && !voiceAudio.wakeCueActive) {
         heardWhileSpeaking(chunk);
         if (botSpeaking) continue;
       }
       if (e.results[i].isFinal) {
         if (continuous) {
-          handleFinalText(chunk);
+          handleFinalText(chunk, armed);
           showLive("");
           continue;
         }
@@ -2547,6 +2645,7 @@ function startRecognition(continuous) {
       }
     }
     if (!continuous || interim) showLive(finalText + interim);
+    if (interim) handleWakeInterim(interim);
     // The name is already in the interim text: show that the bot heard it
     // now, not a second later when the phrase is final.
     if (voiceMode === "wake" && !wakeArmed && interim && findWake(interim, wakeWord)) {
@@ -2606,6 +2705,7 @@ function startRecorder(continuous) {
   let recorder;
   try {
     recorder = new MediaRecorder(micStream);
+    recorder.wakeArmed = false;
     mediaRec = recorder;
   } catch (e) {
     mediaRec = null;
@@ -2631,7 +2731,7 @@ function startRecorder(continuous) {
     if (continuous && listening && voiceMode !== "push") startRecorder(true);
     // Тишу на сервер не шлемо: відкритий мікрофон інакше молотив би
     // платні запити цілодобово
-    if (hadSpeech && blob.size) sendToAsr(blob, continuous, epoch);
+    if (hadSpeech && blob.size) sendToAsr(blob, continuous, epoch, recorder.wakeArmed);
     else if (!continuous) finishPhrase("");
   };
   try { recorder.start(PARTIAL_MS); }
@@ -2663,7 +2763,10 @@ async function sendPartial(blob, recorder, epoch) {
     const d = await r.json();
     // Показуємо, лише поки ще пишемо: інакше чорновик перебив би остаточний текст
     if (!controller.signal.aborted && epoch === micEpoch && d.text && mediaRec === recorder
-        && recorder.state === "recording") showLive(d.text);
+        && recorder.state === "recording") {
+      showLive(d.text);
+      handleWakeInterim(d.text);
+    }
   } catch (e) {
     /* мережа моргнула — наступний шматок спробує знову */
   } finally {
@@ -2671,7 +2774,7 @@ async function sendPartial(blob, recorder, epoch) {
   }
 }
 
-async function sendToAsr(blob, continuous, epoch = micEpoch) {
+async function sendToAsr(blob, continuous, epoch = micEpoch, armed = wakeArmed) {
   if (asrController) asrController.abort();
   const controller = new AbortController();
   asrController = controller;
@@ -2701,7 +2804,7 @@ async function sendToAsr(blob, continuous, epoch = micEpoch) {
   }
   if (continuous) {
     showLive("");
-    if (text) { showCaption(text, "user"); handleFinalText(text); }
+    if (text) { showCaption(text, "user"); handleFinalText(text, armed); }
   } else {
     finishPhrase(text);
   }
@@ -4071,6 +4174,7 @@ function openSettings() {
           body: JSON.stringify({ speaker: Number(voiceSelect.value) }),
         });
         if (!response.ok) throw new Error("voice " + response.status);
+        await checkTts();
         voiceState.textContent = t("set.saved");
       } catch (e) {
         voiceState.textContent = t("set.saveFailed");
@@ -5376,6 +5480,7 @@ function relocalize() {
   crab.setEmotion(crab.emotion);            // підпис емоції новою мовою
   // Типове ключове слово йде за мовою; справжнє імʼя бота — ні
   if (!wakeWordFromBot) wakeWord = t("voice.defaultWake");
+  if (listening) warmWakeReplies();
   // Розпізнавання перемикаємо на льоту: у безперервному режимі мікрофон
   // уже відкритий, і без рестарту він слухав би старою мовою
   if (recognition) {

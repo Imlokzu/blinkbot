@@ -128,7 +128,7 @@ console.log(JSON.stringify({stopped,listening,recorders:recorders.length,stream:
 @pytest.mark.skipif(NODE is None, reason="node is not installed")
 def test_bare_stop_cancels_generation_and_voice_without_calling_model():
     result = js("""
-let followUpPending=true,replyInterrupted=false,voiceMode='open',listening=true;
+let followUpPending=true,replyInterrupted=false,voiceMode='open',listening=true,wakeCuePendingFinal=false;
 const activeChat=new AbortController();let resets=0;const sent=[],captions=[];
 const speechReset=()=>resets++,clearBusy=()=>{},armWake=()=>{},disarmWake=()=>{};
 const showCaption=s=>captions.push(s),t=k=>k,sendChat=s=>sent.push(s);

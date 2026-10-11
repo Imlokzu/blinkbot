@@ -120,17 +120,22 @@ export function findWake(said, word) {
   const name = String(word || "").trim();
   if (!text.trim() || !name) return null;
   const list = tokens(text);
-  for (let i = 0; i < list.length; i++) {
-    if (!soundsLike(list[i].word, name)) continue;
-    fillerKeys = fillerKeys || keysOf(FILLER_WORDS);
-    const lead = list.slice(0, i).filter((t) => !fillerKeys.has(phoneticKey(t.word))).length;
-    const isLast = i === list.length - 1;
-    // "котра година, Клод?" — the name at the very end also addresses him
-    if (lead > MAX_LEAD_TOKENS && !isLast) continue;
-    return {
-      before: trimPunct(text.slice(0, list[i].start)),
-      after: trimPunct(text.slice(list[i].end)),
-    };
+  const nameWords = tokens(name).map((t) => t.word);
+  if (!nameWords.length) return null;
+  // Try the whole configured name first, then its familiar first word.
+  for (const width of nameWords.length > 1 ? [nameWords.length, 1] : [1]) {
+    for (let i = 0; i < list.length; i++) {
+      if (!nameWords.slice(0, width).every((part, offset) => soundsLike(list[i + offset]?.word, part))) continue;
+      fillerKeys = fillerKeys || keysOf(FILLER_WORDS);
+      const lead = list.slice(0, i).filter((t) => !fillerKeys.has(phoneticKey(t.word))).length;
+      const isLast = i + width === list.length;
+      // A name at the end of a question can also address the bot.
+      if (lead > MAX_LEAD_TOKENS && !isLast) continue;
+      return {
+        before: trimPunct(text.slice(0, list[i].start)),
+        after: trimPunct(text.slice(list[i + width - 1].end)),
+      };
+    }
   }
   return null;
 }
@@ -165,9 +170,13 @@ export function parseWake(said, word, armed) {
   if (!text) return { action: "ignore", text: "" };
 
   const hit = findWake(text, word);
+  // "Hey Claude" is a call, not a request to send the filler to the model.
+  fillerKeys = fillerKeys || keysOf(FILLER_WORDS);
+  const before = hit && tokens(hit.before).every((t) => fillerKeys.has(phoneticKey(t.word))) ? "" : hit?.before;
   if (armed) {
     // Already awake: the name inside the phrase is just a name, drop it
-    const command = hit ? trimPunct([hit.before, hit.after].filter(Boolean).join(" ")) || text : text;
+    const command = hit ? trimPunct([before, hit.after].filter(Boolean).join(" ")) : text;
+    if (!command) return { action: "arm", text: "" };
     if (isStopCommand(command)) return { action: "stop", text: "" };
     return { action: "send", text: command };
   }
@@ -175,7 +184,7 @@ export function parseWake(said, word, armed) {
 
   // "Клод, котра година?" → command after the name; "котра година, Клод?"
   // → before it; "Клод" alone → wait for the next phrase.
-  const command = hit.after || hit.before;
+  const command = hit.after || before;
   if (!command) return { action: "arm", text: "" };
   if (isStopCommand(command)) return { action: "stop", text: "" };
   return { action: "send", text: command };
