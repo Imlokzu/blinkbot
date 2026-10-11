@@ -86,6 +86,25 @@ def _clean_label(label: object) -> str:
     return " ".join(str(label or "").split())[:MAX_LABEL]
 
 
+def _activation(timer: dict) -> int:
+    value = timer.get("activation")
+    return value if type(value) is int and value > 0 else 1
+
+
+def _timer_state(data: dict, now: float) -> list[dict]:
+    """Migrate legacy timers once, with one server-owned initial activation."""
+    timers = data.get("timers") or []
+    migrated = False
+    for timer in timers:
+        activation = _activation(timer)
+        if type(timer.get("activation")) is not int or timer.get("activation") != activation:
+            timer["activation"] = activation
+            migrated = True
+    if migrated:
+        _save(data)
+    return _alive(timers, now)
+
+
 def _view(timer: dict, now: float) -> dict:
     """A timer as clients see it: what is left right now, not only when it ends."""
     if timer.get("paused_left") is not None:
@@ -96,6 +115,7 @@ def _view(timer: dict, now: float) -> dict:
         state = "done" if left <= 0 else "running"
     return {
         "id": timer["id"],
+        "activation": _activation(timer),
         "kind": timer.get("kind", "timer"),
         "label": timer.get("label", ""),
         "seconds": int(timer["seconds"]),
@@ -119,7 +139,7 @@ def list_timers() -> list[dict]:
     now = _now()
     with _lock:
         data = _load()
-        timers = _alive(data.get("timers") or [], now)
+        timers = _timer_state(data, now)
     return [_view(t, now) for t in sorted(timers, key=lambda t: _view(t, now)["left"])]
 
 
@@ -147,6 +167,7 @@ def add_timer(seconds: float, label: str = "", kind: str = "timer") -> dict:
         raise ValueError("a reminder needs a text")
     timer = {
         "id": uuid.uuid4().hex[:8],
+        "activation": 1,
         "kind": "reminder" if reminder else "timer",
         "label": text,
         "seconds": int(round(seconds)),
@@ -155,7 +176,7 @@ def add_timer(seconds: float, label: str = "", kind: str = "timer") -> dict:
     }
     with _lock:
         data = _load()
-        timers = _alive(data.get("timers") or [], now)
+        timers = _timer_state(data, now)
         running = [t for t in timers
                    if _view(t, now)["state"] != "done" and t.get("kind", "timer") == timer["kind"]]
         limit = MAX_REMINDERS if reminder else MAX_TIMERS
@@ -192,7 +213,7 @@ def update_timer(action: str, key: str = "", seconds: float = 0) -> list[dict]:
     now = _now()
     with _lock:
         data = _load()
-        timers = _alive(data.get("timers") or [], now)
+        timers = _timer_state(data, now)
         targets = list(timers) if (action == "cancel" and key == "all") else _find(timers, key)
         if not targets:
             return []
@@ -205,12 +226,18 @@ def update_timer(action: str, key: str = "", seconds: float = 0) -> list[dict]:
                 timer["ends_at"] = now + float(timer["paused_left"])
                 timer["paused_left"] = None
             elif action == "add":
+                # Zero remaining time ends an activation even if it was then paused.
+                exhausted = (float(timer["paused_left"]) <= 0
+                             if timer.get("paused_left") is not None
+                             else float(timer["ends_at"]) <= now)
                 extra = max(-MAX_TIMER_S, min(MAX_TIMER_S, float(seconds)))
                 if timer.get("paused_left") is not None:
                     timer["paused_left"] = max(1.0, float(timer["paused_left"]) + extra)
                 else:
                     base = max(now, float(timer["ends_at"]))   # extending a rung timer restarts it
                     timer["ends_at"] = max(now + 1, base + extra)
+                if exhausted:
+                    timer["activation"] = _activation(timer) + 1
                 timer["seconds"] = int(timer["seconds"] + max(0, extra))
             else:
                 continue

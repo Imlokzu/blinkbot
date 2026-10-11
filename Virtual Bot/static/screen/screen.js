@@ -11,6 +11,7 @@ import { drawGlyphString, makeIcon, paintIcon } from "./pixel-ui.js";
 import { parseWake, findWake, isStopCommand } from "./wake.js";
 import { VoiceTurnDetector } from "./voice-turn.js";
 import { WakeCueCache } from "./wake-cues.js";
+import { TimerDeliveries } from "./timer-delivery.js";
 import { ReplyTurn } from "./reply.js";
 import { activities as islandActivities, selectKey as islandSelect, fmtClock } from "./island.js";
 import { ScreenKeyboard } from "./keyboard.js";
@@ -5670,9 +5671,9 @@ function onAppKeyboardRequest(frame, data) {
 const timerCanvas = $("timerCanvas");
 const timerCtx = timerCanvas.getContext("2d");
 const faceTimer = $("faceTimer");
-let timers = [];               // {id, label, seconds, ends_at, left, state}
+let timers = [];               // {id, activation, label, seconds, ends_at, left, state}
 let timerSkew = 0;             // server clock minus ours, in seconds
-const timerRung = new Set();   // ids that already rang: never twice
+const timerDeliveries = new TimerDeliveries();
 let ringTimer = 0;
 let ringUntil = 0;
 let alarmAudio = null;
@@ -5700,12 +5701,12 @@ function nearestTimer() {
 }
 
 function setTimers(list, serverNow) {
-  timers = Array.isArray(list) ? list : [];
-  if (typeof serverNow === "number") timerSkew = serverNow - Date.now() / 1000;
-  // Finished before we heard of it (screen was asleep or closed): it is
-  // over, ringing now would only confuse. A missed reminder is not lost —
-  // it waits in the notification shade.
-  for (const tm of timers) if (tm.state === "done") timerRung.add(tm.id);
+  const incoming = Array.isArray(list) ? list : [];
+  const obsolete = incoming.some(tm => timerDeliveries.older(tm));
+  timers = timerDeliveries.snapshot(incoming);
+  if (typeof serverNow === "number" && !obsolete) timerSkew = serverNow - Date.now() / 1000;
+  // Done snapshots suppress historical alarms only for their own activation.
+  // Missed reminders remain available in the notification shade.
   renderTimers();
   noticesChanged();
 }
@@ -5766,7 +5767,7 @@ const RING_MS = 30000;
 const RING_EVERY_MS = 2500;
 
 function ringTimerDone(tm) {
-  timerRung.add(tm.id);
+  timerDeliveries.mark(tm);
   wake();
   ringUntil = Date.now() + RING_MS;
   const label = tm.label || t("timer.unnamed");
@@ -5800,7 +5801,7 @@ stage.addEventListener("pointerdown", stopRing, true);
 
 function tickTimers() {
   for (const tm of timers) {
-    if (tm.state === "running" && !timerRung.has(tm.id) && timerLeft(tm) <= 0) ringTimerDone(tm);
+    if (tm.state === "running" && !timerDeliveries.delivered(tm) && timerLeft(tm) <= 0) ringTimerDone(tm);
   }
   // Redraw only when someone can see it: the tile or the face chip
   if (timers.length || ringUntil) renderTimers();

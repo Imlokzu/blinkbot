@@ -2994,3 +2994,29 @@ after a simulated recognition result. Physical ASR latency and speaker echo
 remain untested. Temporary test services are stopped, and Mac output stays
 muted. Setup/evidence: `Virtual Bot/docs/SCREEN-VOICE.md`. Existing drafts
 remain untouched; open screen tabs should reload to pick up the new modules.
+
+
+## 2026-10-11 — Night-agent timer activation repair
+
+Fixed completed timers restarting silently under the same ID. Timers now persist
+an activation generation; exhausted add renews it, including paused-zero add and
+resume. Ordinary extensions and pause/resume keep their generation. Legacy state
+migrates to generation 1. The screen suppresses historical/duplicate delivery
+per activation, rejects known older generation/clock samples, and retains every
+current fence plus at most 512 retired IDs.
+
+Final validation: 1,856 backend tests passed, eight skipped and 178 subtests;
+47 focused timer/widget tests, 81 voice/wake tests, 231 dashboard tests, TypeScript,
+catalog checks and 21 i18n tests passed. The first full run's 27 fixture-cleanup
+failures were traced to the temporary isolation guard, corrected, and rerun cleanly.
+Independent native review returned APPROVE / WATCH, synthesis COMMENT. Fable was
+unavailable. Same-generation ordering, cancellation/reconnect and evicted-history
+limits remain; DST and site publication findings are separate follow-ups.
+
+A full-screen 320x240 browser fixture produced three alarm calls for activations
+1, 2, 3 with inert audio and no uncaught errors. Post-review uninstrumented app
+smoke passed 37 curl expectations, including persisted restart, cancellation,
+traversal 400 and static assets. Test browser/servers stopped; no physical audio,
+provider call, production reload or deployment was performed. Existing drafts
+are preserved and the Mac remains muted. Evidence and limits:
+`reports/night-agent-timer-activations-2026-10-11.md`.
