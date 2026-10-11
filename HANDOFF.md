@@ -2909,3 +2909,17 @@ P-02 malformed metadata, I-01 expired actions, and full P-03 conflict/history
 semantics remain separate follow-ups. Global language ratchet debt remains; no
 baseline was relaxed. Existing shared drafts are preserved. Evidence and limits:
 `reports/night-agent-project-paths-2026-10-10.md`.
+
+
+## 2026-10-11 — Repository audit: timer and publication lifecycle
+
+Added `reports/repository-audit-2026-10-11/` beside earlier agent reports.
+Four new findings cover completed-timer restart ring suppression, regional DST
+reminder errors, concurrent publication snapshots losing a successful site,
+and failed remote publication steps diverging from local state. The report has
+repair examples, bounded evidence, acceptance criteria and three additions.
+Repairs remain proposals; no product changes were applied. Python/Node fixtures
+reproduced all four findings and 22 widget tests passed. Independent review,
+post-review routing/static smoke and limits are recorded in `VALIDATION.md`.
+No alarm audio, real reminders, cloud changes, provider credentials or personal
+runtime data were used. Other agents' unfinished edits remain outside this commit.
