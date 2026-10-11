@@ -36,6 +36,7 @@ const STOP_WORDS_RAW = [
   "стоп", "стій", "тихо", "замовкни", "досить", "пауза", "хватит", "цить",
   "stop", "quiet", "enough", "pause", "shush",
 ];
+const STOP_FILLERS = ["please", "it", "now", "talking", "speaking", "can", "you", "будь", "ласка", "це"];
 
 let fillerKeys = null;
 let stopKeys = null;
@@ -137,9 +138,13 @@ export function findWake(said, word) {
 /** Is the command just "stop" / "тихо" — something to obey mid-speech? */
 export function isStopCommand(command) {
   const list = tokens(String(command || ""));
-  if (!list.length || list.length > 3) return false;
+  if (!list.length || list.length > 5) return false;
   stopKeys = stopKeys || keysOf(STOP_WORDS_RAW);
-  return list.some((t) => stopKeys.has(phoneticKey(t.word)));
+  const fillers = keysOf(STOP_FILLERS);
+  // "Stop the music" is a tool request. Only a standalone conversational
+  // stop, with optional politeness, bypasses the model.
+  return list.some((t) => stopKeys.has(phoneticKey(t.word)))
+    && list.every((t) => stopKeys.has(phoneticKey(t.word)) || fillers.has(phoneticKey(t.word)));
 }
 
 /**

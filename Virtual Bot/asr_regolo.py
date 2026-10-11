@@ -46,8 +46,10 @@ async def transcribe(
     audio_bytes: bytes,
     filename: str = "voice.webm",
     content_type: str | None = None,
+    *,
+    detect_language: bool = False,
 ) -> str:
-    """Розпізнає аудіо через Regolo без локального fallback."""
+    """Transcribe through Regolo, optionally allowing spoken language changes."""
     key = cfg.get_regolo_asr_key()
     if not key:
         raise RuntimeError("Regolo ASR не налаштований")
@@ -58,9 +60,12 @@ async def transcribe(
     files = {"file": (filename or "voice.webm", audio_bytes, media_type)}
     data = {
         "model": cfg.REGOLO_ASR_MODEL,
-        "language": cfg.REGOLO_ASR_LANGUAGE,
         "response_format": "text",
     }
+    # The default preserves dictation's configured language. A conversation
+    # can omit this optional hint so Ukrainian and English turns both work.
+    if not detect_language:
+        data["language"] = cfg.REGOLO_ASR_LANGUAGE
     # Ті самі підказки, що й у локального Whisper (`asr.hotwords`): в
     # OpenAI-сумісному контракті вони називаються `prompt`. Порожній рядок не
     # надсилаємо — деякі сервери на пустому полі відповідають 400.

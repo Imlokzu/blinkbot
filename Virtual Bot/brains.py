@@ -114,16 +114,11 @@ _ASR_CAVEAT = """
 
 
 _TTS_RULES = """
-УВАГА: цю відповідь ПРОЧИТАЮТЬ УГОЛОС — її отримає синтез мови, а не очі.
-ГОЛОВНЕ ПРАВИЛО: жодних символів і скорочень, усе словами й у правильному
-відмінку. «120 км/год» → «сто двадцять кілометрів на годину». «25 °C» →
-«двадцять пʼять градусів». «70 %» → «сімдесят відсотків». «2 кг» → «два
-кілограми». «≈» → «приблизно». «5–7» → «від пʼяти до семи». «14:30» →
-«чотирнадцята тридцять». «і т.д.» → «і так далі». «$5» → «пʼять доларів».
-Англійські назви — кирилицею: Qwen — «Квен», YouTube — «Ютуб».
-Це саме стосується відповідей, зібраних із результатів інструментів: цифри
-з пошуку теж треба вимовити словами, а не переписати як є.
-Без розмітки, таблиць, списків і посилань — вони вголос стають мотлохом.
+This answer will be read aloud by speech synthesis. Write numbers, units,
+times, symbols and abbreviations as natural spoken words in the language of
+your reply, including values from tools. Keep proper names pronounceable.
+For example, 120 km/h becomes one hundred twenty kilometres per hour.
+Do not use Markdown, tables, lists or links.
 """
 
 # The conversation itself, for any turn that goes through the voice cascade
@@ -151,6 +146,7 @@ silence while you answer. Talk like a person across the desk, not a document.
 - Say each thing once. Don't echo their words. At most one question, and
   none after you answered a direct one.
 - Only words to be spoken: no emoji, lists, tables, links or markdown.
+- Match the language the person is speaking, including when they switch.
 """
 # Where this turn is happening. The model otherwise guessed: it wrote tables
 # into Telegram, promised to "show it on the screen" from a chat the person
@@ -789,6 +785,7 @@ async def chat_openclaw(
     emit=None,
     images=None,
     session_key: str | None = None,
+    screen_voice_model: str | None = None,
 ) -> tuple[str, list[dict], str]:
     """Питає OpenClaw gateway (токен — секрет, у відповіді/логах не світимо)."""
     token = cfg.get_openclaw_token()
@@ -817,6 +814,15 @@ async def chat_openclaw(
                          if forced_model else _image_headers())
         sent_message = message
         routed_model = model_headers.get("x-openclaw-model", "")
+    elif screen_voice_model:
+        catalog = await openclaw_models.catalog()
+        if not any(entry.get("id") == screen_voice_model and entry.get("available") is not False
+                   for entry in catalog):
+            raise RuntimeError("screen_voice_model_unavailable")
+        model_headers = {"x-openclaw-model": screen_voice_model}
+        # Inline thinking directives affect this message, not the saved picker.
+        sent_message = f"/think:off {message}"
+        routed_model = screen_voice_model
     elif forced_model:
         model_headers, sent_message = {"x-openclaw-model": forced_model}, message
         routed_model = forced_model
@@ -874,13 +880,15 @@ async def chat_openclaw(
                 )
             return text, [], observed_model["value"] or routed_model
         except _NeedsTools:
-            if observed_work:
+            # A screen voice stream may have acted before its first preview.
+            # Never resubmit that turn through the non-streaming path.
+            if observed_work or screen_voice_model:
                 raise
             log.info("OpenClaw потребує тулзів — переходжу на нестрімовий виклик")
         except Exception as exc:  # noqa: BLE001
             # Preambles also prove a run started. Retrying after visible text
             # or tool work could replay a write or charge for the turn twice.
-            if observed_work:
+            if observed_work or screen_voice_model:
                 raise
             log.warning("Стрімінг OpenClaw не вдався (%s) — звичайний виклик", type(exc).__name__)
 
@@ -1987,6 +1995,9 @@ async def chat(
                         emit=emit,
                         images=images,
                         session_key=session_key,
+                        **({"screen_voice_model": cfg.SCREEN_VOICE_MODEL}
+                           if channel == "screen" and (voice or spoken) and not mobile_request
+                           and cfg.SCREEN_VOICE_MODEL and not images else {}),
                     ),
                     # Стеля на ВСЮ відповідь. Мовчання gateway ловить коротший
                     # мережевий таймаут усередині (CHAT_OPENCLAW_TIMEOUT_S);

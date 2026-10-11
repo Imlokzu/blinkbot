@@ -144,9 +144,8 @@ def synthesize(text: str, speaker: int | None = None, speed: float = 1.0) -> byt
             "speed": round(min(MAX_SPEED, max(MIN_SPEED, float(speed or 1.0))), 2),
         },
     }
-    # language_code розуміють лише *_v2_5: у multilingual_v2 його немає в схемі
-    if model_id.endswith("_v2_5"):
-        payload["language_code"] = "uk"
+    # Let multilingual synthesis follow the reply's language. A fixed Ukrainian
+    # code also forced English turns through Ukrainian pronunciation.
 
     url = f"{API_BASE}/text-to-speech/{voice['voice_id']}"
     with httpx.Client(timeout=httpx.Timeout(30.0)) as client:

@@ -37,7 +37,7 @@ from urllib.parse import quote
 import html
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, Response, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import (
     FileResponse,
@@ -3405,11 +3405,9 @@ async def api_asr_status(request: Request) -> dict:
 
 
 @app.post("/api/asr")
-async def api_asr(request: Request, audio: UploadFile = File(...)) -> dict:
-    """
-    Розпізнає українську локальним faster-whisper або Regolo, залежно від
-    `asr.provider`. Повертає {"text": ...}.
-    """
+async def api_asr(request: Request, audio: UploadFile = File(...),
+                  detect_language: bool = Form(False)) -> dict:
+    """Transcribe with the configured provider; screen conversations may detect language."""
     await _require_user(request)
     provider, backend = _asr_backend()
     if not backend.is_available():
@@ -3432,6 +3430,7 @@ async def api_asr(request: Request, audio: UploadFile = File(...)) -> dict:
                 data,
                 audio.filename or "voice.webm",
                 audio.content_type,
+                **({"detect_language": True} if detect_language else {}),
             )
     except Exception as exc:  # noqa: BLE001 — розпізнавання не має валити сервер
         trace_log.step("asr", provider, "fail", f"{type(exc).__name__}: {exc}",

@@ -302,6 +302,8 @@ CHAT2API_TIMEOUT_S: float = cfg_float("chat2api", "timeout_s", default=60)
 # Озвучка: piper (локальний), elevenlabs (хмарний) або auto — є ключ
 # ElevenLabs, значить він; немає — Piper.
 TTS_PROVIDER: str = cfg_str("tts", "provider", default="auto").casefold()
+# Screen conversations have their own fast route; the dashboard picker stays global.
+SCREEN_VOICE_MODEL: str = cfg_str("voice", "screen_model", default="openai/gpt-6-luna")
 ASR_PROVIDER: str = cfg_str("asr", "provider", default="regolo").casefold()
 REGOLO_ASR_BASE_URL: str = cfg_str("asr", "base_url", default="https://api.regolo.ai/v1").rstrip("/")
 REGOLO_ASR_MODEL: str = cfg_str("asr", "model", default="faster-whisper-large-v3")

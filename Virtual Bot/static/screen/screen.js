@@ -8,7 +8,8 @@ import * as smd from "./vendor/smd.min.js";
 import { drawGlyphString, makeIcon, paintIcon } from "./pixel-ui.js";
 /* Розбір ключового слова — окремо і без DOM, щоб логіку можна було
    перевіряти напряму, не маючи мікрофона (див. wake.js) */
-import { parseWake, findWake } from "./wake.js";
+import { parseWake, findWake, isStopCommand } from "./wake.js";
+import { VoiceTurnDetector } from "./voice-turn.js";
 import { ReplyTurn } from "./reply.js";
 import { activities as islandActivities, selectKey as islandSelect, fmtClock } from "./island.js";
 import { ScreenKeyboard } from "./keyboard.js";
@@ -658,7 +659,7 @@ setLink(false);
         showSaid(text);
         // The screen already spoke its own reply while it streamed
         // (sendChat → feedSpeech); this event only covers the others.
-        if (text !== spokenReplyText.trim()) sayBubbles(replyBubbles(ev, text));
+        if (!chatBusy && !replyInterrupted && text !== spokenReplyText.trim()) sayBubbles(replyBubbles(ev, text));
         else if (!speechWanted()) showCaption(text, "bot");
       }
       setEmotion(ev.emotion || "speaking");
@@ -666,7 +667,7 @@ setLink(false);
       const text = typeof ev.text === "string" && ev.text.trim() ? ev.text.trim() : t("say.noText");
       showSaid(text);
       showCaption(text, "bot");
-      speak(text);
+      if (!replyInterrupted) speak(text);
       setEmotion(ev.emotion || "speaking");
       // Бот заговорив — це варте пробудження екрана
       if (asleep) wake();
@@ -994,13 +995,14 @@ let voiceUrl = null;
    між реченнями чути паузу рівно на мережеву затримку TTS. */
 
 // ~30-50 токенів: коротше різати немає сенсу, бо перше речення ще не склалось
-const SPEAK_MIN_CHARS = 90;
+const SPEAK_MIN_CHARS = 24;
 // Текст без жодного розділового знака все одно віддаємо в озвучку: краще
 // прочитати довгий рядок, ніж чекати кінця «стіни» молча.
 const SPEAK_MAX_CHARS = 700;
 
 let speechQueue = [];
 let speechRunning = false;
+let speechController = null;
 let speechEpoch = 0;              // нова репліка ⇒ хвіст попередньої не грає
 let speechEnded = null;           // resolve поточного playBlob
 let spokenReplyText = "";         // що вже озвучив сам екран (щоб не читати двічі)
@@ -1016,6 +1018,7 @@ voiceAudio.addEventListener("error", speechAudioDone);
 /* Скидає озвучку: нова репліка не має догравати хвіст попередньої */
 function speechReset() {
   speechEpoch += 1;
+  if (speechController) speechController.abort();
   speechQueue = [];
   try { voiceAudio.pause(); } catch (e) { /* ще нічого не грало */ }
   speechAudioDone();
@@ -1024,10 +1027,11 @@ function speechReset() {
   syncMusicVolume();
 }
 
-async function ttsBlob(text) {
+async function ttsBlob(text, signal) {
   try {
     const r = await fetch("/api/tts", {
       method: "POST",
+      signal,
       headers: { "Content-Type": "application/json" },
       // Стеля — 1000 символів (стільки бере бекенд), ріжемо по межі речення:
       // обірване на півслові звучить як збій.
@@ -1040,14 +1044,24 @@ async function ttsBlob(text) {
   }
 }
 
-function playBlob(blob) {
+function playBlob(blob, text = "") {
   return new Promise((resolve) => {
     if (voiceUrl) URL.revokeObjectURL(voiceUrl);
     voiceUrl = URL.createObjectURL(blob);
-    speechEnded = resolve;
+    const echo = { text, expires: Infinity };
+    voiceAudio.speechEchoes = (voiceAudio.speechEchoes || [])
+      .filter((item) => item.expires >= Date.now()).slice(-7).concat(echo);
+    const finish = () => {
+      // ASR may return just after playback, while the last sound still echoes.
+      echo.expires = Date.now() + 1200;
+      resolve();
+    };
+    speechEnded = finish;
     voiceAudio.src = voiceUrl;
     voiceAudio.volume = volume / 100;
-    voiceAudio.play().catch(() => speechAudioDone());
+    voiceAudio.play().catch(() => {
+      if (speechEnded === finish) speechAudioDone();
+    });
   });
 }
 
@@ -1055,6 +1069,8 @@ async function speechPump() {
   if (speechRunning) return;
   speechRunning = true;
   const epoch = speechEpoch;
+  const controller = new AbortController();
+  speechController = controller;
   // Поки бот говорить — музика притихає, щоб було чутно мову
   musicDucked = true;
   syncMusicVolume();
@@ -1071,23 +1087,24 @@ async function speechPump() {
       let current = ready;
       if (!current) {
         const item = speechQueue.shift();
-        current = { item, audio: await ttsBlob(item.text) };
+        current = { item, audio: await ttsBlob(item.text, controller.signal) };
       }
       ready = null;
       if (epoch !== speechEpoch) break;
       let ahead = null;
       if (speechQueue.length) {
         const next = speechQueue.shift();
-        ahead = ttsBlob(next.text).then((audio) => ({ item: next, audio }));
+        ahead = ttsBlob(next.text, controller.signal).then((audio) => ({ item: next, audio }));
       }
       if (typeof current.item.onStart === "function") {
         try { current.item.onStart(); } catch (e) { /* a caption must not stop the voice */ }
       }
-      if (current.audio) await playBlob(current.audio);
+      if (current.audio) await playBlob(current.audio, current.item.text);
       if (ahead) ready = await ahead;
     }
   } finally {
     speechRunning = false;
+    if (speechController === controller) speechController = null;
     if (epoch === speechEpoch) {
       botSpeaking = false;
       musicDucked = false;
@@ -1095,6 +1112,8 @@ async function speechPump() {
       captionSpeechEnded();
       startFollowUp();
     }
+    // A new reply can queue speech while the cancelled pump is unwinding.
+    if (speechQueue.length) speechPump();
   }
 }
 
@@ -1288,7 +1307,10 @@ function toggleVoice() {
   if (!ttsAvailable) return;
   voiceOn = !voiceOn;
   writePref(VOICE_KEY, voiceOn ? "1" : "0");
-  if (!voiceOn) voiceAudio.pause();
+  if (!voiceOn) {
+    speechReset();
+    captionSpeechEnded();
+  }
 }
 
 function toggleTheme() {
@@ -1504,6 +1526,8 @@ const chatLog = $("chatLog");
 
 const SESSION_KEY = "botScreenSession";
 let chatBusy = false;
+let activeChat = null;
+let replyInterrupted = false;
 
 /* Сесія стала: історія розмови на екрані переживає перезавантаження */
 let sessionId = (function initSession() {
@@ -1543,8 +1567,13 @@ function addMsg(role, text) {
    нього залежить, чи попросять мозок писати одиниці словами: «120 км/год»
    синтез читає як «ка-ем-скісна-риска-год», і це чути. */
 async function sendChat(message, fromVoice, shown) {
+  if (activeChat) activeChat.abort();
+  speechReset();
+  const controller = new AbortController();
+  activeChat = controller;
+  replyInterrupted = false;
   chatBusy = true;
-  micButtons.forEach((b) => { b.classList.add("busy"); b.disabled = true; });
+  micButtons.forEach((b) => { b.classList.add("busy"); });
   // shown: a short bubble for a long message (a shared video's transcript)
   const userEl = addMsg("user", shown || message);
 
@@ -1575,6 +1604,7 @@ async function sendChat(message, fromVoice, shown) {
      paces the reader, so replacing bubbles would flash words past them. */
   let captionBubble = null;
   const captionAll = (live) => {
+    if (controller.signal.aborted) return;
     const text = turn.texts().join("\n\n");
     if (text) showCaption(text, "bot", live);
   };
@@ -1596,7 +1626,7 @@ async function sendChat(message, fromVoice, shown) {
      spoken whole, and the gap between two queue items is the natural pause
      between two messages. */
   const feedSpeech = (b, final) => {
-    if (!speechWanted()) return;
+    if (controller.signal.aborted || !speechWanted()) return;
     const pending = b.text.slice(b.spoken);
     if (!pending.trim()) { if (final) b.spoken = b.text.length; return; }
     if (final) {
@@ -1672,6 +1702,7 @@ async function sendChat(message, fromVoice, shown) {
   try {
     const res = await fetch("/api/chat", {
       method: "POST",
+      signal: controller.signal,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: message, stream: true, session_id: sessionId,
@@ -1688,6 +1719,7 @@ async function sendChat(message, fromVoice, shown) {
 
     while (true) {
       const { done, value } = await reader.read();
+      if (controller.signal.aborted) break;
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
@@ -1750,45 +1782,38 @@ async function sendChat(message, fromVoice, shown) {
     }
     turn.closeAll();
     dropStatus();
-    if (!turn.texts().length && !userEl.querySelector(".msg-react")) {
+    if (!controller.signal.aborted && !turn.texts().length && !userEl.querySelector(".msg-react")) {
       addMsg("bot", t("chat.emptyReply")).classList.add("pending");
     }
   } catch (err) {
     turn.closeAll();
     dropStatus();
-    if (!turn.texts().length) addMsg("bot", "✗ " + err.message);
-    crab.showDefeat();
+    if (!controller.signal.aborted) {
+      if (!turn.texts().length) addMsg("bot", "✗ " + err.message);
+      crab.showDefeat();
+    }
   } finally {
     if (!finished) turn.closeAll();
+    if (activeChat !== controller) return;
+    activeChat = null;
     chatBusy = false;
     clearBusy();
-    micButtons.forEach((b) => { b.classList.remove("busy"); b.disabled = false; });
+    micButtons.forEach((b) => { b.classList.remove("busy"); });
     chatScrollDown();
     wake();
-    onReplyFinished();
+    if (!controller.signal.aborted) onReplyFinished();
   }
 }
 
-/* ---------- Голос: три режими розмови ----------
-   Поля вводу тут немає: на 2.4" клавіатура — знущання. Вхід — мікрофон.
+/* ---------- Voice conversations ----------
+   open: free conversation, with a tap to start or pause the microphone.
+   push: one recorded phrase per tap, retained for existing preferences.
+   wake: the bot's name arms a short conversation window.
 
-   Режими (перемикач — довгий дотик по мікрофону або чип під ним):
-     push — «поговорити»: тиснеш, кажеш фразу, відпускаєш. За замовчуванням;
-     open — «слухає завжди»: мікрофон відкритий, кожна завершена фраза
-            йде мозку. Зручно, поки ти поруч;
-     wake — «ключове слово»: мікрофон теж відкритий, але бот реагує лише
-            після свого імені («клод…»), як «хей, гугл».
-
-   Розпізнавання за пріоритетом:
-     1) браузерний SpeechRecognition — дає ПРОМІЖНІ результати, тобто
-        справжній стрім того, що ти кажеш;
-     2) MediaRecorder → /api/asr (Regolo, faster-whisper-large-v3) — без
-        проміжних; фразу ріжемо самі за тишею, і мовчазні шматки НЕ шлемо
-        на сервер (інакше відкритий мікрофон коштував би грошей цілодобово).
-
-   Поки слухаємо, рівень мікрофона йде в краба (setAudioLevel): маскот
-   рухається на твій голос. Поки бот говорить сам — не слухаємо, інакше
-   він почує власну озвучку і відповість сам собі. */
+   Prefer the configured server ASR. Browser recognition is a fallback when
+   server recording cannot start. In continuous modes the echo-cancelled
+   microphone stays available during recognition, generation and playback;
+   sustained speech interrupts the reply and starts the next turn. */
 
 const micBtn = $("micBtn");
 const micLabel = $("micLabel");
@@ -1806,7 +1831,7 @@ const MODES = {
   wake: { labelKey: "mode.wake", hintKey: "mode.wake.hint" },
 };
 
-let voiceMode = "push";
+let voiceMode = "open";
 // Типове ключове слово залежить від мови; справжнє приходить з імені бота
 let wakeWord = t("voice.defaultWake");
 let wakeWordFromBot = false;  // ім'я прийшло з налаштувань — мовою не чіпаємо
@@ -1821,35 +1846,23 @@ let listening = false;        // мікрофон зараз відкритий
 let asrAvailable = false;     // серверний Regolo
 let recognition = null;       // браузерний SpeechRecognition
 let micStream = null;
+let micEpoch = 0;
+let srRestartTimer = 0;
+let asrController = null;
+let partialController = null;
 let mediaRec = null;
-let recChunks = [];
 let recTimer = 0;
 let botSpeaking = false;      // грає озвучка — свій голос не слухаємо
 
-/* Пороги нарізки фрази для серверного ASR (ті самі, що в панелі) */
-const REC_MAX_MS = 15000;     // жорстка стеля однієї фрази
-const SILENCE_MS = 1300;      // стільки тиші ПІСЛЯ мовлення = кінець фрази
-const MIN_REC_MS = 600;       // коротше — це не фраза, а стук
-const VOL_SPEAK = 0.012;      // поріг «є голос»
-// Живе розпізнавання: MediaRecorder ріже потік на шматки такої довжини, і
-// накопичене аудіо йде на /api/asr/partial, поки людина ЩЕ говорить. Без
-// цього після фрази була німа пауза на повне розпізнавання (заміряно 5.7с).
-//
-// 5000, а не 1200: на короткому уривку Whisper домислює слова, і в стрічці
-// зʼявлялась вигадка вигляду «Привіток справу», хоча остаточне розпізнавання
-// того самого запису давало правильний текст. Заміряно на одному записі —
-// 1.2с дало «Рэс-бери-пай-пай», 2.4с «Рес-бери-пай протює на ліну», 5с уже
-// «Рес Беріпай працює на лінукс, а Керую дним...».
-//
-// Побічний виграш: удесятеро менше звернень до моделі, тож вона не відбирає
-// процесор в остаточного розпізнавання, яке й тримає паузу перед відповіддю.
-// Плата — фраза, коротша за 5с, живого тексту вже не покаже: буде одразу
-// остаточний. Свідомий обмін: краще нічого, ніж вигадка.
+// Bound each recording, and adapt the end pause to the utterance length.
+const REC_MAX_MS = 15000;
+const voiceDetector = new VoiceTurnDetector();
+// Short Whisper snapshots hallucinate words. Drafts wait for five seconds;
+// short turns go straight to final recognition without competing CPU work.
 const PARTIAL_MS = 5000;
 let spoke = false;
 let partialBusy = false;      // запит уже в дорозі — другий не шлемо
 let partialsOn = true;        // вимикається, якщо сервер віддав 503
-let silenceSince = 0;
 let recStartAt = 0;
 
 /* Запобіжник безперервного режиму: SpeechRecognition завершується сам і ми
@@ -2306,10 +2319,11 @@ function hideCaption() {
     iconStyle = lateStyle;
     rebuildIcons();
   }
-  voiceMode = readPref(MODE_KEY, "push");
-  if (!MODES[voiceMode]) voiceMode = "push";
+  const savedMode = readPref(MODE_KEY, "");
+  voiceMode = MODES[savedMode] ? savedMode : "open";
   renderMode();
-  if (voiceMode !== "push") startContinuous();
+  // First use needs a tap for microphone permission and browser audio playback.
+  if (savedMode && voiceMode !== "push") startContinuous();
 })();
 
 /* ---------- Стан кнопок ---------- */
@@ -2318,7 +2332,7 @@ function hideCaption() {
    обрано. Раніше обидва писали назву режиму, і напис дублювався. */
 function micStateLabel() {
   if (wakeArmed) return t("voice.listening");
-  if (!listening) return voiceMode === "push" ? t("voice.speak") : t("voice.pause");
+  if (!listening) return voiceMode === "push" ? t("voice.speak") : t("voice.start");
   if (voiceMode === "wake") return t("voice.waitingWord", { word: wakeWord });
   if (voiceMode === "open") return t("voice.listeningAll");
   return t("voice.listening");
@@ -2326,10 +2340,14 @@ function micStateLabel() {
 
 function setListening(on) {
   listening = on;
-  micButtons.forEach((b) => b.classList.toggle("listening", on));
-  micLabel.textContent = micStateLabel();
-  // У режимі очікування ключового слова краб не має вічно «слухати» —
-  // інакше емоція перестає щось означати
+  const label = micStateLabel();
+  micButtons.forEach((b) => {
+    b.classList.toggle("listening", on);
+    b.setAttribute("aria-label", label);
+    b.setAttribute("aria-pressed", String(on));
+  });
+  micLabel.textContent = label;
+  // Wake mode keeps the mascot calm until its name is heard.
   const active = on && (voiceMode !== "wake" || wakeArmed);
   crab.setEmotion(active ? "listening" : "idle");
   if (!on) {
@@ -2343,7 +2361,12 @@ function setListening(on) {
 function renderMode() {
   const chip = $("modeChip");
   if (chip) chip.textContent = t(MODES[voiceMode].labelKey);
-  micLabel.textContent = micStateLabel();
+  const label = micStateLabel();
+  micLabel.textContent = label;
+  micButtons.forEach((b) => {
+    b.setAttribute("aria-label", label);
+    b.setAttribute("aria-pressed", String(listening));
+  });
   document.querySelectorAll("#modeSheet .mode-row").forEach((row) => {
     row.classList.toggle("on", row.dataset.mode === voiceMode);
   });
@@ -2358,12 +2381,17 @@ function showLive(text) {
 
 async function openMic() {
   if (micStream) return true;
+  const epoch = micEpoch;
   try {
-    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    if (epoch !== micEpoch) { stream.getTracks().forEach((track) => track.stop()); return false; }
+    micStream = stream;
     if (meter) meter.attachStream(micStream);
     return true;
   } catch (e) {
-    micStream = null;
+    if (epoch === micEpoch) micStream = null;
     return false;
   }
 }
@@ -2379,16 +2407,15 @@ function closeMic() {
 /* Рівень мікрофона: рух краба + нарізка фрази для серверного ASR */
 function onMicLevel(level) {
   crab.setAudioLevel(level);
-  if (!mediaRec || mediaRec.state !== "recording" || botSpeaking) return;
+  if (!mediaRec || mediaRec.state !== "recording") return;
 
   const now = Date.now();
-  if (level > VOL_SPEAK) {
+  const boundary = voiceDetector.update(level, now);
+  if (boundary.start) {
     spoke = true;
-    silenceSince = now;
+    if (voiceMode !== "push" && (botSpeaking || activeChat)) bargeIn(false);
   }
-  const longEnough = now - recStartAt > MIN_REC_MS;
-  const quietEnough = now - silenceSince > SILENCE_MS;
-  if ((spoke && longEnough && quietEnough) || now - recStartAt > REC_MAX_MS) {
+  if (boundary.end || now - recStartAt > REC_MAX_MS) {
     try { mediaRec.stop(); } catch (e) { /* уже зупинений */ }
   }
 }
@@ -2432,10 +2459,13 @@ function startFollowUp() {
 }
 
 /* "Claude, stop" while the bot talks: cut the voice, keep the mic */
-function bargeIn() {
+function bargeIn(showStopped = true) {
   followUpPending = false;
+  replyInterrupted = true;
+  if (activeChat) activeChat.abort();
   speechReset();
-  showCaption(t("voice.stopped"), "bot");
+  clearBusy();
+  if (showStopped) showCaption(t("voice.stopped"), "bot");
   // Whoever said "stop" usually says the next thing right away
   if (voiceMode === "wake" && listening) armWake(FOLLOW_UP_MS);
 }
@@ -2443,6 +2473,8 @@ function bargeIn() {
 function handleFinalText(said) {
   const text = (said || "").trim();
   if (!text) return;
+  if (isStopCommand(text)) { bargeIn(); return; }
+  if (isPlaybackEcho(text)) return;
 
   if (voiceMode === "wake") {
     const { action, text: command } = parseWake(text, wakeWord, wakeArmed);
@@ -2464,12 +2496,18 @@ function handleFinalText(said) {
   sendChat(text, true);
 }
 
-/* While the bot is speaking, the mic still hears — mostly the bot itself.
-   Only one thing gets through: its name with a stop word. Asking for the
-   name as well is what keeps its own voice ("…stop the timer") from
-   silencing it. */
+function isPlaybackEcho(text) {
+  const recent = (voiceAudio.speechEchoes || []).filter((item) => item.expires >= Date.now());
+  return VoiceTurnDetector.isEcho(text, recent.map((item) => item.text).join(" "));
+}
+
+/* Echo cancellation can still leave a recognized fragment of our audio.
+   Reject that text while allowing an explicit stop or a new human phrase. */
 function heardWhileSpeaking(text) {
   if (voiceMode === "push") return;
+  if (isStopCommand(text)) { bargeIn(); return; }
+  if (isPlaybackEcho(text)) return;
+  if (voiceMode === "open" && text.trim()) { bargeIn(false); return; }
   const { action } = parseWake(text, wakeWord, false);
   if (action === "stop") bargeIn();
 }
@@ -2478,7 +2516,9 @@ function heardWhileSpeaking(text) {
 function startRecognition(continuous) {
   if (!SR) return false;
   let finalText = "";
-  recognition = new SR();
+  const sr = new SR();
+  const epoch = micEpoch;
+  recognition = sr;
   // Мову розпізнавання беремо з мови інтерфейсу: англійський екран, який
   // слухає українською, чує саме сміття
   recognition.lang = t("speech.lang");
@@ -2486,17 +2526,15 @@ function startRecognition(continuous) {
   recognition.continuous = !!continuous;
 
   recognition.onresult = (e) => {
+    if (epoch !== micEpoch || recognition !== sr) return;
     srRestarts = 0;                              // recognition is alive
-    if (botSpeaking) {
-      // Mostly its own voice; only "Claude, stop" may get through
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        heardWhileSpeaking(e.results[i][0].transcript);
-      }
-      return;
-    }
     let interim = "";
     for (let i = e.resultIndex; i < e.results.length; i++) {
       const chunk = e.results[i][0].transcript;
+      if (botSpeaking) {
+        heardWhileSpeaking(chunk);
+        if (botSpeaking) continue;
+      }
       if (e.results[i].isFinal) {
         if (continuous) {
           handleFinalText(chunk);
@@ -2518,12 +2556,15 @@ function startRecognition(continuous) {
   };
 
   recognition.onerror = () => {
+    if (epoch !== micEpoch || recognition !== sr) return;
     if (continuous) return;                      // onend сам перезапустить
     finishPhrase(finalText);
   };
 
   recognition.onend = () => {
-    if (continuous && voiceMode !== "push") {
+    if (epoch !== micEpoch || recognition !== sr) return;
+    recognition = null;
+    if (continuous && listening && voiceMode !== "push") {
       const now = Date.now();
       if (now - srWindowAt > SR_WINDOW_MS) { srRestarts = 0; srWindowAt = now; }
       srRestarts += 1;
@@ -2537,7 +2578,9 @@ function startRecognition(continuous) {
         return;
       }
       // SR завершується сам кожні кілька секунд — піднімаємо його знову
-      setTimeout(() => { if (voiceMode !== "push") startRecognition(true); }, 250);
+      srRestartTimer = setTimeout(() => {
+        if (epoch === micEpoch && listening && voiceMode !== "push") startRecognition(true);
+      }, 250);
       return;
     }
     finishPhrase(finalText);
@@ -2555,39 +2598,48 @@ function startRecognition(continuous) {
 /* Запасний шлях: пишемо аудіо й шлемо на /api/asr, коли фраза скінчилась */
 function startRecorder(continuous) {
   if (!micStream || !asrAvailable || !window.MediaRecorder) return false;
-  recChunks = [];
+  const epoch = micEpoch;
+  const chunks = [];
   spoke = false;
   recStartAt = Date.now();
-  silenceSince = recStartAt;
+  voiceDetector.reset(recStartAt);
+  let recorder;
   try {
-    mediaRec = new MediaRecorder(micStream);
+    recorder = new MediaRecorder(micStream);
+    mediaRec = recorder;
   } catch (e) {
     mediaRec = null;
     return false;
   }
-  mediaRec.ondataavailable = (e) => {
+  recorder.ondataavailable = (e) => {
+    if (epoch !== micEpoch || mediaRec !== recorder) return;
     if (!e.data || !e.data.size) return;
-    recChunks.push(e.data);
+    chunks.push(e.data);
     // Перший шматок несе заголовки webm, тож декодується лише СКЛЕЄНЕ
     // аудіо з початку — шлемо накопичене, а не останній шматок окремо.
     if (partialsOn && spoke && !partialBusy && mediaRec && mediaRec.state === "recording") {
-      sendPartial(new Blob(recChunks, { type: "audio/webm" }));
+      sendPartial(new Blob(chunks, { type: recorder.mimeType }), recorder, epoch);
     }
   };
-  mediaRec.onstop = () => {
+  recorder.onstop = () => {
+    if (epoch !== micEpoch || mediaRec !== recorder) return;
+    clearTimeout(recTimer);
     const hadSpeech = spoke;
-    const blob = new Blob(recChunks, { type: "audio/webm" });
-    recChunks = [];
+    const blob = new Blob(chunks, { type: recorder.mimeType });
     mediaRec = null;
+    // Keep recording during recognition, model generation and playback.
+    if (continuous && listening && voiceMode !== "push") startRecorder(true);
     // Тишу на сервер не шлемо: відкритий мікрофон інакше молотив би
     // платні запити цілодобово
-    if (hadSpeech && blob.size) sendToAsr(blob, continuous);
-    else if (continuous && voiceMode !== "push") startRecorder(true);
-    else finishPhrase("");
+    if (hadSpeech && blob.size) sendToAsr(blob, continuous, epoch);
+    else if (!continuous) finishPhrase("");
   };
-  mediaRec.start(PARTIAL_MS);
+  try { recorder.start(PARTIAL_MS); }
+  catch (e) { mediaRec = null; return false; }
   recTimer = setTimeout(() => {
-    if (mediaRec && mediaRec.state === "recording") { try { mediaRec.stop(); } catch (e) {} }
+    if (epoch === micEpoch && mediaRec === recorder && recorder.state === "recording") {
+      try { recorder.stop(); } catch (e) { /* already stopped */ }
+    }
   }, REC_MAX_MS + 500);
   return true;
 }
@@ -2597,26 +2649,32 @@ function startRecorder(continuous) {
  * Свідомо «best effort» — помилку ковтаємо (це чорновик), а на 503 вимикаємо
  * проміжні до кінця сесії, щоб не довбати сервер даремно.
  */
-async function sendPartial(blob) {
+async function sendPartial(blob, recorder, epoch) {
+  const controller = new AbortController();
+  partialController = controller;
   partialBusy = true;
   try {
     const fd = new FormData();
-    fd.append("audio", blob, "voice.webm");
-    const r = await fetch("/api/asr/partial", { method: "POST", body: fd });
+    fd.append("audio", blob, blob.type.includes("mp4") ? "voice.m4a" : "voice.webm");
+    const r = await fetch("/api/asr/partial", { method: "POST", body: fd, signal: controller.signal });
+    if (controller.signal.aborted || epoch !== micEpoch) return;
     if (r.status === 503) { partialsOn = false; return; }
     if (!r.ok) return;
     const d = await r.json();
     // Показуємо, лише поки ще пишемо: інакше чорновик перебив би остаточний текст
-    if (d.text && mediaRec && mediaRec.state === "recording") showLive(d.text);
+    if (!controller.signal.aborted && epoch === micEpoch && d.text && mediaRec === recorder
+        && recorder.state === "recording") showLive(d.text);
   } catch (e) {
     /* мережа моргнула — наступний шматок спробує знову */
   } finally {
-    partialBusy = false;
+    if (partialController === controller) { partialController = null; partialBusy = false; }
   }
 }
 
-async function sendToAsr(blob, continuous) {
-  clearTimeout(recTimer);
+async function sendToAsr(blob, continuous, epoch = micEpoch) {
+  if (asrController) asrController.abort();
+  const controller = new AbortController();
+  asrController = controller;
   if (!continuous) showLive(t("voice.recognizing"));
   let text = "";
   /* Розпізнавання рахує ХМАРА (asr.provider: regolo), локального падіння
@@ -2626,14 +2684,17 @@ async function sendToAsr(blob, continuous) {
   let failure = "";
   try {
     const fd = new FormData();
-    fd.append("audio", blob, "voice.webm");
-    const r = await fetch("/api/asr", { method: "POST", body: fd });
+    fd.append("audio", blob, blob.type.includes("mp4") ? "voice.m4a" : "voice.webm");
+    fd.append("detect_language", "true");
+    const r = await fetch("/api/asr", { method: "POST", body: fd, signal: controller.signal });
     const d = await r.json().catch(() => ({}));
     if (r.ok) text = d.text || "";
     else failure = d.error || t("voice.asrFail");
   } catch (e) {
     failure = t("voice.asrOffline");
   }
+  if (controller.signal.aborted || epoch !== micEpoch) return;
+  if (asrController === controller) asrController = null;
   if (failure) {
     showLive("");
     showCaption(failure, "bot");
@@ -2641,7 +2702,6 @@ async function sendToAsr(blob, continuous) {
   if (continuous) {
     showLive("");
     if (text) { showCaption(text, "user"); handleFinalText(text); }
-    if (voiceMode !== "push") startRecorder(true);
   } else {
     finishPhrase(text);
   }
@@ -2651,13 +2711,15 @@ async function sendToAsr(blob, continuous) {
 
 async function startPhrase() {
   showLive("");
-  await openMic();
+  const epoch = micEpoch;
   setListening(true);
-  if (startRecognition(false)) return;
-  if (startRecorder(false)) {
+  const ok = await openMic();
+  if (epoch !== micEpoch) return;
+  if (ok && startRecorder(false)) {
     showLive(t("voice.afterPause"));
     return;
   }
+  if (startRecognition(false)) return;
   finishPhrase("");
 }
 
@@ -2669,6 +2731,13 @@ function stopPhrase() {
 }
 
 function finishPhrase(text) {
+  micEpoch += 1;
+  clearTimeout(recTimer);
+  if (asrController) asrController.abort();
+  if (partialController) partialController.abort();
+  asrController = null;
+  partialController = null;
+  partialBusy = false;
   if (recognition) {
     recognition.onend = null;
     recognition.onerror = null;
@@ -2686,20 +2755,29 @@ function finishPhrase(text) {
 /* ---------- Режими «завжди» і «ключове слово» ---------- */
 
 async function startContinuous() {
+  const epoch = micEpoch;
+  setListening(true);
   const ok = await openMic();
+  if (epoch !== micEpoch) return;
   if (!ok && !SR) {                       // без мікрофона й без SR — нема як
     setVoiceMode("push");
     return;
   }
-  setListening(true);
   wakeArmed = false;
+  if (ok && startRecorder(true)) return;
   if (startRecognition(true)) return;
-  if (startRecorder(true)) return;
   setVoiceMode("push");                   // жоден шлях не піднявся
 }
 
 function stopContinuous() {
+  micEpoch += 1;
   clearTimeout(recTimer);
+  clearTimeout(srRestartTimer);
+  if (asrController) asrController.abort();
+  if (partialController) partialController.abort();
+  asrController = null;
+  partialController = null;
+  partialBusy = false;
   if (recognition) {
     recognition.onend = null;
     recognition.onerror = null;
@@ -2717,6 +2795,8 @@ function stopContinuous() {
   wakeArmed = false;
   setListening(false);
 }
+
+window.addEventListener("pagehide", () => { stopContinuous(); bargeIn(false); });
 
 function setVoiceMode(mode) {
   if (!MODES[mode]) return;
@@ -2774,8 +2854,10 @@ micButtons.forEach((btn) => {
   btn.addEventListener("click", () => {
     if (held) { held = false; return; }        // це був виклик меню
     wake();
-    if (voiceMode !== "push") {                 // у «завжди»/«ключове» кнопка
-      openModeSheet();                          // лише показує вибір
+    if (botSpeaking || activeChat) { bargeIn(); return; }
+    if (voiceMode !== "push") {
+      if (listening) stopContinuous();
+      else { goTile(0); startContinuous(); }
       return;
     }
     if (listening) { stopPhrase(); return; }

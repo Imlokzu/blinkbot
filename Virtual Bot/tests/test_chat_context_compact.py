@@ -137,9 +137,9 @@ class VoiceAndSpokenFlagTests(unittest.TestCase):
             self.assertNotIn(word, brains._TTS_RULES)
 
     def test_spoken_block_demands_units_spelled_out(self) -> None:
-        """Заради цього все й робилось: «км/год» вголос — «ка-ем-скісна-риска-год»."""
-        self.assertIn("км/год", brains._TTS_RULES)
-        self.assertIn("кілометрів на годину", brains._TTS_RULES)
+        """Units must be spoken naturally, in the reply's language."""
+        self.assertIn("km/h", brains._TTS_RULES)
+        self.assertIn("kilometres per hour", brains._TTS_RULES)
 
     def test_endpoint_forwards_spoken_without_inventing_voice(self) -> None:
         observed: dict[str, object] = {}

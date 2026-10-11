@@ -89,6 +89,7 @@ const DICT = {
     /* ---- голос ---- */
     "voice.unavailable": "Голос недоступний",
     "voice.speak": "Говорити",
+    "voice.start": "Почати розмову",
     "voice.pause": "Пауза",
     "voice.listening": "Слухаю…",
     "voice.listeningAll": "Слухаю все",
@@ -132,7 +133,7 @@ const DICT = {
     "mode.push": "Поговорити",
     "mode.push.hint": "Тиснеш — кажеш фразу — бот відповідає",
     "mode.open": "Слухає завжди",
-    "mode.open.hint": "Мікрофон відкритий, кожна фраза йде боту",
+    "mode.open.hint": "Говоріть вільно. Перебийте або скажіть «стоп», щоб зупинити відповідь",
     "mode.wake": "Ключове слово",
     "mode.wake.hint": "Реагує лише після свого імені",
 
@@ -651,6 +652,7 @@ const DICT = {
 
     "voice.unavailable": "Voice unavailable",
     "voice.speak": "Talk",
+    "voice.start": "Start talking",
     "voice.pause": "Pause",
     "voice.listening": "Listening…",
     "voice.listeningAll": "Listening to all",
@@ -688,7 +690,7 @@ const DICT = {
     "mode.push": "Push to talk",
     "mode.push.hint": "Press — say a phrase — the bot answers",
     "mode.open": "Always listening",
-    "mode.open.hint": "Mic stays open, every phrase goes to the bot",
+    "mode.open.hint": "Talk freely. Interrupt or say “stop” to end the reply",
     "mode.wake": "Wake word",
     "mode.wake.hint": "Reacts only after its own name",
 
