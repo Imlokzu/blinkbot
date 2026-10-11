@@ -2923,3 +2923,44 @@ reproduced all four findings and 22 widget tests passed. Independent review,
 post-review routing/static smoke and limits are recorded in `VALIDATION.md`.
 No alarm audio, real reminders, cloud changes, provider credentials or personal
 runtime data were used. Other agents' unfinished edits remain outside this commit.
+
+
+## 2026-10-11 — Interruptible screen voice conversation
+
+The device screen now defaults new browser profiles to free conversation,
+starting microphone access on a tap. Existing Push/Wake preferences remain.
+The configured ASR stays available during generation/playback; sustained speech
+interrupts the answer, and standalone stop commands cancel chat and TTS without
+sending another model turn. Pause releases microphone tracks and late callbacks.
+
+Screen voice turns use configured `voice.screen_model` (GPT-6 Luna by default)
+with message-local thinking off, preserving the dashboard picker and global
+preferences. Screen ASR opts into language detection; ordinary dictation retains
+its language hint. ElevenLabs follows the reply's language. Old streams, recorder
+chunks, permission failures, audio promises and echo cannot revive a stopped
+reply or overwrite the next caption. Stream failure does not replay a voice turn.
+
+Validation: 1,785 Python tests passed, 7 skipped and 178 subtests passed; 127
+focused voice checks passed, with JavaScript syntax and Python compilation clean.
+Independent maximum-effort review fixed lifecycle/echo/replay bugs and found no
+remaining reproducible blocker. Fable/installed specialist models and LSP were
+unavailable; this is supported native review, not Fable certification. Browser
+checks used simulated media; physical speaker echo/background speech is untested.
+
+Real synthetic Sarah/Regolo checks recognized Ukrainian stop and an exact English
+sentence. Warm English TTS/ASR took 0.334/0.483 seconds. Luna first words measured
+3.091 seconds in a warm conversation, 5.272 for a fresh phrase and 12.077 for
+the first greeting. These are samples, not latency guarantees. Local interruption
+does not wait for the model. TTS remains sentence-buffered; no streaming transport
+or neural speech detector is claimed. Details: `Virtual Bot/docs/SCREEN-VOICE.md`.
+
+Post-review isolated smoke passed 18 curl checks, including both traversal guards
+returning 400. Test browsers/servers stopped; synthetic chats and Gateway
+transcripts were removed. The registered backend was reloaded with zero active
+phone jobs; its new ASR form and screen assets are live. Mac output stays muted.
+Feature commit: `db841654`, pushed to origin on main under the required identity.
+
+The ordinary TruffleHog archive wrapper exhausted disk space. The complete staged
+snapshot was scanned through a streamed archive with the committed hook's policy
+and verified by tree hash before commit; Gitleaks still ran normally. The
+uncommitted stricter scanner draft and other existing work were preserved.
