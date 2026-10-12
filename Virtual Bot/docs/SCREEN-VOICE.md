@@ -19,6 +19,13 @@ In a free conversation, sustained speech interrupts the answer. A standalone
 request without creating another model turn. The microphone stays available
 for the next sentence. Requests such as “stop the music” still reach the agent.
 
+In Wake word mode, microphone level alone does not address the bot or interrupt
+an answer. Recognition must supply its name or a standalone stop command, unless
+the utterance started inside an existing follow-up invitation. That original
+invitation stays with the recording through recognition latency and expiry;
+an interruption cannot retroactively grant intent to an unaddressed recording.
+Always listening keeps its broader level-triggered interruption behavior.
+
 The pipeline is the existing configured ASR, OpenClaw's GPT-6 Luna route,
 and the configured TTS provider (ElevenLabs on the development host). Screen
 voice alone uses `voice.screen_model`, defaulting to `openai/gpt-6-luna`, with
@@ -34,8 +41,9 @@ language. Recognition errors and provider outages still use the existing UI.
 
 The echo-cancelled microphone stays open during recognition, generation and
 playback. Short turns end after 650 ms of silence; a longer thought gets 950 ms.
-Speech must last 180 ms to interrupt, so a single level spike does not stop the
-answer. Silent recordings do not reach paid recognition. Playback-text matching
+Speech must last 180 ms before level-triggered interruption is eligible in
+Always listening or an invited Wake word follow-up. A single level spike does
+not stop the answer. Silent recordings do not reach paid recognition. Playback-text matching
 filters likely echo from browser/server transcripts. This is level-based turn
 detection, not a neural speech detector; physical speaker echo and background
 speech need device testing.
@@ -46,9 +54,9 @@ speech or overwrite the next caption. TTS begins at a complete sentence from
 24 characters and prefetches the next chunk. Audio remains sentence-buffered;
 this does not add an ElevenLabs streaming transport.
 
-## Validation
+## 2026-10-11 validation
 
-Latest suite: **1,832 passed, 7 skipped, 178 subtests passed**. The focused
+The wake-cue release suite: **1,832 passed, 7 skipped, 178 subtests passed**. The focused
 wake/voice set passed **131 tests**. Post-review curl smoke passed **19 checks**,
 including two traversal guards returning 400. The registered backend was
 reloaded with zero active phone jobs and exposes the new ASR field and assets.

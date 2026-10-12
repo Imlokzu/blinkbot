@@ -219,7 +219,9 @@ def test_recorded_follow_up_owns_intent_until_one_final_even_after_expiry(empty)
 const ctx=environment({{micStream:{{getTracks:()=>[]}}}});const first=deferred();let calls=0;
 ctx.fetch=(url)=>url==='/api/asr' ? (++calls===1 ? first.promise : Promise.resolve({{ok:true,json:async()=>({{text:'too late'}})}}))
   : Promise.resolve({{ok:true,blob:async()=>new Blob(['cue'])}});
-ctx.voiceDetector={{reset(){{}},update:()=>({{start:true,end:false}})}};
+// The real detector retains the first-sound candidate through confirmation.
+ctx.voiceDetector={{candidate:null,reset(){{this.candidate=null;}},
+  update(_level,now){{this.candidate ??= now;return {{start:true,end:false}};}}}};
 ctx.armWake(8000);ctx.startRecorder(true);ctx.clock=7000;ctx.onMicLevel(.5);
 ctx.clock=8500;ctx.disarmWake();ctx.mediaRec.stop();
 first.resolve({{ok:true,json:async()=>({{text:{json.dumps('' if empty else 'what time is it')}}})}});await flush();

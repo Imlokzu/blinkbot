@@ -2433,7 +2433,7 @@ function closeMic() {
   if (meter) meter.detach();
 }
 
-/* Рівень мікрофона: рух краба + нарізка фрази для серверного ASR */
+/* Microphone level drives the crab and speech boundaries for server ASR. */
 function onMicLevel(level) {
   crab.setAudioLevel(level);
   if (!mediaRec || mediaRec.state !== "recording") return;
@@ -2443,16 +2443,25 @@ function onMicLevel(level) {
   // A confirmed start can follow the first sound by 180 ms. Preserve the
   // window that covered that sound, and discard an unconfirmed noise spike.
   if (!spoke) {
-    if (voiceDetector.candidate == null) mediaRec.wakeArmed = false;
-    else if (voiceMode === "wake" && wakeArmed) mediaRec.wakeArmed = true;
+    if (voiceDetector.candidate == null) {
+      mediaRec.wakeCandidate = null;
+      mediaRec.wakeArmed = false;
+    } else if (mediaRec.wakeCandidate !== voiceDetector.candidate) {
+      mediaRec.wakeCandidate = voiceDetector.candidate;
+      mediaRec.wakeArmed = voiceMode === "wake" && wakeArmed;
+    }
   }
   if (boundary.start) {
+    const addressedAtStart = !!mediaRec.wakeArmed;
     spoke = true;
-    if (voiceMode !== "push" && (botSpeaking || activeChat)) bargeIn(false);
-    mediaRec.wakeArmed = !!mediaRec.wakeArmed || (voiceMode === "wake" && wakeArmed);
+    // Level confirms speech, not a wake name. Only open mode or a captured
+    // follow-up invitation may interrupt before recognition supplies intent.
+    if ((voiceMode === "open" || (voiceMode === "wake" && addressedAtStart))
+        && (botSpeaking || activeChat)) bargeIn(false);
+    mediaRec.wakeArmed = addressedAtStart;
   }
   if (boundary.end || now - recStartAt > REC_MAX_MS) {
-    try { mediaRec.stop(); } catch (e) { /* уже зупинений */ }
+    try { mediaRec.stop(); } catch (e) { /* already stopped */ }
   }
 }
 
@@ -2707,6 +2716,7 @@ function startRecorder(continuous) {
   try {
     recorder = new MediaRecorder(micStream);
     recorder.wakeArmed = false;
+    recorder.wakeCandidate = null;
     mediaRec = recorder;
   } catch (e) {
     mediaRec = null;

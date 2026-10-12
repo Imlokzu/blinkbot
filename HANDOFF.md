@@ -3035,3 +3035,29 @@ tests passed. Independent review and post-review API/static smoke evidence and
 limits are in `VALIDATION.md`. No real microphone, alarm/audio playback, paid
 provider request, credentials or personal runtime data were used. Other agents'
 unfinished work stays outside this audit commit.
+
+
+## 2026-10-12 — Night-agent wake intent repair
+
+Fixed V-01: microphone level no longer arms unaddressed Wake word input during
+a reply. The recorder freezes invitation intent at the first speech candidate,
+clears noise candidates and preserves captured invitation metadata through
+confirmation and recognition delay. Open mode and captured invitations retain early
+interruption; unarmed Wake word input waits for a recognized name or stop.
+Late-opened invitations cannot authorize an already-started utterance.
+
+Final checks: 1,883 backend tests passed, eight skipped and 178 subtests;
+108 focused voice/wake tests (27 new), 231 dashboard tests, TypeScript, catalogs
+and 21 i18n tests passed. Separate maximum-effort native review returned
+APPROVE / CLEAR; Fable was unavailable. Review fixed late invitation capture
+and the new test module's Node skip marker. Existing assertions remain intact.
+
+A complete-screen 320x240 browser fixture passed six scenarios without uncaught
+errors using synthetic media/recognition/model adapters. Post-review actual-app
+smoke passed 42 curl expectations, including three traversal 400 responses and
+voice/static assets; timer persistence/cancel bodies also passed. Browser/server
+processes stopped and the Mac remains muted. No live reload, deployment, provider
+call or physical audio was used. V-02/V-03/C-01 remain separate follow-ups, as
+does the pre-existing browser invited-playback asymmetry. Existing drafts are
+preserved. Evidence and precise limits:
+`reports/night-agent-wake-intent-2026-10-12.md`.
