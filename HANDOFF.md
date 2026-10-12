@@ -3020,3 +3020,18 @@ traversal 400 and static assets. Test browser/servers stopped; no physical audio
 provider call, production reload or deployment was performed. Existing drafts
 are preserved and the Mac remains muted. Evidence and limits:
 `reports/night-agent-timer-activations-2026-10-11.md`.
+
+
+## 2026-10-12 — Repository audit: voice input and conversation selection
+
+Added `reports/repository-audit-2026-10-12/` beside earlier agent reports.
+Four fresh findings cover wake intent promoted by level-triggered interruption,
+cap-split speech losing earlier recognition, pending input sent into a new
+chat, and reversed history responses showing the wrong selected conversation.
+The report includes explicit fixture limits, repair examples, acceptance checks
+and three additions. Repairs remain proposals; no product code was changed.
+The guarded Node probe reproduced all four behaviors and 81 focused voice/wake
+tests passed. Independent review and post-review API/static smoke evidence and
+limits are in `VALIDATION.md`. No real microphone, alarm/audio playback, paid
+provider request, credentials or personal runtime data were used. Other agents'
+unfinished work stays outside this audit commit.
