@@ -16,8 +16,14 @@ The reference's streaming custom UI architecture is described in its
 ## Behavior
 
 - The model supplies a title, accessible text summary, HTML body fragment,
-  CSS and plain JavaScript. SVG, canvas and standard form controls work;
+  CSS and plain JavaScript. SVG, canvas and semantic form controls work;
   external libraries and assets are not part of this environment.
+- Blink upgrades those controls to the actual React components used in Settings:
+  WakeSlider for ranges, SquishSwitch for checkboxes, GlideSelect for single
+  selects, and the shared Button/Input/Textarea. The backing DOM elements retain
+  their IDs, values and events, so existing saved answers gain the same controls.
+  Button variants use `data-variant="solid|quiet|outline|ghost"` (default quiet).
+  Generated CSS owns content layout; Blink owns control styling and states.
 - A loading state appears during the tool call. The complete validated
   artifact becomes interactive after generation; partial source is not run.
 - The frame inherits Blink's colors and responds to theme changes without
@@ -58,8 +64,10 @@ frame whose code is owned by Blink. Neither frame gets same-origin access,
 host storage, auth tokens, popups, forms, top navigation or direct host API
 callbacks. The host validates the message source, channel and payload; a
 generated message never directly submits a chat turn. CSP blocks HTTP fetches,
-external subresources and frame navigation. No browser dependency is downloaded
-by the generated view.
+external subresources and frame navigation. The host lazily loads a locally
+bundled copy of the shared controls only when an interactive answer is opened,
+then injects its code/styles into the isolated frame. The frame fetches no
+dependencies and receives no host runtime or API client.
 
 This is **not a complete network or resource sandbox**. In the tested Chromium
 152 browser, WebRTC can still send STUN packets despite CSP. The proposed
@@ -73,7 +81,7 @@ separate execution architecture or supported browser-level enforcement.
 ## Verification
 
 Backend coverage includes schema parity, real tool/workspace routes, traversal,
-owner and session separation, symlink rejection, large source persistence,
+owner isolation and session routing, symlink rejection, large source persistence,
 failed wrappers and streamed-to-saved receipt replay. Frontend checks cover
 receipt validation, checksums, bridge bounds, script escaping and LAN hashing.
 

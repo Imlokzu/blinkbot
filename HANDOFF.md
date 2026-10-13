@@ -3105,3 +3105,27 @@ was not exercised. See `Virtual Bot/docs/INTELLIGENT-UI.md` for usage, exact
 behavior, startup/catalog refresh and validation commands.
 
 Other pre-existing tracked/untracked work remains outside this change.
+
+
+## 2026-10-13 — Native React controls in interactive answers
+
+Following the owner's correction, generated controls now reuse the actual
+Settings components: React Bits WakeSlider, SquishSwitch and GlideSelect, plus
+Blink's shared Button/Input/Textarea. The same components replace the host
+reset/pause/follow-up controls. Existing saved artifacts are upgraded through
+a DOM adapter, preserving backing IDs, values and event handlers. A Vite
+virtual module compiles the isolated, local control bundle, loaded only for
+a confirmed interactive answer. No extra UI library or CDN was introduced.
+
+The sandbox's previously documented WebRTC/resource limits remain. Browser
+checks cover real controls, keyboard input, disabled states, programmatic
+values, dynamically added/removed controls and model-authored handlers.
+
+Independent review repaired range stepping/bounds, label activation, delegated
+event duplication, programmatic setters, hidden/disabled states, form resets
+and moved/removed control cleanup. Regression coverage includes real pointer
+dragging, keyboard arrows, continuous/tiny ranges, shared numeric input,
+checkbox click receipts, dropdown selection and original DOM event counts.
+Dashboard tests (238), TypeScript, isolated production build and the full
+real-Thread browser regression passed; the focused backend contract remains
+covered by `tests/test_intelligent_ui.py`.

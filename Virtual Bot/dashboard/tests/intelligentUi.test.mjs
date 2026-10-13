@@ -61,7 +61,7 @@ test('the sandbox bridge is channel-scoped, bounded and cannot submit a chat mes
 });
 
 test('host CSP and bootstrap cannot be escaped by source or theme values', () => {
-  const document = intelligentUiDocument({ version: 1, html: '</script><script>alert(1)</script>', css: '</style>', javascript: '</script>' }, 'safe-channel', { '--text': '</script>' }, 'en');
+  const document = intelligentUiDocument({ version: 1, html: '</script><script>alert(1)</script>', css: '</style>', javascript: '</script>' }, 'safe-channel', { '--text': '</script>' }, 'en', 'Answer', { javascript: '</script><script>bad()</script>', css: '</style>' });
   assert.equal((document.match(/<script\b/g) || []).length, 1);
   assert.equal((document.match(/<\/script>/g) || []).length, 1);
   assert.match(document, /connect-src 'none'/);

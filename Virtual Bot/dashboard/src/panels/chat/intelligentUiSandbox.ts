@@ -1,12 +1,13 @@
 import type { IntelligentUiSource } from './intelligentUiData';
 
 export type SandboxTheme = Record<string, string>;
+export type SandboxControls = { javascript: string; css: string };
 const json = (value: unknown) => JSON.stringify(value).replace(/</g, '\\u003c');
 
 /** Only trusted code runs here: its frame-src policy also blocks child navigation. */
-export function intelligentUiDocument(source: IntelligentUiSource, channel: string, theme: SandboxTheme, lang: string, title = ''): string {
+export function intelligentUiDocument(source: IntelligentUiSource, channel: string, theme: SandboxTheme, lang: string, title = '', controls: SandboxControls = { javascript: '', css: '' }): string {
   const nonce = channel.replace(/[^a-zA-Z0-9-]/g, '');
-  const content = contentDocument(source, channel, theme, lang);
+  const content = contentDocument(source, channel, theme, lang, controls);
   return `<!doctype html><html lang="${lang === 'uk' ? 'uk' : 'en'}"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data: blob:; frame-src 'none'; base-uri 'none'; form-action 'none'">
 <style>html,body,iframe{display:block;box-sizing:border-box;width:100%;height:100%;margin:0;border:0}body{overflow:hidden}</style>
@@ -30,15 +31,15 @@ export function intelligentUiDocument(source: IntelligentUiSource, channel: stri
 }
 
 /** The host owns the document and CSP; generated markup never owns its head. */
-function contentDocument(source: IntelligentUiSource, channel: string, theme: SandboxTheme, lang: string): string {
+function contentDocument(source: IntelligentUiSource, channel: string, theme: SandboxTheme, lang: string, controls: SandboxControls): string {
   const nonce = channel.replace(/[^a-zA-Z0-9-]/g, '');
   return `<!doctype html><html lang="${lang === 'uk' ? 'uk' : 'en'}"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data: blob:; font-src 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'; media-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <style>
+@layer theme,base,generated,components,utilities;
 *{box-sizing:border-box}html,body{margin:0;min-width:0}body{padding:16px;background:var(--background);color:var(--text);font:14px/1.5 var(--font-sans,system-ui);overflow-wrap:anywhere}
-button,input,select,textarea{font:inherit;color:inherit}button,input,select,textarea{border:1px solid var(--border);border-radius:7px;background:var(--surface);padding:8px 10px;max-width:100%}
-button{cursor:pointer;min-height:40px}button:hover{border-color:var(--accent)}input[type=range],input[type=checkbox]{accent-color:var(--accent)}label{display:block}svg,canvas,img{max-width:100%}table{border-collapse:collapse;width:100%}th,td{padding:8px;text-align:left;border-bottom:1px solid var(--border)}:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+label{display:block}svg,canvas,img{max-width:100%}table{border-collapse:collapse;width:100%}th,td{padding:8px;text-align:left;border-bottom:1px solid var(--border)}:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style></head><body><div id="blink-ui-root"></div><script nonce="${nonce}">
 (() => {
@@ -64,7 +65,9 @@ button{cursor:pointer;min-height:40px}button:hover{border-color:var(--accent)}in
   }
   document.getElementById('blink-ui-root').append(fragment.content);
   document.addEventListener('submit', event => event.preventDefault(), true);
-  const style = document.createElement('style'); style.textContent = source.css; document.head.append(style);
+  const style = document.createElement('style'); style.textContent = '@layer generated {' + source.css + '}'; document.head.append(style);
+  const controlStyle = document.createElement('style'); controlStyle.textContent = ${json(controls.css)}; document.head.append(controlStyle);
+  const controlScript = document.createElement('script'); controlScript.nonce = ${json(nonce)}; controlScript.textContent = ${json(controls.javascript)}; document.body.append(controlScript);
   let queued = false;
   const resize = () => { if(queued) return; queued = true; requestAnimationFrame(() => {queued = false; send('resize',{height:document.body.scrollHeight});}); };
   new ResizeObserver(resize).observe(document.body);

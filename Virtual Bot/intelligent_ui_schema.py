@@ -8,7 +8,13 @@ todo_list for checklists. Do not create an interactive UI for every reply.
 The UI runs in an isolated browser frame: HTML body fragment, CSS and plain
 JavaScript. Keep it self-contained. Do not use network, imports, external assets,
 storage, host APIs or credentials.
-Use SVG, canvas and native inputs. Attach listeners from javascript (no inline
+Use SVG, canvas and semantic controls with stable IDs. Blink automatically renders
+range inputs with its React Bits WakeSlider, checkboxes with SquishSwitch, selects
+with GlideSelect, and buttons/text inputs with the same React components as Settings.
+Use data-variant="solid|quiet|outline|ghost" on buttons; default is quiet. Do not
+redesign these controls or import React. Use CSS for content layout, not control skins.
+Read/write the original elements by ID and listen to input/change/click as usual.
+Attach listeners from javascript (no inline
 onclick or script tags). Use accessible labels and the user's language. Theme
 variables: --background, --surface, --text, --muted, --border, --accent, --font-sans.
 Fit 280px-wide layouts; allow vertical scrolling; respect prefers-reduced-motion.

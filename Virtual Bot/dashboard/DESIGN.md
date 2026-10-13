@@ -876,3 +876,16 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   busy/failed sends keep the draft. All host labels use English/Ukrainian keys.
 - Browser isolation protects the host origin and privileged actions. It is not
   complete network/resource isolation; see `../docs/INTELLIGENT-UI.md`.
+
+
+## Shared controls in interactive answers (2026-10-13)
+
+Generated answers use the actual Settings controls, not stock browser widgets
+or a parallel visual approximation: WakeSlider, SquishSwitch, GlideSelect,
+and shared Button/Input/Textarea. The sandbox bundles these components locally
+and lazily; no CDN, main-app runtime, auth helper or privileged API crosses
+the frame boundary. Existing artifacts retain their DOM IDs/value/event contract
+and are upgraded automatically. Generated CSS controls content layout while
+shared component styles own the controls. Host reset/pause/follow-up actions
+also use the shared components. Verify keyboard, disabled state, dynamic changes,
+light/dark themes, narrow layouts and original handlers before publication.

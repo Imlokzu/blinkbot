@@ -4,13 +4,10 @@
 .intelligent-ui-label { margin: 0; font: 500 10px/1.5 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--c-text-2); }
 .intelligent-ui-summary { margin: 0; padding: 0 16px 12px; font-size: 13px; line-height: 1.6; color: var(--c-text-2); overflow-wrap: anywhere; }
 .intelligent-ui-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.intelligent-ui-actions button { padding: 6px 10px; min-height: 36px; border: 1px solid var(--c-border); border-radius: var(--r-sm); background: var(--c-surface); font-size: 12px; }
-.intelligent-ui-actions button:hover { border-color: var(--c-accent); }
-.intelligent-ui-actions button:disabled { opacity: .5; cursor: default; }
 .intelligent-ui :focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
 .intelligent-ui iframe { display: block; width: 100%; border: 0; border-top: 1px solid var(--c-border); background: var(--c-surface); }
 .intelligent-ui-hint, .intelligent-ui-status { margin: 0; padding: 10px 16px; font-size: 12px; line-height: 1.5; color: var(--c-text-2); }
 .intelligent-ui-followup { padding: 16px; border-top: 1px solid var(--c-border); }
 .intelligent-ui-followup label { display: block; font-size: 13px; margin-bottom: 8px; }
-.intelligent-ui-followup textarea { display: block; resize: vertical; min-height: 88px; width: 100%; margin-bottom: 10px; padding: 10px; border: 1px solid var(--c-border); border-radius: var(--r-sm); background: var(--c-surface-2); font: 14px/1.5 var(--f-sans); }
+.intelligent-ui-followup textarea { display: block; min-height: 88px; margin-bottom: 10px; }
 @media (max-width: 759px), (pointer: coarse) { .intelligent-ui-actions button { min-height: 44px; } .intelligent-ui-followup textarea { font-size: 16px; } }

@@ -1,4 +1,5 @@
 const en = {
+  control: 'Value',
   label: 'Interactive answer', loading: 'Building your interactive answer…',
   failed: 'This interactive answer could not load. You can still read its summary.',
   interrupted: 'Interactive answer stopped.', reset: 'Reset', retry: 'Try again',
@@ -8,6 +9,7 @@ const en = {
   stale: 'Reopen this conversation to send the follow-up.', sendFailed: 'Could not send. Your draft is kept here.',
 } as const;
 const uk: Record<keyof typeof en, string> = {
+  control: 'Значення',
   label: 'Інтерактивна відповідь', loading: 'Створюю інтерактивну відповідь…',
   failed: 'Не вдалося завантажити інтерактивну відповідь. Короткий опис залишається доступним.',
   interrupted: 'Створення інтерактивної відповіді зупинено.', reset: 'Скинути', retry: 'Спробувати ще раз',

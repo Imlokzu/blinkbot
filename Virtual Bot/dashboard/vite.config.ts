@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath, URL } from 'node:url';
+import { intelligentUiControlsPlugin } from './scripts/intelligent-ui-controls.mjs';
 
 // Бекенд, до якого ходить дев-сервер. Прод-збірку роздає сам FastAPI,
 // тож там усі шляхи вже однопортові й проксі не потрібен.
@@ -27,6 +28,7 @@ const BACKEND_PATHS = ['/api', '/preview', '/file', '/uploads', '/store-apps', '
 export default defineConfig({
   base: '/static/dash/',
   plugins: [
+    intelligentUiControlsPlugin(),
     {
       name: 'product-title',
       transformIndexHtml: (html) => html
