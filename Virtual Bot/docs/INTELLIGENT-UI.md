@@ -68,6 +68,16 @@ An existing OpenClaw process may cache its tool list until refreshed.
 After adding a tool, run `openclaw mcp reload` so the next agent turn discovers
 it; restarting only FastAPI does not refresh OpenClaw's cached MCP catalog.
 
+**Gateway permission is separate from declaring the tools.** With OpenClaw's
+`minimal` tool profile, enable `tools__render_interactive_ui` and `tools__show_map`
+in the existing Tools settings (or explicitly append those exact names to
+`tools.alsoAllow` without replacing other entries). Verify both show
+`enabled: true` in `/api/tools/catalog`, then reload MCP. `mcp probe` alone only
+proves declaration; it does not prove the agent is permitted to call the tool.
+Do not automatically re-enable tools on startup: an operator's later decision
+to disable one must remain effective. Deployment validation must include a real
+ordinary user prompt and its saved tool receipt, not just a direct tool call.
+
 ## Browser boundary and limits
 
 Generated code runs in an opaque `allow-scripts` iframe inside another opaque

@@ -3192,3 +3192,26 @@ Dashboard typecheck, 240 tests and isolated build passed. The real Leaflet
 browser regression uses synthetic tiles (zero public tile requests) for pan,
 zoom, retry, replay, labels and narrow-layout checks. Independent review fixed
 timeouts, tile-error recovery, teardown and accessibility before publication.
+
+
+### Live gateway permission verification (2026-10-13)
+
+The first real map probe still returned a link. Inspection showed the actual
+root cause of the earlier generative-UI failure: OpenClaw's minimal profile
+did not include either new qualified tool in `tools.alsoAllow`. MCP probing
+proved declaration but not agent access. Added exactly
+`tools__render_interactive_ui` and `tools__show_map` through the native config
+CLI with an expected-current-value guard, preserving all other entries, then
+reloaded MCP. `/api/tools/catalog` confirms both enabled. Setup documentation
+and synthetic allowlist tests now cover this separate activation step and
+preserve later operator disablement.
+
+The exact original prompt, `show where Kharkiv is on the map` (sent in
+Ukrainian), then called `tools__show_map` successfully through OpenClaw in
+17.1 seconds; its saved receipt passes the actual frontend parser with
+latitude 49.9935, longitude 36.2304 and zoom 11. An ordinary bill-splitter
+request called `tools__render_interactive_ui` successfully in 25.5 seconds.
+The production dashboard rendered that real generated artifact with native
+controls; changing the bill from 120 to 240 updated the three-person result
+to 80. This supplies the live-provider evidence missing from the initial
+implementation. Targeted access/map tests: 19 passed.
