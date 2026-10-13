@@ -3061,3 +3061,17 @@ call or physical audio was used. V-02/V-03/C-01 remain separate follow-ups, as
 does the pre-existing browser invited-playback asymmetry. Existing drafts are
 preserved. Evidence and precise limits:
 `reports/night-agent-wake-intent-2026-10-12.md`.
+
+
+## 2026-10-13 — Repository audit: memory persistence boundaries
+
+Added `reports/repository-audit-2026-10-13/` beside earlier agent reports.
+Four fresh findings cover transient profile-read failure overwriting old facts,
+synchronous mutation-lock waits in async memory APIs, recovery/staged notes
+appearing as unreadable catalog rows, and an open directory descriptor after
+failed sync. The report includes bounded evidence, repair examples, acceptance
+checks and three additions. Repairs remain proposals; no product code changed.
+Guarded synthetic probes reproduced the behaviors. Focused test, independent
+review and post-review routing/static evidence and limits are in `VALIDATION.md`.
+No owner profile, real notes/chats, credentials, paid provider request or device
+was used. Other agents' unfinished work remains outside this audit commit.
