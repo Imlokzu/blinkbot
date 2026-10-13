@@ -6,6 +6,15 @@ comparisons and small tools inside a reply. Try the new-chat suggestion
 controls. The selected model decides when to call `render_interactive_ui`.
 Plain replies and existing question, choice and checklist tools still work.
 
+Place requests use the native `show_map` tool. It renders a real Leaflet map
+with a marker, drag/pinch/keyboard navigation and Blink's shared zoom/recenter
+buttons. OpenStreetMap tiles load only once the card becomes visible, using
+normal browser caching and visible attribution. Failed tile loads retain the
+coordinates and external map link, with a retry action. Map requests explicitly
+prefer this UI over image-search screenshots; calculators, comparisons and
+explorable explanations likewise prefer generated UI when useful. This routing
+guidance is sent only to the desktop/web client, not native mobile or messengers.
+
 This adapts the interactive-answer pattern from
 [OpenIntelligentUI](https://github.com/CopilotKit/OpenIntelligentUI) to Blink's
 existing assistant-ui, FastAPI and OpenClaw transport. It does not install a
@@ -56,6 +65,8 @@ No separate endpoint, API key, migration or model service is required. Restart
 the backend and refresh the OpenClaw tools MCP process/catalog after updating
 Python source, then rebuild the dashboard with its guarded build script.
 An existing OpenClaw process may cache its tool list until refreshed.
+After adding a tool, run `openclaw mcp reload` so the next agent turn discovers
+it; restarting only FastAPI does not refresh OpenClaw's cached MCP catalog.
 
 ## Browser boundary and limits
 
@@ -98,3 +109,10 @@ node tests/intelligent-ui.browser.mjs
 
 These checks use synthetic content and no paid provider. They establish the
 integration and execution contract, not the selected model's output quality.
+
+`tests/map.browser.mjs` uses the real Leaflet renderer and local synthetic tiles
+from `tests/map.fixture.tsx`; its automated pan/zoom checks do not fetch public
+OSM tiles. The production component uses the standard HTTPS tile origin with an
+origin-only Referer and HTTP caching, no offline or bulk-download feature.
+See [Leaflet](https://leafletjs.com/reference.html) and
+[OSM tile policy](https://operations.osmfoundation.org/policies/tiles/).

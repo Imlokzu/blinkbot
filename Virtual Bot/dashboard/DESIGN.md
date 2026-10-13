@@ -889,3 +889,18 @@ and are upgraded automatically. Generated CSS controls content layout while
 shared component styles own the controls. Host reset/pause/follow-up actions
 also use the shared components. Verify keyboard, disabled state, dynamic changes,
 light/dark themes, narrow layouts and original handlers before publication.
+
+
+## Native map answers (2026-10-13)
+
+- Place-on-map requests use a native map card with real tiles and a marker,
+  not an image-search screenshot. Existing saved text/image replies stay intact.
+- Leaflet owns geographic pan/pinch/keyboard behavior; Blink's shared React
+  Buttons own zoom and recenter. The frame follows the app's theme and uses
+  plain-text marker labels, visible OSM attribution and readable coordinates.
+- Load the map module/tiles only when the card is visible. Preserve HTTP caching,
+  origin-only Referer and no offline/prefetch tile downloads. Errors retain a
+  coordinate/link fallback and retry. Generated HTML keeps its existing sandbox.
+- Model guidance selects maps and useful interactive answers automatically in
+  desktop/web chat, without requiring the word interactive. Other clients do
+  not receive the desktop-specific routing instruction.

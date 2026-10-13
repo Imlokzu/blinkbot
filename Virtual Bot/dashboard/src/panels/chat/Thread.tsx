@@ -7,6 +7,8 @@ import { GalleryScope } from './Gallery';
 import { ImageGenerationCard } from './ImageGenerationCard';
 import { IntelligentUiCard } from './IntelligentUiCard';
 import { isIntelligentUi } from './intelligentUiData';
+import { MapCard } from './MapCard';
+import { isMapTool } from './mapData';
 import { generationView, imageOnlyDelivery, isImageGeneration } from './imageGenerationState';
 import { cn } from '@/lib/cn';
 import {
@@ -206,10 +208,12 @@ function AssistantMessage() {
               const group = stepsFor(part.ids, steps);
               const images = group.filter(isImageGeneration);
               const intelligent = group.filter(isIntelligentUi);
-              const ordinary = group.filter((step) => !isImageGeneration(step) && !isIntelligentUi(step));
+              const maps = group.filter(isMapTool);
+              const ordinary = group.filter((step) => !isImageGeneration(step) && !isIntelligentUi(step) && !isMapTool(step));
               return <div key={`steps-${part.ids[0] ?? index}`} className="flex w-full min-w-0 flex-col items-start gap-4">
                 {ordinary.length ? <ActivityLine steps={ordinary} running={running} /> : null}
                 {intelligent.map((step) => <IntelligentUiCard key={step.id} step={step} />)}
+                {maps.map((step) => <MapCard key={step.id} step={step} />)}
                 {images.map((step) => <ImageGenerationCard key={step.id} step={step}
                   onRetry={!running && retry?.id === id ? retry.run : undefined} />)}
               </div>;

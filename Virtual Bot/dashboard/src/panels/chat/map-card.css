@@ -1,0 +1,19 @@
+.map-card { width: 100%; min-width: 0; overflow: hidden; border: 1px solid var(--c-border); border-radius: var(--r-md); background: var(--c-surface); color: var(--c-text); }
+.map-card header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 14px 16px; }
+.map-card-label { margin: 0; font: 500 10px/1.5 var(--f-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--c-text-2); }
+.map-card h3 { margin: 4px 0 0; font: 600 17px/1.3 var(--f-sans); overflow-wrap: anywhere; }
+.map-card-actions { display: flex; align-items: center; gap: 4px; }
+.map-card-canvas { height: clamp(260px, 40vh, 380px); width: 100%; z-index: 0; background: var(--c-surface-2); font-family: var(--f-sans); }
+.map-card-pin span { display: block; width: 20px; height: 20px; border: 3px solid var(--c-surface); border-radius: 50%; background: var(--c-accent); box-shadow: 0 0 0 1px var(--c-accent); }
+.map-card .leaflet-tooltip { color: var(--c-text); background: var(--c-surface); border-color: var(--c-border); font-family: var(--f-sans); box-shadow: none; width: max-content; max-width: min(220px, 60vw); white-space: normal; overflow-wrap: anywhere; }
+.map-card .leaflet-tooltip-top::before { border-top-color: var(--c-surface); }
+.map-card-attribution { padding: 4px 10px; font-size: 11px; text-align: right; }
+.map-card a { color: var(--c-accent); text-decoration: underline; text-underline-offset: 3px; }
+.map-card footer { padding: 8px 16px 14px; font-size: 12px; line-height: 1.5; color: var(--c-text-2); }
+.map-card footer p { margin: 0 0 8px; }
+.map-card footer div { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.map-card footer div > * { max-width: 100%; min-width: 0; overflow-wrap: anywhere; }
+.map-card footer span { font-family: var(--f-mono); }
+.map-card-status { padding: 8px 16px; font-size: 12px; color: var(--c-text-2); }
+.map-card-status p { margin-bottom: 8px; }
+.map-card :focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }

@@ -8,7 +8,7 @@ const record = (value: unknown): Record<string, unknown> => value && typeof valu
 const text = (value: unknown, limit: number): value is string => typeof value === 'string' && Array.from(value).length <= limit;
 
 /** A successful nested receipt cannot override a failed MCP transport. */
-function failedResult(value: unknown, depth = 0): boolean {
+export function failedResult(value: unknown, depth = 0): boolean {
   if (depth > 5) return false;
   const result = record(value);
   if (result.error || result.isError || result.is_error || result.ok === false || result.success === false) return true;

@@ -2,6 +2,7 @@
 
 STRINGS: dict[str, dict[str, str]] = {
     "uk": {
+        "ui.invalid_map": "Для карти потрібні назва й коректні координати.",
         "ui.invalid_artifact": "Не вдалося створити інтерактивну відповідь: перевір вміст і розмір.",
         "ui.save_failed": "Не вдалося зберегти інтерактивну відповідь. Спробуй ще раз.",
         "ui.empty_question": "Потрібен текст питання",
@@ -13,6 +14,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "search.rate_limited": "Пошукові сервіси тимчасово обмежили запити. Спробуй пізніше або додай EXA_API_KEY у локальний .env.",
     },
     "en": {
+        "ui.invalid_map": "The map needs a title and valid coordinates.",
         "ui.invalid_artifact": "Could not create the interactive answer: check its content and size.",
         "ui.save_failed": "Could not save the interactive answer. Try again.",
         "ui.empty_question": "A question is required",

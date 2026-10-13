@@ -70,7 +70,7 @@ def safe_result_payload(value):
     for candidate in candidates:
         ui = candidate.get("ui") if isinstance(candidate, dict) else None
         if (isinstance(ui, dict) and ui.get("version") == 1
-                and ui.get("kind") in {"question", "choice", "todo", "intelligent_ui"}):
+                and ui.get("kind") in {"question", "choice", "todo", "intelligent_ui", "map"}):
             # Keep the bounded receipt at the same depth regardless of transport.
             clean = safe_payload({"ok": not result_failed(value), "ui": ui})
             if isinstance(clean, dict):

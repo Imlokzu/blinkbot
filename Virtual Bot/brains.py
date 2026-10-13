@@ -35,6 +35,7 @@ import openclaw_models
 from openclaw_activity import GatewayActivity
 import tools as tool_registry
 from workspace_guidance import DOCUMENT_GUIDANCE
+from map_schema import CHAT_GUIDANCE as INTERACTIVE_UI_GUIDANCE
 
 # Тип історії сесії: [{'role': 'user'|'assistant', 'content': str}, ...]
 ChatHistory = list[dict[str, str]]
@@ -332,7 +333,12 @@ def system_prompt_parts(
     # Where the conversation is, before the voice blocks: a spoken turn on
     # the screen is still refined by the voice rules below.
     if channel in _CHANNEL_RULES:
-        parts.append(("channel", _CHANNEL_RULES[channel]))
+        channel_rules = _CHANNEL_RULES[channel]
+        if channel == "chat":
+            import mobile_api
+            if mobile_api.current_turn_options() is None:
+                channel_rules += "\n\n" + INTERACTIVE_UI_GUIDANCE
+        parts.append(("channel", channel_rules))
     # How to talk at all — any turn that goes through the voice cascade.
     # First of the voice blocks, so the specific ones below refine it.
     if voice or spoken:

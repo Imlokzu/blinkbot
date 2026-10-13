@@ -3165,3 +3165,30 @@ deleted afterward. `/api/status` reports `mode=openclaw`; static delivery is
 200 and memory/workspace traversal remains 400. Available disk space still
 fluctuates around 0.8–1.1 GB, so recurrence remains possible. This verifies
 live model connectivity, not live generation of an interactive artifact.
+
+
+## 2026-10-13 — Native map routing and cache cleanup
+
+The reported Kharkiv reply used `tools__web_search` and `tools__image_search`,
+so it delivered a static screenshot. The generative tool existed in the MCP
+probe, but the desktop channel had no explicit visual-delivery rule and the
+generated sandbox cannot fetch geographic tiles. Added `show_map`: a bounded
+map receipt shared by the local registry and MCP, rendered in the real chat
+timeline with lazy Leaflet, a marker, shared zoom/recenter buttons, attribution
+and coordinate/link fallback. Tile loading stays in trusted native code;
+the generated-frame policy is unchanged.
+Desktop-only channel guidance now prefers this map for place requests and
+generated controls for appropriate explanations/calculators/comparisons.
+OpenClaw's MCP catalog is refreshed independently from the Python backend.
+
+The user also requested cache cleanup. Removed three inactive Codex Sparkle
+installation-cache entries after checking running process paths. The measured
+available space rose from about 0.9 GB to 6.6 GB. Active runtimes, SDKs, model
+weights, browser profiles, credentials and personal/project data were preserved.
+
+Validation: full backend suite 1,918 passed, seven skipped and 178 subtests;
+36 focused Python tests passed again after the context-label adjustment.
+Dashboard typecheck, 240 tests and isolated build passed. The real Leaflet
+browser regression uses synthetic tiles (zero public tile requests) for pan,
+zoom, retry, replay, labels and narrow-layout checks. Independent review fixed
+timeouts, tile-error recovery, teardown and accessibility before publication.
