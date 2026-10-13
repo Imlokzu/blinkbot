@@ -3215,3 +3215,15 @@ The production dashboard rendered that real generated artifact with native
 controls; changing the bill from 120 to 240 updated the three-person result
 to 80. This supplies the live-provider evidence missing from the initial
 implementation. Targeted access/map tests: 19 passed.
+
+
+### Map/UI release completion (2026-10-13)
+
+The guarded production dashboard is built from source `315f905a`; all 159
+new/changed resources returned HTTP 200. The actual HTTP smoke passed 19
+checks and memory/workspace traversal returned 400. Both qualified visual
+tools remain explicitly enabled in the running gateway. All three diagnostic
+conversations were removed after verification; the generated test artifact
+was moved through the normal workspace deletion endpoint. Task build copies
+and browser sessions were cleaned up. About 4.0 GB was available at cleanup
+completion, compared with about 0.9 GB before clearing the old update cache.
