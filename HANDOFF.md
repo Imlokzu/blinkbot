@@ -3129,3 +3129,22 @@ checkbox click receipts, dropdown selection and original DOM event counts.
 Dashboard tests (238), TypeScript, isolated production build and the full
 real-Thread browser regression passed; the focused backend contract remains
 covered by `tests/test_intelligent_ui.py`.
+
+
+### Interactive UI publication verification (2026-10-13)
+
+Source `f6e23cf6` introduced interactive answers; `845750e9` applies the
+owner-requested Settings React controls. The guarded build uses a frozen
+committed dashboard plus the two pre-existing untracked integration support
+files already required by committed Settings imports. Other pending source
+edits are excluded from the release. The registered backend was gracefully
+restarted with zero running/stopping mobile jobs and now advertises the
+updated tool guidance.
+
+All 314 new/changed dashboard resources returned HTTP 200; memory/workspace
+traversal still returns 400. The actual running dashboard displays the new
+interactive starter with browser-only session/model fixtures and no chat
+submission. The expanded real-Thread regression verifies shared control
+rendering, pointer/keyboard changes, form resets, programmatic values, and
+follow-up delivery. No live provider output is claimed. A full-disk build
+failure was resolved by deleting only this task's temporary build copies.
