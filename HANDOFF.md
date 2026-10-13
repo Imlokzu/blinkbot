@@ -3148,3 +3148,20 @@ submission. The expanded real-Thread regression verifies shared control
 rendering, pointer/keyboard changes, form resets, programmatic values, and
 follow-up delivery. No live provider output is claimed. A full-disk build
 failure was resolved by deleting only this task's temporary build copies.
+
+
+## 2026-10-13 — Chat recovery after disk exhaustion
+
+The operator's offline reply coincided with ENOSPC errors writing screen
+state, chat history and the brain mutation lock. At the same timestamp,
+OpenClaw returned HTTP 500 because it could not open its database. After
+task-owned temporary build copies were removed and free space recovered,
+the existing gateway answered again without model or credential changes.
+
+Two live synthetic checks passed: ordinary chat returned `OK` through
+OpenClaw in 6.7 seconds; SSE returned `OK` in 5.2 seconds with model/delta/done
+events and all four test messages persisted. The diagnostic conversation was
+deleted afterward. `/api/status` reports `mode=openclaw`; static delivery is
+200 and memory/workspace traversal remains 400. Available disk space still
+fluctuates around 0.8–1.1 GB, so recurrence remains possible. This verifies
+live model connectivity, not live generation of an interactive artifact.
