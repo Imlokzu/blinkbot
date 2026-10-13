@@ -858,3 +858,21 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   zone, with source links and loaded marks easing in together.
 - Live source zones animate while restored history stays static. Reduced-motion
   and reduced-transparency preferences continue to remove motion and blur.
+
+
+## Interactive answers (2026-10-13)
+
+- Generated calculators, comparisons and visual explanations are part of the
+  existing reply timeline. Plain text, question/choice cards and checklists
+  keep their existing roles; a new-chat prompt makes the capability discoverable.
+- Each artifact has a readable title and summary outside an isolated frame.
+  Show loading during generation and a recoverable error if source is unavailable
+  or changed. Only complete, checksum-verified artifacts execute.
+- Use the current warm surfaces, accent, typography and thin borders. Theme
+  changes preserve frame inputs; narrow layouts scroll inside the view.
+- Reset and reopening restore generated defaults; Pause unmounts the frame.
+  State inside a generated control is temporary and never implies a saved edit.
+- A generated follow-up becomes an editable host draft. Only Send submits it;
+  busy/failed sends keep the draft. All host labels use English/Ukrainian keys.
+- Browser isolation protects the host origin and privileged actions. It is not
+  complete network/resource isolation; see `../docs/INTELLIGENT-UI.md`.

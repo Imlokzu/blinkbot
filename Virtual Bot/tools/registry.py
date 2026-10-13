@@ -8,6 +8,7 @@ import logging
 from typing import Awaitable, Callable
 
 from tools.currency import get_common_rates, get_rate
+from tools import intelligent_ui
 from tools.facts import get_fact
 from tools.images import search_images
 from image_generation import image_generate
@@ -23,6 +24,7 @@ log = logging.getLogger("virtual_bot.tools.registry")
 ToolHandler = Callable[..., Awaitable[dict]]
 
 _TOOL_SCHEMAS: list[dict] = [
+    *intelligent_ui.SCHEMAS,
     *calculation_tools.SCHEMAS,
     {'type': 'function', 'function': {**{key: value for key, value in IMAGE_GENERATION_SCHEMA.items() if key != 'inputSchema'},
         'parameters': IMAGE_GENERATION_SCHEMA['inputSchema']}},
@@ -298,6 +300,7 @@ _SHARE_SCHEMAS: list[dict] = [
 ]
 
 _HANDLERS: dict[str, ToolHandler] = {
+    **intelligent_ui.HANDLERS,
     **calculation_tools.HANDLERS,
     "weather": _weather_handler,
     "currency": _currency_handler,

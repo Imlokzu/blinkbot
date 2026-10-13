@@ -18,7 +18,7 @@ function toolName(label: string): string {
 }
 
 /** Native MCP transports may wrap the successful tool result in a text block. */
-function resultRecord(value: unknown): Record<string, unknown> | null {
+export function resultRecord(value: unknown): Record<string, unknown> | null {
   const record = asRecord(value);
   if (!record) return null;
   if ('ui' in record) return record;

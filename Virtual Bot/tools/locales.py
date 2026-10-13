@@ -2,6 +2,8 @@
 
 STRINGS: dict[str, dict[str, str]] = {
     "uk": {
+        "ui.invalid_artifact": "Не вдалося створити інтерактивну відповідь: перевір вміст і розмір.",
+        "ui.save_failed": "Не вдалося зберегти інтерактивну відповідь. Спробуй ще раз.",
         "ui.empty_question": "Потрібен текст питання",
         "ui.no_answers": "Додай варіанти або дозволь власну відповідь",
         "search.empty_query": "Вкажи запит для пошуку",
@@ -11,6 +13,8 @@ STRINGS: dict[str, dict[str, str]] = {
         "search.rate_limited": "Пошукові сервіси тимчасово обмежили запити. Спробуй пізніше або додай EXA_API_KEY у локальний .env.",
     },
     "en": {
+        "ui.invalid_artifact": "Could not create the interactive answer: check its content and size.",
+        "ui.save_failed": "Could not save the interactive answer. Try again.",
         "ui.empty_question": "A question is required",
         "ui.no_answers": "Provide options or allow a custom answer",
         "search.empty_query": "Enter a search query",

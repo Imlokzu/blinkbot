@@ -70,7 +70,7 @@ def safe_result_payload(value):
     for candidate in candidates:
         ui = candidate.get("ui") if isinstance(candidate, dict) else None
         if (isinstance(ui, dict) and ui.get("version") == 1
-                and ui.get("kind") in {"question", "choice", "todo"}):
+                and ui.get("kind") in {"question", "choice", "todo", "intelligent_ui"}):
             # Keep the bounded receipt at the same depth regardless of transport.
             clean = safe_payload({"ok": not result_failed(value), "ui": ui})
             if isinstance(clean, dict):
@@ -94,15 +94,14 @@ def detail_for(args: dict) -> str:
                      and not isinstance(value, bool) and str(value).strip())[:240]
 
 
-def result_failed(result) -> bool:
-    if not isinstance(result, dict):
+def result_failed(result, _depth: int = 0) -> bool:
+    if not isinstance(result, dict) or _depth > 5:
         return False
     if (result.get("error") or result.get("isError") or result.get("is_error")
             or result.get("success") is False or result.get("ok") is False):
         return True
     # MCP transports can succeed while their structured application result fails.
-    nested = result.get("result")
-    if isinstance(nested, dict) and (nested.get("error") or nested.get("isError")):
+    if any(result_failed(result.get(key), _depth + 1) for key in ("result", "structuredContent")):
         return True
     for block in result.get("content", []) if isinstance(result.get("content"), list) else []:
         if not isinstance(block, dict) or block.get("type") != "text":
@@ -111,8 +110,7 @@ def result_failed(result) -> bool:
             payload = json.loads(str(block.get("text", ""))[:8000])
         except ValueError:
             continue
-        if isinstance(payload, dict) and (payload.get("error") or payload.get("isError")
-                or isinstance(payload.get("result"), dict) and payload["result"].get("error")):
+        if result_failed(payload, _depth + 1):
             return True
     return False
 

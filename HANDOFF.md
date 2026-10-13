@@ -3075,3 +3075,33 @@ Guarded synthetic probes reproduced the behaviors. Focused test, independent
 review and post-review routing/static evidence and limits are in `VALIDATION.md`.
 No owner profile, real notes/chats, credentials, paid provider request or device
 was used. Other agents' unfinished work remains outside this audit commit.
+
+
+## 2026-10-13 — Interactive answers in desktop/web chat
+
+Added an OpenIntelligentUI-inspired adapter to Blink's existing chat stack.
+The shared `render_interactive_ui` tool is available to local models and the
+OpenClaw tools MCP catalog. It saves generated HTML/CSS/JavaScript in the
+owner's workspace and returns a bounded, versioned receipt that survives
+streaming and saved-history replay. The real reply timeline renders the
+validated artifact with theme updates, summary fallback, reset/pause controls
+and an editable, explicitly submitted follow-up draft. The new-chat starter
+now offers an interactive bill splitter. Native mobile is unchanged.
+
+Source checksums use exact `@noble/hashes@2.4.0` for compatibility with LAN HTTP.
+Independent supported-model review fixed failed wrapper promotion and iframe
+self-navigation; no Fable review is claimed. The architect verdict is WATCH:
+opaque frames and CSP protect the host origin and block HTTP/subresources/
+navigation, but Chromium WebRTC can still send STUN packets. There are no hard
+CPU, memory or message-rate quotas. Complete network isolation is not claimed.
+
+Verification uses synthetic content: the final full backend suite passed
+1,901 tests with seven skipped and 178 subtests; focused replay/wrapper checks
+(38 passed), dashboard checks (238 tests and TypeScript), an isolated
+production build and the real Thread browser fixture passed. The
+actual FastAPI HTTP smoke passed 19 checks, including artifact integrity,
+static resources and memory/workspace traversal rejection with HTTP 400. Live provider-generated output
+was not exercised. See `Virtual Bot/docs/INTELLIGENT-UI.md` for usage, exact
+behavior, startup/catalog refresh and validation commands.
+
+Other pre-existing tracked/untracked work remains outside this change.

@@ -5,6 +5,8 @@ import { motion, useReducedMotion } from 'motion/react';
 import { AttachmentCards } from './AttachmentCards';
 import { GalleryScope } from './Gallery';
 import { ImageGenerationCard } from './ImageGenerationCard';
+import { IntelligentUiCard } from './IntelligentUiCard';
+import { isIntelligentUi } from './intelligentUiData';
 import { generationView, imageOnlyDelivery, isImageGeneration } from './imageGenerationState';
 import { cn } from '@/lib/cn';
 import {
@@ -203,9 +205,11 @@ function AssistantMessage() {
             if (part.type === 'steps') {
               const group = stepsFor(part.ids, steps);
               const images = group.filter(isImageGeneration);
-              const ordinary = group.filter((step) => !isImageGeneration(step));
+              const intelligent = group.filter(isIntelligentUi);
+              const ordinary = group.filter((step) => !isImageGeneration(step) && !isIntelligentUi(step));
               return <div key={`steps-${part.ids[0] ?? index}`} className="flex w-full min-w-0 flex-col items-start gap-4">
                 {ordinary.length ? <ActivityLine steps={ordinary} running={running} /> : null}
+                {intelligent.map((step) => <IntelligentUiCard key={step.id} step={step} />)}
                 {images.map((step) => <ImageGenerationCard key={step.id} step={step}
                   onRetry={!running && retry?.id === id ? retry.run : undefined} />)}
               </div>;
