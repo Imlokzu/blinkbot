@@ -3249,3 +3249,15 @@ existing real-Leaflet browser regression passed. A separate reviewer checked
 390px light/dark screenshots, credit contrast/click/focus and hidden keyboard
 help. Real loopback HTTP smoke passed map delivery, traversal rejection (400)
 and static resources; its temporary server was stopped.
+
+
+### Minimal map footer release verification (2026-10-14)
+
+The frozen-source guarded build from `76b090fa` is live. All 158 new/changed
+dashboard resources returned HTTP 200; memory/workspace traversal returned
+400. A production-dashboard browser check using a synthetic conversation and
+local tile fixture confirmed the normal footer and external link are absent,
+the small credit lies inside the map, and the card ends at the map edge.
+No provider/model calls or public tile requests were made for this check.
+The release includes the same two pre-existing integration support files
+required by committed Settings imports; unrelated pending edits stay excluded.
