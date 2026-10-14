@@ -904,3 +904,15 @@ light/dark themes, narrow layouts and original handlers before publication.
 - Model guidance selects maps and useful interactive answers automatically in
   desktop/web chat, without requiring the word interactive. Other clients do
   not receive the desktop-specific routing instruction.
+
+
+## Minimal map chrome (2026-10-14)
+
+The map card ends at its map viewport. Remove the persistent instruction,
+coordinate and external-provider-link footer. Keep keyboard guidance as an
+accessible description. Required `© OpenStreetMap` attribution stays legible
+in a small neutral label inside the bottom-right corner of the map, using
+a solid theme surface rather than the action accent. Only a map-loading
+error exposes the generic Open map fallback beside Retry. Mapbox was evaluated
+but not enabled: it requires credentials and still has map-data attribution;
+the owner's clarified request is to remove the oversized footer.

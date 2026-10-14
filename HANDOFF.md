@@ -3227,3 +3227,25 @@ conversations were removed after verification; the generated test artifact
 was moved through the normal workspace deletion endpoint. Task build copies
 and browser sessions were cleaned up. About 4.0 GB was available at cleanup
 completion, compared with about 0.9 GB before clearing the old update cache.
+
+
+## 2026-10-14 — Remove the oversized map footer
+
+The owner clarified that the instruction/coordinates/provider-link block
+below maps was unwanted. Loaded map cards now end at the map itself. Removed
+the persistent instructions, coordinates and Open in OpenStreetMap link;
+keyboard help stays screen-reader accessible, and a generic Open map fallback
+appears only after a loading failure. A compact, readable `© OpenStreetMap`
+credit sits inside the map corner. Both locales and existing saved map cards
+use the change.
+
+Mapbox was evaluated and the agents' Bitwarden checked; no Mapbox item was
+found. No credential, account or provider change was made after the owner
+clarified the requested visual result. Mapbox would still require map-data
+attribution. Existing pending changes in the repository remain untouched.
+
+Validation: dashboard TypeScript, all 240 unit tests, isolated build and the
+existing real-Leaflet browser regression passed. A separate reviewer checked
+390px light/dark screenshots, credit contrast/click/focus and hidden keyboard
+help. Real loopback HTTP smoke passed map delivery, traversal rejection (400)
+and static resources; its temporary server was stopped.

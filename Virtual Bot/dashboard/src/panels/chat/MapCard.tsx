@@ -109,10 +109,16 @@ function LocationMap({ data }: { data: MapData }) {
         <Button variant="quiet" size="sm" disabled={!ready} onClick={() => map.current?.setView([data.latitude, data.longitude], data.zoom, { animate: false })}><Compass />{t('reset')}</Button>
       </div>
     </header>
-    <div className="map-card-canvas" ref={container} role="region" aria-label={data.title} aria-describedby={hintId} aria-busy={visible && !loaded && !failed} />
-    <div className="map-card-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">{t('attribution')}</a></div>
+    <div className="map-card-viewport">
+      <div className="map-card-canvas" ref={container} role="region" aria-label={data.title} aria-describedby={hintId} aria-busy={visible && !loaded && !failed} />
+      <div className="map-card-attribution">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">{t('attribution')}</a></div>
+    </div>
+    <p id={hintId} className="sr-only">{t('hint')}</p>
     {visible && !loaded && !failed ? <p className="map-card-status" role="status">{t('loading')}</p> : null}
-    {failed ? <div className="map-card-status" role="alert"><p>{ready ? t('tilesFailed') : t('failed')}</p><Button variant="quiet" size="sm" onClick={() => setGeneration(value => value + 1)}>{t('retry')}</Button></div> : null}
-    <footer><p id={hintId}>{t('hint')}</p><div><span>{data.latitude.toFixed(5)}, {data.longitude.toFixed(5)}</span><a href={mapLink(data)} target="_blank" rel="noopener noreferrer">{t('open')}</a></div></footer>
+    {failed ? <div className="map-card-status" role="alert"><p>{ready ? t('tilesFailed') : t('failed')}</p>
+      <div className="map-card-actions"><Button variant="quiet" size="sm" onClick={() => setGeneration(value => value + 1)}>{t('retry')}</Button>
+        <a href={mapLink(data)} target="_blank" rel="noopener noreferrer">{t('open')}</a>
+      </div>
+    </div> : null}
   </section>;
 }

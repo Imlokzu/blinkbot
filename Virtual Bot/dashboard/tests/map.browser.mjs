@@ -20,6 +20,8 @@ try {
   assert.equal(evaluate('document.querySelector(".leaflet-tooltip").textContent'), 'Kharkiv');
   assert.ok(evaluate('const r=document.querySelector(".leaflet-tooltip").getBoundingClientRect(); r.width > r.height'), 'a short place name must not wrap one character per line');
   assert.ok(evaluate('document.querySelector(".map-card-attribution a").href === "https://www.openstreetmap.org/copyright"'));
+  assert.ok(evaluate('!document.querySelector(".map-card footer") && !document.querySelector(".map-card-status a")'), 'loaded maps have no instruction/coordinate/link footer');
+  assert.ok(evaluate('document.getElementById(document.querySelector(".map-card-canvas").getAttribute("aria-describedby")).classList.contains("sr-only")'), 'keyboard help stays available to screen readers');
   browser('click', 'button[aria-label="Zoom in"]');
   await until('document.querySelector("[data-map-card]").dataset.zoom === "7"');
   browser('click', 'button[aria-label="Zoom out"]');
@@ -36,7 +38,8 @@ try {
   browser('set', 'viewport', '390', '844');
   evaluate('document.documentElement.dataset.theme = "dark"');
   assert.ok(evaluate('document.documentElement.scrollWidth <= innerWidth'));
-  assert.ok(evaluate('document.querySelector(".map-card footer a").getBoundingClientRect().right <= document.querySelector(".map-card").getBoundingClientRect().right'));
+  assert.ok(evaluate('var credit=document.querySelector(".map-card-attribution").getBoundingClientRect(); var canvas=document.querySelector(".map-card-canvas").getBoundingClientRect(); credit.left >= canvas.left && credit.right <= canvas.right && credit.top >= canvas.top && credit.bottom <= canvas.bottom'), 'compact credits stay inside the map');
+  assert.ok(evaluate('document.querySelector(".map-card").getBoundingClientRect().bottom - document.querySelector(".map-card-canvas").getBoundingClientRect().bottom < 3'), 'the map ends the card');
   browser('screenshot', '/tmp/blink-map-phone.png');
   evaluate('window.mapFixture.setData({...window.mapFixture.initial,title:"<img src=x onerror=alert(1)>"})');
   await until('document.querySelector(".leaflet-tooltip")?.textContent.includes("<img")');
@@ -44,7 +47,7 @@ try {
   evaluate('window.mapFixture.tileState.failed = true');
   evaluate('window.mapFixture.setData({...window.mapFixture.initial,zoom:8})');
   await until('document.querySelector(".map-card [role=alert]") !== null');
-  assert.ok(evaluate('document.querySelector(".map-card footer a").href.startsWith("https://www.openstreetmap.org/")'));
+  assert.ok(evaluate('document.querySelector(".map-card [role=alert] a").href.startsWith("https://www.openstreetmap.org/")'), 'only errors offer the external-map fallback');
   evaluate('window.mapFixture.tileState.failed = false');
   browser('click', '.map-card [role=alert] button');
   await until('document.querySelectorAll(".leaflet-tile-loaded").length > 0 && !document.querySelector(".map-card [role=alert]")');

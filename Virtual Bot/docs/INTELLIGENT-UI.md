@@ -9,8 +9,10 @@ Plain replies and existing question, choice and checklist tools still work.
 Place requests use the native `show_map` tool. It renders a real Leaflet map
 with a marker, drag/pinch/keyboard navigation and Blink's shared zoom/recenter
 buttons. OpenStreetMap tiles load only once the card becomes visible, using
-normal browser caching and visible attribution. Failed tile loads retain the
-coordinates and external map link, with a retry action. Map requests explicitly
+normal browser caching and a small attribution label inside the map. Loaded
+cards end at the map: no instructions, coordinates or external-link footer.
+Keyboard guidance remains available to screen readers. Failed tile loads offer
+a retry action and an external map link. Map requests explicitly
 prefer this UI over image-search screenshots; calculators, comparisons and
 explorable explanations likewise prefer generated UI when useful. This routing
 guidance is sent only to the desktop/web client, not native mobile or messengers.
