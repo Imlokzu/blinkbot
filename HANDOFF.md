@@ -3261,3 +3261,20 @@ the small credit lies inside the map, and the card ends at the map edge.
 No provider/model calls or public tile requests were made for this check.
 The release includes the same two pre-existing integration support files
 required by committed Settings imports; unrelated pending edits stay excluded.
+
+
+## 2026-10-18 — Cube + Flash approved base mark
+
+The owner selected option 01 from the supplied logo sheet as Blink's base.
+`assets/brand/blink-master.svg` now owns its geometric cube silhouette and
+three diagonal bands. Existing web/native exports, runtime panel copies and
+artwork-only PWA cache revisions are regenerated from that master. The
+expressive robot face and separate lowercase wordmark keep their roles.
+
+Validation: 240 dashboard tests passed; 115 generated files, vector geometry,
+native safe zones, opaque icon dimensions and 16 PWA revisions were checked.
+Independent supported review fixed stale runtime artwork and cache revisions;
+Fable/configured specialist unavailable. Post-review actual-app HTTP smoke
+passed 14 checks including traversal HTTP 400, then stopped its server.
+See `reports/brand-cube-flash-2026-10-18.md`. Existing unrelated drafts remain
+outside this change; no public deployment or native app release occurred.

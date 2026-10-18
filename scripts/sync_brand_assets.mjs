@@ -4,7 +4,8 @@
  * Runtime apps consume the checked-in files and need no image tooling.
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync, mkdtempSync, rmSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, mkdtempSync, rmSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -30,59 +31,13 @@ function raster(svg, path, size, opaque = false) {
   write(path, buffer);
 }
 try {
-  // Trace the source silhouette once so every platform shares real vector paths.
-  const n = 512;
-  const pixels = execFileSync('magick', [join(root, 'assets/brand/blink-source.png'), '-resize', `${n}x${n}!`, '-colorspace', 'Gray', '-depth', '8', 'gray:-']);
-  const filled = (x, y) => x >= 0 && y >= 0 && x < n && y < n && pixels[y * n + x] >= 128;
-  const edges = new Map();
-  const key = (x, y) => y * (n + 1) + x;
-  function edge(x1, y1, x2, y2) {
-    const start = key(x1, y1);
-    if (!edges.has(start)) edges.set(start, []);
-    edges.get(start).push(key(x2, y2));
+  // Keep the approved geometric master as vectors; never retrace a raster export.
+  const master = readFileSync(join(root, 'assets/brand/blink-master.svg'), 'utf8');
+  const pathData = [...master.matchAll(/<path\b[^>]*\sd="([^"]+)"/g)];
+  if (!master.includes('viewBox="0 0 256 256"') || pathData.length !== 1) {
+    throw new Error('The brand master must contain one path in the 256px viewBox');
   }
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (filled(x, y)) {
-    if (!filled(x, y - 1)) edge(x, y, x + 1, y);
-    if (!filled(x + 1, y)) edge(x + 1, y, x + 1, y + 1);
-    if (!filled(x, y + 1)) edge(x + 1, y + 1, x, y + 1);
-    if (!filled(x - 1, y)) edge(x, y + 1, x, y);
-  }
-  const contours = [];
-  while (edges.size) {
-    const first = edges.keys().next().value;
-    let current = first;
-    const points = [];
-    do {
-      points.push([current % (n + 1), Math.floor(current / (n + 1))]);
-      const next = edges.get(current);
-      if (!next?.length) throw new Error('Open logo contour');
-      const previous = current;
-      current = next.pop();
-      if (!next.length) edges.delete(previous);
-    } while (current !== first);
-    // Drop subpixel specks; retain all meaningful interior gaps and brush edges.
-    const area = points.reduce((a, p, i) => {
-      const q = points[(i + 1) % points.length];
-      return a + p[0] * q[1] - q[0] * p[1];
-    }, 0) / 2;
-    if (Math.abs(area) < 3) continue;
-    function simplify(points) {
-      const a = points[0], b = points.at(-1);
-      const dx = b[0] - a[0], dy = b[1] - a[1];
-      const length = dx * dx + dy * dy;
-      let max = .6 * .6, split = -1;
-      for (let i = 1; i < points.length - 1; i++) {
-        const p = points[i];
-        const t = length ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / length)) : 0;
-        const distance = (p[0] - a[0] - t * dx) ** 2 + (p[1] - a[1] - t * dy) ** 2;
-        if (distance > max) { max = distance; split = i; }
-      }
-      return split < 0 ? [a, b] : [...simplify(points.slice(0, split + 1)).slice(0, -1), ...simplify(points.slice(split))];
-    }
-    const corners = simplify([...points, points[0]]).slice(0, -1);
-    contours.push(`M${corners.map(p => p.map(v => v / 2).join(',')).join('L')}Z`);
-  }
-  const d = contours.join('');
+  const d = pathData[0][1];
   const outline = (fill) => `<path fill="${fill}" fill-rule="evenodd" d="${d}"/>`;
   const svg = (content) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">${content}</svg>\n`;
   const mark = svg(outline('currentColor'));
@@ -95,6 +50,7 @@ try {
   write('assets/brand/blink-icon.svg', icon);
   write('assets/brand/blink-maskable.svg', maskable);
   raster(tile, 'assets/brand/blink-icon.png', 1024, true);
+  raster(tile, 'assets/brand/blink-source.png', 1024, true);
   const publicDirs = ['landing/public', 'landing-3d/public', 'Virtual Bot/dashboard/public', 'blink-display/frontend/public', 'Device Setup Wizard/public', 'Virtual Bot/chat-panel/public', 'Virtual Bot/memory-panel/public', 'Virtual Bot/static/shared'];
   for (const dir of publicDirs) {
     write(`${dir}/blink-mark.svg`, mark);
@@ -107,12 +63,36 @@ try {
   raster(tile, 'Virtual Bot/dashboard/public/icon-192.png', 192, true);
   raster(tile, 'Virtual Bot/dashboard/public/icon-512.png', 512, true);
   raster(maskable, 'Virtual Bot/dashboard/public/icon-maskable-512.png', 512, true);
+  // The backend serves these checked-in builds directly. Refresh artwork only,
+  // without rebuilding unrelated work in the panels' JavaScript or stylesheets.
+  const panelFiles = ['blink-mark.svg', 'blink-mark-white.svg', 'favicon.svg', 'apple-touch-icon.png'];
+  const dashboardFiles = [...panelFiles, 'icon.svg', 'icon-maskable.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
+  for (const [source, target, files] of [
+    ['Virtual Bot/dashboard/public', 'Virtual Bot/static/dash', dashboardFiles],
+    ['Virtual Bot/chat-panel/public', 'Virtual Bot/static/chat-panel', panelFiles],
+    ['Virtual Bot/memory-panel/public', 'Virtual Bot/static/memory-panel', panelFiles],
+  ]) {
+    if (!existsSync(join(root, target))) continue;
+    for (const file of files) write(`${target}/${file}`, readFileSync(join(root, source, file)));
+  }
+  const serviceWorkerPath = 'Virtual Bot/static/dash/sw.js';
+  if (existsSync(join(root, serviceWorkerPath))) {
+    const serviceWorker = readFileSync(join(root, serviceWorkerPath), 'utf8');
+    // Workbox revisions are content MD5s. Change only the generated artwork's
+    // entries (including duplicates), so installed PWAs replace cached logos.
+    const updated = serviceWorker.replace(/(\burl:"([^"]+)",revision:")[^"]*(")/g, (entry, prefix, file, suffix) => {
+      if (!dashboardFiles.includes(file)) return entry;
+      const revision = createHash('md5').update(readFileSync(join(root, 'Virtual Bot/static/dash', file))).digest('hex');
+      return `${prefix}${revision}${suffix}`;
+    });
+    write(serviceWorkerPath, updated);
+  }
   const native = (size, scale = 1) => `<!-- Generated by scripts/sync_brand_assets.mjs. -->\n<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="${size}dp" android:height="${size}dp" android:viewportWidth="256" android:viewportHeight="256"><group android:pivotX="128" android:pivotY="128" android:scaleX="${scale}" android:scaleY="${scale}"><path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="${d}"/></group></vector>\n`;
   write('mobile-app/shared/src/commonMain/composeResources/drawable/blink_mark.xml', native(64));
-  for (const variant of ['foreground', 'monochrome']) write(`mobile-app/androidApp/src/main/res/drawable/ic_launcher_${variant}.xml`, native(108, .72));
+  for (const variant of ['foreground', 'monochrome']) write(`mobile-app/androidApp/src/main/res/drawable/ic_launcher_${variant}.xml`, native(108, .68));
   write('mobile-app/androidApp/src/main/res/drawable/ic_native_notification.xml', native(24));
   raster(tile, 'mobile-app/iosApp/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png', 1024, true);
-  const adaptive = svg(`<g transform="translate(128 128) scale(.72) translate(-128 -128)">${outline('#fff')}</g>`);
+  const adaptive = svg(`<g transform="translate(128 128) scale(.68) translate(-128 -128)">${outline('#fff')}</g>`);
   for (const dir of ['Virtual Bot/mobile-rn/assets', 'blink-app/apps/app/assets']) {
     raster(tile, `${dir}/icon.png`, 1024, true);
     raster(icon, `${dir}/favicon.png`, 48);

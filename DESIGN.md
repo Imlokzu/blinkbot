@@ -2,7 +2,7 @@
 
 ## Source of truth
 - Status: Active
-- Last refreshed: 2026-09-30
+- Last refreshed: 2026-10-18
 - Primary product surfaces: `/screen`, its native apps and local app store.
 - The dashboard has its own contract in `Virtual Bot/dashboard/DESIGN.md`.
 - The new Kotlin Multiplatform mobile client has a separate interview-derived
@@ -14,6 +14,15 @@
 
 ## Brand
 - Personality: a quiet, friendly desk companion with a distinctive crab face.
+- Approved product identity: option **01 / Cube + Flash** from the owner's
+  2026-10-18 reference, retained at `assets/brand/blink-cube-flash-reference.jpg`.
+  The open faceted cube, three diagonal upper-left bands, and separated lower
+  planes are the base mark. Keep the lowercase `blink` wordmark separate.
+- Master artwork: `assets/brand/blink-master.svg`; generated web and native
+  assets share its precise geometry through `scripts/sync_brand_assets.mjs`.
+  Use a single solid color, dark on light surfaces or white on dark surfaces.
+  The fold mark (option 02), earlier spiral, and offset-box proposals are not
+  the approved base. The robot's expressive face remains a separate character.
 - Trust signals: actual saved state, clear connection requirements, reversible
   actions, useful error messages, and consistent icons across store and drawer.
 - Avoid: a marketing page inside a small device, emoji controls, unnecessary
