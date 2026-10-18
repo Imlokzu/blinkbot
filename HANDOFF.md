@@ -3450,3 +3450,16 @@ tick alignment, endpoint clicks, edge grabs, keyboard, cancellation, rollback,
 both locales and four viewport widths. Independent adversarial review approved
 the corrected gestures. Post-review actual-app smoke passed 36 HTTP checks,
 including traversal 400s; the temporary server stopped.
+
+
+## 2026-10-18 — Publish orange compact effort control
+
+Published the clean-source build from 06a24707 to the existing /dash/ server.
+The live picker matches the source-audited compact proportions with Blink's
+orange #E6532F and white pill thumb. Two Antigravity source analyses informed
+the adaptation; the approved composer and model-list layouts remain intact.
+
+The complete browser regression passed against port 8100. Independent live
+review verified real model data, header ordering, geometry, orange material
+and navigation without POSTs. Post-review actual-app smoke passed 34 checks
+and stopped its temporary server. No unrelated pending source was published.
