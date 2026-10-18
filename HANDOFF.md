@@ -3352,3 +3352,18 @@ Validation: 240 dashboard tests and TypeScript passed. Independent supported
 review corrected MetalText/fallback tracking and line-height parity; no Fable
 review is claimed. The isolated production build and runtime publication follow
 this source commit. Existing unrelated drafts are excluded.
+
+
+## 2026-10-18 — Publish composer control release
+
+Installed the clean-source dashboard build from 33a0184b on the existing local
+server at /dash/. Its entry, service worker and hashed chunks are versioned;
+older chunks remain available for open tabs. The missing Settings dependency
+is resolved, and the right-aligned effort-first control and neutral buttons
+are now visible in the running application.
+
+The full picker browser regression passed against port 8100. Independent live
+review used real model data, verified navigation/colors/placement without POSTs,
+and closed its isolated browser. Eighteen live assets matched installed bytes.
+Post-review actual-app smoke passed 34 checks, including traversal 400s, then
+stopped its temporary server. The user's existing 8100 server stays running.
