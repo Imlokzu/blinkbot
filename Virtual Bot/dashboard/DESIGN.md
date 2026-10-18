@@ -916,3 +916,22 @@ a solid theme surface rather than the action accent. Only a map-loading
 error exposes the generic Open map fallback beside Retry. Mapbox was evaluated
 but not enabled: it requires credentials and still has map-data attribution;
 the owner's clarified request is to remove the oversized footer.
+
+
+## Zeron composer controls (2026-10-18)
+
+- The desktop model/effort trigger sits to the right of the flexible spacer,
+  followed by the microphone and Send. Narrow layouts keep the header trigger.
+- First opening shows effort and a clickable current-model row. That row opens
+  the searchable model list; Back returns to effort. A successful model write
+  returns to effort unless the user has already navigated or closed the menu.
+- Reopening always starts at effort. Escape clears search, returns from models
+  to effort, then closes and restores trigger focus. Saves remain serialized;
+  recents record acknowledged writes only. Loading and retry states remain visible.
+- The compact popup is 280px wide, aligned to the desktop trigger's right edge,
+  and flips above when space below is insufficient. Lists scroll internally.
+- The reference's neutral controls are an approved chat-only color exception:
+  light-mode microphone #737373, Send #303030 with a white arrow, including an
+  empty disabled draft. Dark mode inverts the send contrast; recording stays red.
+- Keep the existing wallpaper, welcome heading, navigation, and provider catalog.
+  New picker labels live in both locales in src/locales/modelPicker.ts.

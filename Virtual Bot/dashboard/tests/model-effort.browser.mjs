@@ -1,4 +1,4 @@
-/** Combined choices use isolated browser fixtures, never live OpenClaw writes. */
+/** Sequential choices use isolated browser fixtures, never live OpenClaw writes. */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { t } from '../src/locales/chat.ts';
@@ -65,29 +65,54 @@ const openMenu = () => {
   browser('click', visibleTrigger());
   browser('wait', menu);
   settle();
-  assert.equal(evaluate('document.querySelector(".model-picker-search-button").ariaExpanded'), 'false', 'each opening begins with collapsed search');
+  assert.equal(evaluate(`document.querySelector('${menu}').dataset.pickerStep`), 'effort', 'each opening starts with effort');
+  assert.equal(evaluate(`document.querySelectorAll('${models}').length`), 0, 'the model catalog is a separate step');
+};
+const openModels = () => {
+  browser('click', '.model-picker-change-model');
+  browser('wait', `${menu}[data-picker-step="models"]`);
+  settle();
+};
+const backToEffort = () => {
+  browser('click', '.model-picker-back');
+  browser('wait', `${menu}[data-picker-step="effort"]`);
+  settle();
 };
 const closeMenu = () => {
   browser('press', 'Escape');
   browser('wait', '--fn', `!document.querySelector('${menu}')`);
   assert.equal(evaluate('document.activeElement.matches("[data-picker-test-trigger]")'), true, 'Escape restores the trigger');
 };
-const waitChoice = (model, level) => browser('wait', '--fn', `document.querySelector(${JSON.stringify(modelRow(model))})?.ariaChecked === 'true'
-  && document.querySelector(${JSON.stringify(effortRow(level))})?.ariaChecked === 'true'
+const waitChoice = (model, level) => browser('wait', '--fn', `window.__pickerCatalog.selected === ${JSON.stringify(model)}
+  && window.__pickerCatalog.thinking === ${JSON.stringify(level)}
+  && (!document.querySelector(${JSON.stringify(modelRow(model))}) || document.querySelector(${JSON.stringify(modelRow(model))}).ariaChecked === 'true')
+  && (!document.querySelector(${JSON.stringify(effortRow(level))}) || document.querySelector(${JSON.stringify(effortRow(level))}).ariaChecked === 'true')
   && [...document.querySelectorAll('${menu} [role=radiogroup]')].every(group => group.ariaBusy !== 'true')`);
 const assertTrigger = (lang, model, level) => {
   const expected = labels[lang].trigger(model, labels[lang].levels[level]);
   assert.equal(evaluate('document.querySelector("[data-picker-test-trigger]").getAttribute("aria-label")'), expected);
 };
-const assertStructure = lang => {
-  const state = evaluate(`const modelPane = document.querySelector('.model-picker-pane');
-    const effortPane = document.querySelector('.effort-picker-pane');
-    const left = modelPane.getBoundingClientRect(); const right = effortPane.getBoundingClientRect();
-    ({ left: left.left, leftRight: left.right, right: right.left,
+const assertEffortStructure = lang => {
+  const state = evaluate(`({
+    headers: [...document.querySelectorAll('${menu} h2')].map(node => node.textContent),
+    groups: document.querySelectorAll('${menu} [role=radiogroup]').length,
+    checked: document.querySelectorAll('${effort} [role=radio][aria-checked=true]').length,
+    levels: [...document.querySelectorAll('${effort} [role=radio]')].map(node => node.dataset.level),
+    changeModel: Boolean(document.querySelector('.model-picker-change-model')),
+    effortScroll: getComputedStyle(document.querySelector('${effort}')).overflowY,
+  });`);
+  assert.equal(state.groups, 1, 'effort is the only radio group in the first step');
+  assert.deepEqual(state.headers, [labels[lang].effort]);
+  assert.equal(state.checked, 1);
+  assert.deepEqual(state.levels, ['', ...catalog.thinking_levels]);
+  assert.ok(state.changeModel, 'the current model opens the next step');
+  assert.equal(state.effortScroll, 'auto');
+};
+const assertModelStructure = lang => {
+  const state = evaluate(`({
       headers: [...document.querySelectorAll('${menu} h2')].map(node => node.textContent),
       groups: document.querySelectorAll('${menu} [role=radiogroup]').length,
       modelScroll: document.querySelector('${models}').scrollHeight > document.querySelector('${models}').clientHeight,
-      effortScroll: getComputedStyle(document.querySelector('${effort}')).overflowY,
       traits: document.querySelectorAll('${models} [role=radio] :is(.lucide-eye, .lucide-zap, .lucide-brain, .lucide-life-buoy)').length,
       intelShown: (() => { try { return localStorage.getItem("claudeBotModelIntel") } catch { return null } })(),
       intelScores: document.querySelectorAll('${models} .model-intel').length,
@@ -104,11 +129,9 @@ const assertStructure = lang => {
       popup: { width: document.querySelector('${menu}').getBoundingClientRect().width, height: document.querySelector('${menu}').getBoundingClientRect().height },
       rowHeights: [...document.querySelectorAll('${menu} [role=radio]')].map(row => row.getBoundingClientRect().height),
     });`);
-  assert.equal(state.groups, 2);
-  assert.deepEqual(state.headers, [labels[lang].models, labels[lang].effort]);
-  assert.ok(state.left < state.right && Math.abs(state.leftRight - state.right) < 2, 'models stay left and effort stays right');
-  assert.ok(state.modelScroll, 'the large catalog scrolls inside its column');
-  assert.equal(state.effortScroll, 'auto');
+  assert.equal(state.groups, 1, 'models are the only radio group in the second step');
+  assert.deepEqual(state.headers, [labels[lang].models]);
+  assert.ok(state.modelScroll, 'the large catalog scrolls inside its step');
   assert.equal(state.traits, 0, 'model rows have no capability/status badges');
   assert.equal(state.comparison, false, 'the comparison footer is removed');
   // The benchmark index is off in these fixtures only because they turn it
@@ -122,7 +145,27 @@ const assertStructure = lang => {
   assert.equal(state.unavailableDisabled, 'true');
   assert.ok(state.unavailable.includes(labels[lang].unavailable));
   assert.ok(state.rowHeights.every(height => height >= (state.coarse || state.viewportWidth < 760 ? 44 : 36)), 'compact mouse rows preserve larger touch targets');
-  assert.ok(state.popup.width <= 441 && state.popup.height <= 361, 'the combined picker stays within its compact size');
+  assert.ok(state.popup.width <= 321 && state.popup.height <= 401, 'the sequential picker stays compact');
+};
+const assertComposerLayout = () => {
+  const state = evaluate(`const bar = document.querySelector('.prompt-bar__bar');
+    const trigger = bar.querySelector('[data-brain-choice-trigger]');
+    const tools = [...bar.querySelectorAll('.prompt-bar__tool:not([aria-pressed])')];
+    const microphone = bar.querySelector('.prompt-bar__tool[aria-pressed]');
+    const send = bar.querySelector('.prompt-bar__send');
+    const bounds = node => { const box = node.getBoundingClientRect(); return { left: box.left, right: box.right, width: box.width }; };
+    ({bar: bounds(bar), trigger: bounds(trigger), tools: tools.map(bounds), microphone: bounds(microphone), send: bounds(send),
+      micColor: getComputedStyle(microphone).color, sendBackground: getComputedStyle(send).backgroundColor,
+      sendColor: getComputedStyle(send).color, sendOpacity: getComputedStyle(send).opacity, sendDisabled: send.disabled});`);
+  assert.ok(state.trigger.left > state.bar.left + state.bar.width / 2, 'desktop model and effort sit on the right');
+  assert.ok(state.tools.every(tool => tool.right <= state.trigger.left), 'attachment controls stay to the left');
+  assert.ok(state.trigger.right <= state.microphone.left + 1 && state.microphone.right <= state.send.left + 1,
+    'right-side controls stay ordered model, microphone, send');
+  assert.equal(state.micColor, 'rgb(115, 115, 115)', 'the idle microphone uses neutral gray');
+  assert.equal(state.sendBackground, 'rgb(48, 48, 48)', 'send uses the reference charcoal');
+  assert.equal(state.sendColor, 'rgb(255, 255, 255)', 'the send arrow stays white');
+  assert.equal(state.sendOpacity, '1', 'disabled send keeps its charcoal appearance');
+  assert.ok(state.sendDisabled, 'the empty composer remains unable to send');
 };
 // Keep touch emulation and measurements within one CDP session: the CLI reapplies input settings.
 const touchLayout = () => {
@@ -139,7 +182,7 @@ const touchLayout = () => {
         if (reply.error) { clearTimeout(timeout); socket.close(); reject(new Error(reply.error.message)); return; }
         if (reply.id === 1) socket.send(JSON.stringify({ id: 2, sessionId: reply.result.sessionId, method: 'Emulation.setTouchEmulationEnabled', params: { enabled: true, maxTouchPoints: 1 } }));
         if (reply.id === 2) socket.send(JSON.stringify({ id: 3, sessionId: reply.sessionId, method: 'Runtime.evaluate', params: { awaitPromise: true, returnByValue: true,
-          expression: 'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))).then(() => { const menu = document.querySelector(".model-effort-menu").getBoundingClientRect(); const trigger = document.querySelector("[data-picker-test-trigger]").getBoundingClientRect(); const left = document.querySelector(".model-picker-pane").getBoundingClientRect(); const right = document.querySelector(".effort-picker-pane").getBoundingClientRect(); return { left: menu.left, top: menu.top, right: menu.right, bottom: menu.bottom, width: innerWidth, height: innerHeight, scrollWidth: document.documentElement.scrollWidth, triggerWidth: trigger.width, triggerHeight: trigger.height, modelWidth: left.width, effortWidth: right.width, rowOverflow: [...document.querySelectorAll(".brain-picker-row")].some(row => row.scrollWidth > row.clientWidth + 1), coarse: matchMedia("(pointer:coarse)").matches }; })' } }));
+          expression: 'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))).then(() => { const menu = document.querySelector(".model-effort-menu").getBoundingClientRect(); const trigger = document.querySelector("[data-picker-test-trigger]").getBoundingClientRect(); const pane = document.querySelector(".brain-picker-pane").getBoundingClientRect(); return { left: menu.left, top: menu.top, right: menu.right, bottom: menu.bottom, width: innerWidth, height: innerHeight, scrollWidth: document.documentElement.scrollWidth, triggerWidth: trigger.width, triggerHeight: trigger.height, paneWidth: pane.width, rowOverflow: [...document.querySelectorAll(".brain-picker-row")].some(row => row.scrollWidth > row.clientWidth + 1), coarse: matchMedia("(pointer:coarse)").matches }; })' } }));
         if (reply.id === 3) { clearTimeout(timeout); socket.close(); if (reply.result.exceptionDetails) reject(new Error(reply.result.exceptionDetails.text)); else { console.log(JSON.stringify(reply.result.result.value)); resolve(); } }
       });
     });`, cdpUrl, tabs.find(tab => tab.active).targetId], { encoding: 'utf8' }));
@@ -178,10 +221,15 @@ try {
       return savedFetch(input, options);
     };`);
 
+  evaluate('document.documentElement.dataset.theme = "light"');
+  assertComposerLayout();
   openMenu();
-  assertStructure('en');
+  assertEffortStructure('en');
   assertTrigger('en', 'GPT-6 Astra', 'high');
-  assert.equal(evaluate('document.activeElement.dataset.model'), firstModel, 'opening focuses the current model without revealing search');
+  assert.equal(evaluate('document.activeElement.dataset.level'), 'high', 'opening focuses the selected effort');
+  openModels();
+  assertModelStructure('en');
+  assert.equal(evaluate('document.activeElement.dataset.model'), firstModel, 'the model step focuses the selected model');
   const currentRowBounds = evaluate(`const row=document.querySelector(${JSON.stringify(modelRow(firstModel))}).getBoundingClientRect();
     const list=document.querySelector('${models}').getBoundingClientRect(); ({top:row.top,bottom:row.bottom,listTop:list.top,listBottom:list.bottom});`);
   assert.ok(currentRowBounds.top >= currentRowBounds.listTop - 1 && currentRowBounds.bottom <= currentRowBounds.listBottom + 1,
@@ -193,9 +241,13 @@ try {
   assert.ok(evaluate('document.querySelector("[role=searchbox]").getBoundingClientRect().width > 100'));
   browser('press', 'Escape');
   assert.equal(evaluate('document.querySelector(".model-picker-search-button").ariaExpanded'), 'false', 'Escape first collapses search');
+  browser('press', 'Escape');
+  browser('wait', `${menu}[data-picker-step="effort"]`);
+  assert.equal(evaluate('document.activeElement.matches(".model-picker-change-model")'), true, 'Escape returns to the model navigation row');
   closeMenu();
 
   openMenu();
+  openModels();
   browser('press', 'Shift+Tab');
   assert.equal(evaluate('document.activeElement.matches(".model-picker-search-button")'), true);
   assert.equal(evaluate('document.querySelector(".model-picker-search-button").ariaExpanded'), 'true', 'keyboard focus reveals search');
@@ -209,22 +261,14 @@ try {
   browser('wait', '--fn', `[...document.querySelectorAll('${menu} [role=radio]')].every(row => row.ariaDisabled === 'true')`);
   assert.equal(evaluate('window.__pickerWrites.length'), 1);
   assert.equal(evaluate('localStorage.getItem("claudeBotRecentModels")'), null, 'pending models do not enter recents');
-  evaluate(`document.querySelector(${JSON.stringify(effortRow('low'))}).click()`);
   browser('press', 'Enter');
-  assert.equal(evaluate('window.__pickerWrites.length'), 1, 'writes cannot overlap across the two columns');
-  browser('press', 'Tab');
-  browser('press', 'Tab');
-  browser('press', 'Tab');
-  assert.equal(evaluate('document.activeElement.dataset.level'), 'high', 'a pending write allows moving to the effort column');
+  assert.equal(evaluate('window.__pickerWrites.length'), 1, 'a pending write cannot be submitted twice');
   evaluate('window.__pickerDelay = false; window.__pickerRelease(); delete window.__pickerRelease');
+  browser('wait', `${menu}[data-picker-step="effort"]`);
   waitChoice(nextModel, 'high');
-  assert.equal(evaluate('document.activeElement.dataset.level'), 'high', 'model acknowledgements preserve subsequent keyboard focus');
+  assert.equal(evaluate('document.activeElement.dataset.level'), 'high', 'successful model selection returns focus to effort');
   assert.deepEqual(evaluate('JSON.parse(localStorage.getItem("claudeBotRecentModels"))'), [nextModel]);
-  assert.equal(evaluate(`Boolean(document.querySelector('${menu}'))`), true, 'model acknowledgements keep effort available in the same popover');
   assertTrigger('en', 'Claude Sonnet 5', 'high');
-  browser('press', 'Escape');
-  assert.equal(evaluate('document.querySelector("[role=searchbox]").value'), '');
-  assert.equal(evaluate('document.querySelector(".model-picker-search-button").ariaExpanded'), 'false');
 
   browser('click', effortRow('medium'));
   waitChoice(nextModel, 'medium');
@@ -242,12 +286,15 @@ try {
   browser('click', effortRow('high'));
   browser('wait', '--text', labels.en.effortFailure);
   waitChoice(nextModel, 'off');
+  openModels();
   browser('click', modelRow(firstModel));
   browser('wait', '--text', labels.en.modelFailure);
   waitChoice(nextModel, 'off');
+  assert.equal(evaluate(`document.querySelector('${menu}').dataset.pickerStep`), 'models', 'a rejected model leaves the catalog available for retry');
   assertTrigger('en', 'Claude Sonnet 5', 'off');
   assert.deepEqual(evaluate('JSON.parse(localStorage.getItem("claudeBotRecentModels"))'), [nextModel], 'rejected models do not enter recents');
   evaluate('window.__pickerWriteFails = false');
+  backToEffort();
   browser('click', effortRow('off'));
   browser('press', 'Home');
   waitChoice(nextModel, '');
@@ -266,17 +313,23 @@ try {
     for (const [width, height] of [[320, 568], [390, 844], [768, 844], [1440, 900]]) {
       browser('set', 'viewport', String(width), String(height));
       openMenu();
-      assertStructure(lang);
+      assertEffortStructure(lang);
       assertTrigger(lang, 'Claude Sonnet 5', '');
-      const bounds = touchLayout();
-      assert.ok(bounds.coarse);
-      assert.ok(bounds.triggerWidth >= 44 && bounds.triggerHeight >= 44, 'the single trigger remains a 44px touch target');
-      assert.ok(bounds.left >= -1 && bounds.top >= -1 && bounds.right <= bounds.width + 1 && bounds.bottom <= bounds.height + 1, `popover fits ${lang} ${width}x${height}`);
-      assert.ok(bounds.scrollWidth <= bounds.width && !bounds.rowOverflow, 'columns and rows never widen the page');
-      assert.ok(bounds.modelWidth > bounds.effortWidth && bounds.modelWidth / (bounds.modelWidth + bounds.effortWidth) < .66, 'thinking retains usable width beside the model list');
-      if (width === 320) {
-        const accessibility = JSON.parse(browser('--json', 'a11y', '--selector', menu)).data;
-        assert.equal(accessibility.counts.violations, 0, `the combined ${lang} menu passes its scoped accessibility audit`);
+      for (const step of ['effort', 'models']) {
+        if (step === 'models') { openModels(); assertModelStructure(lang); }
+        const bounds = touchLayout();
+        assert.ok(bounds.coarse);
+        assert.ok(bounds.triggerWidth >= 44 && bounds.triggerHeight >= 44, 'the single trigger remains a 44px touch target');
+        assert.ok(bounds.left >= -1 && bounds.top >= -1 && bounds.right <= bounds.width + 1 && bounds.bottom <= bounds.height + 1, `${step} fits ${lang} ${width}x${height}`);
+        assert.ok(bounds.scrollWidth <= bounds.width && !bounds.rowOverflow, 'picker rows never widen the page');
+        assert.ok(bounds.paneWidth > 240, 'both steps retain readable full-width rows');
+        if (width === 320) {
+          const accessibility = JSON.parse(browser('--json', 'a11y', '--selector', menu)).data;
+          assert.equal(accessibility.counts.violations, 0, `the ${lang} ${step} step passes its scoped accessibility audit`);
+        }
+        if (process.env.MODEL_EFFORT_SHOTS && (width === 390 || width === 1440)) {
+          browser('screenshot', `${process.env.MODEL_EFFORT_SHOTS}/model-effort-${lang}-${step}-${width}.png`);
+        }
       }
       browser('click', '.model-picker-search-button');
       browser('wait', '--fn', 'document.activeElement.matches("[role=searchbox]")');
@@ -288,20 +341,39 @@ try {
       assert.equal(evaluate('document.querySelector(".model-picker-search-button").ariaExpanded'), 'false');
       settle();
       assert.ok(evaluate('document.querySelector(".model-picker-title").getBoundingClientRect().width > 0'), 'the models heading returns after search collapses');
-      if (process.env.MODEL_EFFORT_SHOTS && width === 390) browser('screenshot', `${process.env.MODEL_EFFORT_SHOTS}/model-effort-${lang}.png`);
+      backToEffort();
       closeMenu();
     }
   }
+
+  // Navigation during a pending write must stay responsive without allowing a
+  // competing effort write, or letting an old acknowledgement steal a new step.
   openMenu();
+  openModels();
+  evaluate('window.__pickerDelay = true');
   browser('click', modelRow(firstModel));
+  browser('wait', '--fn', 'typeof window.__pickerRelease === "function"');
+  const pendingWrites = evaluate('window.__pickerWrites.length');
+  backToEffort();
+  assert.equal(evaluate(`document.querySelector(${JSON.stringify(effortRow('low'))}).ariaDisabled`), 'true');
+  evaluate(`document.querySelector(${JSON.stringify(effortRow('low'))}).click()`);
+  assert.equal(evaluate('window.__pickerWrites.length'), pendingWrites, 'effort cannot race a pending model write');
+  closeMenu();
+  openMenu();
+  openModels();
+  evaluate('window.__pickerDelay = false; window.__pickerRelease(); delete window.__pickerRelease');
   waitChoice(firstModel, '');
-  assert.equal(evaluate('document.activeElement.dataset.model'), firstModel, 'recents retain the initiating model row focus after moving it');
-  assert.equal(evaluate('document.activeElement.tabIndex'), 0, 'the moved row remains the model group tab stop');
+  assert.equal(evaluate(`document.querySelector('${menu}').dataset.pickerStep`), 'models', 'an old acknowledgement preserves the newly opened model step');
+  assert.deepEqual(evaluate('JSON.parse(localStorage.getItem("claudeBotRecentModels"))'), [firstModel, nextModel]);
   assert.equal(evaluate(`document.querySelectorAll('${models} [aria-checked=true]').length`), 1);
+  backToEffort();
+  closeMenu();
+  openMenu();
+  assert.equal(evaluate('document.activeElement.dataset.level'), '', 'reopening always starts at the selected effort');
   closeMenu();
   assert.deepEqual(evaluate('window.__pickerWrites[0]'), { address: '/api/brain/model', body: { model: nextModel } });
   assert.ok(evaluate('window.__pickerWrites.slice(1).some(write => write.address === "/api/brain/thinking")'));
-  console.log('PASS: one combined trigger, clean two-column catalog, search hover/focus/click, serialized model-to-effort writes, acknowledged recents, rollback, reset/off, keyboard focus, touch bounds and both locales');
+  console.log('PASS: right-aligned model and neutral controls, effort-first navigation, search hover/focus/click, serialized writes, late acknowledgement navigation, acknowledged recents, rollback, reset/off, keyboard focus, touch bounds and both locales');
 } finally {
   browser('close');
 }

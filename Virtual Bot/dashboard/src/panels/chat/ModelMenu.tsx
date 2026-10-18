@@ -1,6 +1,6 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
-import { Check, ChevronDown, Search, X } from '../../vendor/solar-icons/compat.ts';
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Search, X } from '../../vendor/solar-icons/compat.ts';
 import { cn } from '@/lib/cn';
 import { t } from '@/locales/chat';
 import { t as pickerText } from '@/locales/modelPicker';
@@ -56,6 +56,12 @@ function GroupHead({ brand }: { brand: string | null }) {
 export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }) {
   const brain = useBrainChoice();
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<'effort' | 'models'>('effort');
+  const menu = useRef<HTMLDivElement>(null);
+  const changeModelButton = useRef<HTMLButtonElement>(null);
+  // A late model acknowledgement must not override newer navigation or focus.
+  const navigationVersion = useRef(0);
+  const returnToModelButton = useRef(false);
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [recent, setRecent] = useState(() => loadRecent());
@@ -89,7 +95,6 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
   const search = useRef<HTMLDivElement>(null);
   const searchCloseTimer = useRef<number | undefined>(undefined);
   const modelsPane = useRef<HTMLElement>(null);
-  const pickedFocus = useRef<string | null>(null);
   const base = useId();
   const groups = useMemo(() => {
     const arranged = arrange(brain.models, { query, recent });
@@ -103,26 +108,42 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
   const cursor = Math.min(active, Math.max(0, flat.length - 1));
   const disabled = brain.loading || brain.saving || brain.unavailable;
 
-  const pick = async (model: BrainModel) => {
-    const focusOwner = document.activeElement;
-    const restoreRowFocus = focusOwner instanceof HTMLButtonElement
-      && focusOwner.dataset.model === model.id && modelsPane.current?.contains(focusOwner);
-    if (disabled || model.available === false || !await brain.pickModel(model.id)) return;
-    // Recents record acknowledged writes only. Leave the picker open for effort.
-    const next = remember(loadRecent(recent), model.id);
-    // A delayed acknowledgement must not pull focus back from the other column.
-    if (restoreRowFocus && document.activeElement === focusOwner) pickedFocus.current = model.id;
-    setRecent(next);
-    try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* Optional storage. */ }
+  const changeStep = (next: 'effort' | 'models', focusModelButton = false) => {
+    navigationVersion.current += 1;
+    returnToModelButton.current = focusModelButton;
+    window.clearTimeout(detailTimer.current);
+    window.clearTimeout(searchCloseTimer.current);
+    setDetail(null);
+    setQuery('');
+    setSearchOpen(false);
+    setActive(0);
+    setStep(next);
   };
 
-  useEffect(() => {
-    if (!pickedFocus.current) return;
-    const picked = [...(modelsPane.current?.querySelectorAll<HTMLButtonElement>('[data-model]') ?? [])]
-      .find(button => button.dataset.model === pickedFocus.current);
-    picked?.focus();
-    pickedFocus.current = null;
-  }, [recent]);
+  const focusStep = () => {
+    if (step === 'effort' && returnToModelButton.current) {
+      changeModelButton.current?.focus();
+      return;
+    }
+    const pane = step === 'models' ? modelsPane.current : menu.current?.querySelector('.effort-picker-pane');
+    const current = pane?.querySelector<HTMLButtonElement>('[role=radio][aria-checked=true]:not([aria-disabled=true])');
+    const first = pane?.querySelector<HTMLButtonElement>('[role=radio]:not([aria-disabled=true])');
+    (current ?? first ?? changeModelButton.current ?? menu.current?.querySelector<HTMLButtonElement>('.model-picker-back'))?.focus();
+    if (step === 'models' && current) setActive(Number(current.dataset.index));
+  };
+  useLayoutEffect(() => {
+    if (open) focusStep();
+  }, [open, step]);
+
+  const pick = async (model: BrainModel) => {
+    const version = navigationVersion.current;
+    if (disabled || model.available === false || !await brain.pickModel(model.id)) return;
+    // Recents record acknowledged writes only; effort follows the chosen model.
+    const next = remember(loadRecent(recent), model.id);
+    setRecent(next);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* Optional storage. */ }
+    if (navigationVersion.current === version) changeStep('effort');
+  };
 
   const focusModel = (index: number) => {
     setActive(index);
@@ -166,14 +187,17 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
     const observer = new ResizeObserver(scrollActiveRow);
     observer.observe(list);
     return () => observer.disconnect();
-  }, [open, cursor, base, flat, brain.failed, brain.unavailable]);
+  }, [open, step, cursor, base, flat, brain.failed, brain.unavailable]);
 
   const changeOpen = (next: boolean) => {
+    navigationVersion.current += 1;
     window.clearTimeout(searchCloseTimer.current);
     setOpen(next);
     window.clearTimeout(detailTimer.current);
     setDetail(null);
     if (next) {
+      setStep('effort');
+      returnToModelButton.current = false;
       setQuery('');
       setSearchOpen(false);
       setActive(0);
@@ -203,37 +227,60 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
           {brain.currentModel ? <BrandLogo model={brain.currentModel} className={variant === 'bar' ? 'size-3.5' : undefined} /> : null}
           <span className="brain-choice-model">{label}</span>
           <span aria-hidden="true" className="brain-choice-effort">{effort}</span>
-          <ChevronDown aria-hidden="true" className="size-3.5 shrink-0 text-ink-3 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" strokeWidth={1.75} />
+          {variant === 'header' ? <ChevronDown aria-hidden="true" className="size-3.5 shrink-0 text-ink-3 transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none" strokeWidth={1.75} /> : null}
         </button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
-          side={variant === 'header' ? 'bottom' : 'top'}
-          align={variant === 'header' ? 'center' : 'start'}
+          ref={menu}
+          side="bottom"
+          align={variant === 'header' ? 'center' : 'end'}
           sideOffset={6}
           collisionPadding={12}
           style={{ zIndex: 'var(--z-pop)' }}
           aria-label={t('composer.modelEffort')}
           data-popup-kind="models"
+          data-picker-step={step}
           className="model-effort-menu popup-shell u-pop rounded-lg border border-line bg-surface shadow-pop"
           onEscapeKeyDown={(event) => {
-            if (!query && !searchOpen) return;
+            if (step !== 'models') return;
             event.preventDefault();
-            setQuery('');
-            setSearchOpen(false);
-            setActive(0);
-            document.getElementById(`${base}-0`)?.focus();
+            if (query || searchOpen) {
+              setQuery('');
+              setSearchOpen(false);
+              setActive(0);
+              document.getElementById(`${base}-0`)?.focus();
+            } else changeStep('effort', true);
           }}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
-            const current = modelsPane.current?.querySelector<HTMLButtonElement>('[role=radio][aria-checked=true]:not([aria-disabled=true])');
-            (current ?? modelsPane.current?.querySelector<HTMLButtonElement>('[role=radio]:not([aria-disabled=true])'))?.focus();
-            if (current) setActive(Number(current.dataset.index));
+            focusStep();
           }}
         >
           <div className="popup-plate liquid-glass" aria-hidden="true" />
-          <section ref={modelsPane} className="brain-picker-pane model-picker-pane" aria-label={t('composer.models')}>
+          {brain.failed || brain.unavailable || (!brain.loading && !brain.models.length) ? (
+            <div className="brain-picker-status" role="status">
+              <p>{brain.failed ? pickerText(brain.models.length ? 'stale' : 'failed')
+                : brain.unavailable ? pickerText('unavailable') : pickerText('empty')}</p>
+              <button type="button" disabled={brain.refreshing || brain.saving} onClick={() => { void brain.retry(); }}>
+                {pickerText(brain.refreshing ? 'retrying' : 'retry')}
+              </button>
+            </div>
+          ) : null}
+          {step === 'effort' ? <>
+            <button ref={changeModelButton} type="button" className="model-picker-change-model"
+              aria-label={pickerText('changeModel', { model: label })} onClick={() => changeStep('models')}>
+              {brain.currentModel ? <BrandLogo model={brain.currentModel} /> : null}
+              <span className="brain-picker-name">{label}</span>
+              <ChevronRight aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.75} />
+            </button>
+            <EffortOptions brain={brain} />
+          </> : <section ref={modelsPane} className="brain-picker-pane model-picker-pane" aria-label={t('composer.models')}>
             <div className="brain-picker-heading model-picker-heading" data-search-open={searchOpen ? '' : undefined}>
+              <button type="button" className="model-picker-back" aria-label={pickerText('backToEffort')}
+                onClick={() => changeStep('effort', true)}>
+                <ChevronLeft aria-hidden="true" className="size-4" strokeWidth={1.75} />
+              </button>
               <h2 className="u-label model-picker-title">{t('composer.models')}</h2>
               <div
                 ref={search}
@@ -272,15 +319,6 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
               </div>
             </div>
             <div className="brain-picker-list model-picker-list">
-              {brain.failed || brain.unavailable || (!brain.loading && !brain.models.length) ? (
-                <div className="brain-picker-status" role="status">
-                  <p>{brain.failed ? pickerText(brain.models.length ? 'stale' : 'failed')
-                    : brain.unavailable ? pickerText('unavailable') : pickerText('empty')}</p>
-                  <button type="button" disabled={brain.refreshing || brain.saving} onClick={() => { void brain.retry(); }}>
-                    {pickerText(brain.refreshing ? 'retrying' : 'retry')}
-                  </button>
-                </div>
-              ) : null}
               <div id={`${base}-list`} role="radiogroup" aria-label={t('composer.models')}
                 aria-disabled={disabled} aria-busy={brain.loading || brain.saving} onKeyDown={onKey}>
                 {groups.map((group) => (
@@ -339,8 +377,7 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
                     </a>}
               </p>
             ) : null}
-          </section>
-          <EffortOptions brain={brain} />
+          </section>}
           {brain.saving ? <p className="sr-only" role="status">{pickerText('saving')}</p> : null}
         </Popover.Content>
       </Popover.Portal>

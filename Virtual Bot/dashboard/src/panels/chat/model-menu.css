@@ -18,15 +18,19 @@
 .brain-choice-trigger-header .brain-choice-effort { display: none; }
 
 .model-effort-menu {
-  display: grid;
-  grid-template-columns: minmax(0, 62fr) minmax(0, 38fr);
-  width: min(440px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  width: min(280px, calc(100vw - 24px));
   height: min(360px, 60dvh, var(--radix-popover-content-available-height));
   max-height: var(--radix-popover-content-available-height);
   overflow: hidden;
 }
-.brain-picker-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.effort-picker-pane { border-left: 1px solid var(--c-border); }
+.brain-picker-pane { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
+.model-picker-change-model { display: flex; flex-shrink: 0; width: 100%; min-height: 44px; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--c-border); color: var(--c-text); text-align: left; }
+.model-picker-change-model .brain-picker-name { font-family: var(--f-mono); }
+.model-picker-back { display: grid; place-items: center; width: 36px; height: 36px; flex-shrink: 0; border-radius: 6px; color: var(--c-text-2); }
+.model-picker-change-model:hover, .model-picker-back:hover { background: var(--c-surface-2); }
+.model-picker-change-model:focus-visible, .model-picker-back:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -2px; }
 .brain-picker-heading { display: flex; flex-shrink: 0; min-height: 40px; align-items: center; padding: 0 10px; border-bottom: 1px solid var(--c-border); }
 .brain-picker-heading h2 { min-width: 0; margin: 0; overflow: hidden; white-space: nowrap; }
 .model-effort-menu .brain-picker-heading h2,
@@ -178,7 +182,7 @@ html[data-popup="glass"] .model-effort-menu.popup-lens .brain-picker-group {
   .brain-choice-trigger-header { gap: 4px; padding: 0 6px; font-size: 13px; }
   .brain-choice-trigger-header > svg { width: 14px; height: 14px; }
   .model-effort-menu {
-    width: min(360px, calc(100vw - 24px));
+    width: min(280px, calc(100vw - 24px));
     height: min(320px, 52dvh, var(--radix-popover-content-available-height));
   }
   .brain-picker-heading { min-height: 44px; padding-left: 8px; padding-right: 8px; }
@@ -192,12 +196,12 @@ html[data-popup="glass"] .model-effort-menu.popup-lens .brain-picker-group {
   .model-picker-row svg:not(.brain-picker-check) { width: 14px; height: 14px; }
   .brain-picker-status button { min-height: 44px; }
   .model-picker-search-field input { height: 44px; font-size: 16px; }
-  .model-picker-search-button, .model-picker-clear { width: 44px; height: 44px; }
+  .model-picker-search-button, .model-picker-clear, .model-picker-back { width: 44px; height: 44px; }
 }
 @media (pointer: coarse) {
   .brain-choice-trigger-bar, .brain-picker-heading, .brain-picker-status button { min-height: 44px; }
   .brain-picker-row { min-height: 44px; padding-top: 7px; padding-bottom: 7px; }
-  .model-picker-search-button, .model-picker-clear { width: 44px; height: 44px; }
+  .model-picker-search-button, .model-picker-clear, .model-picker-back { width: 44px; height: 44px; }
   .model-picker-search-field input { height: 44px; font-size: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {

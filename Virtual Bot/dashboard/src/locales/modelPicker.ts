@@ -1,5 +1,7 @@
 /** Recovery and capability controls share keys in both supported languages. */
 const uk = {
+  changeModel: 'Змінити модель: {model}',
+  backToEffort: 'Назад до рівня зусилля',
   filter: 'Можливості моделі',
   all: 'Усі',
   count: 'Моделей: {count}',
@@ -38,6 +40,8 @@ const uk = {
 };
 
 const en: Record<keyof typeof uk, string> = {
+  changeModel: 'Change model: {model}',
+  backToEffort: 'Back to effort',
   filter: 'Model capabilities',
   all: 'All',
   count: '{count} models',

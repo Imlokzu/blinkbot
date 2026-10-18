@@ -57,14 +57,13 @@ html[data-chat-material="solid"] .chat-conversation .liquid-glass-plate { backgr
 .chat-conversation .prompt-bar__send { width: 34px; height: 34px; border-radius: 999px; }
 .chat-conversation .prompt-bar__bar { gap: 6px; }
 .chat-conversation .prompt-bar__bar > .prompt-bar__spacer { order: 1; }
-.chat-model-controls { order: 2; display: flex; align-items: center; gap: 3px; max-width: 68%; min-width: 0; }
-.chat-model-controls > .group { max-width: none; min-width: 0; flex: 0 1 auto; }
+.chat-conversation .prompt-bar__bar > .brain-choice-trigger { order: 2; max-width: 68%; min-width: 0; flex: 0 1 auto; }
 .chat-conversation .prompt-bar__tool,
 .chat-conversation .prompt-bar__send { background: transparent; border: 0; box-shadow: none; }
-.chat-conversation .prompt-bar__tool[aria-pressed] { order: 3; color: var(--c-accent); background: transparent; }
-.chat-conversation .prompt-bar__send { order: 4; background: var(--c-surface-3); color: var(--c-text-3); }
-/* Theme ink keeps the circular send/stop control readable with every chat accent. */
-.chat-conversation .prompt-bar__send[data-armed] { background: var(--c-text); color: var(--c-bg); }
+.chat-conversation .prompt-bar__tool[aria-pressed] { order: 3; color: light-dark(#737373, #aaa); background: transparent; }
+/* Keep Zeron's neutral send circle even for an empty draft; disabled behavior stays intact. */
+.chat-conversation .prompt-bar__send,
+.chat-conversation .prompt-bar__send[data-armed] { order: 4; background: light-dark(#303030, #ededed); color: light-dark(#fff, #242424); }
 .chat-conversation .prompt-bar__tool[aria-pressed="true"] { color: var(--c-err); }
 .chat-conversation .prompt-bar__tool svg { stroke-width: 1.75; }
 .chat-narrow-toolbar { z-index: 2; background: color-mix(in srgb, var(--c-surface) 88%, transparent); }

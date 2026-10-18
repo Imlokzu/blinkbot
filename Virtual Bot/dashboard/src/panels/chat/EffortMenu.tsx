@@ -4,7 +4,7 @@ import { cn } from '@/lib/cn';
 import { t } from '@/locales/chat';
 import { thinkingLabel, type useBrainChoice } from './useBrainChoice';
 
-/** The combined picker shares one live choice state across both columns. */
+/** Effort uses the same live choice state as the picker's model step. */
 export function EffortOptions({ brain }: { brain: ReturnType<typeof useBrainChoice> }) {
   const group = useRef<HTMLDivElement>(null);
   const hintId = useId();

@@ -3295,3 +3295,32 @@ independent review fixed runtime CSS/cache integration. Actual-app HTTP smoke
 passed 13 checks including traversal HTTP 400; served light/dark mask rendering
 was inspected. Browser/server stopped. Final full dashboard TypeScript passed;
 no Fable or iOS runtime certification. See `reports/brand-orange-flash-2026-10-18.md`.
+
+
+## 2026-10-18 — Zeron-style composer model and effort control
+
+The desktop model/effort trigger now sits on the right, before the microphone
+and Send. First click opens effort; the current-model row opens the searchable
+model list. Back returns to effort, acknowledged model changes return to effort,
+and reopening starts at effort. Late saves respect newer navigation and focus.
+The idle microphone is neutral gray and Send uses charcoal with a white arrow
+in light mode, including empty disabled drafts; dark mode keeps inverse contrast.
+Wallpaper, welcome text, navigation and API contracts are unchanged.
+
+Validation: 240 dashboard unit tests, TypeScript and the working-copy production
+build passed. The browser regression passed in English/Ukrainian at 320, 390,
+768 and 1440 pixels, including accessibility, keyboard focus, asynchronous saves,
+rollback, recents and exact control colors. Independent supported review approved
+the diff and exercised retry/intelligence flows. Antigravity's review timed out
+without a result; no Antigravity approval is claimed. Actual-app post-review smoke
+passed 36 HTTP checks, including three traversal 400s and the built chat assets;
+its server stopped. Backend suite: 1,937 passed, 6 skipped, 178 subtests passed;
+one unrelated connector process-group permission failure passed on isolated retry.
+
+Release limitation: clean HEAD already imports the untracked Settings component
+`src/panels/settings/IntegrationsSection.tsx` (with its untracked locale module).
+The isolated clean-source build fails on that missing import. The successful
+working-copy artifact remains a validation artifact; the live static dashboard
+is not republished with unrelated pending sources. Existing drafts remain outside
+this commit. The independent review also noted existing intelligence-card hover
+timer/Escape and short-phone overflow issues; neither is introduced by this change.
