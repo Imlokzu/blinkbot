@@ -1,13 +1,12 @@
-/** Neutral cube planes follow the theme; the flash bands retain the brand orange. */
+/** The orange cube sits on a solid rounded tile in every theme. */
 export function BotIcon({ className = '' }: { className?: string }) {
-  const mask = `url(${import.meta.env.BASE_URL}blink-mark.svg) center / contain no-repeat`;
   return (
     <span
-      className={`inline-block size-6 shrink-0 bg-current text-ink ${className}`}
+      className={`inline-block size-6 shrink-0 ${className}`}
       style={{
-        mask, WebkitMask: mask,
-        backgroundImage: `url(${import.meta.env.BASE_URL}blink-flash.svg)`,
+        backgroundImage: `url(${import.meta.env.BASE_URL}blink-tile.svg)`,
         backgroundPosition: 'center', backgroundSize: 'contain', backgroundRepeat: 'no-repeat',
+        borderRadius: '23.4375%',
       }}
       aria-hidden="true"
       data-bot-icon=""

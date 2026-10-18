@@ -3463,3 +3463,20 @@ The complete browser regression passed against port 8100. Independent live
 review verified real model data, header ordering, geometry, orange material
 and navigation without POSTs. Post-review actual-app smoke passed 34 checks
 and stopped its temporary server. No unrelated pending source was published.
+
+
+## 2026-10-18 — Solid rounded logo tile
+
+The owner requested a rounded square behind the orange cube. The default logo
+now uses charcoal `#151613`, radius 60/256 and 82% centered artwork scale.
+The cube's center and gaps are solid; only outer rounded corners use alpha.
+The master symbol and separate wordmark remain unchanged. Dashboard/native/
+landing placements and generated desktop/app icons share the tile source;
+OS-owned monochrome/adaptive launcher inputs retain their platform roles.
+
+Validation: 240 dashboard tests, TypeScript and Android shared compilation
+passed; 157 generated outputs, native parity, desktop corner alpha and PWA
+hashes were checked. Supported independent review fixed desktop square exports
+and approved the result. Actual-app smoke passed 15 checks including traversal
+HTTP 400; light/dark served tile rendering was inspected. Browser/server stopped.
+See `reports/brand-rounded-tile-2026-10-18.md`; no Fable/iOS runtime claim.

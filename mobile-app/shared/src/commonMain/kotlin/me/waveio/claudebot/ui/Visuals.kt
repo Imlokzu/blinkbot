@@ -112,10 +112,7 @@ fun IconAction(name: String, label: String, onClick: () -> Unit, modifier: Modif
 
 @Composable
 fun BotMark(modifier: Modifier = Modifier.size(44.dp)) {
-    Box(modifier, propagateMinConstraints = true) {
-        Icon(painterResource(Res.drawable.blink_mark), null, tint = LocalPalette.current.ink)
-        Icon(painterResource(Res.drawable.blink_flash), null, Modifier.matchParentSize(), Color(0xFFE6532F))
-    }
+    Image(painterResource(Res.drawable.blink_tile), null, modifier, contentScale = ContentScale.Fit)
 }
 
 @Composable

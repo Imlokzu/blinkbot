@@ -24,6 +24,11 @@
   `#E6532F`; cube planes and the separate wordmark remain dark on light
   surfaces or white on dark surfaces. Preserve a monochrome silhouette for
   masks, OS-themed launcher icons, and notification icons.
+  Default logo placement: a solid charcoal `#151613` rounded square, with
+  a 60/256 corner radius and the orange-and-white cube centered at 82% scale.
+  Use `blink-tile.svg` for in-app logos and the rounded icon export. The open
+  center is filled by the tile background; only the outer rounded corners
+  have transparency. Native installed app icons retain OS-owned masking.
   The fold mark (option 02), earlier spiral, and offset-box proposals are not
   the approved base. The robot's expressive face remains a separate character.
 - Trust signals: actual saved state, clear connection requirements, reversible

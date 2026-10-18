@@ -11,6 +11,12 @@ The lowercase `blink` wordmark stays separate from the symbol.
 The owner's partial-orange treatment uses `#E6532F` on the three flash bands;
 the three cube planes stay neutral and follow their surface's contrast needs.
 
+The default presentation is a solid rounded charcoal tile (`#151613`). Its
+corner radius is 60 on a 256-unit square; the orange-and-white cube is centered
+at 82% scale. The background fills the cube's open center and separating gaps.
+Only the outer rounded corners are transparent. The master symbol remains
+available separately for monochrome and platform-specific uses.
+
 Production exports are generated directly from this geometric master, never
 retraced from a raster. `blink-source.png` is now a generated orange-and-white-on-dark
 preview; it is not the source of truth. `blink-reference.jpg` retains the
@@ -27,7 +33,7 @@ The rebuild also refreshes only brand files in the backend's existing
 `static/dash`, `static/chat-panel`, and `static/memory-panel` bundles. Dashboard
 service-worker revisions are updated for those brand files so installed PWAs
 pick up the new artwork without rebuilding unrelated panel code. The existing
-dashboard index links a generated `blink-brand.css` overlay for compiled
+dashboard index links a generated `blink-brand.css` replacement for compiled
 `data-bot-icon` masks; its index revision and new brand cache entries are also
 refreshed. Other scripts, stylesheets, and cache entries remain untouched.
 
@@ -37,7 +43,10 @@ refreshed. Other scripts, stylesheets, and cache entries remain untouched.
 - `blink-flash.svg`: transparent orange bands for theme-aware overlays.
 - `blink-mark-color.svg`: orange bands and dark cube planes for light surfaces.
 - `blink-mark-white.svg`: orange bands and white cube planes for dark surfaces.
-- `blink-icon.svg` / `blink-icon.png`: orange and white on near-black for app icons.
+- `blink-tile.svg` / `blink-tile.png`: padded orange-and-white cube on a solid
+  rounded charcoal tile. Use these for in-app logos and standalone artwork.
+- `blink-icon.svg`: the same rounded tile for favicons. `blink-icon.png` is an
+  opaque square export for platforms that apply their own corner mask.
 - `blink-maskable.svg`: extra space for launcher masking.
 
 Android foreground and monochrome layers use a 0.68 scale to keep the cube's
@@ -46,8 +55,9 @@ PWA installation icons include 192px and 512px PNGs and a separate maskable
 icon; Apple touch icons are opaque 180px PNGs. Desktop bundles include ICNS,
 ICO and PNG files.
 Android themed-icon and notification layers retain a fully monochrome
-silhouette, as required by their platform rendering. Native Compose icons tint
-the cube with the theme and overlay the orange flash bands separately.
+silhouette, as required by their platform rendering. Native Compose logos use
+the generated `blink_tile.xml` image without a color tint, preserving the tile
+background, white planes and orange bands in either theme.
 
 This is the product identity for Blink and the Blink Bot robot landing pages.
 The animated robot face, screen-app glyphs, model-provider trademarks and
