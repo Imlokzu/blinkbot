@@ -3537,3 +3537,18 @@ focus, constrained bounds, glass and reduced motion using fully mocked APIs.
 Independent static review fixed stagger-selector specificity. Post-review
 actual-app smoke passed 36 HTTP checks including traversal 400s, then stopped
 its temporary server. Runtime publication follows in a separate release commit.
+
+## 2026-10-19 — Publish compact attachment panel
+
+Published clean source 7846038d to the existing /dash/ service. The compact
+attachment panel is live with aligned action rows, grouped separators, rounded
+corners and the orange image action. Independent static release review verified
+all 158 generated files byte-for-byte against the served runtime and checked
+entry, manifest and precache references.
+
+The complete guarded browser regression passed on port 8100, covering both
+locales/themes, desktop/phone and coarse input, action/upload callbacks, focus,
+constrained layouts, popup glass and reduced motion. Every API write was mocked
+before mounting the app. Post-review actual-app smoke passed 34 HTTP checks
+including traversal 400s and stopped its temporary server. The test browser
+and development server are closed; the existing local service remains running.
