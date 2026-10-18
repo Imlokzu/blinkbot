@@ -20,7 +20,10 @@
   planes are the base mark. Keep the lowercase `blink` wordmark separate.
 - Master artwork: `assets/brand/blink-master.svg`; generated web and native
   assets share its precise geometry through `scripts/sync_brand_assets.mjs`.
-  Use a single solid color, dark on light surfaces or white on dark surfaces.
+  Approved color treatment: the three upper-left flash bands use orange
+  `#E6532F`; cube planes and the separate wordmark remain dark on light
+  surfaces or white on dark surfaces. Preserve a monochrome silhouette for
+  masks, OS-themed launcher icons, and notification icons.
   The fold mark (option 02), earlier spiral, and offset-box proposals are not
   the approved base. The robot's expressive face remains a separate character.
 - Trust signals: actual saved state, clear connection requirements, reversible

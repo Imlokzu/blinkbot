@@ -3278,3 +3278,20 @@ Fable/configured specialist unavailable. Post-review actual-app HTTP smoke
 passed 14 checks including traversal HTTP 400, then stopped its server.
 See `reports/brand-cube-flash-2026-10-18.md`. Existing unrelated drafts remain
 outside this change; no public deployment or native app release occurred.
+
+
+## 2026-10-18 — Orange flash logo selected
+
+The owner selected partial orange (`#E6532F`) on the three diagonal flash
+bands; the cube planes and wordmark remain neutral. The canonical master
+separates the two parts without changing geometry. Web/native exports and
+existing runtime artwork/cache entries are synchronized. Dashboard/landing
+and Compose masks retain orange through a separate flash overlay; OS-themed
+and notification assets keep their required monochrome silhouette.
+
+Validation: 240 dashboard tests, scoped BotIcon TypeScript and Android shared
+compilation passed; 143 generated files and PWA hashes were checked. Supported
+independent review fixed runtime CSS/cache integration. Actual-app HTTP smoke
+passed 13 checks including traversal HTTP 400; served light/dark mask rendering
+was inspected. Browser/server stopped. Final full dashboard TypeScript passed;
+no Fable or iOS runtime certification. See `reports/brand-orange-flash-2026-10-18.md`.
