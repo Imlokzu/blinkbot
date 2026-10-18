@@ -84,12 +84,21 @@ const closeMenu = () => {
   browser('wait', '--fn', `!document.querySelector('${menu}')`);
   assert.equal(evaluate('document.activeElement.matches("[data-picker-test-trigger]")'), true, 'Escape restores the trigger');
 };
-const waitChoice = (model, level) => browser('wait', '--fn', `window.__pickerCatalog.selected === ${JSON.stringify(model)}
-  && window.__pickerCatalog.thinking === ${JSON.stringify(level)}
-  && (!document.querySelector(${JSON.stringify(modelRow(model))}) || document.querySelector(${JSON.stringify(modelRow(model))}).ariaChecked === 'true')
-  && (!document.querySelector('${effort}') || (document.querySelector('${effort}').dataset.level === ${JSON.stringify(level)}
-    && document.querySelector('${effort}').getAttribute('aria-valuenow') === ${JSON.stringify(String(levels.indexOf(level)))}))
-  && [...document.querySelectorAll('${menu} [aria-busy]')].every(group => group.ariaBusy !== 'true')`);
+const waitChoice = (model, level) => {
+  const modelLabel = catalog.models.find(choice => choice.id === model)?.label ?? model;
+  const expectedTrigger = Object.fromEntries(Object.entries(labels).map(([lang, strings]) =>
+    [lang, strings.trigger(modelLabel, strings.levels[level])]));
+  // The fixture responds before React observes the mutation. Wait for the
+  // shared trigger too: a local slider preview alone does not confirm a save.
+  browser('wait', '--fn', `window.__pickerCatalog.selected === ${JSON.stringify(model)}
+    && window.__pickerCatalog.thinking === ${JSON.stringify(level)}
+    && document.querySelector('[data-picker-test-trigger]')?.getAttribute('aria-label')
+      === (${JSON.stringify(expectedTrigger)})[document.documentElement.lang === 'uk' ? 'uk' : 'en']
+    && (!document.querySelector(${JSON.stringify(modelRow(model))}) || document.querySelector(${JSON.stringify(modelRow(model))}).ariaChecked === 'true')
+    && (!document.querySelector('${effort}') || (document.querySelector('${effort}').dataset.level === ${JSON.stringify(level)}
+      && document.querySelector('${effort}').getAttribute('aria-valuenow') === ${JSON.stringify(String(levels.indexOf(level)))}))
+    && [...document.querySelectorAll('${menu} [aria-busy]')].every(group => group.ariaBusy !== 'true')`);
+};
 const effortKey = key => {
   assert.equal(evaluate(`const thumb = document.querySelector('${effort}'); thumb.focus();
     document.activeElement === thumb || thumb.getAttribute('aria-disabled') === 'true'`), true,

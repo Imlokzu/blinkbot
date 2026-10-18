@@ -3412,3 +3412,18 @@ release-only writes, cancellation, resizing, rollback and exact radii. Separate
 adversarial review reproduced and verified fixes for interrupted model/catalog
 drags and stale track coordinates after cancellation. Post-review actual-app
 smoke passed 36 HTTP checks including traversal 400s and stopped its server.
+
+
+## 2026-10-18 — Publish rounded effort slider
+
+Published the clean committed dashboard from adfa0f4d to the existing 8100
+server, including the concurrent Blink-wordmark typography correction. The
+served effort control is a snapping slider; composer/plate radii are 28px and
+the popup radius is 20px. All other working-tree drafts remain unpublished.
+
+Full browser regression passed on /dash/, including drag/release, cancellation,
+keyboard focus, model switching, rollback, both locales and responsive/a11y
+checks. Its fixture now waits for the acknowledged trigger label as well as
+the slider preview. Independent live review verified real model data and the
+exact radii without POSTs. Post-review HTTP smoke passed 34 checks and stopped
+its isolated server. The existing local dashboard stays running.
