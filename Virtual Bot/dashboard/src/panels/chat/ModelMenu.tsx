@@ -126,13 +126,22 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
       return;
     }
     const pane = step === 'models' ? modelsPane.current : menu.current?.querySelector('.effort-picker-pane');
+    const slider = pane?.querySelector<HTMLElement>('[role=slider]:not([aria-disabled=true])');
     const current = pane?.querySelector<HTMLButtonElement>('[role=radio][aria-checked=true]:not([aria-disabled=true])');
     const first = pane?.querySelector<HTMLButtonElement>('[role=radio]:not([aria-disabled=true])');
-    (current ?? first ?? changeModelButton.current ?? menu.current?.querySelector<HTMLButtonElement>('.model-picker-back'))?.focus();
+    (slider ?? current ?? first ?? changeModelButton.current ?? menu.current?.querySelector<HTMLButtonElement>('.model-picker-back'))?.focus();
     if (step === 'models' && current) setActive(Number(current.dataset.index));
   };
   useLayoutEffect(() => {
-    if (open) focusStep();
+    if (!open) return;
+    const version = navigationVersion.current;
+    const owner = document.activeElement;
+    // Radix registers its thumb after mounting; wait until it is focusable.
+    const frame = requestAnimationFrame(() => {
+      if (navigationVersion.current === version
+        && (document.activeElement === owner || document.activeElement === document.body)) focusStep();
+    });
+    return () => cancelAnimationFrame(frame);
   }, [open, step]);
 
   const pick = async (model: BrainModel) => {

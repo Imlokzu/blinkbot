@@ -3394,3 +3394,21 @@ actual font inheritance and layout; one preview-cache import failure passed
 in a fresh final phone check. Actual-app HTTP smoke passed 13 expectations,
 including traversal HTTP 400. Temporary servers and browser were stopped.
 See `reports/dashboard-blink-wordmark-2026-10-18.md` for evidence and limits.
+
+
+## 2026-10-18 — Effort slider and rounded composer
+
+Replaced the effort radio list with a compact horizontal slider using the
+already installed Radix primitive. It snaps only to gateway-reported levels,
+keeps Automatic separate from Off, previews locally and saves once on release.
+Keyboard steps save normally. Failed writes restore the selected value; model
+or catalog changes and cancelled gestures cannot commit an old drag.
+The composer and its glass plate use matching 28px corners; the picker uses
+20px corners and its effort view sizes to the slider.
+
+Validation: 240 unit tests, TypeScript and isolated clean-source build passed.
+Browser checks cover both locales, four viewport widths, accessibility, focus,
+release-only writes, cancellation, resizing, rollback and exact radii. Separate
+adversarial review reproduced and verified fixes for interrupted model/catalog
+drags and stale track coordinates after cancellation. Post-review actual-app
+smoke passed 36 HTTP checks including traversal 400s and stopped its server.

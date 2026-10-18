@@ -41,6 +41,7 @@
 .chat-conversation .chat-composer { margin-top: 0; }
 .chat-conversation .chat-composer > div { max-width: 720px; }
 .chat-conversation .liquid-glass-plate {
+  border-radius: 28px;
   background: color-mix(in srgb, var(--c-surface) var(--chat-opacity), transparent);
   border: 1px solid color-mix(in srgb, var(--c-border) 65%, transparent);
   -webkit-backdrop-filter: var(--hyalite, blur(var(--chat-blur)) saturate(1.3));

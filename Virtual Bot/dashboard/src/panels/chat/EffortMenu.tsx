@@ -1,100 +1,94 @@
-import { useEffect, useId, useRef } from 'react';
-import { Check } from '../../vendor/solar-icons/compat.ts';
-import { cn } from '@/lib/cn';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import * as Slider from '@radix-ui/react-slider';
 import { t } from '@/locales/chat';
 import { thinkingLabel, type useBrainChoice } from './useBrainChoice';
 
-/** Effort uses the same live choice state as the picker's model step. */
+/** Preview locally while dragging; only release or a keyboard step saves. */
 export function EffortOptions({ brain }: { brain: ReturnType<typeof useBrainChoice> }) {
-  const group = useRef<HTMLDivElement>(null);
   const hintId = useId();
-  const disabled = brain.loading || brain.saving || brain.unavailable;
-  // Clearing the setting uses the gateway default; explicit "off" is a separate choice.
+  const [preview, setPreview] = useState<number | null>(null);
+  const [epoch, setEpoch] = useState(0);
+  const gesture = useRef<{ target: Element; pointerId: number; identity: string } | null>(null);
+  // Automatic clears the setting; explicit off remains a different stop.
   const levels = ['', ...new Set(brain.levels.filter(Boolean))];
-  const supported = levels.includes(brain.thinking);
-  const focusableLevel = supported ? brain.thinking : '';
+  const levelKey = JSON.stringify(levels);
+  const identity = JSON.stringify([brain.current, brain.thinking, levelKey]);
+  const current = levels.indexOf(brain.thinking);
+  const supported = current !== -1;
+  const index = Math.min(preview ?? Math.max(0, current), levels.length - 1);
+  const disabled = brain.loading || brain.saving || brain.unavailable;
+  const labelFor = (level: string) => level ? thinkingLabel(level) : t('composer.asConfigured');
+  const label = labelFor(preview === null ? brain.thinking : levels[index]);
 
+  const cancelGesture = useCallback(() => {
+    const active = gesture.current;
+    gesture.current = null;
+    if (active?.target.hasPointerCapture(active.pointerId)) active.target.releasePointerCapture(active.pointerId);
+    setPreview(null);
+    // Radix caches track coordinates until normal release; cancellation must reset them too.
+    setEpoch(value => value + 1);
+  }, []);
+
+  // A drag belongs to the model and settings it started with, never a newer selection.
   useEffect(() => {
-    const list = group.current;
-    if (!list) return;
-    // Keep the selected level visible when a phone or its keyboard reduces this column.
-    const scrollCurrentRow = () => {
-      const row = list.querySelector<HTMLButtonElement>('[role=radio][aria-checked=true]');
-      if (!row) return;
-      const top = row.offsetTop;
-      const bottom = top + row.offsetHeight;
-      if (top < list.scrollTop) list.scrollTop = top;
-      else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
-    };
-    scrollCurrentRow();
-    const observer = new ResizeObserver(scrollCurrentRow);
-    observer.observe(list);
-    return () => observer.disconnect();
-  }, [brain.thinking, brain.levels]);
+    if (gesture.current) cancelGesture();
+    else setPreview(null);
+  }, [brain.current, brain.thinking, brain.saving, brain.loading, brain.unavailable, levelKey, cancelGesture]);
+  useEffect(() => {
+    const blur = () => { if (gesture.current) cancelGesture(); };
+    window.addEventListener('blur', blur);
+    return () => window.removeEventListener('blur', blur);
+  }, [cancelGesture]);
 
-  const pick = (level: string) => {
-    if (!disabled) void brain.pickThinking(level);
-  };
-
-  const onKey = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    const forward = event.key === 'ArrowDown' || event.key === 'ArrowRight';
-    const backward = event.key === 'ArrowUp' || event.key === 'ArrowLeft';
-    if (!forward && !backward && event.key !== 'Home' && event.key !== 'End') return;
-    event.preventDefault();
-    if (disabled) return;
-    const rows = [...(group.current?.querySelectorAll<HTMLButtonElement>('[role=radio]:not([aria-disabled=true])') ?? [])];
-    if (!rows.length) return;
-    const active = rows.indexOf(event.target as HTMLButtonElement);
-    const index = event.key === 'Home' ? 0 : event.key === 'End' ? rows.length - 1
-      : (Math.max(0, active) + (forward ? 1 : rows.length - 1)) % rows.length;
-    const next = rows[index];
-    next.focus();
-    pick(next.dataset.level ?? '');
+  const commit = ([next]: number[]) => {
+    setPreview(null);
+    if (!disabled && next >= 0 && next < levels.length) void brain.pickThinking(levels[next]);
   };
 
   return (
-    <section className="brain-picker-pane effort-picker-pane" aria-label={t('composer.effort')}>
-      <div className="brain-picker-heading"><h2 className="u-label">{t('composer.effort')}</h2></div>
+    <section className="brain-picker-pane effort-picker-pane" aria-label={t('composer.effort')} aria-busy={brain.saving}>
+      <div className="effort-slider-heading">
+        <h2 className="u-label">{t('composer.effort')}</h2>
+        <span className="effort-slider-value" title={label}>{label}</span>
+      </div>
       <p id={hintId} className="sr-only">{t('composer.effortHintShort')}</p>
-      <div
-        ref={group}
-        role="radiogroup"
-        aria-label={t('composer.chooseEffort')}
-        aria-describedby={hintId}
-        aria-disabled={disabled}
-        aria-busy={brain.saving}
-        onKeyDown={onKey}
-        className="brain-picker-list effort-picker-list"
-      >
-        {levels.map((level) => {
-          const label = level ? thinkingLabel(level) : t('composer.asConfigured');
-          return (
-            <button
-              key={level}
-              type="button"
-              role="radio"
-              data-level={level}
-              aria-checked={brain.thinking === level}
-              aria-disabled={disabled}
-              tabIndex={level === focusableLevel ? 0 : -1}
-              title={label}
-              onClick={() => pick(level)}
-              className={cn('brain-picker-row effort-picker-row', disabled && 'is-disabled')}
-            >
-              <span className="brain-picker-name">{label}</span>
-              {brain.thinking === level ? <Check aria-hidden="true" className="brain-picker-check" strokeWidth={1.75} /> : null}
-            </button>
-          );
-        })}
-        {!supported ? (
-          <button type="button" role="radio" aria-checked="true" aria-disabled="true" tabIndex={-1} className="brain-picker-row is-disabled">
-            <span className="min-w-0 flex-1">
-              <span className="brain-picker-name block" title={brain.thinking}>{thinkingLabel(brain.thinking)}</span>
-              <span className="brain-picker-feedback">{t('composer.effortUnsupported')}</span>
+      <div className="effort-slider-body">
+        <Slider.Root key={epoch} className="effort-slider" min={0} max={Math.max(1, levels.length - 1)} step={1}
+          value={[index]} disabled={disabled || levels.length < 2}
+          onValueChange={([next]) => { if (!disabled) setPreview(next); }}
+          onValueCommit={commit}
+          onPointerDownCapture={event => {
+            if (disabled || levels.length < 2) { event.preventDefault(); return; }
+            gesture.current = { target: event.target as Element, pointerId: event.pointerId, identity };
+          }}
+          onPointerUpCapture={event => {
+            if (gesture.current && gesture.current.identity !== identity) {
+              event.preventDefault();
+              cancelGesture();
+            } else gesture.current = null;
+          }}
+          onPointerCancel={cancelGesture}
+          onLostPointerCapture={() => { if (gesture.current) cancelGesture(); }}>
+          <Slider.Track className="effort-slider-track">
+            <Slider.Range className="effort-slider-range" />
+            <span className="effort-slider-ticks" aria-hidden="true">
+              {levels.map((level, position) => <i key={level} data-filled={position <= index ? '' : undefined} />)}
             </span>
-            <Check aria-hidden="true" className="brain-picker-check" strokeWidth={1.75} />
+          </Slider.Track>
+          <Slider.Thumb className="effort-slider-thumb" aria-label={t('composer.chooseEffort')}
+            aria-describedby={hintId} aria-valuetext={label} aria-disabled={disabled || levels.length < 2}
+            tabIndex={brain.loading || brain.unavailable || levels.length < 2 ? -1 : 0}
+            data-level={preview === null ? brain.thinking : levels[index]} />
+        </Slider.Root>
+        <div className="effort-slider-endpoints" aria-hidden="true">
+          <span>{labelFor(levels[0])}</span><span>{labelFor(levels.at(-1)!)}</span>
+        </div>
+        {!supported ? <div className="effort-slider-feedback" role="status">
+          <p>{t('composer.effortUnsupported')}</p>
+          <button type="button" disabled={disabled} onClick={() => { void brain.pickThinking(''); }}>
+            {t('composer.asConfigured')}
           </button>
-        ) : null}
+        </div> : null}
         {!brain.loading && !brain.levels.length ? <p className="brain-picker-note">{t('composer.effortUnavailable')}</p> : null}
       </div>
     </section>

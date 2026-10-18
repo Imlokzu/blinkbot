@@ -11,9 +11,8 @@ const evaluate = code => JSON.parse(browser('--json', 'eval', `(() => eval(${JSO
 const route = (url, body) => browser('network', 'route', url, '--body', JSON.stringify(body));
 const menu = '.model-effort-menu';
 const models = `${menu} .model-picker-list`;
-const effort = `${menu} .effort-picker-list`;
+const effort = `${menu} .effort-picker-pane [role=slider]`;
 const modelRow = id => `${models} [data-model=${JSON.stringify(id)}]`;
-const effortRow = level => `${effort} [data-level=${JSON.stringify(level)}]`;
 const firstModel = 'openai/gpt-6-astra';
 const nextModel = 'regolo/claude-sonnet-5';
 const catalog = {
@@ -30,6 +29,7 @@ const catalog = {
   selected: firstModel, default: firstModel, thinking: 'high', available: true,
   thinking_levels: ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'adaptive', 'max', 'ultra', 'gateway-next'],
 };
+const levels = ['', ...new Set(catalog.thinking_levels.filter(Boolean))];
 const labelsFor = lang => {
   const previous = globalThis.document;
   globalThis.document = { documentElement: { lang } };
@@ -67,6 +67,7 @@ const openMenu = () => {
   settle();
   assert.equal(evaluate(`document.querySelector('${menu}').dataset.pickerStep`), 'effort', 'each opening starts with effort');
   assert.equal(evaluate(`document.querySelectorAll('${models}').length`), 0, 'the model catalog is a separate step');
+  assert.equal(evaluate(`getComputedStyle(document.querySelector('${menu}')).borderRadius`), '20px', 'the picker uses the softer reference corners');
 };
 const openModels = () => {
   browser('click', '.model-picker-change-model');
@@ -86,8 +87,26 @@ const closeMenu = () => {
 const waitChoice = (model, level) => browser('wait', '--fn', `window.__pickerCatalog.selected === ${JSON.stringify(model)}
   && window.__pickerCatalog.thinking === ${JSON.stringify(level)}
   && (!document.querySelector(${JSON.stringify(modelRow(model))}) || document.querySelector(${JSON.stringify(modelRow(model))}).ariaChecked === 'true')
-  && (!document.querySelector(${JSON.stringify(effortRow(level))}) || document.querySelector(${JSON.stringify(effortRow(level))}).ariaChecked === 'true')
-  && [...document.querySelectorAll('${menu} [role=radiogroup]')].every(group => group.ariaBusy !== 'true')`);
+  && (!document.querySelector('${effort}') || (document.querySelector('${effort}').dataset.level === ${JSON.stringify(level)}
+    && document.querySelector('${effort}').getAttribute('aria-valuenow') === ${JSON.stringify(String(levels.indexOf(level)))}))
+  && [...document.querySelectorAll('${menu} [aria-busy]')].every(group => group.ariaBusy !== 'true')`);
+const effortKey = key => {
+  assert.equal(evaluate(`const thumb = document.querySelector('${effort}'); thumb.focus();
+    document.activeElement === thumb || thumb.getAttribute('aria-disabled') === 'true'`), true,
+  'the enabled slider can receive keyboard focus before a keyboard adjustment');
+  browser('press', key);
+};
+const beginMaximumDrag = () => {
+  const drag = evaluate(`const thumb = document.querySelector('${effort}').getBoundingClientRect();
+    const track = document.querySelector('.effort-slider').getBoundingClientRect();
+    ({x: Math.round(thumb.left + thumb.width / 2), y: Math.round(thumb.top + thumb.height / 2),
+      endX: Math.round(track.right - 1), writes: window.__pickerWrites.length});`);
+  browser('mouse', 'move', String(drag.x), String(drag.y));
+  browser('mouse', 'down');
+  browser('mouse', 'move', String(drag.endX), String(drag.y));
+  browser('wait', '--fn', `document.querySelector('${effort}').getAttribute('aria-valuenow') === ${JSON.stringify(String(levels.length - 1))}`);
+  return drag;
+};
 const assertTrigger = (lang, model, level) => {
   const expected = labels[lang].trigger(model, labels[lang].levels[level]);
   assert.equal(evaluate('document.querySelector("[data-picker-test-trigger]").getAttribute("aria-label")'), expected);
@@ -95,18 +114,29 @@ const assertTrigger = (lang, model, level) => {
 const assertEffortStructure = lang => {
   const state = evaluate(`({
     headers: [...document.querySelectorAll('${menu} h2')].map(node => node.textContent),
-    groups: document.querySelectorAll('${menu} [role=radiogroup]').length,
-    checked: document.querySelectorAll('${effort} [role=radio][aria-checked=true]').length,
-    levels: [...document.querySelectorAll('${effort} [role=radio]')].map(node => node.dataset.level),
+    radios: document.querySelectorAll('${menu} [role=radio]').length,
+    sliders: document.querySelectorAll('${effort}').length,
+    level: document.querySelector('${effort}').dataset.level,
+    value: document.querySelector('${effort}').getAttribute('aria-valuenow'),
+    minimum: document.querySelector('${effort}').getAttribute('aria-valuemin'),
+    maximum: document.querySelector('${effort}').getAttribute('aria-valuemax'),
+    valueText: document.querySelector('${effort}').getAttribute('aria-valuetext'),
+    orientation: document.querySelector('${effort}').getAttribute('aria-orientation'),
+    label: document.querySelector('${effort}').getAttribute('aria-label'),
     changeModel: Boolean(document.querySelector('.model-picker-change-model')),
-    effortScroll: getComputedStyle(document.querySelector('${effort}')).overflowY,
+    height: document.querySelector('${menu}').getBoundingClientRect().height,
   });`);
-  assert.equal(state.groups, 1, 'effort is the only radio group in the first step');
+  assert.equal(state.radios, 0, 'effort uses a slider instead of a list of text choices');
   assert.deepEqual(state.headers, [labels[lang].effort]);
-  assert.equal(state.checked, 1);
-  assert.deepEqual(state.levels, ['', ...catalog.thinking_levels]);
+  assert.equal(state.sliders, 1);
+  assert.equal(state.minimum, '0');
+  assert.equal(state.maximum, String(levels.length - 1), 'every distinct backend level has a snap point');
+  assert.equal(state.value, String(levels.indexOf(state.level)));
+  assert.equal(state.valueText, labels[lang].levels[state.level], 'assistive technology gets the localized effort name');
+  assert.equal(state.orientation, 'horizontal');
+  assert.ok(state.label, 'the slider has an accessible name');
   assert.ok(state.changeModel, 'the current model opens the next step');
-  assert.equal(state.effortScroll, 'auto');
+  assert.ok(state.height < 320, 'the slider keeps the first step compact');
 };
 const assertModelStructure = lang => {
   const state = evaluate(`({
@@ -156,7 +186,9 @@ const assertComposerLayout = () => {
     const bounds = node => { const box = node.getBoundingClientRect(); return { left: box.left, right: box.right, width: box.width }; };
     ({bar: bounds(bar), trigger: bounds(trigger), tools: tools.map(bounds), microphone: bounds(microphone), send: bounds(send),
       micColor: getComputedStyle(microphone).color, sendBackground: getComputedStyle(send).backgroundColor,
-      sendColor: getComputedStyle(send).color, sendOpacity: getComputedStyle(send).opacity, sendDisabled: send.disabled});`);
+      sendColor: getComputedStyle(send).color, sendOpacity: getComputedStyle(send).opacity, sendDisabled: send.disabled,
+      fieldRadius: getComputedStyle(document.querySelector('.prompt-bar__field')).borderRadius,
+      plateRadius: getComputedStyle(document.querySelector('.prompt-bar-slot > .liquid-glass-plate')).borderRadius});`);
   assert.ok(state.trigger.left > state.bar.left + state.bar.width / 2, 'desktop model and effort sit on the right');
   assert.ok(state.tools.every(tool => tool.right <= state.trigger.left), 'attachment controls stay to the left');
   assert.ok(state.trigger.right <= state.microphone.left + 1 && state.microphone.right <= state.send.left + 1,
@@ -166,6 +198,8 @@ const assertComposerLayout = () => {
   assert.equal(state.sendColor, 'rgb(255, 255, 255)', 'the send arrow stays white');
   assert.equal(state.sendOpacity, '1', 'disabled send keeps its charcoal appearance');
   assert.ok(state.sendDisabled, 'the empty composer remains unable to send');
+  assert.equal(state.fieldRadius, '28px', 'the composer uses the rounded reference silhouette');
+  assert.equal(state.plateRadius, '28px', 'the glass background follows the composer corners');
 };
 // Keep touch emulation and measurements within one CDP session: the CLI reapplies input settings.
 const touchLayout = () => {
@@ -270,20 +304,36 @@ try {
   assert.deepEqual(evaluate('JSON.parse(localStorage.getItem("claudeBotRecentModels"))'), [nextModel]);
   assertTrigger('en', 'Claude Sonnet 5', 'high');
 
-  browser('click', effortRow('medium'));
+  effortKey('ArrowLeft');
   waitChoice(nextModel, 'medium');
   assertTrigger('en', 'Claude Sonnet 5', 'medium');
-  browser('click', effortRow(''));
+  const canceledDrag = beginMaximumDrag();
+  evaluate(`document.querySelector('${effort}').dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, pointerId: 1, pointerType: 'mouse' }))`);
+  waitChoice(nextModel, 'medium');
+  browser('mouse', 'up');
+  assert.equal(evaluate('window.__pickerWrites.length'), canceledDrag.writes, 'a canceled drag restores confirmed effort without saving');
+  // A new gesture measures the current track even when cancellation was
+  // followed by a layout change; cached coordinates must not shift its stops.
+  browser('set', 'viewport', '1380', '900');
+  const drag = beginMaximumDrag();
+  assert.equal(evaluate('window.__pickerWrites.length'), drag.writes, 'dragging previews effort without writing settings');
+  assert.equal(evaluate('window.__pickerCatalog.thinking'), 'medium', 'the committed effort stays unchanged until pointer release');
+  assertTrigger('en', 'Claude Sonnet 5', 'medium');
+  browser('mouse', 'up');
+  waitChoice(nextModel, 'gateway-next');
+  assert.equal(evaluate('window.__pickerWrites.length'), drag.writes + 1, 'pointer release commits exactly one snapped level');
+  browser('set', 'viewport', '1440', '900');
+  effortKey('Home');
   waitChoice(nextModel, '');
-  browser('click', effortRow('off'));
+  effortKey('ArrowRight');
   waitChoice(nextModel, 'off');
   assert.deepEqual(evaluate('window.__pickerWrites.slice(-2).map(write => write.body)'), [{ level: '' }, { level: 'off' }], 'reset and explicit off stay distinct');
   const writeCount = evaluate('window.__pickerWrites.length');
-  browser('click', effortRow('off'));
-  assert.equal(evaluate('window.__pickerWrites.length'), writeCount, 'the checked level does not rewrite settings');
+  browser('click', effort);
+  assert.equal(evaluate('window.__pickerWrites.length'), writeCount, 'clicking the current thumb does not rewrite settings');
 
   evaluate('window.__pickerWriteFails = true');
-  browser('click', effortRow('high'));
+  effortKey('End');
   browser('wait', '--text', labels.en.effortFailure);
   waitChoice(nextModel, 'off');
   openModels();
@@ -295,8 +345,7 @@ try {
   assert.deepEqual(evaluate('JSON.parse(localStorage.getItem("claudeBotRecentModels"))'), [nextModel], 'rejected models do not enter recents');
   evaluate('window.__pickerWriteFails = false');
   backToEffort();
-  browser('click', effortRow('off'));
-  browser('press', 'Home');
+  effortKey('Home');
   waitChoice(nextModel, '');
   browser('press', 'End');
   waitChoice(nextModel, 'gateway-next');
@@ -355,8 +404,8 @@ try {
   browser('wait', '--fn', 'typeof window.__pickerRelease === "function"');
   const pendingWrites = evaluate('window.__pickerWrites.length');
   backToEffort();
-  assert.equal(evaluate(`document.querySelector(${JSON.stringify(effortRow('low'))}).ariaDisabled`), 'true');
-  evaluate(`document.querySelector(${JSON.stringify(effortRow('low'))}).click()`);
+  assert.equal(evaluate(`document.querySelector('${effort}').hasAttribute('data-disabled') || document.querySelector('${effort}').ariaDisabled === 'true'`), true);
+  effortKey('ArrowRight');
   assert.equal(evaluate('window.__pickerWrites.length'), pendingWrites, 'effort cannot race a pending model write');
   closeMenu();
   openMenu();
@@ -373,7 +422,15 @@ try {
   closeMenu();
   assert.deepEqual(evaluate('window.__pickerWrites[0]'), { address: '/api/brain/model', body: { model: nextModel } });
   assert.ok(evaluate('window.__pickerWrites.slice(1).some(write => write.address === "/api/brain/thinking")'));
-  console.log('PASS: right-aligned model and neutral controls, effort-first navigation, search hover/focus/click, serialized writes, late acknowledgement navigation, acknowledged recents, rollback, reset/off, keyboard focus, touch bounds and both locales');
+  console.log('PASS: rounded composer and picker, right-aligned model and neutral controls, snapping effort slider with release-only writes, search/back, serialized writes, late acknowledgement navigation, acknowledged recents, rollback, reset/off, keyboard focus, touch bounds and both locales');
+} catch (error) {
+  console.error('Picker failure state:', evaluate(`({step: document.querySelector('${menu}')?.dataset.pickerStep,
+    focus: {tag: document.activeElement?.tagName, className: document.activeElement?.className,
+      role: document.activeElement?.getAttribute('role'), level: document.activeElement?.dataset.level},
+    slider: document.querySelector('${effort}')?.outerHTML,
+    busy: document.querySelector('.effort-picker-pane')?.getAttribute('aria-busy')})`));
+  if (process.env.MODEL_EFFORT_SHOTS) browser('screenshot', `${process.env.MODEL_EFFORT_SHOTS}/model-effort-failure.png`);
+  throw error;
 } finally {
   browser('close');
 }

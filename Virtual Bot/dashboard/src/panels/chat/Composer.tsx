@@ -219,7 +219,7 @@ export function Composer({
               stop: t('composer.stop'),
             }}
             width="100%"
-            radius={16}
+            radius={28}
             maxRows={8}
             busy={busy}
             sendDisabled={uploading}

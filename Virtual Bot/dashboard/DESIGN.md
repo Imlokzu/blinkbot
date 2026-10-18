@@ -941,3 +941,17 @@ the owner's clarified request is to remove the oversized footer.
   empty disabled draft. Dark mode inverts the send contrast; recording stays red.
 - Keep the existing wallpaper, welcome heading, navigation, and provider catalog.
   New picker labels live in both locales in src/locales/modelPicker.ts.
+
+
+## Effort slider and rounded composer (2026-10-18)
+
+- The effort step uses a horizontal snapping slider, with its current value
+  above the rail and endpoint labels below. Supported stops come from the
+  gateway; Automatic clears the setting and remains distinct from Off.
+- Dragging previews locally and saves on release. Keyboard steps save directly.
+  Keep focus during saves and restore acknowledged state on failure. Cancel
+  active gestures when model/catalog/settings change or pointer capture ends.
+- Reuse the installed Radix slider and CSS; no additional dependency or motion
+  system. Reduced motion suppresses the thumb's hover enlargement.
+- Composer field and glass plate both use 28px corners. The model/effort popup
+  uses 20px corners, with automatic height for the compact effort step.
