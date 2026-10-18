@@ -1,7 +1,7 @@
 /** Attachment actions, responsive bounds and focus use browser-only API fixtures. */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { t as chatT } from '../src/locales/chat.ts';
 import { t as connectorT } from '../src/locales/connectors.ts';
 import { t as imageT } from '../src/locales/imageGeneration.ts';
@@ -11,6 +11,7 @@ const origin = process.env.DASHBOARD_TEST_URL || 'http://127.0.0.1:5183';
 const path = process.env.DASHBOARD_TEST_PATH || '/static/dash/';
 const shots = process.env.ATTACHMENT_MENU_SHOTS || '/tmp/attachment-menu-design';
 const beforeOnly = process.env.ATTACHMENT_MENU_BEFORE_ONLY === '1';
+const reducedOnly = process.env.ATTACHMENT_MENU_REDUCED_ONLY === '1';
 const session = `attachment-menu-design-${process.pid}`;
 const menu = '[data-attachment-menu]';
 const trigger = '[data-attachment-trigger]';
@@ -35,6 +36,7 @@ const fixtures = {
   '/api/brain/intelligence': { models: [] },
   '/api/chat/context': { parts: [], chars: 0, dropped: 0, history_limit: 20 },
   '/api/asr/status': { enabled: false }, '/api/tts/status': { enabled: false },
+  '/api/local/haptics': { available: false, kind: null },
   '/api/connectors': { connectors: [{ id: 'notebooklm', name: 'NotebookLM', kind: 'notebooklm', enabled: true, agent_access: true, browse: true }] },
   '/api/images/status': { available: true, provider: 'codex', code: 'ready' },
   '/api/tools/catalog': { profile: 'fixture', readable: true, groups: [{ server: 'tools', tools: [{ name: 'Fixture search', qualified: 'tools.search', description: 'A browser-only fixture tool', enabled: true, sensitive: false }] }] },
@@ -115,6 +117,54 @@ const bounds = context => {
   assert.equal(value.focusInside, true, `${context}: opening focuses a visible menu action`);
   assert.ok(value.focusTop >= value.top - 1 && value.focusBottom <= value.bottom + 1, `${context}: the initially focused action is fully visible`);
 };
+const design = (language, context) => {
+  const value = evaluate(`const panel=document.querySelector('${menu}');
+    const rect=node=>{const r=node.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};};
+    const rows=[...panel.querySelectorAll('.attach-action-row')], heading=panel.querySelector('.attach-sheet-heading');
+    const animated=[...panel.querySelectorAll('.attach-action-row,.attach-media-tile')];
+    ({compact:panel.classList.contains('is-compact'),coarse:matchMedia('(pointer:coarse)').matches,
+      panel:rect(panel),radius:getComputedStyle(panel).borderRadius,label:panel.getAttribute('aria-label'),
+      heading:Boolean(heading),close:heading?rect(heading.querySelector('button')):null,
+      context:Boolean(panel.querySelector('.attach-context')),
+      groups:[...panel.querySelectorAll('.attach-action-group')].map(group=>[...group.querySelectorAll('[data-attachment-action]')].map(row=>row.dataset.attachmentAction)),
+      groupBorder:getComputedStyle(panel.querySelector('.attach-action-group + .attach-action-group')).borderTopWidth,
+      uploadBorder:getComputedStyle(panel.querySelector('.attach-sheet-options')).borderTopWidth,
+      rows:rows.map(row=>({action:row.dataset.attachmentAction,...rect(row),
+        icon:rect(row.querySelector('svg')),color:getComputedStyle(row.querySelector('svg')).color,
+        text:rect(row.querySelector('span')),font:getComputedStyle(row.querySelector('span')).fontSize})),
+      rootAnimation:getComputedStyle(panel).animationName,rootDuration:getComputedStyle(panel).animationDuration,
+      rowAnimations:animated.map(row=>({name:getComputedStyle(row).animationName,delay:parseFloat(getComputedStyle(row).animationDelay)}))});`);
+  assert.equal(value.label,localized(language,chatT,'composer.add'),`${context}: the headerless dialog retains its accessible name`);
+  assert.equal(value.radius,'16px',`${context}: the panel keeps its unified rounded shape`);
+  assert.deepEqual(value.groups,[['image','connectors','tools'],value.compact?['panels']:['panels','workbench']],`${context}: related options form two coherent groups`);
+  assert.equal(value.uploadBorder,'1px',`${context}: uploads are separated from conversation actions`);
+  assert.equal(value.groupBorder,'1px',`${context}: workspace actions have their own separator`);
+  assert.ok(value.rows.every(row=>row.icon.width===18&&row.icon.height===18&&row.font==='13px'),`${context}: all action rows use consistent icon and text sizing`);
+  assert.equal(value.rows.find(row=>row.action==='image').color,'rgb(230, 83, 47)',`${context}: image creation uses the orange accent`);
+  assert.ok(value.rows.every(row=>Math.abs(row.left-value.rows[0].left)<1&&Math.abs(row.right-value.rows[0].right)<1),`${context}: every row fills the same horizontal area`);
+  assert.ok(value.rows.every(row=>Math.abs(row.icon.left-value.rows[0].icon.left)<1&&Math.abs(row.text.left-value.rows[0].text.left)<1),`${context}: icons and labels align across groups`);
+  if(value.compact){
+    assert.equal(value.panel.width,264,`${context}: desktop menu uses the compact width`);
+    assert.equal(value.heading,false,`${context}: desktop has no redundant heading or close button`);
+    assert.equal(value.context,false,`${context}: the desktop context meter remains outside this menu`);
+    assert.ok(value.rows.every(row=>row.height===(value.coarse?44:36)),`${context}: row height follows the input type`);
+    const [photos,files]=value.rows;
+    assert.deepEqual([photos.action,files.action],['photos','files']);
+    assert.ok(files.top>=photos.bottom,`${context}: photo and file actions stack vertically`);
+  }else{
+    assert.ok(value.heading&&value.context,`${context}: phone keeps its heading and context meter`);
+    assert.ok(value.close.width>=44&&value.close.height>=44,`${context}: phone close control remains easy to touch`);
+  }
+  assert.equal(value.rootAnimation,'attach-menu-open',`${context}: opening animation survives the new groups`);
+  assert.equal(value.rootDuration,'0.24s');
+  assert.ok(value.rowAnimations.every(row=>row.name==='attach-action-open'),`${context}: descendant rows retain their entry animation`);
+  assert.ok(value.rowAnimations.at(-1).delay>value.rowAnimations[0].delay,
+    `${context}: opening still staggers the actions: ${JSON.stringify(value.rowAnimations)}`);
+};
+const audit = context => {
+  const result=JSON.parse(browser('a11y','--selector',menu,'--json')).data;
+  assert.equal(result.counts.violations,0,`${context}: ${JSON.stringify(result.violations)}`);
+};
 const setup = (language, theme, width, height, glass = false) => {
   browser('set', 'viewport', String(width), String(height));
   evaluate(`localStorage.setItem('claudeBotLang', '${language}'); localStorage.setItem('claudeBotTheme', '${theme}');
@@ -132,6 +182,25 @@ const dismissDialog = () => {
   browser('press', 'Escape');
   browser('wait', '--fn', '!document.querySelector("[role=dialog]")');
   browser('wait', '--fn', '!document.querySelector(".u-veil")');
+};
+const checkReducedMotion = () => {
+  setup('uk','dark',390,844,true);
+  browser('set','media','dark','reduced-motion');
+  evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
+  open();
+  const reduced=evaluate(`const panel=document.querySelector('${menu}');({matches:matchMedia('(prefers-reduced-motion:reduce)').matches,
+    root:getComputedStyle(panel).animationName,
+    rows:[...panel.querySelectorAll('.attach-action-row,.attach-media-tile')].map(row=>getComputedStyle(row).animationName),
+    transitions:[...panel.querySelectorAll('.attach-action-row')].map(row=>({property:getComputedStyle(row).transitionProperty,duration:getComputedStyle(row).transitionDuration})),
+    running:panel.getAnimations({subtree:true}).filter(animation=>animation.playState==='running').length});`);
+  assert.equal(reduced.matches,true,'the reduced-motion fixture uses the native preference');
+  assert.equal(reduced.root,'none');
+  assert.ok(reduced.rows.every(name=>name==='none'),'reduced motion disables entry animations inside the new groups');
+  assert.ok(reduced.transitions.every(transition=>transition.property==='none'
+    || transition.duration.split(',').every(duration=>Number.parseFloat(duration)<=.00001)),
+    `reduced motion removes row transitions, allowing the app-wide 0.01ms accessibility override: ${JSON.stringify(reduced.transitions)}`);
+  assert.equal(reduced.running,0,'reduced motion opens immediately without decorative movement');
+  bounds('reduced-motion');close();
 };
 
 try {
@@ -161,15 +230,22 @@ try {
       setup('en', 'dark', width, height); open(); screenshot(`before-${width}`); close();
     }
     console.log('PASS: captured the existing desktop and phone attachment menu');
+  } else if(reducedOnly) {
+    checkReducedMotion();
+    assert.deepEqual(evaluate('window.__attachmentMenuWrites'),[]);
+    assert.deepEqual(evaluate('window.__attachmentMenuErrors'),[]);
+    console.log('PASS: reduced-motion root and descendant animation names, row transition suppression, bounds and focus; fully isolated API fixtures');
   } else {
     for (const language of ['en','uk']) for (const theme of ['light','dark']) for (const [width,height] of [[1440,960],[390,844],[320,568]]) {
       const context=`${language}/${theme}/${width}`;
       setup(language,theme,width,height); open(); bounds(`${context}/welcome`);
+      design(language,context);
       assert.equal(evaluate(`document.querySelector('${trigger}').ariaExpanded`), 'true');
       assert.equal(evaluate(`document.querySelectorAll('${menu} .attach-media-rows button').length`), width >= 1180 ? 2 : 0, `${context}: compact desktop photo/file actions`);
       assert.equal(evaluate(`document.querySelectorAll('${menu} .attach-media-grid button').length`), width >= 1180 ? 0 : 3, `${context}: phone camera/photo/file actions`);
       assert.equal(evaluate(`document.querySelectorAll('${menu} [data-attachment-action] > svg[data-solar-icon]').length`),width>=1180?6:8,`${context}: every action keeps its Solar glyph`);
       if (width < 760) assert.equal(evaluate(`[...document.querySelectorAll('${menu} button')].every(button => {const r=button.getBoundingClientRect();return r.width>=44&&r.height>=44})`), true, `${context}: every phone action retains a 44px target`);
+      if(width!==320) audit(context);
       screenshot(`${language}-${theme}-${width}-welcome`);
       const draft = evaluate('document.querySelector(".prompt-bar textarea").getBoundingClientRect().top');
       browser('press','Tab'); assert.equal(evaluate(`document.querySelector('${menu}').contains(document.activeElement)`),true, `${context}: Tab reaches the next menu action`);
@@ -258,14 +334,32 @@ try {
     browser('set','viewport','390','844');browser('wait','.attach-media-grid');settle(menu);bounds('resize-open-desktop-to-phone');
     browser('set','viewport','1440','960');browser('wait','.attach-media-rows');settle(menu);bounds('resize-open-phone-to-desktop');close();
 
-    setup('uk','dark',390,844,true);open();browser('wait',`${menu}.popup-lens`);bounds('selected-glass');screenshot('uk-dark-390-glass');
-    const glassAudit=JSON.parse(browser('a11y','--selector',menu,'--json'));
-    assert.equal(glassAudit.data.counts.violations,0,JSON.stringify(glassAudit.data.violations));close();
-    await cdp('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
-    open();assert.equal(evaluate(`document.querySelector('${menu}').getAnimations({subtree:true}).filter(animation=>animation.playState==='running').length`),0,'reduced motion opens immediately without decorative movement');bounds('reduced-motion');close();
+    for(const [language,theme,width,height] of [['en','light',1440,960],['uk','dark',1440,960],['uk','dark',390,844]]){
+      setup(language,theme,width,height,true);open();browser('wait',`${menu}.popup-lens`);
+      bounds(`glass/${language}/${theme}/${width}`);design(language,`glass/${language}/${theme}/${width}`);
+      screenshot(`${language}-${theme}-${width}-glass`);audit(`glass/${language}/${theme}/${width}`);close();
+    }
+    setup('en','light',1440,960);open();
+    // CLI commands reapply their input emulation. Keep this coarse-pointer
+    // change, layout measurement and screenshot inside the same CDP session.
+    await cdp('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:1});
+    const coarse=(await cdp('Runtime.evaluate',{awaitPromise:true,returnByValue:true,
+      expression:`new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))).then(()=>{
+        const panel=document.querySelector('${menu}'),rect=panel.getBoundingClientRect();
+        return {coarse:matchMedia('(pointer:coarse)').matches,width:rect.width,
+          heights:[...panel.querySelectorAll('.attach-action-row')].map(row=>row.getBoundingClientRect().height),
+          overflow:panel.scrollWidth>panel.clientWidth};})`})).result.value;
+    assert.equal(coarse.coarse,true,'the wide touch fixture uses coarse input');
+    assert.equal(coarse.width,264,'wide touch keeps the desktop menu width');
+    assert.ok(coarse.heights.every(height=>height===44),'coarse pointers receive 44px desktop action rows');
+    assert.equal(coarse.overflow,false,'larger desktop touch targets introduce no horizontal overflow');
+    const coarseShot=await cdp('Page.captureScreenshot',{format:'png'});
+    writeFileSync(`${shots}/en-light-1440-coarse.png`,Buffer.from(coarseShot.data,'base64'));
+    close();
+    checkReducedMotion();
     assert.deepEqual(evaluate('window.__attachmentMenuWrites'),[]);
     assert.deepEqual(evaluate('window.__attachmentMenuErrors'),[]);
-    console.log('PASS: clean attachment menu; en/uk and light/dark at 1440/390/320; photo/file/camera callbacks; upload, image creation, connectors, tools, panels and workbench; Escape/outside focus; history/tall draft/short viewport bounds; selective glass, accessibility and reduced motion; no real backend writes');
+    console.log('PASS: compact headerless desktop rows, grouped actions, consistent glyphs and orange image action; en/uk light/dark at 1440/390/320; media/upload and all secondary callbacks; focus, history/tall-draft/short-viewport bounds; desktop/phone glass, accessibility and preserved motion; fully isolated API fixtures');
   }
 } catch(error) {
   console.error(browser('snapshot','-i'));console.error(browser('errors'));screenshot('failure');throw error;

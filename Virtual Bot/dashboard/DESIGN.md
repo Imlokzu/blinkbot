@@ -839,17 +839,21 @@ cover terminal states, private URLs, Markdown delivery and component lifecycle.
   rotation. Keep the existing labelled toggle, expanded state and focus return.
 
 
-## Refined attachment menu (2026-10-04)
+## Refined attachment menu (2026-10-19)
 
-- The paperclip menu uses one 312px desktop / up-to-344px phone surface with
-  quiet heading, two radius sizes and one media/actions separator. Remove
-  repeated per-row chevrons, boxed media cards and explanatory subtitle.
-- Photos/files sit side by side on desktop. Phones keep a flat three-option
-  camera/photos/files tray and 44px touch controls. All existing destinations
-  stay accessible, including phone Workbench and context details.
-- Preserve selected popup glass and shared motion. Fit against header, app
-  shell and visual viewport, including composer movement and viewport pan;
-  use a viewport placement in cramped windows without clearing the draft.
+- The paperclip menu uses one 264px desktop / up-to-344px phone surface with
+  16px corners and subtle group separators. Desktop starts directly with its
+  actions; the dialog keeps its localized accessible name without a heading.
+- Desktop Photos and Files stack as full-width rows, followed by image creation,
+  Connectors and Tools, then Panels. Rows share 18px icons, 13px labels and
+  aligned insets. The Create image icon uses Blink orange #E6532F.
+- Desktop rows are 36px high; coarse pointers retain 44px targets. Phones keep
+  the title/close control, camera/photos/files tray, Workbench and context meter,
+  with 44px action targets. Quiet hover surfaces and focus rings remain visible.
+- Preserve selected popup glass and shared motion, including staggered row
+  reveals and reduced-motion overrides. Fit against header, app shell and
+  visual viewport, including composer movement and viewport pan; use a viewport
+  placement in cramped windows without clearing the draft.
 - Pointer entry focuses the dialog without a first-action outline. Keyboard
   entry focuses a media choice and survives compact resize. Record actual
   activation instead of relying only on a previously focused trigger's CSS.

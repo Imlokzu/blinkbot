@@ -78,9 +78,9 @@ const uk = {
   'composer.effortHintShort': 'Рівень думання — діє на всі розмови.',
 
   // Аркуш «+» на телефоні
-  'sheet.camera': 'камера',
-  'sheet.photos': 'фото',
-  'sheet.files': 'файли',
+  'sheet.camera': 'Камера',
+  'sheet.photos': 'Фото',
+  'sheet.files': 'Файли',
   'sheet.tools': 'Інструменти',
   'sheet.panels': 'Панелі',
   'sheet.hint': 'Фото, документи та джерела для агента',
@@ -315,9 +315,9 @@ const en: Record<keyof typeof uk, string> = {
   'composer.effortToast': 'Thinking level: {level}',
   'composer.effortHintShort': 'Thinking level — applies to all conversations.',
 
-  'sheet.camera': 'camera',
-  'sheet.photos': 'photos',
-  'sheet.files': 'files',
+  'sheet.camera': 'Camera',
+  'sheet.photos': 'Photos',
+  'sheet.files': 'Files',
   'sheet.tools': 'Tools',
   'sheet.panels': 'Panels',
   'sheet.hint': 'Photos, documents and sources for the agent',

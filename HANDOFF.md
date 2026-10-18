@@ -3519,3 +3519,21 @@ were removed, then verified absent; usage/trace accounting was retained. The
 review's live active-motion result is not claimed. Independent source/dev review
 and the separate live fixture regression passed. Picker tests now block chat
 and tool submissions before loading the page to prevent this failure mode.
+
+## 2026-10-19 — Compact attachment action menu
+
+Remade the composer attachment panel with a 264px headerless desktop surface,
+16px corners and aligned full-width Photos/Files rows. Subtle separators group
+uploads, conversation actions and workspace navigation. Consistent icons and
+13px labels keep the menu compact; Create image carries Blink orange #E6532F.
+Phones keep their title, media tray, Workbench, context meter and 44px targets;
+wide touch screens also retain 44px rows. Popup glass, keyboard focus, file
+picker lifetime, viewport fitting and reduced-motion behavior are preserved.
+
+Validation: 240 dashboard unit tests, TypeScript and the isolated clean-source
+build pass. Browser coverage checks both locales/themes, desktop/phone layouts,
+all action callbacks and uploads, alignment, grouping, coarse-pointer targets,
+focus, constrained bounds, glass and reduced motion using fully mocked APIs.
+Independent static review fixed stagger-selector specificity. Post-review
+actual-app smoke passed 36 HTTP checks including traversal 400s, then stopped
+its temporary server. Runtime publication follows in a separate release commit.

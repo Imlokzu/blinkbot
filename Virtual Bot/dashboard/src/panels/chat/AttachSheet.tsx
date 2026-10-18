@@ -200,9 +200,9 @@ export function AttachSheet({
           data-state="open"
           className={`attach-sheet popup-shell u-pop ${compact ? 'is-compact' : ''}`}
         >
-          <header className="attach-sheet-heading"><p>{t('composer.add')}</p>
+          {!compact ? <header className="attach-sheet-heading"><p>{t('composer.add')}</p>
             <button type="button" aria-label={t('sheet.close')} onClick={() => { onClose(); anchor.current?.focus({ preventScroll: true }); }}><X size={16} /></button>
-          </header>
+          </header> : null}
           {compact ? <div className="attach-media-rows">
             <Row icon={<Image />} label={t('sheet.photos')} action="photos" onClick={() => photos.current?.click()} />
             <Row icon={<FileText />} label={t('sheet.files')} action="files" onClick={() => files.current?.click()} />
@@ -212,14 +212,18 @@ export function AttachSheet({
             <Tile icon={<FileText />} label={t('sheet.files')} action="files" onClick={() => files.current?.click()} />
           </div>}
           <div className="attach-sheet-options">
-          <Row icon={<ImagePlus />} label={imageT('title')} action="image" onClick={onImageGeneration} />
-          <Row icon={<Cable />} label={connectorT('connectors.title')} action="connectors" onClick={onConnectors} />
-          <Row icon={<Wrench />} label={t('sheet.tools')} action="tools" onClick={onTools} />
-          <Row icon={<PanelRightOpen />} label={t('sheet.panels')} action="panels" onClick={() => {
-            anchor.current?.focus({ preventScroll: true });
-            onPanels();
-          }} />
-          {onWorkbench ? <Row icon={<PanelRightOpen />} label={benchT('wb.open')} action="workbench" onClick={onWorkbench} /> : null}
+            <div className="attach-action-group">
+              <Row icon={<ImagePlus />} label={imageT('title')} action="image" onClick={onImageGeneration} />
+              <Row icon={<Cable />} label={connectorT('connectors.title')} action="connectors" onClick={onConnectors} />
+              <Row icon={<Wrench />} label={t('sheet.tools')} action="tools" onClick={onTools} />
+            </div>
+            <div className="attach-action-group">
+              <Row icon={<PanelRightOpen />} label={t('sheet.panels')} action="panels" onClick={() => {
+                anchor.current?.focus({ preventScroll: true });
+                onPanels();
+              }} />
+              {onWorkbench ? <Row icon={<PanelRightOpen />} label={benchT('wb.open')} action="workbench" onClick={onWorkbench} /> : null}
+            </div>
           </div>
           {!compact ? <div className="attach-context"><ContextMeter {...context} variant="row" /></div> : null}
         </div>
