@@ -340,6 +340,9 @@ const touchLayout = () => {
 try {
   if (process.platform === 'darwin') execFileSync('osascript', ['-e', 'set volume output muted true']);
   browser('open', 'about:blank');
+  // Picker checks must never submit a real chat if an overlay moves under the pointer.
+  browser('network', 'route', '**/api/chat', '--abort');
+  browser('network', 'route', '**/api/tools/call', '--abort');
   browser('set', 'viewport', '1440', '900');
   route('**/api/auth/config', { disabled: true });
   route('**/api/sessions', { sessions: [] });

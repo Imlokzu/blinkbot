@@ -3502,3 +3502,20 @@ full browser regression passed. Independent review verified reduced-motion
 specificity, trusted-input gating and hung-auth/request cleanup. Post-review
 actual-app smoke passed 40 checks, with all native ticks mocked, and stopped
 its temporary server. Automated tests never produced physical feedback.
+
+
+## 2026-10-18 — Publish effort motion and native feedback
+
+Published the clean frontend build from 3d9f692d and gracefully restarted the
+existing local service to register the haptic routes. The live native bridge
+reported available; one explicit manual tick returned accepted in 218ms.
+This verifies the AppKit call, not physical sensation. All automated checks
+mock hardware. The full browser regression passed on port 8100, and the final
+actual-app smoke passed 38 checks before stopping its temporary server.
+
+A manual live review accidentally submitted the built-in bill-splitter prompt.
+It completed before Stop. Only that test conversation and its generated receipt
+were removed, then verified absent; usage/trace accounting was retained. The
+review's live active-motion result is not claimed. Independent source/dev review
+and the separate live fixture regression passed. Picker tests now block chat
+and tool submissions before loading the page to prevent this failure mode.
