@@ -3427,3 +3427,26 @@ checks. Its fixture now waits for the acknowledged trigger label as well as
 the slider preview. Independent live review verified real model data and the
 exact radii without POSTs. Post-review HTTP smoke passed 34 checks and stopped
 its isolated server. The existing local dashboard stays running.
+
+
+## 2026-10-18 — Source-matched orange effort control
+
+Two sequential Antigravity analyses inspected Zeron upstream revision
+2e8f02ec2dfc521a20a5c43fcdbf4fae2381853a. The effort card now follows its
+256px width, 12px radius, 48px two-line header, 28px rail and 44x32px white
+pill thumb. Blink orange #E6532F replaces purple. The effort value sits above
+the clickable model name; generic headings, separators and endpoint captions
+are removed from this view. The approved composer and model-list styles stay.
+
+Pointer, thumb and tick centres share the 22px travel inset. Wide-thumb drags
+retain the grab offset; a stationary thumb press cannot reset an unsupported
+effort. Existing keyboard, save-on-release, rollback and cancellation behavior
+remain. Unsupported fast-tier controls are not fabricated. Source measurements,
+adaptation details and the MIT notice are in dashboard/docs/zeron-effort-reference.md.
+
+Validation: 240 dashboard unit tests, TypeScript and the isolated clean-source
+build pass. The browser regression covers exact dimensions/material, thumb and
+tick alignment, endpoint clicks, edge grabs, keyboard, cancellation, rollback,
+both locales and four viewport widths. Independent adversarial review approved
+the corrected gestures. Post-review actual-app smoke passed 36 HTTP checks,
+including traversal 400s; the temporary server stopped.

@@ -955,3 +955,20 @@ the owner's clarified request is to remove the oversized footer.
   system. Reduced motion suppresses the thumb's hover enlargement.
 - Composer field and glass plate both use 28px corners. The model/effort popup
   uses 20px corners, with automatic height for the compact effort step.
+
+
+## Source-matched orange effort card (2026-10-18)
+
+- Follow Zeron's compact effort proportions: 256px card, 12px corners, 4px
+  inset, 48px header, 28px rail in a 36px block, and a white 44x32px pill thumb.
+  Effort is 14px/17px semibold above the model's 12px/15px clickable subtitle.
+- This supersedes the 20px corner and thin-rail design only for the effort
+  step. Composer corners remain 28px and the model-list card retains 20px.
+- Blink orange #E6532F owns the fill with a quiet vertical highlight; this
+  owner-approved rail is a narrow exception to the general gradient rule.
+  Keep the handle white in both themes, without perpetual shimmer or scaling.
+- Keep tick centres, thumb travel and pointer mapping on the same 22px inset.
+  Preserve the thumb's grab offset. A motionless thumb press must not select
+  Automatic when the saved effort is unsupported.
+- Do not add the reference's fast-tier button without a real gateway setting.
+  Measurements, immutable source links and license: docs/zeron-effort-reference.md.

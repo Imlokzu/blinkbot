@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Search, X } from '../../vendor/solar-icons/compat.ts';
+import { Check, ChevronDown, ChevronLeft, Search, X } from '../../vendor/solar-icons/compat.ts';
 import { cn } from '@/lib/cn';
 import { t } from '@/locales/chat';
 import { t as pickerText } from '@/locales/modelPicker';
@@ -276,15 +276,8 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
               </button>
             </div>
           ) : null}
-          {step === 'effort' ? <>
-            <button ref={changeModelButton} type="button" className="model-picker-change-model"
-              aria-label={pickerText('changeModel', { model: label })} onClick={() => changeStep('models')}>
-              {brain.currentModel ? <BrandLogo model={brain.currentModel} /> : null}
-              <span className="brain-picker-name">{label}</span>
-              <ChevronRight aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.75} />
-            </button>
-            <EffortOptions brain={brain} />
-          </> : <section ref={modelsPane} className="brain-picker-pane model-picker-pane" aria-label={t('composer.models')}>
+          {step === 'effort' ? <EffortOptions brain={brain} modelLabel={label} modelButtonRef={changeModelButton}
+            onChangeModel={() => changeStep('models')} /> : <section ref={modelsPane} className="brain-picker-pane model-picker-pane" aria-label={t('composer.models')}>
             <div className="brain-picker-heading model-picker-heading" data-search-open={searchOpen ? '' : undefined}>
               <button type="button" className="model-picker-back" aria-label={pickerText('backToEffort')}
                 onClick={() => changeStep('effort', true)}>

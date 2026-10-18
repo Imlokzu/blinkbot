@@ -1,14 +1,24 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type PointerEvent, type Ref } from 'react';
 import * as Slider from '@radix-ui/react-slider';
+import { ChevronRight } from '../../vendor/solar-icons/compat.ts';
 import { t } from '@/locales/chat';
+import { t as pickerText } from '@/locales/modelPicker';
 import { thinkingLabel, type useBrainChoice } from './useBrainChoice';
 
 /** Preview locally while dragging; only release or a keyboard step saves. */
-export function EffortOptions({ brain }: { brain: ReturnType<typeof useBrainChoice> }) {
+export function EffortOptions({ brain, modelLabel, modelButtonRef, onChangeModel }: {
+  brain: ReturnType<typeof useBrainChoice>;
+  modelLabel: string;
+  modelButtonRef: Ref<HTMLButtonElement>;
+  onChangeModel: () => void;
+}) {
   const hintId = useId();
   const [preview, setPreview] = useState<number | null>(null);
   const [epoch, setEpoch] = useState(0);
-  const gesture = useRef<{ target: Element; pointerId: number; identity: string } | null>(null);
+  const gesture = useRef<{
+    target: Element; pointerId: number; identity: string;
+    grabOffset: number; next: number; start: number; fromThumb: boolean;
+  } | null>(null);
   // Automatic clears the setting; explicit off remains a different stop.
   const levels = ['', ...new Set(brain.levels.filter(Boolean))];
   const levelKey = JSON.stringify(levels);
@@ -45,11 +55,30 @@ export function EffortOptions({ brain }: { brain: ReturnType<typeof useBrainChoi
     if (!disabled && next >= 0 && next < levels.length) void brain.pickThinking(levels[next]);
   };
 
+  const previewPointer = (event: PointerEvent<HTMLElement>) => {
+    const active = gesture.current;
+    if (!active || active.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    if (disabled || active.identity !== identity) { cancelGesture(); return; }
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const fraction = Math.max(0, Math.min(1, (event.clientX - active.grabOffset - bounds.left) / Math.max(1, bounds.width)));
+    active.next = Math.round(fraction * (levels.length - 1));
+    setPreview(active.next);
+  };
+
   return (
-    <section className="brain-picker-pane effort-picker-pane" aria-label={t('composer.effort')} aria-busy={brain.saving}>
+    <section className="brain-picker-pane effort-picker-pane" aria-label={t('composer.effort')} aria-busy={brain.saving}
+      style={{ '--effort-fraction': index / Math.max(1, levels.length - 1) } as CSSProperties}>
+      <h2 className="sr-only">{t('composer.effort')}</h2>
       <div className="effort-slider-heading">
-        <h2 className="u-label">{t('composer.effort')}</h2>
-        <span className="effort-slider-value" title={label}>{label}</span>
+        <button ref={modelButtonRef} type="button" className="model-picker-change-model"
+          aria-label={pickerText('changeModel', { model: modelLabel })} onClick={onChangeModel}>
+          <span className="effort-slider-value" title={label}>{label}</span>
+          <span className="effort-model-link">
+            <span title={modelLabel}>{modelLabel}</span>
+            <ChevronRight aria-hidden="true" className="effort-model-chevron" strokeWidth={1.75} />
+          </span>
+        </button>
       </div>
       <p id={hintId} className="sr-only">{t('composer.effortHintShort')}</p>
       <div className="effort-slider-body">
@@ -58,21 +87,39 @@ export function EffortOptions({ brain }: { brain: ReturnType<typeof useBrainChoi
           onValueChange={([next]) => { if (!disabled) setPreview(next); }}
           onValueCommit={commit}
           onPointerDownCapture={event => {
-            if (disabled || levels.length < 2) { event.preventDefault(); return; }
-            gesture.current = { target: event.target as Element, pointerId: event.pointerId, identity };
+            event.preventDefault();
+            if (disabled || levels.length < 2 || gesture.current) return;
+            const thumb = (event.target as Element).closest<HTMLElement>('[role=slider]');
+            const bounds = thumb?.getBoundingClientRect();
+            // The 44px pill keeps its grab offset; pressing the track remains absolute.
+            gesture.current = {
+              target: event.currentTarget, pointerId: event.pointerId, identity,
+              grabOffset: bounds ? event.clientX - (bounds.left + bounds.width / 2) : 0,
+              next: index, start: index, fromThumb: Boolean(thumb),
+            };
+            event.currentTarget.setPointerCapture(event.pointerId);
+            event.currentTarget.querySelector<HTMLElement>('[role=slider]')?.focus({ preventScroll: true });
+            if (!thumb) previewPointer(event);
           }}
+          onPointerMove={previewPointer}
           onPointerUpCapture={event => {
-            if (gesture.current && gesture.current.identity !== identity) {
-              event.preventDefault();
-              cancelGesture();
-            } else gesture.current = null;
+            const active = gesture.current;
+            if (!active || active.pointerId !== event.pointerId) return;
+            event.preventDefault();
+            if (active.identity !== identity || disabled) { cancelGesture(); return; }
+            gesture.current = null;
+            if (active.target.hasPointerCapture(active.pointerId)) active.target.releasePointerCapture(active.pointerId);
+            // Merely grabbing the handle must not reset an unsupported saved level.
+            if (!active.fromThumb || active.next !== active.start) commit([active.next]);
+            else setPreview(null);
           }}
           onPointerCancel={cancelGesture}
           onLostPointerCapture={() => { if (gesture.current) cancelGesture(); }}>
           <Slider.Track className="effort-slider-track">
             <Slider.Range className="effort-slider-range" />
             <span className="effort-slider-ticks" aria-hidden="true">
-              {levels.map((level, position) => <i key={level} data-filled={position <= index ? '' : undefined} />)}
+              {levels.map((level, position) => <i key={level} data-filled={position <= index ? '' : undefined}
+                style={{ left: `${position / Math.max(1, levels.length - 1) * 100}%` }} />)}
             </span>
           </Slider.Track>
           <Slider.Thumb className="effort-slider-thumb" aria-label={t('composer.chooseEffort')}
@@ -80,9 +127,6 @@ export function EffortOptions({ brain }: { brain: ReturnType<typeof useBrainChoi
             tabIndex={brain.loading || brain.unavailable || levels.length < 2 ? -1 : 0}
             data-level={preview === null ? brain.thinking : levels[index]} />
         </Slider.Root>
-        <div className="effort-slider-endpoints" aria-hidden="true">
-          <span>{labelFor(levels[0])}</span><span>{labelFor(levels.at(-1)!)}</span>
-        </div>
         {!supported ? <div className="effort-slider-feedback" role="status">
           <p>{t('composer.effortUnsupported')}</p>
           <button type="button" disabled={disabled} onClick={() => { void brain.pickThinking(''); }}>

@@ -67,12 +67,13 @@ const openMenu = () => {
   settle();
   assert.equal(evaluate(`document.querySelector('${menu}').dataset.pickerStep`), 'effort', 'each opening starts with effort');
   assert.equal(evaluate(`document.querySelectorAll('${models}').length`), 0, 'the model catalog is a separate step');
-  assert.equal(evaluate(`getComputedStyle(document.querySelector('${menu}')).borderRadius`), '20px', 'the picker uses the softer reference corners');
+  assert.equal(evaluate(`getComputedStyle(document.querySelector('${menu}')).borderRadius`), '12px', 'the effort popup matches the reference corners');
 };
 const openModels = () => {
   browser('click', '.model-picker-change-model');
   browser('wait', `${menu}[data-picker-step="models"]`);
   settle();
+  assert.equal(evaluate(`getComputedStyle(document.querySelector('${menu}')).borderRadius`), '20px', 'the model catalog retains its own popup corners');
 };
 const backToEffort = () => {
   browser('click', '.model-picker-back');
@@ -116,13 +117,28 @@ const beginMaximumDrag = () => {
   browser('wait', '--fn', `document.querySelector('${effort}').getAttribute('aria-valuenow') === ${JSON.stringify(String(levels.length - 1))}`);
   return drag;
 };
+const assertThumbEdgeDragStable = (model, level) => {
+  for (const edge of ['left', 'right']) {
+    const point = evaluate(`const r = document.querySelector('${effort}').getBoundingClientRect();
+      ({x:Math.round(${edge === 'left' ? 'r.left + 2' : 'r.right - 2'}),
+        y:Math.round(r.top+r.height/2),writes:window.__pickerWrites.length});`);
+    browser('mouse', 'move', String(point.x), String(point.y));
+    browser('mouse', 'down');
+    browser('mouse', 'move', String(point.x + (edge === 'left' ? 1 : -1)), String(point.y));
+    assert.equal(evaluate(`document.querySelector('${effort}').dataset.level`), level,
+      `grabbing the ${edge} thumb edge preserves its value during a one-pixel move`);
+    assert.equal(evaluate('window.__pickerWrites.length'), point.writes, 'an edge grab never writes while dragging');
+    browser('mouse', 'up');
+    waitChoice(model, level);
+    assert.equal(evaluate('window.__pickerWrites.length'), point.writes, 'releasing at the original stop does not rewrite effort');
+  }
+};
 const assertTrigger = (lang, model, level) => {
   const expected = labels[lang].trigger(model, labels[lang].levels[level]);
   assert.equal(evaluate('document.querySelector("[data-picker-test-trigger]").getAttribute("aria-label")'), expected);
 };
 const assertEffortStructure = lang => {
   const state = evaluate(`({
-    headers: [...document.querySelectorAll('${menu} h2')].map(node => node.textContent),
     radios: document.querySelectorAll('${menu} [role=radio]').length,
     sliders: document.querySelectorAll('${effort}').length,
     level: document.querySelector('${effort}').dataset.level,
@@ -133,10 +149,24 @@ const assertEffortStructure = lang => {
     orientation: document.querySelector('${effort}').getAttribute('aria-orientation'),
     label: document.querySelector('${effort}').getAttribute('aria-label'),
     changeModel: Boolean(document.querySelector('.model-picker-change-model')),
+    title: document.querySelector('.effort-slider-value')?.textContent,
+    modelText: document.querySelector('.effort-model-link > span')?.textContent,
+    expectedModel: window.__pickerCatalog.models.find(model => model.id === window.__pickerCatalog.selected)?.label,
+    titleBottom: document.querySelector('.effort-slider-value')?.getBoundingClientRect().bottom,
+    modelTop: document.querySelector('.effort-model-link')?.getBoundingClientRect().top,
+    titleFont: getComputedStyle(document.querySelector('.effort-slider-value')).fontSize,
+    titleWeight: getComputedStyle(document.querySelector('.effort-slider-value')).fontWeight,
+    titleLine: getComputedStyle(document.querySelector('.effort-slider-value')).lineHeight,
+    modelFont: getComputedStyle(document.querySelector('.effort-model-link')).fontSize,
+    modelLine: getComputedStyle(document.querySelector('.effort-model-link')).lineHeight,
+    headerHeight: document.querySelector('.effort-slider-heading').getBoundingClientRect().height,
+    headerBorder: getComputedStyle(document.querySelector('.model-picker-change-model')).borderBottomWidth,
+    headerIcons: document.querySelectorAll('.model-picker-change-model svg[data-brand]').length,
+    endpointLabels: document.querySelectorAll('.effort-slider-endpoints').length,
+    width: document.querySelector('${menu}').getBoundingClientRect().width,
     height: document.querySelector('${menu}').getBoundingClientRect().height,
   });`);
   assert.equal(state.radios, 0, 'effort uses a slider instead of a list of text choices');
-  assert.deepEqual(state.headers, [labels[lang].effort]);
   assert.equal(state.sliders, 1);
   assert.equal(state.minimum, '0');
   assert.equal(state.maximum, String(levels.length - 1), 'every distinct backend level has a snap point');
@@ -145,7 +175,51 @@ const assertEffortStructure = lang => {
   assert.equal(state.orientation, 'horizontal');
   assert.ok(state.label, 'the slider has an accessible name');
   assert.ok(state.changeModel, 'the current model opens the next step');
-  assert.ok(state.height < 320, 'the slider keeps the first step compact');
+  assert.equal(state.title, labels[lang].levels[state.level], 'the compact header leads with the current effort');
+  assert.equal(state.modelText, state.expectedModel);
+  assert.ok(state.titleBottom <= state.modelTop + 1, 'the model name sits below the live effort title');
+  assert.deepEqual([state.titleFont, state.titleWeight, state.titleLine], ['14px', '600', '17px']);
+  assert.deepEqual([state.modelFont, state.modelLine], ['12px', '15px']);
+  assert.equal(state.headerHeight, 48);
+  assert.equal(state.headerBorder, '0px', 'the compact header has no dividing line');
+  assert.equal(state.headerIcons, 0, 'the compact header has no provider icon');
+  assert.equal(state.endpointLabels, 0, 'the reference rail needs no endpoint captions');
+  assert.equal(state.width, 256, 'the effort popup matches the reference width');
+  assert.ok(state.height < 150, 'the compact effort popup fits its header and rail');
+};
+const assertEffortGeometry = () => {
+  const state = evaluate(`const bounds = node => { const r = node.getBoundingClientRect();
+      return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,center:r.left+r.width/2}; };
+    const thumb = document.querySelector('${effort}');
+    const track = document.querySelector('.effort-slider-track');
+    const range = document.querySelector('.effort-slider-range');
+    const ticks = [...document.querySelectorAll('.effort-slider-ticks i')];
+    ({thumb:bounds(thumb), track:bounds(track), range:bounds(range), ticks:ticks.map(bounds),
+      value:Number(thumb.getAttribute('aria-valuenow')), max:Number(thumb.getAttribute('aria-valuemax')),
+      thumbColor:getComputedStyle(thumb).backgroundImage, rangeColor:getComputedStyle(range).backgroundImage});`);
+  assert.equal(state.track.height, 28, 'the orange rail has the reference height');
+  assert.equal(state.thumb.width, 44, 'the reference handle is a wide pill');
+  assert.equal(state.thumb.height, 32, 'the thumb overhangs the rail by 2px on each side');
+  assert.ok(state.thumbColor.includes('rgb(255, 255, 255)'), 'the handle stays white in both themes');
+  assert.ok(state.rangeColor.includes('rgb(230, 83, 47)'), 'the filled rail uses the exact reference orange');
+  assert.equal(state.ticks.length, levels.length);
+  assert.ok(state.ticks.every(tick => tick.width === 4 && tick.height === 4), 'each stop is a 4px dot');
+  const center = state.track.left + 22 + (state.track.width - 44) * state.value / state.max;
+  assert.ok(Math.abs(state.thumb.center - center) <= 1, 'thumb centers use the same inset travel as pointer input');
+  assert.ok(Math.abs(state.ticks[state.value].center - center) <= 1, 'the selected dot stays centered under the thumb');
+  assert.ok(Math.abs(state.ticks[0].center - state.track.left - 22) <= 1
+    && Math.abs(state.ticks.at(-1).center - state.track.right + 22) <= 1, 'endpoint dots follow the 22px center inset');
+  assert.ok(Math.abs(state.range.left - state.track.left) <= 1, 'the orange fill starts at the rail edge');
+  assert.ok(Math.abs(state.range.right - Math.min(state.track.right, center + 14)) <= 1,
+    'the orange fill extends one rail radius under the thumb');
+};
+const clickEffortEndpoint = endpoint => {
+  const point = evaluate(`const ticks = [...document.querySelectorAll('.effort-slider-ticks i')];
+    const r = ticks[${endpoint === 'max' ? 'ticks.length - 1' : '0'}].getBoundingClientRect();
+    ({x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)});`);
+  browser('mouse', 'move', String(point.x), String(point.y));
+  browser('mouse', 'down');
+  browser('mouse', 'up');
 };
 const assertModelStructure = lang => {
   const state = evaluate(`({
@@ -268,7 +342,10 @@ try {
   assertComposerLayout();
   openMenu();
   assertEffortStructure('en');
+  assertEffortGeometry();
+  if (process.env.MODEL_EFFORT_SHOTS) browser('screenshot', `${process.env.MODEL_EFFORT_SHOTS}/model-effort-en-reference-1440.png`);
   assertTrigger('en', 'GPT-6 Astra', 'high');
+  assertThumbEdgeDragStable(firstModel, 'high');
   assert.equal(evaluate('document.activeElement.dataset.level'), 'high', 'opening focuses the selected effort');
   openModels();
   assertModelStructure('en');
@@ -331,9 +408,17 @@ try {
   browser('mouse', 'up');
   waitChoice(nextModel, 'gateway-next');
   assert.equal(evaluate('window.__pickerWrites.length'), drag.writes + 1, 'pointer release commits exactly one snapped level');
+  assertEffortGeometry();
   browser('set', 'viewport', '1440', '900');
   effortKey('Home');
   waitChoice(nextModel, '');
+  assertEffortGeometry();
+  clickEffortEndpoint('max');
+  waitChoice(nextModel, 'gateway-next');
+  assertEffortGeometry();
+  clickEffortEndpoint('min');
+  waitChoice(nextModel, '');
+  assertEffortGeometry();
   effortKey('ArrowRight');
   waitChoice(nextModel, 'off');
   assert.deepEqual(evaluate('window.__pickerWrites.slice(-2).map(write => write.body)'), [{ level: '' }, { level: 'off' }], 'reset and explicit off stay distinct');
@@ -372,6 +457,7 @@ try {
       browser('set', 'viewport', String(width), String(height));
       openMenu();
       assertEffortStructure(lang);
+      assertEffortGeometry();
       assertTrigger(lang, 'Claude Sonnet 5', '');
       for (const step of ['effort', 'models']) {
         if (step === 'models') { openModels(); assertModelStructure(lang); }
@@ -431,7 +517,7 @@ try {
   closeMenu();
   assert.deepEqual(evaluate('window.__pickerWrites[0]'), { address: '/api/brain/model', body: { model: nextModel } });
   assert.ok(evaluate('window.__pickerWrites.slice(1).some(write => write.address === "/api/brain/thinking")'));
-  console.log('PASS: rounded composer and picker, right-aligned model and neutral controls, snapping effort slider with release-only writes, search/back, serialized writes, late acknowledgement navigation, acknowledged recents, rollback, reset/off, keyboard focus, touch bounds and both locales');
+  console.log('PASS: reference header and popup geometry, orange rail with aligned thumb and stops, endpoint clicks, rounded composer, right-aligned neutral controls, release-only writes, cancellation, search/back, serialized writes, late acknowledgements, recents, rollback, reset/off, keyboard focus, touch bounds and both locales');
 } catch (error) {
   console.error('Picker failure state:', evaluate(`({step: document.querySelector('${menu}')?.dataset.pickerStep,
     focus: {tag: document.activeElement?.tagName, className: document.activeElement?.className,
