@@ -44,8 +44,7 @@
   --e-spring: cubic-bezier(0.34, 1.42, 0.64, 1);
 
   /* Fonts. */
-  --f-sans: "IBM Plex Sans Variable", "IBM Plex Sans", ui-sans-serif, system-ui,
-    -apple-system, "Segoe UI", sans-serif;
+  --f-sans: "Helvetica", "Arial", sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /* Stacking layers. */

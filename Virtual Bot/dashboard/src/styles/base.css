@@ -92,12 +92,9 @@ a { color: var(--c-accent); text-decoration-thickness: 1px; text-underline-offse
 @layer components {
 /* --- фірмові класи ---------------------------------------------------- */
 
-/*
- * Мітка секції: моноширинна капітель. Головний упізнаваний прийом панелі —
- * саме вона дає «приладовість» без жодної картинки (див. DESIGN.md).
- */
+/* Section labels share the concept's sans family and retain uppercase tracking. */
 .u-label {
-  font-family: var(--f-mono);
+  font-family: var(--f-sans);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.12em;

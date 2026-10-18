@@ -3338,3 +3338,17 @@ An isolated snapshot containing HEAD plus only these dependencies passes all
 review approved the existing API contracts and found no embedded credentials.
 Post-review actual-app smoke passed 36 HTTP checks, including traversal 400s;
 the isolated server stopped. Unrelated working-tree drafts remain untouched.
+
+
+## 2026-10-18 — Dashboard Helvetica typography
+
+The owner requested the selected logo concept's Helvetica for dashboard
+interface text and headings. The global sans stack, section labels, rotating
+welcome heading and Blink name now use Helvetica with local Arial/sans-serif
+fallbacks. Code, paths, model identifiers and technical readouts retain the
+bundled IBM Plex Mono. Unused Plex Sans and Cormorant font imports were removed.
+
+Validation: 240 dashboard tests and TypeScript passed. Independent supported
+review corrected MetalText/fallback tracking and line-height parity; no Fable
+review is claimed. The isolated production build and runtime publication follow
+this source commit. Existing unrelated drafts are excluded.

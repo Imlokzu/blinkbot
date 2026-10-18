@@ -15,11 +15,10 @@ export function Brand({ compact, className }: { compact?: boolean; className?: s
       <BotIcon />
       {isMetalFxSupported() ? (
         <MetalText
-          font="500 13px/1 'IBM Plex Mono Variable', ui-monospace, monospace"
+          font="700 17px/1 Helvetica, Arial, sans-serif"
           color="var(--c-text)"
           theme={resolved}
           strength={0.55}
-          className="tracking-[0.14em]"
         >
           {t('brand.name')}
         </MetalText>
@@ -30,7 +29,7 @@ export function Brand({ compact, className }: { compact?: boolean; className?: s
           spread={90}
           color="var(--c-text)"
           shineColor="var(--c-accent)"
-          className="font-mono text-[13px] font-medium tracking-[0.14em]"
+          className="font-sans text-[17px] font-bold leading-none tracking-normal"
         />
       )}
       {!compact ? (

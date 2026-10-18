@@ -1,9 +1,7 @@
-@import './welcome-font.css';
-
 .chat-landing-heading .welcome-heading {
   display: grid;
   perspective: 600px;
-  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-family: var(--f-sans);
   font-style: normal;
   font-weight: 600;
   font-size: clamp(32px, 6cqw, 54px);
