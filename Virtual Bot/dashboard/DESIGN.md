@@ -27,7 +27,7 @@ pixelated, but it must share its bloodline: warm, handcrafted, slightly technica
    in `LIQUID-GLASS.md`. The owner also approved a stationary CSS blur wash
    behind the tool-activity tree; its content stays sharp.
 2. **Monospaced = data.** Numbers, statuses, paths, IDs, logs, model names,
-   hotkeys — `--font-mono`. Prose, headings, labels, and buttons — `--font-sans`.
+   hotkeys — `--font-mono`. Prose, labels, and buttons — `--font-sans`.
    This is not taste, this is navigation: the font shows where the fact is and where the interface is.
 3. **One accent per screen.** The accent colour marks what is currently the main thing,
    and nothing more. If there are two accent spots — one of them is wrong. States
@@ -52,30 +52,32 @@ pixelated, but it must share its bloodline: warm, handcrafted, slightly technica
 
 ## Typography
 
-**Helvetica** (interface text, headings and the Blink wordmark) + **IBM Plex
-Mono** (code, paths, model identifiers and technical readouts). The owner chose
-Helvetica to match the approved orange-logo concept on 2026-10-18. Use the
-local `"Helvetica", "Arial", sans-serif` stack; exact Helvetica availability
-is platform-dependent. IBM Plex Mono remains self-hosted with Cyrillic, and
-no font depends on a network request. Section labels and the welcome heading
-also use the interface sans family; the welcome heading's emphasis is retained.
+**IBM Plex Sans Variable** (text) + **IBM Plex Mono** (data). Both are
+self-hosted via `@fontsource`, with Cyrillic — the dashboard must work without
+a network. Plex was not chosen from scratch: the project's landing page is already on Plex Mono.
 
 | Role | Font | Size / tracking |
 |---|---|---|
 | Screen header | Sans 600 | 22–26px, `-0.02em` |
-| Section label | **Sans 500, UPPERCASE** | 11px, `+0.12em` |
+| Section label | **Mono 500, UPPERCASE** | 11px, `+0.12em` |
 | Text | Sans 400 | 14–15px, height 1.55 |
 | Chat reply | Sans 400 | 15px, height 1.62, width ≤ 68ch |
 | Data / log | Mono 400 | 12–13px |
 
-Section labels retain uppercase text and generous tracking in the interface
-sans family. Monospace identifies technical data rather than ordinary headings.
+Section label in monospaced small caps is a signature trick of the dashboard. It gives
+an "instrumental" feel without a single image.
 
 Ukrainian text is run through `glue()` (`src/lib/glue.ts`): short
 prepositions and conjunctions (`у в з і й та на до не що як`), numbers with units and
 the last pair of words in a paragraph are stitched with a non-breaking space. The idea is from Typehug from
 "UI things"; the package itself only has rules for English and Polish, so
 Ukrainian rules are custom-written.
+
+The Blink name is the sole typography exception: use Helvetica 700 at 17px,
+with local Arial/sans-serif fallbacks, to match the approved orange-logo
+concept. This applies to both the MetalText canvas and its text fallback.
+The interface, section labels, welcome heading and technical text retain
+their established font families.
 
 ## Colour
 

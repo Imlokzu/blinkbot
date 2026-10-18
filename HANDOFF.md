@@ -3367,3 +3367,18 @@ review used real model data, verified navigation/colors/placement without POSTs,
 and closed its isolated browser. Eighteen live assets matched installed bytes.
 Post-review actual-app smoke passed 34 checks, including traversal 400s, then
 stopped its temporary server. The user's existing 8100 server stays running.
+
+
+## 2026-10-18 — Helvetica limited to the Blink name
+
+The owner clarified the font request: only the Blink name should match the
+logo concept. Restored the dashboard's original bundled IBM Plex Sans,
+monospace section labels and Cormorant welcome heading. Helvetica 700 at 17px
+is scoped to the MetalText wordmark and its text fallback, with matching
+normal tracking and line height. The earlier whole-interface Helvetica
+artifact was not published because the source-revision guard rejected it.
+
+Validation: 240 dashboard tests and TypeScript passed; independent supported
+review confirmed all four restored typography files are byte-identical to
+the originals and the explicit fallback class compiles. Runtime publication
+follows this corrected source commit. Unrelated drafts remain excluded.

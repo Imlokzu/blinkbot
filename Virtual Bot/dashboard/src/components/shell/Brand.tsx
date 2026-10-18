@@ -29,7 +29,7 @@ export function Brand({ compact, className }: { compact?: boolean; className?: s
           spread={90}
           color="var(--c-text)"
           shineColor="var(--c-accent)"
-          className="font-sans text-[17px] font-bold leading-none tracking-normal"
+          className="text-[17px] font-bold leading-none tracking-normal [font-family:Helvetica,Arial,sans-serif]"
         />
       )}
       {!compact ? (
