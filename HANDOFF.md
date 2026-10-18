@@ -3382,3 +3382,15 @@ Validation: 240 dashboard tests and TypeScript passed; independent supported
 review confirmed all four restored typography files are byte-identical to
 the originals and the explicit fallback class compiles. Runtime publication
 follows this corrected source commit. Unrelated drafts remain excluded.
+
+
+### Blink-name typography runtime publication
+
+The corrected source `56215594` is now served. The dashboard retains its
+original Plex/monospace/Cormorant typography; only the Blink name uses the
+concept's Helvetica. Frozen build inputs (529) and served artifact parity
+(368 files) were verified. English/Ukrainian desktop/phone checks confirmed
+actual font inheritance and layout; one preview-cache import failure passed
+in a fresh final phone check. Actual-app HTTP smoke passed 13 expectations,
+including traversal HTTP 400. Temporary servers and browser were stopped.
+See `reports/dashboard-blink-wordmark-2026-10-18.md` for evidence and limits.
