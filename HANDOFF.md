@@ -3480,3 +3480,25 @@ hashes were checked. Supported independent review fixed desktop square exports
 and approved the result. Actual-app smoke passed 15 checks including traversal
 HTTP 400; light/dark served tile rendering was inspected. Browser/server stopped.
 See `reports/brand-rounded-tile-2026-10-18.md`; no Fable/iOS runtime claim.
+
+
+## 2026-10-18 — Effort motion and local Mac haptics
+
+The effort control now gives a small value transition, pill press response and
+orange sheen while adjusting or saving. Decorations stop when idle and under
+reduced motion; the hitbox and snapping coordinates remain unchanged.
+
+Added a best-effort native Mac trackpad bridge through fixed public AppKit JXA.
+GET /api/local/haptics is silent; POST /api/local/haptics/tick requires operator
+authorization, direct loopback peer/Host, exact Origin and X-Blink-Haptic: 1,
+with proxy/cross-site requests rejected. Client/server throttle and single-flight
+guards prevent queues, and bounded processes/requests fail quietly. Only trusted
+user steps request ticks. Remote, phone and unsupported clients remain silent.
+See Virtual Bot/docs/LOCAL-HAPTICS.md for hardware limits and API details.
+
+Validation: 1,980 backend tests and 178 subtests passed (six skips), including
+42 bridge tests. Dashboard: 240 unit tests, TypeScript, clean-source build and
+full browser regression passed. Independent review verified reduced-motion
+specificity, trusted-input gating and hung-auth/request cleanup. Post-review
+actual-app smoke passed 40 checks, with all native ticks mocked, and stopped
+its temporary server. Automated tests never produced physical feedback.

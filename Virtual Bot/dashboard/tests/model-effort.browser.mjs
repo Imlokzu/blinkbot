@@ -59,7 +59,8 @@ const visibleTrigger = () => {
   assert.equal(evaluate('document.querySelectorAll(".effort-trigger").length'), 0, 'the separate effort trigger is removed');
   return '[data-picker-test-trigger]';
 };
-const settle = () => evaluate(`Promise.all(document.querySelector('${menu}').getAnimations({ subtree: true }).map(animation => animation.finished.catch(() => {})))`);
+const settle = () => evaluate(`Promise.all(document.querySelector('${menu}').getAnimations({ subtree: true })
+  .filter(animation => animation.effect?.getTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => {})))`);
 const openMenu = () => {
   evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
   browser('click', visibleTrigger());
@@ -188,6 +189,9 @@ const assertEffortStructure = lang => {
   assert.ok(state.height < 150, 'the compact effort popup fits its header and rail');
 };
 const assertEffortGeometry = () => {
+  // Radix positions its thumb after the preview render registers the current
+  // value; sample a painted frame rather than an intermediate layout effect.
+  evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
   const state = evaluate(`const bounds = node => { const r = node.getBoundingClientRect();
       return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height,center:r.left+r.width/2}; };
     const thumb = document.querySelector('${effort}');
@@ -196,7 +200,8 @@ const assertEffortGeometry = () => {
     const ticks = [...document.querySelectorAll('.effort-slider-ticks i')];
     ({thumb:bounds(thumb), track:bounds(track), range:bounds(range), ticks:ticks.map(bounds),
       value:Number(thumb.getAttribute('aria-valuenow')), max:Number(thumb.getAttribute('aria-valuemax')),
-      thumbColor:getComputedStyle(thumb).backgroundImage, rangeColor:getComputedStyle(range).backgroundImage});`);
+      thumbColor:getComputedStyle(thumb.querySelector('.effort-slider-thumb-surface')).backgroundImage,
+      rangeColor:getComputedStyle(range).backgroundImage});`);
   assert.equal(state.track.height, 28, 'the orange rail has the reference height');
   assert.equal(state.thumb.width, 44, 'the reference handle is a wide pill');
   assert.equal(state.thumb.height, 32, 'the thumb overhangs the rail by 2px on each side');
@@ -205,7 +210,8 @@ const assertEffortGeometry = () => {
   assert.equal(state.ticks.length, levels.length);
   assert.ok(state.ticks.every(tick => tick.width === 4 && tick.height === 4), 'each stop is a 4px dot');
   const center = state.track.left + 22 + (state.track.width - 44) * state.value / state.max;
-  assert.ok(Math.abs(state.thumb.center - center) <= 1, 'thumb centers use the same inset travel as pointer input');
+  assert.ok(Math.abs(state.thumb.center - center) <= 1,
+    `thumb centers use the same inset travel as pointer input (${state.thumb.center} vs ${center})`);
   assert.ok(Math.abs(state.ticks[state.value].center - center) <= 1, 'the selected dot stays centered under the thumb');
   assert.ok(Math.abs(state.ticks[0].center - state.track.left - 22) <= 1
     && Math.abs(state.ticks.at(-1).center - state.track.right + 22) <= 1, 'endpoint dots follow the 22px center inset');
@@ -213,6 +219,32 @@ const assertEffortGeometry = () => {
   assert.ok(Math.abs(state.range.right - Math.min(state.track.right, center + 14)) <= 1,
     'the orange fill extends one rail radius under the thumb');
 };
+const assertMotion = ({ dragging = false, saving = false, reduced = false } = {}) => {
+  const state = evaluate(`const pane = document.querySelector('.effort-picker-pane');
+    const sheen = getComputedStyle(document.querySelector('.effort-slider-range'), '::after');
+    const surface = getComputedStyle(document.querySelector('.effort-slider-thumb-surface'));
+    const title = getComputedStyle(document.querySelector('.effort-slider-value'));
+    ({dragging:pane.hasAttribute('data-dragging'), interacting:pane.hasAttribute('data-interacting'),
+      busy:pane.getAttribute('aria-busy') === 'true', sheen:sheen.animationName, opacity:sheen.opacity,
+      press:surface.transform, transition:surface.transitionDuration, title:title.animationName,
+      reduced:matchMedia('(prefers-reduced-motion: reduce)').matches});`);
+  assert.equal(state.dragging, dragging);
+  assert.equal(state.busy, saving);
+  assert.equal(state.reduced, reduced);
+  assert.equal(state.sheen, !reduced && (dragging || saving) ? 'effort-sheen' : 'none');
+  assert.equal(state.opacity, !reduced && (dragging || saving) ? '1' : '0');
+  if (dragging) assert.ok(state.interacting, 'real dragging activates the visual interaction state');
+  if (reduced) {
+    assert.equal(state.title, 'none');
+    assert.equal(state.press, 'none', 'reduced motion removes the decorative thumb press');
+    assert.ok(state.transition.split(',').every(duration => Number.parseFloat(duration) <= .00001),
+      'reduced motion disables transitions, including the app-wide 0.01ms accessibility override');
+  } else {
+    assert.equal(state.title, 'effort-value-in');
+    if (dragging) assert.notEqual(state.press, 'none');
+  }
+};
+const hapticCount = () => evaluate('window.__hapticWrites.length');
 const clickEffortEndpoint = endpoint => {
   const point = evaluate(`const ticks = [...document.querySelectorAll('.effort-slider-ticks i')];
     const r = ticks[${endpoint === 'max' ? 'ticks.length - 1' : '0'}].getBoundingClientRect();
@@ -317,15 +349,32 @@ try {
   // Guards remain active even if the in-page fixture is accidentally bypassed.
   route('**/api/brain/model', { ok: true, selected: catalog.selected });
   route('**/api/brain/thinking', { ok: true, thinking: catalog.thinking });
+  // Both native endpoints are intercepted before any app code runs: this
+  // browser suite must never produce a pulse on the owner's real trackpad.
+  route('**/api/local/haptics', { available: true, kind: 'macos-trackpad' });
+  route('**/api/local/haptics/tick', { accepted: true });
   browser('open', `${origin}/docs`);
   evaluate(`localStorage.setItem('claudeBotLang', 'en'); localStorage.removeItem('claudeBotRecentModels'); localStorage.setItem('claudeBotModelIntel', '0');
     localStorage.removeItem('claude-bot:brain-models:v6');`);
   browser('open', `${origin}${path}#/chat`);
   browser('wait', '[data-brain-choice-trigger]');
   evaluate(`window.__pickerCatalog = ${JSON.stringify(catalog)}; window.__pickerWrites = [];
+    window.__hapticWrites = []; window.__hapticProbes = 0; window.__hapticAvailable = true;
+    Object.defineProperty(navigator, 'platform', { configurable:true, value:'MacIntel' });
     const savedFetch = window.fetch;
     window.fetch = async (input, options = {}) => {
       const address = new URL(typeof input === 'string' ? input : input.url, location.href).pathname;
+      if (address === '/api/local/haptics') {
+        window.__hapticProbes++;
+        return new Response(JSON.stringify({ available:window.__hapticAvailable, kind:window.__hapticAvailable ? 'macos-trackpad' : null }),
+          { headers:{ 'Content-Type':'application/json' } });
+      }
+      if (address === '/api/local/haptics/tick') {
+        window.__lastHapticAt = performance.now();
+        window.__hapticWrites.push({ method:options.method, header:new Headers(options.headers).get('X-Blink-Haptic') });
+        if (window.__hapticFails) throw new TypeError('Fixture haptic bridge unavailable');
+        return new Response(JSON.stringify({ accepted:true }), { headers:{ 'Content-Type':'application/json' } });
+      }
       if (address === '/api/brain/models') return new Response(JSON.stringify(window.__pickerCatalog), { headers: { 'Content-Type': 'application/json' } });
       if (address === '/api/brain/model' || address === '/api/brain/thinking') {
         const body = JSON.parse(options.body || await input.clone().text()); window.__pickerWrites.push({ address, body });
@@ -341,11 +390,15 @@ try {
   evaluate('document.documentElement.dataset.theme = "light"');
   assertComposerLayout();
   openMenu();
+  browser('wait', '--fn', 'window.__hapticProbes > 0');
+  assert.equal(hapticCount(), 0, 'mounting the effort control only probes capability');
+  assertMotion();
   assertEffortStructure('en');
   assertEffortGeometry();
   if (process.env.MODEL_EFFORT_SHOTS) browser('screenshot', `${process.env.MODEL_EFFORT_SHOTS}/model-effort-en-reference-1440.png`);
   assertTrigger('en', 'GPT-6 Astra', 'high');
   assertThumbEdgeDragStable(firstModel, 'high');
+  assert.equal(hapticCount(), 0, 'unchanged thumb gestures never pulse');
   assert.equal(evaluate('document.activeElement.dataset.level'), 'high', 'opening focuses the selected effort');
   openModels();
   assertModelStructure('en');
@@ -389,24 +442,44 @@ try {
   assert.equal(evaluate('document.activeElement.dataset.level'), 'high', 'successful model selection returns focus to effort');
   assert.deepEqual(evaluate('JSON.parse(localStorage.getItem("claudeBotRecentModels"))'), [nextModel]);
   assertTrigger('en', 'Claude Sonnet 5', 'high');
+  assert.equal(hapticCount(), 0, 'model changes and server acknowledgements never pulse');
 
   effortKey('ArrowLeft');
   waitChoice(nextModel, 'medium');
+  browser('wait', '--fn', 'window.__hapticWrites.length === 1');
+  assert.deepEqual(evaluate('window.__hapticWrites[0]'), { method: 'POST', header: '1' }, 'a trusted changed stop uses the native tick bridge');
   assertTrigger('en', 'Claude Sonnet 5', 'medium');
+  browser('wait', '--fn', 'performance.now() - window.__lastHapticAt >= 100');
+  const ticksBeforeDrag = hapticCount();
   const canceledDrag = beginMaximumDrag();
+  browser('wait', '--fn', `window.__hapticWrites.length === ${ticksBeforeDrag + 1}`);
+  assertMotion({ dragging: true });
+  const beforeCancelTicks = hapticCount();
   evaluate(`document.querySelector('${effort}').dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, pointerId: 1, pointerType: 'mouse' }))`);
   waitChoice(nextModel, 'medium');
   browser('mouse', 'up');
   assert.equal(evaluate('window.__pickerWrites.length'), canceledDrag.writes, 'a canceled drag restores confirmed effort without saving');
+  assert.equal(hapticCount(), beforeCancelTicks, 'canceling a preview never pulses the restored server value');
   // A new gesture measures the current track even when cancellation was
   // followed by a layout change; cached coordinates must not shift its stops.
   browser('set', 'viewport', '1380', '900');
   const drag = beginMaximumDrag();
+  assertMotion({ dragging: true });
   assert.equal(evaluate('window.__pickerWrites.length'), drag.writes, 'dragging previews effort without writing settings');
   assert.equal(evaluate('window.__pickerCatalog.thinking'), 'medium', 'the committed effort stays unchanged until pointer release');
   assertTrigger('en', 'Claude Sonnet 5', 'medium');
+  const beforeCommitTicks = hapticCount();
+  evaluate('window.__pickerDelay = true');
   browser('mouse', 'up');
+  browser('wait', '--fn', 'typeof window.__pickerRelease === "function"');
+  settle();
+  assertMotion({ saving: true });
+  evaluate('window.__pickerDelay = false; window.__pickerRelease(); delete window.__pickerRelease');
   waitChoice(nextModel, 'gateway-next');
+  assert.equal(hapticCount(), beforeCommitTicks, 'releasing and acknowledging a preview do not pulse twice');
+  browser('wait', '--fn', '!document.querySelector(".effort-picker-pane").hasAttribute("data-interacting")');
+  settle();
+  assertMotion();
   assert.equal(evaluate('window.__pickerWrites.length'), drag.writes + 1, 'pointer release commits exactly one snapped level');
   assertEffortGeometry();
   browser('set', 'viewport', '1440', '900');
@@ -423,8 +496,10 @@ try {
   waitChoice(nextModel, 'off');
   assert.deepEqual(evaluate('window.__pickerWrites.slice(-2).map(write => write.body)'), [{ level: '' }, { level: 'off' }], 'reset and explicit off stay distinct');
   const writeCount = evaluate('window.__pickerWrites.length');
+  const unchangedTicks = hapticCount();
   browser('click', effort);
   assert.equal(evaluate('window.__pickerWrites.length'), writeCount, 'clicking the current thumb does not rewrite settings');
+  assert.equal(hapticCount(), unchangedTicks, 'clicking the current stop never pulses');
 
   evaluate('window.__pickerWriteFails = true');
   effortKey('End');
@@ -446,10 +521,45 @@ try {
   assert.equal(evaluate('document.activeElement.dataset.level'), 'gateway-next', 'effort keyboard selection moves focus and uses reported future levels');
   browser('press', 'Home');
   waitChoice(nextModel, '');
+  const untrustedTicks = hapticCount();
+  evaluate(`document.querySelector('${effort}').dispatchEvent(new KeyboardEvent('keydown', { key:'ArrowRight', bubbles:true }))`);
+  waitChoice(nextModel, 'off');
+  assert.equal(hapticCount(), untrustedTicks, 'scripted keyboard events cannot pulse native hardware');
+  effortKey('Home');
+  waitChoice(nextModel, '');
+  browser('wait', '--fn', 'performance.now() - (window.__lastHapticAt ?? -Infinity) >= 100');
+  const failedTickCount = hapticCount();
+  evaluate('window.__hapticFails = true');
+  effortKey('End');
+  waitChoice(nextModel, 'gateway-next');
+  assert.equal(hapticCount(), failedTickCount + 1, 'a failed native tick does not block the effort save');
+  assert.equal(evaluate('document.body.textContent.includes("Fixture haptic bridge unavailable")'), false, 'haptic failures remain quiet');
+  evaluate('window.__hapticFails = false');
+  effortKey('Home');
+  waitChoice(nextModel, '');
+  evaluate(`Object.defineProperty(navigator, 'platform', { configurable:true, value:'Win32' })`);
+  const nonMacTicks = hapticCount();
+  effortKey('End');
+  waitChoice(nextModel, 'gateway-next');
+  effortKey('Home');
+  waitChoice(nextModel, '');
+  assert.equal(hapticCount(), nonMacTicks, 'non-Mac clients never call the native tick bridge');
+  evaluate(`Object.defineProperty(navigator, 'platform', { configurable:true, value:'MacIntel' })`);
+  closeMenu();
+  browser('set', 'media', 'light', 'reduced-motion');
+  openMenu();
+  beginMaximumDrag();
+  assertMotion({ dragging: true, reduced: true });
+  assertEffortGeometry();
+  evaluate(`document.querySelector('${effort}').dispatchEvent(new PointerEvent('pointercancel', { bubbles:true, pointerId:1, pointerType:'mouse' }))`);
+  waitChoice(nextModel, '');
+  browser('mouse', 'up');
+  assertMotion({ reduced: true });
   closeMenu();
 
   // Click is also a complete search path, including on a touch-only device.
   browser('wait', '--fn', 'document.querySelector(".toast-stack")?.childElementCount === 0');
+  evaluate(`Object.defineProperty(navigator, 'platform', { configurable:true, value:'iPhone' })`);
   browser('set', 'device', 'iPhone 12');
   for (const lang of ['en', 'uk']) {
     evaluate(`document.documentElement.lang = ${JSON.stringify(lang)}; document.documentElement.dataset.theme = ${JSON.stringify(lang === 'en' ? 'dark' : 'light')};`);
@@ -459,6 +569,14 @@ try {
       assertEffortStructure(lang);
       assertEffortGeometry();
       assertTrigger(lang, 'Claude Sonnet 5', '');
+      if (lang === 'en' && width === 320) {
+        const phoneTicks = hapticCount();
+        effortKey('End');
+        waitChoice(nextModel, 'gateway-next');
+        effortKey('Home');
+        waitChoice(nextModel, '');
+        assert.equal(hapticCount(), phoneTicks, 'touch-phone clients never use the local Mac bridge');
+      }
       for (const step of ['effort', 'models']) {
         if (step === 'models') { openModels(); assertModelStructure(lang); }
         const bounds = touchLayout();
@@ -517,7 +635,20 @@ try {
   closeMenu();
   assert.deepEqual(evaluate('window.__pickerWrites[0]'), { address: '/api/brain/model', body: { model: nextModel } });
   assert.ok(evaluate('window.__pickerWrites.slice(1).some(write => write.address === "/api/brain/thinking")'));
-  console.log('PASS: reference header and popup geometry, orange rail with aligned thumb and stops, endpoint clicks, rounded composer, right-aligned neutral controls, release-only writes, cancellation, search/back, serialized writes, late acknowledgements, recents, rollback, reset/off, keyboard focus, touch bounds and both locales');
+  const unavailableTicks = hapticCount();
+  const probesBeforeUnavailable = evaluate(`window.__hapticAvailable = false;
+    Object.defineProperty(navigator, 'platform', { configurable:true, value:'MacIntel' });
+    Object.defineProperty(navigator, 'maxTouchPoints', { configurable:true, value:0 });
+    window.__fixtureDateNow = Date.now; Date.now = () => window.__fixtureDateNow() + 61000;
+    window.__hapticProbes;`);
+  openMenu();
+  browser('wait', '--fn', `window.__hapticProbes > ${probesBeforeUnavailable}`);
+  evaluate('Date.now = window.__fixtureDateNow; delete window.__fixtureDateNow');
+  effortKey('End');
+  waitChoice(firstModel, 'gateway-next');
+  assert.equal(hapticCount(), unavailableTicks, 'an unavailable local bridge stays silent while the slider works');
+  closeMenu();
+  console.log('PASS: reference geometry, active/idle/reduced-motion animation, safely mocked trusted native haptics and silent fallbacks, endpoint clicks, rounded composer, neutral controls, release-only writes, cancellation, search/back, serialized writes, late acknowledgements, recents, rollback, reset/off, keyboard focus, touch bounds and both locales');
 } catch (error) {
   console.error('Picker failure state:', evaluate(`({step: document.querySelector('${menu}')?.dataset.pickerStep,
     focus: {tag: document.activeElement?.tagName, className: document.activeElement?.className,

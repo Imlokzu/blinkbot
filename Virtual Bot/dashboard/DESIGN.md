@@ -972,3 +972,17 @@ the owner's clarified request is to remove the oversized footer.
   Automatic when the saved effort is unsupported.
 - Do not add the reference's fast-tier button without a real gateway setting.
   Measurements, immutable source links and license: docs/zeron-effort-reference.md.
+
+
+## Effort motion and tactile feedback (2026-10-18)
+
+- Animate only feedback: a short value entrance, soft pill press and a contained
+  orange sheen during interaction or saving. Idle controls stay still.
+- The pill's visual child may move; its parent hitbox and stop mapping may not.
+  All decorative movement uses transform/opacity and respects reduced motion.
+- Local Mac users may get an AppKit alignment tick when trusted input crosses
+  a stop. Opening, passive updates, cancellation and unchanged values stay silent.
+  Capability checks never vibrate, and feedback failures never block a save.
+- Keep haptics optional by capability: no remote-host pulses, no browser API
+  pretending to support Mac hardware, no queue of delayed tactile feedback.
+  Native bridge contract: ../docs/LOCAL-HAPTICS.md.

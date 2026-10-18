@@ -86,6 +86,7 @@ import music
 import integrations
 import chat_attachments
 import connector_api
+import local_haptics
 import screen_store
 import log_redact
 import lyrics
@@ -477,6 +478,7 @@ async def _require_openclaw_operator(request: Request) -> None:
 
 app.include_router(openclaw_control.router(_require_openclaw_operator))
 app.include_router(connector_api.router(_require_openclaw_operator, _require_user))
+app.include_router(local_haptics.router(_require_openclaw_operator))
 
 import image_generation_api
 from image_generation_schema import parse_command as _image_command, history_context as _image_history_context
