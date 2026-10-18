@@ -3324,3 +3324,17 @@ working-copy artifact remains a validation artifact; the live static dashboard
 is not republished with unrelated pending sources. Existing drafts remain outside
 this commit. The independent review also noted existing intelligence-card hover
 timer/Escape and short-phone overflow issues; neither is introduced by this change.
+
+
+## 2026-10-18 — Restore dashboard release dependencies
+
+Tracked the existing Integrations Settings component and its English/Ukrainian
+locale module, which SettingsPanel already imported. This resolves the missing
+module that prevented the composer change from building from committed sources.
+The Google name and saved-client placeholder now use locale keys as well.
+
+An isolated snapshot containing HEAD plus only these dependencies passes all
+240 dashboard tests, TypeScript and the production build. Independent supported
+review approved the existing API contracts and found no embedded credentials.
+Post-review actual-app smoke passed 36 HTTP checks, including traversal 400s;
+the isolated server stopped. Unrelated working-tree drafts remain untouched.
