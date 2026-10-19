@@ -50,6 +50,9 @@ const labelsFor = lang => {
   }
 };
 const labels = { en: labelsFor('en'), uk: labelsFor('uk') };
+assert.equal(labels.en.effort, 'Effort');
+assert.deepEqual(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'].map(level => labels.en.levels[level]),
+  ['Low', 'Med', 'High', 'XHigh', 'Max', 'Ultra'], 'effort names expose the actual level');
 const visibleTrigger = () => {
   const count = evaluate(`const triggers = [...document.querySelectorAll('[data-brain-choice-trigger]')]
     .filter(button => button.getBoundingClientRect().width > 0 && button.getBoundingClientRect().height > 0);
@@ -189,6 +192,7 @@ const assertEffortStructure = lang => {
   assert.ok(state.height < 150, 'the compact effort popup fits its header and rail');
 };
 const assertEffortGeometry = () => {
+  settle();
   // Radix positions its thumb after the preview render registers the current
   // value; sample a painted frame rather than an intermediate layout effect.
   evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
@@ -218,6 +222,52 @@ const assertEffortGeometry = () => {
   assert.ok(Math.abs(state.range.left - state.track.left) <= 1, 'the orange fill starts at the rail edge');
   assert.ok(Math.abs(state.range.right - Math.min(state.track.right, center + 14)) <= 1,
     'the orange fill extends one rail radius under the thumb');
+};
+const assertContinuousTravel = (model, level) => {
+  const point = evaluate(`const track = document.querySelector('.effort-slider').getBoundingClientRect();
+    const thumb = document.querySelector('${effort}').getBoundingClientRect();
+    const value = Number(document.querySelector('${effort}').getAttribute('aria-valuenow'));
+    const max = Number(document.querySelector('${effort}').getAttribute('aria-valuemax'));
+    ({x:Math.round(thumb.left+thumb.width/2),y:Math.round(thumb.top+thumb.height/2),
+      next:Math.round(track.left+track.width*(value+.35)/max),writes:window.__pickerWrites.length});`);
+  browser('mouse', 'move', String(point.x), String(point.y));
+  browser('mouse', 'down');
+  browser('mouse', 'move', String(point.next), String(point.y));
+  settle();
+  const state = evaluate(`const r=document.querySelector('${effort}').getBoundingClientRect();
+    ({center:r.left+r.width/2,level:document.querySelector('${effort}').dataset.level,writes:window.__pickerWrites.length});`);
+  assert.ok(Math.abs(state.center - point.next) < 1, 'the handle follows the pointer between stops');
+  assert.ok(Math.abs(state.center - point.x) > 3, 'travel is visible before the nearest effort changes');
+  assert.equal(state.level, level, 'the label stays on the nearest valid effort');
+  assert.equal(state.writes, point.writes, 'continuous motion never writes while dragging');
+  browser('mouse', 'up');
+  waitChoice(model, level);
+  assertEffortGeometry();
+  assert.equal(evaluate('window.__pickerWrites.length'), point.writes, 'settling back to the same stop does not save');
+};
+const assertSmoothMotion = () => {
+  const state = evaluate(`const pane=document.querySelector('.effort-picker-pane');
+    const thumb=document.querySelector('${effort}');
+    const surface=thumb.querySelector('.effort-slider-thumb-surface');
+    const original=pane.style.getPropertyValue('--effort-fraction');
+    const start=Number(getComputedStyle(pane).getPropertyValue('--effort-fraction'));
+    pane.style.setProperty('--effort-fraction','1');
+    getComputedStyle(thumb.parentElement).left;
+    const animation=pane.getAnimations().find(animation=>animation.transitionProperty==='--effort-fraction');
+    if(animation) { animation.pause(); animation.currentTime=45; }
+    const fraction=Number(getComputedStyle(pane).getPropertyValue('--effort-fraction'));
+    const range=document.querySelector('.effort-slider-range').getBoundingClientRect();
+    const bounds=thumb.getBoundingClientRect();
+    const result={start,fraction,animated:Boolean(animation),fillDelta:range.right-(bounds.left+bounds.width/2),
+      duration:parseFloat(getComputedStyle(surface).transitionDuration)};
+    animation?.finish(); pane.style.setProperty('--effort-fraction',original);
+    getComputedStyle(thumb.parentElement).left;
+    pane.getAnimations().forEach(animation=>animation.finish());
+    result;`);
+  assert.ok(state.animated && state.fraction > state.start && state.fraction < 1,
+    'a level change visibly slides through intermediate positions');
+  assert.ok(Math.abs(state.fillDelta - 14) < 1, 'fill and handle move together during interpolation');
+  assert.ok(state.duration >= .2 && state.duration <= .26, 'enlargement eases in over a small, perceptible interval');
 };
 const assertMotion = ({ dragging = false, saving = false, reduced = false } = {}) => {
   const state = evaluate(`const pane = document.querySelector('.effort-picker-pane');
@@ -398,6 +448,8 @@ try {
   assertMotion();
   assertEffortStructure('en');
   assertEffortGeometry();
+  assertSmoothMotion();
+  assertContinuousTravel(firstModel, 'high');
   if (process.env.MODEL_EFFORT_SHOTS) browser('screenshot', `${process.env.MODEL_EFFORT_SHOTS}/model-effort-en-reference-1440.png`);
   assertTrigger('en', 'GPT-6 Astra', 'high');
   assertThumbEdgeDragStable(firstModel, 'high');

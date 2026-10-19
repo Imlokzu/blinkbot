@@ -15,6 +15,7 @@ export function EffortOptions({ brain, modelLabel, modelButtonRef, onChangeModel
 }) {
   const hintId = useId();
   const [preview, setPreview] = useState<number | null>(null);
+  const [pointerFraction, setPointerFraction] = useState<number | null>(null);
   const [epoch, setEpoch] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [keyActive, setKeyActive] = useState(false);
@@ -55,6 +56,7 @@ export function EffortOptions({ brain, modelLabel, modelButtonRef, onChangeModel
     setDragging(false);
     if (active?.target.hasPointerCapture(active.pointerId)) active.target.releasePointerCapture(active.pointerId);
     setPreview(null);
+    setPointerFraction(null);
     // Radix caches track coordinates until normal release; cancellation must reset them too.
     setEpoch(value => value + 1);
   }, []);
@@ -62,7 +64,7 @@ export function EffortOptions({ brain, modelLabel, modelButtonRef, onChangeModel
   // A drag belongs to the model and settings it started with, never a newer selection.
   useEffect(() => {
     if (gesture.current) cancelGesture();
-    else setPreview(null);
+    else { setPreview(null); setPointerFraction(null); }
   }, [brain.current, brain.thinking, brain.saving, brain.loading, brain.unavailable, levelKey, cancelGesture]);
   useEffect(() => {
     const blur = () => { if (gesture.current) cancelGesture(); };
@@ -72,6 +74,7 @@ export function EffortOptions({ brain, modelLabel, modelButtonRef, onChangeModel
 
   const commit = ([next]: number[]) => {
     setPreview(null);
+    setPointerFraction(null);
     if (!disabled && next >= 0 && next < levels.length) void brain.pickThinking(levels[next]);
   };
 
@@ -85,13 +88,15 @@ export function EffortOptions({ brain, modelLabel, modelButtonRef, onChangeModel
     const next = Math.round(fraction * (levels.length - 1));
     if (next !== active.next) stepFeedback(active.trusted);
     active.next = next;
+    // Travel is continuous; the label and saved value still use the nearest stop.
+    setPointerFraction(fraction);
     setPreview(active.next);
   };
 
   return (
     <section className="brain-picker-pane effort-picker-pane" aria-label={t('composer.effort')} aria-busy={brain.saving}
       data-dragging={dragging ? '' : undefined} data-interacting={dragging || keyActive ? '' : undefined}
-      style={{ '--effort-fraction': index / Math.max(1, levels.length - 1) } as CSSProperties}>
+      style={{ '--effort-fraction': pointerFraction ?? index / Math.max(1, levels.length - 1) } as CSSProperties}>
       <h2 className="sr-only">{t('composer.effort')}</h2>
       <div className="effort-slider-heading">
         <button ref={modelButtonRef} type="button" className="model-picker-change-model"
@@ -148,7 +153,7 @@ export function EffortOptions({ brain, modelLabel, modelButtonRef, onChangeModel
             if (active.target.hasPointerCapture(active.pointerId)) active.target.releasePointerCapture(active.pointerId);
             // Merely grabbing the handle must not reset an unsupported saved level.
             if (!active.fromThumb || active.next !== active.start) commit([active.next]);
-            else setPreview(null);
+            else { setPreview(null); setPointerFraction(null); }
           }}
           onPointerCancel={cancelGesture}
           onLostPointerCapture={() => { if (gesture.current) cancelGesture(); }}>

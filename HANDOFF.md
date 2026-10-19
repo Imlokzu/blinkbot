@@ -3552,3 +3552,25 @@ constrained layouts, popup glass and reduced motion. Every API write was mocked
 before mounting the app. Post-review actual-app smoke passed 34 HTTP checks
 including traversal 400s and stopped its temporary server. The test browser
 and development server are closed; the existing local service remains running.
+
+
+## Dashboard effort labels and smooth slider (2026-10-19)
+
+The chat model picker calls its reasoning setting Effort, with explicit English
+Low / Med / High / XHigh / Max / Ultra labels and matching Ukrainian wording.
+The handle follows pointer travel between supported stops, then settles on
+release; the fill shares its animated position. Interaction adds a small,
+smooth enlargement, with reduced motion respected. Gateway levels, keyboard
+saves, rollback, cancellation and Automatic versus Off remain supported.
+
+Implementation: dashboard/src/panels/chat/EffortMenu.tsx, model-menu.css and
+src/locales/chat.ts. The model-effort browser suite now checks intermediate
+travel, synchronized fill/handle interpolation and explicit level names.
+
+Validation: 240 dashboard tests and TypeScript checks pass; production build
+passes; backend tests report 1,980 passed and 6 skipped. Focused browser checks
+pass for both locales at 320/390/1440px, including continuous travel, keyboard
+saves, cancellation and reduced motion. Independent Antigravity review found
+no blockers (Fable was unavailable). The shared model-effort browser suite
+stops at a model-search autofocus check after touch viewport changes; the
+model-search implementation was outside this change.

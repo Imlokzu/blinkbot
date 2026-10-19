@@ -990,3 +990,17 @@ the owner's clarified request is to remove the oversized footer.
 - Keep haptics optional by capability: no remote-host pulses, no browser API
   pretending to support Mac hardware, no queue of delayed tactile feedback.
   Native bridge contract: ../docs/LOCAL-HAPTICS.md.
+
+
+## Effort naming and continuous travel (2026-10-19)
+
+- Call the setting Effort. English level labels are Low, Med, High, XHigh,
+  Max and Ultra; preserve localized equivalents and every gateway stop.
+- Pointer travel is continuous between stops. The nearest supported level
+  supplies the label and saved value; release settles the handle onto it.
+- One registered CSS fraction drives the fill and thumb together, with
+  endpoint clamping. Keep the 22px inset, hitbox and grab offset stable.
+- Ease a small 1.06x enlargement over 220ms during interaction. Reduced motion
+  disables travel interpolation and enlargement. Idle controls stay still.
+- Preserve release-only pointer saves, direct keyboard saves, cancellation,
+  rollback, unknown levels, and the distinction between Automatic and Off.
