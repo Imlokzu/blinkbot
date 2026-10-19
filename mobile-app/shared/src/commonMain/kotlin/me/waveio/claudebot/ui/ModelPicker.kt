@@ -24,11 +24,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import me.waveio.claudebot.state.AppState
 
-/** Pick a model first, then tune its effort without hunting through a chip strip. */
+/** Tune the current model first; the model catalog is one explicit action away. */
 @Composable
 fun ModelPicker(state: AppState, actions: AppActions) {
     var query by remember { mutableStateOf("") }
-    var effortPage by remember { mutableStateOf(false) }
+    var effortPage by remember { mutableStateOf(true) }
     val modelListState = rememberLazyListState()
     val pageTransforms = remember { mutableMapOf<Pair<Boolean, Boolean>, ContentTransform>() }
     pageTransforms.forEach { (key, transform) ->
@@ -37,7 +37,7 @@ fun ModelPicker(state: AppState, actions: AppActions) {
     LaunchedEffect(state.modelPickerOpen) {
         if (state.modelPickerOpen) {
             query = ""
-            effortPage = false
+            effortPage = true
             modelListState.scrollToItem(0)
         }
     }
@@ -61,16 +61,16 @@ fun ModelPicker(state: AppState, actions: AppActions) {
     MotionPopup(
         state.modelPickerOpen,
         { actions.modelPicker(false) },
-        Modifier.width(adaptive.contentWidth.coerceAtMost(472.dp)).padding(horizontal = 16.dp).heightIn(max = availableHeight).testTag("model-picker"),
+        Modifier.width(adaptive.contentWidth.coerceAtMost(if (effortPage) 288.dp else 472.dp)).padding(horizontal = 16.dp).heightIn(max = availableHeight).testTag("model-picker"),
         offset = IntOffset(0, inset),
-        surfacePadding = 12.dp,
+        surfacePadding = if (effortPage) 4.dp else 12.dp,
         drawBorder = true,
-        surfaceShape = RoundedCornerShape(24.dp),
+        surfaceShape = RoundedCornerShape(if (effortPage) 12.dp else 24.dp),
         blurEntrance = true,
     ) {
-        if (!landscape || effortPage) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            if (effortPage) IconAction("back", tr("nav.back"), { effortPage = false })
-            Text(tr(if (effortPage) "model.effort" else "model.title"), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.ink, modifier = Modifier.weight(1f).padding(start = if (effortPage) 0.dp else 10.dp))
+        if (!landscape && !effortPage) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconAction("back", tr("nav.back"), { focus.clearFocus(); keyboard?.hide(); effortPage = true })
+            Text(tr("model.title"), fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = palette.ink, modifier = Modifier.weight(1f))
             IconAction("close", tr("action.close"), { actions.modelPicker(false) })
         }
         val reduced = LocalReducedMotion.current
@@ -84,31 +84,17 @@ fun ModelPicker(state: AppState, actions: AppActions) {
                     .apply { targetContentZIndex = 1f }
             }
         }, label = "modelPage") { effortsVisible ->
-            if (effortsVisible) Column(Modifier.fillMaxWidth().transitionInput(effortPage)) {
-                Row(Modifier.padding(12.dp, 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                    BrandMark(selected?.brand.orEmpty(), Modifier.size(22.dp)); Spacer(Modifier.width(10.dp))
-                    Text(selected?.label ?: state.selectedModel, color = palette.muted, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                    IntelGaugeLargeButton(state, state.selectedModel, Modifier.padding(start = 8.dp))
+            if (effortsVisible) Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).transitionInput(effortPage)) {
+                key(state.selectedModel, selected?.efforts) {
+                    EffortSlider(
+                        effort = state.effort,
+                        efforts = selected?.efforts.orEmpty(),
+                        modelLabel = selected?.label ?: state.selectedModel,
+                        enabled = state.modelPickerOpen && effortPage && !state.modelsLoading && selected?.available == true,
+                        onSelect = actions::selectEffort,
+                        onChangeModel = { effortPage = false },
+                    )
                 }
-                val efforts = selected?.efforts.orEmpty().ifEmpty { listOf("none") }
-                Column(Modifier.weight(1f, fill = false).heightIn(max = 350.dp).verticalScroll(rememberScrollState()).selectableGroup()) {
-                    efforts.forEach { effort ->
-                        val picked = state.effort == effort
-                        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp).clip(RoundedCornerShape(16.dp)).background(if (picked) palette.secondary else palette.surface)
-                            .semantics { this.selected = picked }.clickable(role = Role.RadioButton) { actions.selectEffort(effort) }
-                            .padding(14.dp, 15.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Glyph("effort", tint = if (picked) palette.accent else palette.muted, modifier = Modifier.size(19.dp))
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(tr("model.$effort"), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = palette.ink)
-                                Text(tr("model.effortHint.$effort"), fontSize = 11.sp, color = palette.muted)
-                            }
-                            if (picked) Glyph("check", modifier = Modifier.size(17.dp), tint = palette.accent)
-                        }
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
-                ActionButton(tr("action.done"), { actions.modelPicker(false) }, Modifier.fillMaxWidth(), primary = true)
             } else {
                 val choices: @Composable (Modifier) -> Unit = { modifier ->
                     val filtered = state.models.filter { it.label.contains(query, true) || it.provider.contains(query, true) }
@@ -134,12 +120,6 @@ fun ModelPicker(state: AppState, actions: AppActions) {
                             }
                         }
                         if (filtered.isEmpty() && !state.modelsLoading) item { Text(tr("model.empty"), color = palette.muted, modifier = Modifier.padding(16.dp)) }
-                        item {
-                            Hairline(Modifier.padding(top = 9.dp, bottom = 4.dp))
-                            MenuRow("effort", tr("model.effort"), { focus.clearFocus(); keyboard?.hide(); effortPage = true }, tr("model.${state.effort}"), enabled = selected != null, trailing = {
-                                Glyph("down", modifier = Modifier.size(13.dp), tint = palette.muted)
-                            })
-                        }
                     }
                 }
                 val search: @Composable (Modifier) -> Unit = { modifier ->
@@ -152,6 +132,7 @@ fun ModelPicker(state: AppState, actions: AppActions) {
                 // Moving these slots keeps focus and list position during host
                 // resizes. Only short, wide panes need the compact two columns.
                 if (landscape) Row(Modifier.fillMaxWidth().transitionInput(!effortPage), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+                    IconAction("back", tr("nav.back"), { focus.clearFocus(); keyboard?.hide(); effortPage = true })
                     stableSearch(Modifier.weight(.45f))
                     stableChoices(Modifier.weight(.55f))
                     IconAction("close", tr("action.close"), { actions.modelPicker(false) })

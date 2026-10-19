@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.min
 import me.waveio.claudebot.data.IntelligenceBenchmark
 import me.waveio.claudebot.data.IntelligenceSource
 import me.waveio.claudebot.state.AppState
@@ -67,17 +68,19 @@ private fun IntelDial(score: Float, width: androidx.compose.ui.unit.Dp, height: 
     val p = LocalPalette.current
     Canvas(Modifier.width(width).height(height)) {
         val inset = stroke.toPx() / 2f
-        val diameter = size.width - inset * 2f
-        val top = size.height - inset
-        val left = (size.width - diameter) / 2f
-        val center = Offset(left + diameter / 2f, top)
+        val bottomInset = if (needle) maxOf(inset, 4.5.dp.toPx()) else inset
+        val radius = min(size.width / 2f - inset, size.height - inset - bottomInset).coerceAtLeast(0f)
+        val diameter = radius * 2f
+        val center = Offset(size.width / 2f, inset + radius)
+        // The arc and needle share a center; its upper half fits inside the canvas.
+        val arcOrigin = Offset(center.x - radius, center.y - radius)
         ZoneColors.forEachIndexed { index, color ->
             val start = 180f + index * 45f + 1.2f
             val sweep = 42.6f
-            drawArc(color.copy(alpha = .16f), start, sweep, false, Offset(left, top - diameter), Size(diameter, diameter), style = Stroke(stroke.toPx(), cap = StrokeCap.Round))
+            drawArc(color.copy(alpha = .16f), start, sweep, false, arcOrigin, Size(diameter, diameter), style = Stroke(stroke.toPx(), cap = StrokeCap.Round))
             val zoneStart = index * 25f
             val reached = ((score - zoneStart) / 25f).coerceIn(0f, 1f)
-            if (reached > 0f) drawArc(color, start, sweep * reached, false, Offset(left, top - diameter), Size(diameter, diameter), style = Stroke(stroke.toPx(), cap = StrokeCap.Round))
+            if (reached > 0f) drawArc(color, start, sweep * reached, false, arcOrigin, Size(diameter, diameter), style = Stroke(stroke.toPx(), cap = StrokeCap.Round))
         }
         if (needle) {
             val angle = PI * (1 - score.coerceIn(0f, 100f) / 100f)
@@ -91,23 +94,15 @@ private fun IntelDial(score: Float, width: androidx.compose.ui.unit.Dp, height: 
     }
 }
 
-/** Speedometer for a model row. Size readout + needle in large mode; number beside the arcs in rows. */
+/** Compact speedometer and score for model rows. */
 @Composable
-private fun IntelGauge(value: Float, coverage: Int, total: Int, modifier: Modifier = Modifier, large: Boolean = false) {
+private fun IntelGauge(value: Float, coverage: Int, total: Int, modifier: Modifier = Modifier) {
     val p = LocalPalette.current
     val score = value.coerceIn(0f, 100f)
     val description = tr("model.intelligence", "score" to score.toInt(), "coverage" to coverage, "total" to total)
     Row(modifier.semantics { contentDescription = description }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (large) Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            IntelDial(score, 104.dp, 58.dp, 7.dp, needle = true)
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(score.toInt().toString(), color = p.ink, fontSize = 18.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium)
-                Text("/100", color = p.muted, fontSize = 10.sp, lineHeight = 14.sp)
-            }
-        } else {
-            IntelDial(score, 45.dp, 28.dp, 4.dp, needle = false)
-            Text(score.toInt().toString(), color = p.muted, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-        }
+        IntelDial(score, 28.dp, 18.dp, 3.dp, needle = false)
+        Text(score.toInt().toString(), color = p.muted, fontSize = 11.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -120,19 +115,8 @@ private fun IntelGauge(value: Float, coverage: Int, total: Int, modifier: Modifi
 fun IntelGaugeButton(state: AppState, modelId: String, modifier: Modifier = Modifier) {
     val row = state.intelligence[modelId] ?: return
     var open by remember { mutableStateOf(false) }
-    Box(modifier.clip(RoundedCornerShape(8.dp)).clickable { open = true }.padding(2.dp)) {
+    Box(modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).clip(RoundedCornerShape(8.dp)).clickable(role = androidx.compose.ui.semantics.Role.Button) { open = true }.padding(2.dp), contentAlignment = Alignment.Center) {
         IntelGauge(row.index, row.coverage, row.total)
-    }
-    if (open) IntelCard(state, modelId, row) { open = false }
-}
-
-/** Large tappable dial used in the effort header: needle + readout, tap opens the same detail card. */
-@Composable
-fun IntelGaugeLargeButton(state: AppState, modelId: String, modifier: Modifier = Modifier) {
-    val row = state.intelligence[modelId] ?: return
-    var open by remember { mutableStateOf(false) }
-    Box(modifier.clip(RoundedCornerShape(12.dp)).clickable { open = true }.padding(4.dp)) {
-        IntelGauge(row.index, row.coverage, row.total, large = true)
     }
     if (open) IntelCard(state, modelId, row) { open = false }
 }

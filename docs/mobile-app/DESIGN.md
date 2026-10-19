@@ -142,7 +142,18 @@ updates chats/models concurrently without replacing the current conversation.
 ## Model and effort selection
 
 - The centered top control opens a compact panel immediately below itself.
-- The panel contains model selection with branding and a separate effort control.
+- The panel opens on effort, matching the PC picker's compact 256 dp surface:
+  a 14 sp effort label above the 12 sp model name and chevron. That heading is
+  one button which opens the model catalog; selecting a model returns to effort.
+- Use the PC orange rounded rail, subtle tick marks and white 44 x 32 dp pill
+  handle. Keep a 48 dp touch area around the slider and heading. Preview effort
+  while dragging and save on release; cancelled or obsolete gestures never save.
+  Keyboard arrows and accessibility actions select supported stops directly.
+- Dismiss by tapping outside or using platform Back/Escape. Do not add a title
+  row, a separate model-change button or a confirmation footer to the effort pane.
+- Model-list intelligence dials are 28 x 18 dp, with a separate score and 48 dp
+  tap target. Their semicircle and needle share a center inside the canvas;
+  tapping still opens the detailed benchmark card.
 - Every conversation retains its own model/effort and permits changes.
 - A global **new-chat** preference selects a fixed default model or the last
   model used globally. Changing it does not rewrite existing conversations.

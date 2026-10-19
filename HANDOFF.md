@@ -3574,3 +3574,25 @@ saves, cancellation and reduced motion. Independent Antigravity review found
 no blockers (Fable was unavailable). The shared model-effort browser suite
 stops at a model-search autofocus check after touch viewport changes; the
 model-search implementation was outside this change.
+
+
+## Native PC-style model and effort picker (2026-10-19)
+
+The shared Android/iOS/macOS picker now opens on effort. It mirrors the PC
+256 dp compact panel, two-line effort/model heading with a chevron, orange
+rounded slider and white pill handle. The heading opens model selection;
+selecting a model returns to effort. Outside tap and Back/Escape dismiss it.
+Dragging previews supported effort stops and saves on release; model changes,
+disabling, focus loss and cancelled gestures discard the preview. Automatic
+and explicit Off remain distinct. The model-list intelligence dial is now
+28 x 18 dp with a 48 dp tap target; its arc and needle share a correctly
+positioned center, fixing clipped rendering.
+
+Validation: Android debug APK built; shared Android/macOS sources and Android
+instrumentation tests compiled. All 322 shared unit tests, 78 Android unit
+tests and 7 native desktop picker interaction tests passed. Native screenshots
+were inspected in light/dark themes and with enlarged Ukrainian text. The
+Android instrumentation tests were updated, including touch cancellation,
+but no device/emulator or iOS runtime test was run. Antigravity file-review
+attempts were denied command access, its supplied-code review did not finish,
+and OpenCode review timed out; no independent review completion is claimed.

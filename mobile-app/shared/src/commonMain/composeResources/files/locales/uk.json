@@ -51,6 +51,8 @@
   "model.title": "Модель",
   "model.search": "Знайти модель",
   "model.effort": "Міркування",
+  "model.change": "Змінити модель",
+  "model.effortUnavailable": "Ця модель сама визначає глибину міркувань.",
   "model.none": "Автоматично",
   "model.low": "Низький",
   "model.medium": "Середній",

@@ -193,11 +193,12 @@ class MobileMotionTest {
         }
         launch(screen = Screen.Chat, models = models)
         compose.onNodeWithText("Model 1").performClick()
+        compose.onNodeWithTag("change-model").performClick()
         compose.onNode(hasScrollToNodeAction() and hasAnyAncestor(hasTestTag("model-picker")))
             .performScrollToNode(hasText("Model 14"))
         compose.onNodeWithText("Model 14").performClick()
-        compose.onNodeWithText(strings.get("model.high")).performClick()
-        compose.onNodeWithContentDescription(strings.get("nav.back")).performClick()
+        compose.onNodeWithTag("effort-slider").performSemanticsAction(SemanticsActions.SetProgress) { it(1f) }
+        compose.onNodeWithTag("change-model").performClick()
 
         // The selected item must remain reachable at the same list position.
         compose.onNode(hasText("Model 14") and hasAnyAncestor(hasTestTag("model-picker"))).assertIsDisplayed()
@@ -208,11 +209,12 @@ class MobileMotionTest {
     @Test fun rapidModelPageReversalKeepsTheListInteractive() {
         launch(screen = Screen.Chat)
         compose.onNodeWithText("Claude Sonnet").performClick()
+        compose.onNodeWithTag("change-model").performClick()
         compose.onNodeWithText("GPT").assertIsDisplayed()
         compose.mainClock.autoAdvance = false
         compose.onNodeWithText("GPT").performClick()
         compose.mainClock.advanceTimeByFrame()
-        compose.onNodeWithContentDescription(strings.get("nav.back")).performClick()
+        compose.onNodeWithTag("change-model").performClick()
         compose.mainClock.advanceTimeByFrame()
 
         // The retained list is now the target, so the fading effort page must
@@ -220,29 +222,44 @@ class MobileMotionTest {
         compose.onNode(hasText("Claude Sonnet") and hasAnyAncestor(hasTestTag("model-picker"))).performClick()
         assertEquals("fixture/claude", state.selectedModel)
         compose.mainClock.advanceTimeBy(700)
-        compose.onNodeWithText(strings.get("action.done")).assertIsDisplayed()
+        compose.onNodeWithTag("effort-slider").assertIsDisplayed()
     }
 
     @Test fun closingTheEffortPanelRemovesItsActionsBeforeTheExitFinishes() {
         launch(screen = Screen.Chat)
         compose.onNodeWithText("Claude Sonnet").performClick()
-        compose.onNodeWithText(strings.get("model.effort")).performClick()
-        compose.onNodeWithText(strings.get("model.high")).assertIsDisplayed()
+        compose.onNodeWithTag("effort-slider").assertIsDisplayed()
         compose.mainClock.autoAdvance = false
-        compose.onNodeWithText(strings.get("action.done")).performClick()
+        androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
         compose.mainClock.advanceTimeByFrame()
 
         // A fading panel must not remain a screen-reader or tap target.
-        compose.onNodeWithText(strings.get("model.high")).assertDoesNotExist()
-        compose.onNodeWithText(strings.get("action.done")).assertDoesNotExist()
+        compose.onNodeWithTag("effort-slider").assertDoesNotExist()
+        compose.onNodeWithTag("change-model").assertDoesNotExist()
         compose.mainClock.advanceTimeBy(700)
         compose.onNodeWithTag("model-picker").assertDoesNotExist()
         assertEquals(false, state.modelPickerOpen)
 
         compose.mainClock.autoAdvance = true
         compose.onNodeWithText("Claude Sonnet").performClick()
-        compose.onNodeWithText(strings.get("model.title")).assertIsDisplayed()
-        compose.onNodeWithText(strings.get("action.done")).assertDoesNotExist()
+        compose.onNodeWithTag("change-model").assertIsDisplayed()
+        compose.onNodeWithTag("effort-slider").assertIsDisplayed()
+    }
+
+    @Test fun cancellingAnEffortDragRestoresTheSavedValue() {
+        launch(screen = Screen.Chat, reducedMotion = true)
+        compose.onNodeWithText("Claude Sonnet").performClick()
+        val slider = compose.onNodeWithTag("effort-slider")
+        slider.performTouchInput {
+            down(centerLeft + androidx.compose.ui.geometry.Offset(20f, 0f))
+            moveTo(center, delayMillis = 50)
+            moveTo(centerRight - androidx.compose.ui.geometry.Offset(20f, 0f), delayMillis = 50)
+        }
+        compose.onNodeWithText(strings.get("model.high")).assertIsDisplayed()
+        assertEquals("A drag only previews effort", "none", state.effort)
+        slider.performTouchInput { cancel() }
+        compose.onNodeWithText(strings.get("model.none")).assertIsDisplayed()
+        assertEquals("Cancelling must not save effort", "none", state.effort)
     }
 
     @Test fun unavailableDefaultModelCannotBeSelected() {

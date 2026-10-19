@@ -51,6 +51,8 @@
   "model.title": "Model",
   "model.search": "Find a model",
   "model.effort": "Effort",
+  "model.change": "Change model",
+  "model.effortUnavailable": "This model manages its own reasoning effort.",
   "model.none": "Automatic",
   "model.low": "Low",
   "model.medium": "Medium",

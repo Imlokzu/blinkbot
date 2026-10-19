@@ -181,6 +181,8 @@ class TabletLayoutRegressionTest {
         back()
         compose.waitUntil(5000) { !controller.state.value.attachmentPickerOpen }
         compose.onNodeWithText("GPT Sol", substring = false).performClick()
+        compose.onNodeWithTag("effort-slider").assertIsDisplayed()
+        compose.onNodeWithTag("change-model").performClick()
         waitFor("Find a model")
         val picker = compose.onNodeWithTag("model-picker").getUnclippedBoundsInRoot()
         assertTrue("Model picker remains compact", picker.width.value <= 500f)
