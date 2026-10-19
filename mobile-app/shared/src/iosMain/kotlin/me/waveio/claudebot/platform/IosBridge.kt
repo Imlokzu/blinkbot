@@ -21,6 +21,7 @@ class IosSecretResult(val value: String?, val errorMessage: String?)
 
 interface IosNativeDelegate {
     val systemLanguage: String
+    val supportsAgentHaptics: Boolean
     val reducedMotion: Boolean
     fun readPreference(key: String): String?
     fun writePreference(key: String, value: String?)
@@ -36,6 +37,8 @@ interface IosNativeDelegate {
     fun stopRecording()
     fun cancelRecording()
     fun haptic()
+    fun agentHaptic(kind: String, intensity: Float)
+    fun cancelAgentHaptics()
     fun copyText(value: String)
     fun shareText(value: String)
     fun requestNotifications(onResult: (Boolean) -> Unit)
@@ -83,6 +86,9 @@ class IosBridge(private val delegate: IosNativeDelegate) : PlatformBridge {
     override fun stopRecording() = delegate.stopRecording()
     override fun cancelRecording() = delegate.cancelRecording()
     override fun haptic() = delegate.haptic()
+    override val supportsAgentHaptics: Boolean get() = delegate.supportsAgentHaptics
+    override fun agentHaptic(kind: me.waveio.claudebot.state.AgentHaptic, intensity: Float) = delegate.agentHaptic(kind.name, intensity)
+    override fun cancelAgentHaptics() = delegate.cancelAgentHaptics()
     override fun copyText(value: String) = delegate.copyText(value)
     override fun shareText(value: String) = delegate.shareText(value)
     override fun requestNotifications(onResult: (Boolean) -> Unit) = delegate.requestNotifications(onResult)

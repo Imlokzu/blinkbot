@@ -68,7 +68,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     private val presentationIds = mutableMapOf<String, String>()
     private var partialAsr: Job? = null
     private var accountScope = runCatching { platform.readPreference("device_id") }.getOrNull() ?: "unpaired"
-    private var lastHaptic = 0L
+    private val agentHaptics = AgentHaptics(scope, platform)
     private var cachedProfile: BotProfile? = null
     private var catalogDefaultModel = ""
     private var outbox = mutableListOf<OutboxItem>()
@@ -113,11 +113,15 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val restoredToken = runCatching { platform.readSecret("device_token") }
         val token = restoredToken.getOrNull()
         // Publish restoration before launching work so a paired phone never flashes QR login.
-        mutable.value = AppState(preferences = preferences, baseUrl = server, customWallpaper = wallpaper, draft = readScoped("draft.new").orEmpty(), selectedModel = initialModel(preferences), installedVersion = platform.appVersionName,
+        mutable.value = AppState(preferences = preferences, agentHapticsSupported = platform.supportsAgentHaptics, baseUrl = server, customWallpaper = wallpaper, draft = readScoped("draft.new").orEmpty(), selectedModel = initialModel(preferences), installedVersion = platform.appVersionName,
             updateBeta = runCatching { platform.readPreference("update_beta") == "1" }.getOrDefault(false),
             initializing = !token.isNullOrBlank(), connecting = !token.isNullOrBlank(),
             initializationError = if (restoredToken.isFailure) "startup.storage" else null)
         if (!token.isNullOrBlank()) run { establish(server, token) }
+        scope.launch {
+            combine(state, platform.foreground) { current, foreground -> current to foreground }
+                .collect { (current, foreground) -> agentHaptics.observe(current, foreground) }
+        }
         scope.launch {
             platform.incomingPairing.filterNotNull().distinctUntilChanged().collect { payload ->
                 if (!state.value.connected && !state.value.connecting) processPairing(payload)
@@ -209,12 +213,8 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             initializationError = if (it.initializing) key else it.initializationError,
             initializing = false, loading = false, connecting = false, modelPickerOpen = it.modelPickerOpen || key == "error.imageModel") }
     }
-    private fun feedback(answer: Boolean = false) {
-        if (answer && !platform.foreground.value) return
-        val p = state.value.preferences
-        if (p.haptics && (!answer || p.answerHaptics) && (!answer || platform.nowMillis() - lastHaptic > 200)) {
-            lastHaptic = platform.nowMillis(); platform.haptic()
-        }
+    private fun feedback() {
+        if (platform.foreground.value && state.value.preferences.haptics) platform.haptic()
     }
 
     override fun connect() {
@@ -829,12 +829,14 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                     connection.jobEvents(job.id, cursors[job.id] ?: 0).collect { event ->
                         if (version != connectionVersion) return@collect
                         if (event.id != null && event.id <= (cursors[job.id] ?: 0L)) return@collect
+                        agentHaptics.resume(job.id)
                         event.id?.let { cursors[job.id] = it }
                         receiveQuestion(job, event)
                         val streamVersion = (sessionStreamVersions[job.sessionId] ?: 0L) + 1
                         sessionStreamVersions[job.sessionId] = streamVersion
                         if (event.event == "mobile_state") {
                             val status = event.data["state"]?.jsonPrimitive?.content.orEmpty()
+                            if (status == "stopping" || status in terminalStates) agentHaptics.pause(job.id, stopped = true)
                             val imageFailure = status == "failed" && event.data["error"]?.jsonPrimitive?.contentOrNull == "mobile_image_model_unavailable"
                             if (imageFailure) reportedJobErrors += job.id
                             observedJobStates[job.id] = streamVersion to status
@@ -850,7 +852,11 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                                     modelPickerOpen = current.modelPickerOpen || imageFailure,
                                     messages = if (terminal) current.messages.map { row -> if (row.id == "a-${job.id}") row.copy(live = false) else row } else current.messages)
                             }
-                        } else if (state.value.sessionId == job.sessionId) applyEvent(job, event)
+                        } else {
+                            if (event.event in setOf("done", "error")) agentHaptics.pause(job.id, stopped = true)
+                            if (state.value.sessionId == job.sessionId) applyEvent(job, event)
+                        }
+                        agentHaptics.observe(state.value, platform.foreground.value)
                         if (event.event == "done") {
                             val navigation = navigationVersion
                             notifyReply(job.sessionId, event.data["reply"]?.jsonPrimitive?.content.orEmpty())
@@ -869,10 +875,11 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                     }
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (failure: Exception) {
+                    agentHaptics.pause(job.id)
                     if (failure is ApiFailure && failure.status in listOf(401, 403, 404)) terminal = true
                     else delay(2000)
                 }
-                if (!terminal) delay(1000)
+                if (!terminal) { agentHaptics.pause(job.id); delay(1000) }
             }
         }
     }
@@ -896,7 +903,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                 val chunk = data["chunk"]?.jsonPrimitive?.content.orEmpty()
                 val last = old.parts.lastOrNull()
                 val parts = if (last?.type == "text" && last.noteId == null && !last.note) old.parts.dropLast(1) + last.copy(text = last.text + chunk) else old.parts + ContentPart("text", chunk)
-                row = old.copy(text = old.text + chunk, parts = parts, live = true); feedback(true)
+                row = old.copy(text = old.text + chunk, parts = parts, live = true)
             }
             "break" -> row = old.copy(text = old.text + "\n\n", parts = old.parts + ContentPart("text"))
             "reply_snapshot" -> {
@@ -909,14 +916,12 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                 val prefix = old.parts.take(insertAt)
                 val preserved = old.parts.drop(insertAt).filterNot { it.type == "text" && it.noteId == null && !it.note }
                 row = old.copy(text = snapshot, bubbles = answer, parts = prefix + answer.map { ContentPart("text", it) } + preserved, live = true)
-                feedback(true)
             }
             "note" -> {
                 val noteId = data["id"]?.jsonPrimitive?.content ?: return
                 val notes = data["bubbles"]?.jsonArray?.map { ContentPart("text", it.jsonPrimitive.content, noteId = noteId, note = true) }.orEmpty()
                 val at = old.parts.indexOfFirst { it.noteId == noteId }
                 row = old.copy(parts = if (at >= 0) old.parts.take(at) + notes + old.parts.drop(at).filterNot { it.noteId == noteId } else old.parts + notes)
-                feedback(true)
             }
             "model" -> {
                 val model = data["model"]?.jsonPrimitive?.content.orEmpty(); row = old.copy(model = model)
@@ -1026,6 +1031,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     }
     override fun stop() {
         val id = state.value.activeJobId ?: return
+        agentHaptics.pause(id, stopped = true)
         val session = state.value.sessionId
         val version = connectionVersion
         run {
@@ -2087,6 +2093,9 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         try { platform.writePreference("preferences.v1", json.encodeToString(value)); update { it.copy(preferences = value) } }
         catch (_: Exception) { update { it.copy(error = "error.storage") } }
     }
+    override fun previewHaptic(kind: AgentHaptic) {
+        if (state.value.screen == Screen.Haptics) agentHaptics.preview(kind, state.value.preferences, platform.foreground.value)
+    }
     override fun resetWallpaper() { platform.writePreference("wallpaper.v1", null); update { it.copy(customWallpaper = null) } }
     override fun requestNotifications() { platform.requestNotifications { allowed -> preferences(state.value.preferences.copy(notifications = allowed)) } }
     override fun profileName(value: String) { profileEditVersion++; update { it.copy(profileName = value) } }
@@ -2106,6 +2115,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         }
     }
     override fun disconnect() {
+        agentHaptics.reset()
         connectionVersion++; navigationVersion++; recordingVersion++; previewVersion++; fileReadVersion++; directoryVersion++; pairingVersion++
         partialAsr?.cancel(); fileDebounce?.cancel(); platform.cancelRecording()
         watchers.values.forEach { it.cancel() }; watchers.clear(); api?.close(); api = null
@@ -2117,7 +2127,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         sessionsVersion++; messageMutationVersion++
         fileConflicts.clear(); fileAliases.clear(); fileEditVersions.clear(); filePausedForWrite.clear(); fileParents.clear(); editorGeneration++; drawingExportVersion++
         outbox.clear(); permitted.clear(); outboxSnapshot = emptyList(); allowedSnapshot = emptySet(); fileDrafts.clear(); fileBaselines.clear(); fileRevisions.clear(); cursors.clear(); sessionStreamVersions.clear(); observedJobStates.clear(); reportedJobErrors.clear(); cachedProfile = null; catalogDefaultModel = ""; beforeEdit = null; fileReturnScreen = null
-        platform.writeSecret("device_token", null); update { AppState(preferences = it.preferences, baseUrl = it.baseUrl, customWallpaper = it.customWallpaper, mediaGeneration = it.mediaGeneration + 1, fileEditorGeneration = editorGeneration, installedVersion = platform.appVersionName) }
+        platform.writeSecret("device_token", null); update { AppState(preferences = it.preferences, agentHapticsSupported = platform.supportsAgentHaptics, baseUrl = it.baseUrl, customWallpaper = it.customWallpaper, mediaGeneration = it.mediaGeneration + 1, fileEditorGeneration = editorGeneration, installedVersion = platform.appVersionName) }
     }
     override fun dismissNotice() { update { it.copy(error = null, notice = null, noticeDetail = null) } }
     override fun dismissUpdate() { update { it.copy(updatePromptOpen = false) } }
@@ -2181,7 +2191,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             }
         }
     }
-    fun close() { platform.cancelRecording(); scope.cancel(); api?.close() }
+    fun close() { agentHaptics.stop(); platform.cancelAgentHaptics(); platform.cancelRecording(); scope.cancel(); api?.close() }
 
     private fun <T> MutableList<T>.replaceAllInPlace(transform: (T) -> T) {
         indices.forEach { index -> this[index] = transform(this[index]) }

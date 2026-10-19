@@ -61,7 +61,7 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             state.dictationOpen -> actions.cancelDictation()
             modalMenuOpen -> actions.menu(false)
             state.openFile != null -> fileNavigation.afterFlush(actions::closeFile)
-            state.screen in listOf(Screen.Appearance, Screen.Models, Screen.Notifications, Screen.Personalization, Screen.Queue, Screen.Updates) -> actions.navigate(Screen.Profile)
+            state.screen in listOf(Screen.Appearance, Screen.Models, Screen.Notifications, Screen.Personalization, Screen.Queue, Screen.Updates, Screen.Haptics) -> actions.navigate(Screen.Profile)
             else -> actions.navigate(Screen.Chat)
         }
     }
@@ -308,6 +308,7 @@ fun screenTitle(screen: Screen): String = tr(when (screen) {
     Screen.Queue -> "queue.title"
     Screen.Skills -> "input.skills"
     Screen.Updates -> "profile.update"
+    Screen.Haptics -> "profile.haptics"
 })
 
 @Composable

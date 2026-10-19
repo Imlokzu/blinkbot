@@ -1,6 +1,7 @@
 import UIKit
 import UserNotifications
 import ClaudeBot
+import CoreHaptics
 
 protocol NativeOperation: AnyObject {
     func cancel()
@@ -26,8 +27,13 @@ final class NativeBridge: NSObject, IosNativeDelegate, UNUserNotificationCenterD
     private let keychainQueue = DispatchQueue(label: "me.waveio.claudebot.keychain")
     private let preferences = UserDefaults.standard
     private let preferencePrefix = "claudebot."
+    private var hapticGeneration = 0
+    private let thinkingFeedback = UIImpactFeedbackGenerator(style: .light)
+    private let toolFeedback = UIImpactFeedbackGenerator(style: .rigid)
+    private let streamingFeedback = UIImpactFeedbackGenerator(style: .light)
 
     var systemLanguage: String { Locale.preferredLanguages.first ?? "en" }
+    var supportsAgentHaptics: Bool { CHHapticEngine.capabilitiesForHardware().supportsHaptics }
     var reducedMotion: Bool { UIAccessibility.isReduceMotionEnabled }
 
     func attach(controller: UIViewController, bridge: IosBridge) {
@@ -38,6 +44,7 @@ final class NativeBridge: NSObject, IosNativeDelegate, UNUserNotificationCenterD
     }
 
     func detach() {
+        cancelAgentHaptics()
         // Kotlin/Native GC may retain this delegate after SwiftUI releases its host.
         bridge?.setForeground(value: false)
         observers.forEach(NotificationCenter.default.removeObserver)
@@ -67,6 +74,7 @@ final class NativeBridge: NSObject, IosNativeDelegate, UNUserNotificationCenterD
         })
         observers.append(center.addObserver(forName: UIScene.willDeactivateNotification,
                                             object: scene, queue: .main) { [weak self] _ in
+            self?.cancelAgentHaptics()
             self?.bridge?.setForeground(value: false)
         })
         observers.append(center.addObserver(forName: UIScene.didEnterBackgroundNotification,
@@ -218,6 +226,28 @@ final class NativeBridge: NSObject, IosNativeDelegate, UNUserNotificationCenterD
     func cancelRecording() { onMain { [weak self] in self?.recording.cancel() } }
     func haptic() {
         onMain { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+    }
+    func agentHaptic(kind: String, intensity: Float) {
+        onMain { [weak self] in
+            guard let self, self.controller != nil,
+                  self.scene?.activationState == .foregroundActive else { return }
+            self.hapticGeneration += 1
+            let generation = self.hapticGeneration
+            let strength = CGFloat(min(1, max(0.05, intensity)))
+            let feedback = kind == "Tool" ? self.toolFeedback : kind == "Streaming" ? self.streamingFeedback : self.thinkingFeedback
+            feedback.prepare()
+            feedback.impactOccurred(intensity: strength)
+            if kind == "Tool" {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.045) { [weak self] in
+                    guard let self, self.hapticGeneration == generation,
+                          self.scene?.activationState == .foregroundActive else { return }
+                    feedback.impactOccurred(intensity: strength * 0.7)
+                }
+            }
+        }
+    }
+    func cancelAgentHaptics() {
+        onMain { [weak self] in self?.hapticGeneration += 1 }
     }
     func doCopyText(value: String) { onMain { UIPasteboard.general.string = value } }
 

@@ -57,8 +57,7 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
                 Hairline()
                 Text(tr("profile.language"), color = p.muted, fontSize = 12.sp)
                 Choices(listOf("system" to "profile.system", "uk" to "profile.ukrainian", "en" to "profile.english"), preferences.language) { actions.preferences(preferences.copy(language = it)) }
-                ToggleRow("profile.haptics", preferences.haptics) { actions.preferences(preferences.copy(haptics = it)) }
-                ToggleRow("profile.answerHaptics", preferences.answerHaptics) { actions.preferences(preferences.copy(answerHaptics = it)) }
+                SettingsLink("phone", "profile.haptics") { actions.navigate(Screen.Haptics) }
                 ActionButton(tr("profile.disconnect"), actions::disconnect, icon = "logout")
                 Text(tr("profile.credits"), color = p.muted, fontSize = 11.sp)
             }
@@ -105,6 +104,33 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
                 ToggleRow("notifications.enable", preferences.notifications) { if (it) actions.requestNotifications() else actions.preferences(preferences.copy(notifications = false)) }
                 ToggleRow("notifications.preview", preferences.notificationPreview) { actions.preferences(preferences.copy(notificationPreview = it)) }
                 Text(tr("notifications.limited"), color = p.muted, fontSize = 12.sp)
+            }
+            Screen.Haptics -> {
+                Text(tr("haptics.help"), color = p.muted, fontSize = 13.sp)
+                ToggleRow("profile.haptics", preferences.haptics) { actions.preferences(preferences.copy(haptics = it)) }
+                if (preferences.haptics) {
+                    ToggleRow("haptics.agent", preferences.answerHaptics) { actions.preferences(preferences.copy(answerHaptics = it)) }
+                    if (preferences.answerHaptics) {
+                        ToggleRow("haptics.thinking", preferences.thinkingHaptics) { actions.preferences(preferences.copy(thinkingHaptics = it)) }
+                        Text(tr("haptics.thinkingHint"), color = p.muted, fontSize = 12.sp)
+                        ToggleRow("haptics.tools", preferences.toolHaptics) { actions.preferences(preferences.copy(toolHaptics = it)) }
+                        Text(tr("haptics.toolsHint"), color = p.muted, fontSize = 12.sp)
+                        ToggleRow("haptics.streaming", preferences.streamingHaptics) { actions.preferences(preferences.copy(streamingHaptics = it)) }
+                        Text(tr("haptics.streamingHint"), color = p.muted, fontSize = 12.sp)
+                        Hairline()
+                        Text(tr("haptics.strength"), color = p.ink)
+                        Choices(listOf("light" to "haptics.light", "medium" to "haptics.medium", "strong" to "haptics.strong"), preferences.hapticStrength) { actions.preferences(preferences.copy(hapticStrength = it)) }
+                        Text(tr("haptics.cadence"), color = p.ink)
+                        Choices(listOf("calm" to "haptics.calm", "balanced" to "haptics.balanced", "lively" to "haptics.lively"), preferences.hapticCadence) { actions.preferences(preferences.copy(hapticCadence = it)) }
+                        Text(tr("haptics.preview"), color = p.muted, fontSize = 12.sp)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(AgentHaptic.Thinking to "haptics.tryThinking", AgentHaptic.Tool to "haptics.tryTools", AgentHaptic.Streaming to "haptics.tryStreaming").forEach { (kind, key) ->
+                                ActionButton(tr(key), { actions.previewHaptic(kind) }, enabled = state.agentHapticsSupported)
+                            }
+                        }
+                    }
+                }
+                Text(tr(if (state.agentHapticsSupported) "haptics.system" else "haptics.unsupported"), color = p.muted, fontSize = 12.sp)
             }
             Screen.Updates -> UpdateSettingsContent(state, actions)
             Screen.Personalization -> {

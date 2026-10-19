@@ -55,6 +55,8 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
     private val context = activity.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val active = MutableStateFlow(false)
+    private val agentHapticPlayer by lazy { AgentHapticPlayer(activity.window.decorView) { !destroyed && active.value } }
+    override val supportsAgentHaptics: Boolean get() = agentHapticPlayer.available
     override val foreground: StateFlow<Boolean> = (context as? BotApplication)?.nativeForeground?.foreground ?: active.asStateFlow()
     private val pairing = MutableStateFlow<String?>(null)
     override val incomingPairing: StateFlow<String?> = pairing.asStateFlow()
@@ -132,11 +134,12 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
 
     override fun onStart(owner: LifecycleOwner) { stopped = false }
     override fun onResume(owner: LifecycleOwner) { active.value = true }
-    override fun onPause(owner: LifecycleOwner) { active.value = false }
+    override fun onPause(owner: LifecycleOwner) { active.value = false; agentHapticPlayer.cancel() }
     override fun onStop(owner: LifecycleOwner) { stopped = true; cancelRecording() }
     override fun onDestroy(owner: LifecycleOwner) {
         destroyed = true
         active.value = false
+        agentHapticPlayer.cancel()
         val qrCallback = qrResult
         qrResult = null
         val permissionCallback = permissionResult
@@ -445,6 +448,10 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
     }
 
     override fun haptic() { if (!destroyed) activity.window.decorView.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK) }
+    override fun agentHaptic(kind: me.waveio.claudebot.state.AgentHaptic, intensity: Float) {
+        runCatching { agentHapticPlayer.play(kind, intensity) }
+    }
+    override fun cancelAgentHaptics() { agentHapticPlayer.cancel() }
     override fun copyText(value: String) {
         context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(context.getString(R.string.app_name), value))
     }

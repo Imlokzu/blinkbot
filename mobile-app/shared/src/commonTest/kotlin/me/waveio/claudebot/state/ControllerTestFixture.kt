@@ -29,6 +29,10 @@ internal class FakePlatformBridge : PlatformBridge {
     override val reducedMotion = true
     override val foreground = MutableStateFlow(true)
     override val incomingPairing = MutableStateFlow<String?>(null)
+    override var supportsAgentHaptics = false
+    val agentPulses = mutableListOf<Pair<AgentHaptic, Float>>()
+    var cancelledHaptics = 0
+    var clock: (() -> Long)? = null
     val preferences = mutableMapOf("device_id" to "owner_old", "server" to "https://old.example")
     val secrets = mutableMapOf("device_token" to "old-device-token")
     var qrResult: ((String?) -> Unit)? = null
@@ -64,6 +68,8 @@ internal class FakePlatformBridge : PlatformBridge {
     override fun stopRecording() = Unit
     override fun cancelRecording() = Unit
     override fun haptic() = Unit
+    override fun agentHaptic(kind: AgentHaptic, intensity: Float) { agentPulses += kind to intensity }
+    override fun cancelAgentHaptics() { cancelledHaptics++ }
     override fun copyText(value: String) {
         if (failCopy) error("Clipboard unavailable")
         copiedTexts += value
@@ -79,7 +85,7 @@ internal class FakePlatformBridge : PlatformBridge {
     override fun installPackage(file: PickedFile, onResult: (Boolean) -> Unit) { installedPackages += file; onResult(packageAccepted) }
     override fun requestNotifications(onResult: (Boolean) -> Unit) { onResult(true) }
     override fun notifyReply(title: String, body: String, conversationId: String) { notifications += Triple(title, body, conversationId) }
-    override fun nowMillis(): Long = 1_791_043_200_000
+    override fun nowMillis(): Long = clock?.invoke() ?: 1_791_043_200_000
     override fun newId(): String = "local_${++nextId}"
 }
 

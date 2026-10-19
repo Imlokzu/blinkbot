@@ -9,7 +9,7 @@ import me.waveio.claudebot.data.IntelligenceEntry
 import me.waveio.claudebot.data.IntelligenceSource
 import kotlinx.serialization.json.JsonElement
 
-enum class Screen { Chat, Search, Files, Agents, Profile, Appearance, Models, Notifications, Personalization, Queue, Skills, Updates }
+enum class Screen { Chat, Search, Files, Agents, Profile, Appearance, Models, Notifications, Personalization, Queue, Skills, Updates, Haptics }
 
 @Serializable
 data class Preferences(
@@ -22,6 +22,11 @@ data class Preferences(
     val wallpaperBlur: Float = 22f,
     val haptics: Boolean = true,
     val answerHaptics: Boolean = true,
+    val thinkingHaptics: Boolean = true,
+    val toolHaptics: Boolean = true,
+    val streamingHaptics: Boolean = true,
+    val hapticStrength: String = "medium",
+    val hapticCadence: String = "balanced",
     val notifications: Boolean = false,
     val notificationPreview: Boolean = false,
     val defaultModelMode: String = "last",
@@ -105,6 +110,7 @@ data class OutboxItem(
 
 data class AppState(
     val preferences: Preferences = Preferences(),
+    val agentHapticsSupported: Boolean = false,
     val connected: Boolean = false,
     val connecting: Boolean = false,
     val initializing: Boolean = false,

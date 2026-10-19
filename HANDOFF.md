@@ -3596,3 +3596,24 @@ Android instrumentation tests were updated, including touch cancellation,
 but no device/emulator or iOS runtime test was run. Antigravity file-review
 attempts were denied command access, its supplied-code review did not finish,
 and OpenCode review timed out; no independent review completion is claimed.
+
+
+## Configurable native agent haptics (2026-10-19)
+
+Profile / Haptic feedback now offers separate thinking, tool and streaming
+switches, three strengths, three frequency presets and individual previews.
+Thinking uses spaced light pulses, tools a sharp double tap, and streamed
+text fine rate-limited ticks. Shared scheduling follows the current live job
+and stops for hidden/background conversations, questions, Stop, reconnects,
+errors and completion. Terminal jobs stay quiet during history refresh.
+Existing master and answer-feedback opt-outs remain effective. Android uses
+short native primitives with supported platform fallbacks; iPhone uses UIKit
+impact generators. Unsupported hosts show disabled previews.
+
+Validation: 332 shared Android unit tests, 78 Android app unit tests and 352
+native desktop/shared tests passed. Android debug APK built and instrumentation
+tests compiled. Swift source syntax parsed successfully. Settings screenshots
+were inspected in English/light and enlarged Ukrainian/dark layouts. Actual
+vibration feel and full iOS compilation/device behavior still require hardware
+and Xcode validation. Delegated reviewers remained unavailable in this session;
+no independent review completion is claimed.

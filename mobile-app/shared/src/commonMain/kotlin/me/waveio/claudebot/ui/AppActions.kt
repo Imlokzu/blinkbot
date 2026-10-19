@@ -82,6 +82,7 @@ interface AppActions {
     suspend fun loadEditorResource(id: String, path: String): WebPreviewResource? = null
     fun retryFileSave()
     fun preferences(value: Preferences)
+    fun previewHaptic(kind: me.waveio.claudebot.state.AgentHaptic) {}
     fun resetWallpaper()
     fun requestNotifications()
     fun profileName(value: String)

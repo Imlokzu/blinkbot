@@ -51,6 +51,9 @@ interface PlatformBridge {
     fun stopRecording()
     fun cancelRecording()
     fun haptic()
+    val supportsAgentHaptics: Boolean get() = false
+    fun agentHaptic(kind: me.waveio.claudebot.state.AgentHaptic, intensity: Float) {}
+    fun cancelAgentHaptics() {}
     fun copyText(value: String)
     fun shareText(value: String)
     /** Open an explicitly rendered HTTPS link without attaching app credentials. */

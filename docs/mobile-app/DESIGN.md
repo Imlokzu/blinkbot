@@ -62,14 +62,37 @@ against these requirements, preserving existing clients and contracts.
 - The exact typeface, spacing, radii, accent treatment, and motion timings are
   not settled by the interview. Present them in the visual preview.
 - The owner delegated wallpaper blur/dimming strength and transition tuning.
-- Haptics are wanted for interactions and while an answer appears. Their cadence
-  needs a preview; this is not permission to vibrate continuously per token.
+- Haptics use distinct short patterns for thinking, tool activity and streamed
+  replies, with controls and individual previews in Profile / Haptic feedback.
+  Keep feedback bounded by cadence instead of vibrating for every token.
 
 Quality requirements include readable content over wallpaper, system text size,
 accessible control names, reachable touch targets, keyboard/screen-reader support,
 and respect for reduced motion/transparency and system haptic preferences.
 Gestures supplement reachable controls and must not steal text selection,
 editor input, table scrolling, or platform back navigation.
+
+## Agent haptics (2026-10-19)
+
+- Thinking: a light pulse after 500 ms of waiting, then spaced pulses while
+  the visible job is active. Tool activity: a crisp double tap, with 45 ms
+  between taps, repeated while tools are working. Streaming: fine ticks only
+  when new reply text arrives; gaps and duplicate snapshots stay silent.
+- Frequency presets: Calm uses 2.6 s thinking/tool spacing and at least 500 ms
+  between reply ticks; Balanced uses 1.8 s / 280 ms; Lively uses 1.1 s / 160 ms.
+- Preserve the existing master and reply-feedback opt-outs. Provide separate
+  thinking/tool/stream switches, Light/Medium/Strong strength, and one-shot
+  previews. Preferences are local to this installation.
+- Stop feedback on backgrounding, leaving the conversation, waiting for a user
+  answer, Stop, connection loss, error or completion. History refresh must not
+  restart a finished job's haptics. Reconnection does not replay old feedback.
+- Android uses supported click/tick primitives with platform effect fallbacks;
+  iPhone uses native impact generators. Respect system haptic settings. Hardware
+  determines the exact sensation and available strength control; unsupported
+  devices, including the current macOS host, explain disabled previews.
+
+Implementation references: [Android haptics APIs](https://developer.android.com/develop/ui/views/haptics/haptics-apis)
+and [UIKit impact intensity](https://developer.apple.com/documentation/uikit/uiimpactfeedbackgenerator/impactoccurred(intensity:)).
 
 ## Motion and interaction tuning (2026-10-09)
 
