@@ -3647,3 +3647,23 @@ certificate matches the previously published build. The existing public mobile
 endpoint remains reachable and requires authentication (401 without a token).
 The dashboard remains healthy. Source changes are in 965ad66f; the artifact and
 validation limits are documented in docs/mobile-app/RELEASE-0.4.17.md.
+
+## 2026-10-20 — Native picker logo and selection alignment
+
+Restored the selected provider's themed logo before the model name in the
+compact effort header. Model rows now reserve a fixed 17dp checkmark column,
+so selecting a model does not shift its label or intelligence gauge. Existing
+slider interaction, model selection, unavailable states and accessibility
+semantics are unchanged. Android version 0.4.18 uses code 25.
+
+Validation: optimized release build, 332 shared and 78 Android unit tests pass.
+Nine native Compose picker tests pass, including rendered Anthropic/OpenAI
+logos, provider switching, stable label/gauge coordinates at 320dp with 1.5x
+Ukrainian text, slider gestures and keyboard/cancellation behavior. Captured
+light/dark screenshots were inspected. The tests use the actual shared UI on
+JDK17 with the checksum-verified pinned JCEF compile API; no Android device run
+is claimed. Disk-bound file-transfer testing passed after disposable-cache
+cleanup. Independent review approved source and regression checks. Post-review
+isolated actual-app smoke passed 37 HTTP checks, including update metadata,
+APK checksum and traversal 400s, then stopped the temporary server.
+See docs/mobile-app/RELEASE-0.4.18.md; stable publication follows separately.

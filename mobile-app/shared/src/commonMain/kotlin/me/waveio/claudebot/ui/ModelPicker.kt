@@ -90,6 +90,7 @@ fun ModelPicker(state: AppState, actions: AppActions) {
                         effort = state.effort,
                         efforts = selected?.efforts.orEmpty(),
                         modelLabel = selected?.label ?: state.selectedModel,
+                        modelBrand = selected?.brand.orEmpty(),
                         enabled = state.modelPickerOpen && effortPage && !state.modelsLoading && selected?.available == true,
                         onSelect = actions::selectEffort,
                         onChangeModel = { effortPage = false },
@@ -116,7 +117,9 @@ fun ModelPicker(state: AppState, actions: AppActions) {
                                     Text(if (model.available) model.provider else tr("model.unavailable"), color = palette.muted, fontSize = 11.sp, lineHeight = if (denseRows) 14.sp else 24.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 IntelGaugeButton(state, model.id, modifier = Modifier.padding(horizontal = 5.dp))
-                                if (picked) Glyph("check", modifier = Modifier.size(17.dp), tint = palette.accent)
+                                Box(Modifier.size(17.dp), contentAlignment = Alignment.Center) {
+                                    if (picked) Glyph("check", modifier = Modifier.size(17.dp), tint = palette.accent)
+                                }
                             }
                         }
                         if (filtered.isEmpty() && !state.modelsLoading) item { Text(tr("model.empty"), color = palette.muted, modifier = Modifier.padding(16.dp)) }

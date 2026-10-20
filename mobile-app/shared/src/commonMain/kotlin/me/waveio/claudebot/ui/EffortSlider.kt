@@ -39,6 +39,7 @@ internal fun EffortSlider(
     effort: String,
     efforts: List<String>,
     modelLabel: String,
+    modelBrand: String,
     enabled: Boolean,
     onSelect: (String) -> Unit,
     onChangeModel: () -> Unit,
@@ -75,6 +76,7 @@ internal fun EffortSlider(
             Text(label, color = palette.ink, fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                BrandMark(modelBrand, Modifier.size(14.dp).testTag("effort-model-brand"))
                 Text(modelLabel, color = palette.muted, fontSize = 12.sp, lineHeight = 15.sp,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 Canvas(Modifier.size(10.dp)) {
