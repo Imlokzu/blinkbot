@@ -3636,3 +3636,14 @@ review approved the runtime and UI tests; Antigravity/OpenCode were unavailable.
 Post-review actual-app smoke passed 37 checks, including update metadata,
 APK download integrity and traversal 400s, then stopped its temporary server.
 See docs/mobile-app/RELEASE-0.4.17.md. Publication follows separately.
+
+## 2026-10-20 — Publish Blink Android 0.4.17
+
+Published the tested APK through the stable in-app update channel (code 24).
+The backend was gracefully restarted with no active mobile jobs. Live metadata
+offers the update to versions 21 and 23 and reports version 24 as current.
+The downloaded APK is 7,167,710 bytes and matches the release SHA-256; its signing
+certificate matches the previously published build. The existing public mobile
+endpoint remains reachable and requires authentication (401 without a token).
+The dashboard remains healthy. Source changes are in 965ad66f; the artifact and
+validation limits are documented in docs/mobile-app/RELEASE-0.4.17.md.

@@ -31,7 +31,10 @@ owner-distributed Android build, not a store release.
 - Device/emulator instrumentation was not run because local disk space is
   constrained; desktop Compose checks are not claimed as Android device tests.
 
-Publication and download-integrity results are recorded in HANDOFF.md.
+Published to the stable in-app update channel on 2026-10-20. Live metadata
+offers code 24 to earlier installs and reports code 24 as current. The served
+APK matches the tested checksum and size. The public mobile endpoint retains
+authentication; an unauthenticated probe returns HTTP 401. See HANDOFF.md.
 
 ## Artifact
 
