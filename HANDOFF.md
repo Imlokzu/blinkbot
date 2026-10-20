@@ -3667,3 +3667,15 @@ cleanup. Independent review approved source and regression checks. Post-review
 isolated actual-app smoke passed 37 HTTP checks, including update metadata,
 APK checksum and traversal 400s, then stopped the temporary server.
 See docs/mobile-app/RELEASE-0.4.18.md; stable publication follows separately.
+
+## 2026-10-20 — Publish native picker alignment fix
+
+Published Android 0.4.18 (code 25) through the stable in-app channel from
+67ad1e76. The effort header includes the provider logo, and the model catalog's
+reserved selection column keeps labels and gauges aligned. The existing app
+updates in place with the same package and signing identity.
+
+The local service was gracefully restarted with zero active mobile jobs.
+Live metadata offers code 25 to code 24 and reports code 25 as current. The
+served APK matches the tested checksum and 7,167,710-byte size; the dashboard
+remains healthy. See docs/mobile-app/RELEASE-0.4.18.md for validation scope.

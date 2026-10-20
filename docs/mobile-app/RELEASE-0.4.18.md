@@ -15,7 +15,9 @@ unrelated workspace drafts. The owner-distributed APK is
 
 SHA-256: `ca546c7ff00f987161aa7c44772beca42e6ff80e44613654da01d5b126fa12de`.
 
-Validation and stable-channel publication results are recorded in HANDOFF.md.
+Published to the stable in-app update channel on 2026-10-20. Version 0.4.17
+is offered the update; version 0.4.18 is correctly treated as current. The
+served APK checksum and size match the tested artifact. See HANDOFF.md.
 
 ## Verification
 
