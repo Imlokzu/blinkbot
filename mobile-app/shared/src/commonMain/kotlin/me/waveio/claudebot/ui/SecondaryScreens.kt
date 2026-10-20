@@ -46,7 +46,7 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
             Screen.Profile -> {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 20.dp)) {
                     BotMark(Modifier.size(52.dp)); Spacer(Modifier.width(13.dp))
-                    Column { Text(state.profileName.ifBlank { tr("app.name") }, color = p.ink, fontSize = 21.sp); Text(state.baseUrl.removePrefix("https://"), color = p.muted, fontSize = 12.sp) }
+                    Column { Text(tr("app.name"), color = p.ink, fontSize = 21.sp); Text(state.baseUrl.removePrefix("https://"), color = p.muted, fontSize = 12.sp) }
                 }
                 SettingsLink("settings", "profile.appearance") { actions.navigate(Screen.Appearance) }
                 SettingsLink("bot", "profile.models") { actions.navigate(Screen.Models) }

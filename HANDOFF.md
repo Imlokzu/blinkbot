@@ -3617,3 +3617,22 @@ were inspected in English/light and enlarged Ukrainian/dark layouts. Actual
 vibration feel and full iOS compilation/device behavior still require hardware
 and Xcode validation. Delegated reviewers remained unavailable in this session;
 no independent review completion is claimed.
+
+## 2026-10-20 — Native app branding release
+
+Prepared Android 0.4.17 (code 24) with the approved orange/white cube and rounded
+charcoal tile. Settings now uses localized Blink product branding instead of
+the saved bot profile name. Personalization still edits and saves that name;
+Updates also retains the Blink name and logo. Package/signing identity stays
+compatible with existing installs. Prior committed mobile improvements are
+included; unrelated workspace drafts are excluded from the build.
+
+Validation: 332 shared and 78 Android unit tests pass, plus two native Compose
+branding flows covering both locales/themes and legacy/custom names. Twelve
+screenshots were captured; representative Settings/Updates views inspected.
+The launcher test now recognizes the approved colors; Android instrumentation
+sources compile, but no device/emulator run is claimed. Independent fallback
+review approved the runtime and UI tests; Antigravity/OpenCode were unavailable.
+Post-review actual-app smoke passed 37 checks, including update metadata,
+APK download integrity and traversal 400s, then stopped its temporary server.
+See docs/mobile-app/RELEASE-0.4.17.md. Publication follows separately.
