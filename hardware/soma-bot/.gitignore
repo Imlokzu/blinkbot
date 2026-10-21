@@ -1,0 +1,11 @@
+# The maker's STEP is downloaded by tools/make-soma.sh, not redistributed here
+inputs/*.stp
+inputs/*.step
+
+# Built by soma / the tools
+output/
+exports/
+renders/
+dist/
+.soma/
+__pycache__/
