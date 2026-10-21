@@ -6,12 +6,12 @@ for pixel (taken from the sprite in Claude Code); each eye pixel is a 0.96" OLED
 Every internal part is modelled: the Raspberry Pi 3 with all its ports, the eye screens with
 their USB boards, the sound card and speaker, the 20000 mAh power bank, plugs and cables.
 
-| Front | Outside | Back cover off | Pi behind the battery | Electronics only |
-|---|---|---|---|---|
-| ![front](preview-front-flat.png) | ![front](preview-front.png) | ![battery](preview-battery.png) | ![inside](preview-inside.png) | ![ports](preview-ports.png) |
+| Front | Next to a phone | Shell hidden | Electronics only |
+|---|---|---|---|
+| ![front](preview-front-flat.png) | ![phone](preview-phone.png) | ![inside](preview-inside.png) | ![ports](preview-ports.png) |
 
-Body 175.5 × 67.5 × 108 mm (13 × 5 × 4 pixels of 13.5 × 27 mm); 229.5 × 69 × 135 mm with
-arms, feet and screw heads.
+Front 104 × 64 mm (13 × 4 pixels of 8 × 16 mm), 173 mm deep so the power bank lies flat;
+136 × 175 × 80 mm with arms, feet and screw heads.
 
 | Path | What |
 |---|---|

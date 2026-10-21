@@ -2,11 +2,11 @@
 
 Positions follow the official mechanical drawing RPI-3B-V1_2. Built in the board frame
 (bx along the 85 mm edge from the micro-USB end, by from the HDMI edge, bz up from the
-component side) and moved onto the screen studs by `place()`.
+component side) and moved into the body by `place()`.
 """
 import cadquery as cq
 
-from .params import (BLACK, GOLD, METAL, PCB_GREEN, PI_BOARD, PI_FAR_EDGE, PI_HOLES, PI_ORIGIN, PI_USB_BY,
+from .params import (BLACK, GOLD, METAL, PCB_GREEN, PI_BOARD, PI_FAR_EDGE, PI_HOLES, PI_ORIGIN, PI_ROTATION, PI_USB_BY,
                      PI_USB_PORT_BZ, WHITE)
 
 L, W, T = PI_BOARD
@@ -17,11 +17,11 @@ def box(x0, x1, y0, y1, z0, z1):
 
 
 def place(wp):
-    """Board frame -> screen frame: by turns into -Z, bz into +Y (the component side faces the back)."""
+    """Board frame -> world (see pi_to_world in params.py)."""
     shape = wp.val() if isinstance(wp, cq.Workplane) else wp
     if isinstance(wp, cq.Workplane) and len(wp.vals()) > 1:
         shape = cq.Compound.makeCompound(wp.vals())
-    return shape.rotate((0, 0, 0), (1, 0, 0), -90).translate(PI_ORIGIN)
+    return shape.rotate((0, 0, 0), (0, 0, 1), PI_ROTATION).translate(PI_ORIGIN)
 
 
 def board():

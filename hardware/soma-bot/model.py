@@ -1,10 +1,10 @@
 """Claude Bot, phase 1 prototype at real size, built as Clawd, the Claude Code mascot.
 
-The outside is Clawd pixel for pixel: a 13 × 4 pixel orange body, two arms of 2 × 1 pixels,
-eight feet, and two eye pixels. Each eye is a 0.96" OLED screen, so the eyes can look around
-and blink. Inside, a Raspberry Pi 3 Model B stands behind the front wall, a 20000 mAh power
-bank stands behind it, an LED light bar sits flush in the top, and every plug and cable is
-modelled.
+From the front Clawd is pixel for pixel: a 13 × 4 pixel orange body, two arms of 2 × 1
+pixels, eight feet, and two eye pixels. Each eye is a 0.96" OLED screen, so the eyes can look
+around and blink. The body runs back so a 20000 mAh power bank can lie flat on the floor; a
+Raspberry Pi 3 Model B lies on a shelf above it, an LED light bar runs along the top, and every
+plug and cable is modelled.
 
 Layout and sources: parts/params.py.
 """
