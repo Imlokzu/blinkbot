@@ -14,28 +14,17 @@ SOMA_RES=${SOMA_RES:-/Applications/SOMA.app/Contents/Resources}
 PY="$SOMA_RES/python/bin/python3"
 TEMPLATE="$SOMA_RES/app/resources/template"
 PROJECT_ID=e6c960d8-20aa-4b40-aa73-b3ffd42b24cb
-STEP="$HERE/inputs/waveshare-35-hdmi-lcd-e.stp"
-STEP_URL="https://files.waveshare.com/upload/b/b3/3.5inch_HDMI_LCD_%28E%29_3D_Drawing.zip"
 OUT=${1:-"$HERE/dist/claude-bot.soma"}
 mkdir -p "$(dirname "$OUT")"
 OUT="$(cd "$(dirname "$OUT")" && pwd)/$(basename "$OUT")"
 
 [ -x "$PY" ] || { echo "SOMA not found at $SOMA_RES (set SOMA_RES)" >&2; exit 1; }
 
-# The maker's STEP is not committed (not ours to redistribute): fetch it once.
-if [ ! -f "$STEP" ]; then
-  dl=$(mktemp -d)
-  curl -fsSL "$STEP_URL" -o "$dl/drawing.zip"
-  unzip -q -o "$dl/drawing.zip" -d "$dl/x"
-  cp "$dl/x/3_5inch-hdmi-lcd_e.stp" "$STEP"
-  rm -rf "$dl"
-fi
-
 work=$(mktemp -d)
 ws="$work/claude-bot"
 mkdir -p "$ws/.soma"
 rsync -a --exclude tools --exclude dist --exclude output --exclude .soma --exclude renders --exclude exports \
-  --exclude __pycache__ --exclude .gitignore --exclude README.md --exclude .DS_Store "$HERE/" "$ws/"
+  --exclude __pycache__ --exclude .gitignore --exclude README.md --exclude .DS_Store --exclude inputs --exclude 'preview-*.png' "$HERE/" "$ws/"
 cp "$TEMPLATE/AGENTS.md" "$TEMPLATE/CLAUDE.md" "$TEMPLATE/.gitignore" "$ws/"
 
 version=$("$PY" -I -c "import soma; print(soma.__version__)")

@@ -1,6 +1,5 @@
-# The maker's STEP is downloaded by tools/make-soma.sh, not redistributed here
-inputs/*.stp
-inputs/*.step
+# Makers' STEP files are not redistributed here
+inputs/
 
 # Built by soma / the tools
 output/

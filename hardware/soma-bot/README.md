@@ -1,26 +1,25 @@
 # Claude Bot prototype for SOMA
 
-A real-size 3D model of the phase-1 desk bot as a crab, written in CadQuery for the
-[SOMA](https://somacad.app/) CAD app. The screen is the face, an LED light bar on top
-shows the bot's state, eyes sit on stalks, two claws rest on the desk and six legs carry
-the body. Every internal part is modelled: the Raspberry Pi 3 with all its ports, the
-screen from the maker's STEP, the 20000 mAh power bank, the HDMI U-adapter, plugs and cables.
+A real-size 3D model of the phase-1 desk bot built as **Clawd**, the Claude Code mascot,
+written in CadQuery for the [SOMA](https://somacad.app/) CAD app. The outside is Clawd pixel
+for pixel (taken from the sprite in Claude Code); each eye pixel is a 0.96" OLED screen.
+Every internal part is modelled: the Raspberry Pi 3 with all its ports, the eye screens with
+their USB boards, the sound card and speaker, the 20000 mAh power bank, plugs and cables.
 
-| Outside | Back cover off | Pi behind the battery | Electronics only |
-|---|---|---|---|
-| ![front](preview-front.png) | ![battery](preview-battery.png) | ![inside](preview-inside.png) | ![ports](preview-ports.png) |
+| Front | Outside | Back cover off | Pi behind the battery | Electronics only |
+|---|---|---|---|---|
+| ![front](preview-front-flat.png) | ![front](preview-front.png) | ![battery](preview-battery.png) | ![inside](preview-inside.png) | ![ports](preview-ports.png) |
 
-Body 181 × 76 × 106 mm (W × D × H); 236 × 138 × 144 mm with legs, claws and eyes.
+Body 175.5 × 67.5 × 108 mm (13 × 5 × 4 pixels of 13.5 × 27 mm); 229.5 × 69 × 135 mm with
+arms, feet and screw heads.
 
 | Path | What |
 |---|---|
 | `model.py` | Entry point: registers every part with SOMA |
-| `parts/params.py` | All dimensions, sources and the user parameters |
+| `parts/params.py` | Clawd's pixel grid, all dimensions, sources and the user parameters |
 | `parts/pi3.py` | Raspberry Pi 3 Model B from the official drawing |
-| `parts/screen.py` | Waveshare 3.5inch HDMI LCD (E), split from the maker's STEP |
-| `parts/body.py` | Carapace (front shell), back cover, face plate, light bar diffuser, screws |
-| `parts/crab.py` | Legs, claws and eye stalks |
-| `parts/wiring.py` | LED strip, speaker, microphone, power bank, charging socket, plugs and cables |
+| `parts/body.py` | Body (front shell), back cover, arms, feet, light bar diffuser, screws |
+| `parts/wiring.py` | Eye screens, LED strip, sound card, speaker, power bank, plugs and cables |
 | `NOTES.md` | Parts list, decisions and unverified sizes (read by SOMA's agent) |
 | `tools/make-soma.sh` | Packages the model as `dist/claude-bot.soma` |
 | `tools/render.py`, `tools/collide.py` | Offscreen render and interference check |
@@ -31,8 +30,7 @@ Body 181 × 76 × 106 mm (W × D × H); 236 × 138 × 144 mm with legs, claws an
 hardware/soma-bot/tools/make-soma.sh
 ```
 
-Then in SOMA: **File → Open** and pick `hardware/soma-bot/dist/claude-bot.soma`. The
-script downloads the screen STEP from Waveshare on first use; it is not committed.
+Then in SOMA: **File → Open** and pick `hardware/soma-bot/dist/claude-bot.soma`.
 
 ## Checks
 
@@ -43,7 +41,6 @@ SOMA_PY=/Applications/SOMA.app/Contents/Resources/python/bin/python3
 ```
 
 The interference check should only list intended contacts: plugs in their sockets, the
-screws in their bosses, limbs touching the shell and solids inside the maker's STEP.
+screws in their bosses and the lip of the back cover.
 
-`../enclosure/` is the earlier OpenSCAD cardboard version; this model keeps the same power
-bank but mounts the Pi on the screen.
+`../enclosure/` is the earlier OpenSCAD cardboard version with the 3.5" screen.
