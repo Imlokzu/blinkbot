@@ -2,7 +2,7 @@
 
 Units are millimetres. Z is up, the front faces -Y, X points right (SOMA convention).
 Everything is laid out around the screen: the origin of the "screen frame" is the centre of
-the screen glass, and the whole bot is lifted by LIFT at the end so the feet stand on Z = 0.
+the screen glass, and the whole bot is lifted by LIFT at the end so the crab legs stand on Z = 0.
 
 Sources:
 - Screen: Waveshare 3.5inch HDMI LCD (E), official STEP (inputs/waveshare-35-hdmi-lcd-e.stp).
@@ -10,19 +10,23 @@ Sources:
   below, so no wires go to the GPIO header.
 - Raspberry Pi 3 Model B: official mechanical drawing RPI-3B-V1_2.
 - BlinkStick Strip: blinkstick.com, 85 x 9.5 x 4.5 mm, 8 WS2812 LEDs, micro-USB socket.
+- Power bank: Redmi 20000 mAh PB200LZM, mi.com specs.
 Values marked UNVERIFIED are not published by the maker: measure the real part.
 """
 from soma import param
 
 # --- user parameters (Parameters panel in SOMA) -------------------------------------------
 WALL = param(2.5, "Shell wall", min=1.6, max=4.0, step=0.1, unit="mm", group="Body")
-CORNER = param(16.0, "Corner radius", min=6, max=20, step=0.5, unit="mm", group="Body")
-SIDE_ROOM = param(59.5, "Inner half width", min=58, max=70, step=0.5, unit="mm", group="Body")
-FEET = param(True, "Feet", group="Body")
+CORNER_PLAN = param(18.0, "Corner radius, top view", min=8, max=20, step=0.5, unit="mm", group="Body")
+CORNER_TOP = param(16.0, "Top edge radius", min=6, max=17, step=0.5, unit="mm", group="Body")
+INNER_HALF_W = param(88.0, "Inner half width", min=88, max=100, step=0.5, unit="mm", group="Body")
+LEGS = param(True, "Crab legs", group="Crab")
+CLAWS = param(True, "Crab claws", group="Crab")
+EYE_STALKS = param(True, "Eye stalks", group="Crab")
 VIEW = param("closed", "Shell view", options=["closed", "cut-away", "hidden"], group="View")
 EXPLODE = param(0.0, "Explode", min=0, max=60, unit="mm", group="View")
 HEATSINK = param(True, "Heatsink on the SoC", group="Electronics")
-FACE = param(True, "Face on the screen", group="View")
+FACE = param("smile", "Screen picture", options=["smile", "eyes", "off"], group="View")
 LED_STATE = param("thinking", "LED colour", options=["idle", "listening", "thinking", "speaking", "error"],
                   group="Electronics")
 
@@ -30,14 +34,15 @@ LED_STATE = param("thinking", "LED colour", options=["idle", "listening", "think
 FRONT_IN = -0.7          # inner face of the front wall = front of the screen glass
 INNER_TOP = 47.0
 INNER_BOTTOM = -54.0
-INNER_BACK = 41.5
-SPLIT_Y = 34.0           # front shell / back cover joint
+INNER_BACK = 69.0        # room for the power bank standing behind the Pi
+SPLIT_Y = 60.0           # front shell / back cover joint
 LIP = 3.0                # back cover lip that slides into the front shell
+CORNER_BOTTOM = 6.0
 WINDOW_MARGIN = 0.6      # around the active area
-FACE_PLATE = (88.0, 66.0, -4.0, 10.0, 1.0)  # dark front plate: width, height, centre z, corner radius, thickness
-FOOT_H = 4.0
+FACE_PLATE = (88.0, 66.0, -3.0, 10.0, 1.0)  # dark front plate: width, height, centre z, corner radius, thickness
+LEG_LIFT = 12.0          # the legs hold the belly this high above the desk
 
-OUTER_X = SIDE_ROOM + WALL
+OUTER_X = INNER_HALF_W + WALL
 OUTER_TOP = INNER_TOP + WALL
 OUTER_BOTTOM = INNER_BOTTOM - WALL
 OUTER_FRONT = FRONT_IN - WALL
@@ -45,8 +50,8 @@ OUTER_BACK = INNER_BACK + WALL
 BODY_W = 2 * OUTER_X
 BODY_H = OUTER_TOP - OUTER_BOTTOM
 BODY_D = OUTER_BACK - OUTER_FRONT
-BODY_MID_Y = (OUTER_FRONT + OUTER_BACK) / 2
-LIFT = -OUTER_BOTTOM + (FOOT_H if FEET else 0.0)
+DESK_Z = OUTER_BOTTOM - LEG_LIFT
+LIFT = -DESK_Z
 
 # --- screen: Waveshare 3.5inch HDMI LCD (E) ----------------------------------------------------
 SCREEN_STEP = "inputs/waveshare-35-hdmi-lcd-e.stp"
@@ -75,19 +80,31 @@ def pi_to_world(bx, by, bz):
 STRIP = (85.0, 9.5, 1.6)       # BlinkStick Strip PCB; LEDs 5 x 5 x 1.6 on top (WS2812)
 STRIP_LEDS = 8
 STRIP_Z = 41.5                 # bottom of the strip PCB
+STRIP_Y = 24.0                 # centre line of the light bar, in the flat part of the top
 SPEAKER_D = 28.0               # UNVERIFIED: generic 28 mm 8 ohm 2 W speaker on the screen's amplifier
 SPEAKER_DEPTH = 5.0
-SPEAKER_FACE_X = -55.8         # inside the left wall: clear of the curved corners and the back cover lip
-SPEAKER_YZ = (20.4, 8.0)
-USBC_JACK = (-22.0, -36.0)     # panel-mount USB-C on the back cover, x and z
+SPEAKER_XY = (-55.0, 17.0)     # lies on the floor and fires down, between the legs
 MIC_SOCKET = (12.0, 40.0, 11.0, -44.0)  # USB-A extension socket in the chin: x from, x to, y, z
-SCREW_XZ = [(-40.0, 28.0), (40.0, 28.0), (-40.0, -36.0), (40.0, -36.0)]  # back cover screws
+
+# Power bank: Redmi 20000 mAh PB200LZM (mi.com), 154 x 73.6 x 27.3, documented to keep its
+# output on while charging. It stands behind the Pi with its ports to the right.
+BANK = (154.0, 27.3, 73.6)     # x, y, z as it stands in the body
+BANK_MIN = (-80.0, 38.0, -45.0)
+BANK_PORTS_Y = BANK_MIN[1] + BANK[1] / 2
+# port centres on the right end, z; positions UNVERIFIED
+BANK_USBA_Z = (12.0, -1.0)
+BANK_USBC_Z = -15.0
+BANK_MICRO_Z = -27.0
+
+SCREW_XZ = [(-60.0, 33.0), (60.0, 33.0), (-60.0, -49.0), (60.0, -49.0)]  # back cover screws
 BOSS_D = 7.0
-BOSS_FRONT = 24.0
+BOSS_FRONT = 50.0
 
 # --- colours ------------------------------------------------------------------------------------
 CREAM = (0.94, 0.92, 0.87)
 CLAY = (0.85, 0.47, 0.34)
+CLAY_DEEP = (0.72, 0.37, 0.26)
+CLAY_LIGHT = (0.91, 0.58, 0.45)
 DARK = (0.16, 0.16, 0.17)
 PCB_GREEN = (0.08, 0.42, 0.22)
 PCB_BLUE = (0.10, 0.30, 0.62)
