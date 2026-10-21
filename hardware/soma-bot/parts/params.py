@@ -61,7 +61,7 @@ def col_x(c):
 
 BODY_W = 13 * PX_W
 BODY_H = 4 * PX_H
-BODY_D = 108.0           # about as deep as wide: a rough cube
+BODY_D = 83.0            # about as deep as the bot is tall with its feet
 BODY_Z0 = PX_H           # the feet are one row tall
 OUTER_X = BODY_W / 2
 OUTER_FRONT = -BODY_D / 2
@@ -91,52 +91,52 @@ OLED_PCB = (26.7, 29.2, 1.6)  # portrait: x, z, thickness
 OLED_GLASS = (19.0, 26.6, 1.5)
 OLED_DEPTH = 6.2
 MCP = (17.7, 27.0, 5.0)       # MCP2221A standing behind the OLED: x, z, y; USB-C at the top
-MCP_DROP = 4.0                # MCP centre below the eye centre, so its plug clears the top
+MCP_DROP = 0.0                # MCP centred on the eye; the sound card stands below it
 
 # --- Raspberry Pi 3 Model B, lying on the floor ---------------------------------------------------
 # Board frame: bx along the 85 mm edge from the micro-USB end, by from the HDMI edge, bz up
-# from the top (component) surface. The board lies on 4.5 mm standoffs, micro-USB end under
-# the eyes, USB and Ethernet facing the back, HDMI edge to the right.
+# from the top (component) surface. The board lies across the body on 4.5 mm standoffs, right
+# behind the sound card: USB and Ethernet face the left side, the HDMI edge with the micro-USB
+# power socket faces the back.
 PI_BOARD = (85.0, 56.0, 1.4)   # thickness UNVERIFIED
 PI_STANDOFF = 4.5
-PI_ORIGIN = (10.0, FRONT_IN + 3.0, INNER_BOTTOM + PI_STANDOFF + PI_BOARD[2])  # microSD clears the front wall
+PI_ORIGIN = (46.0, FRONT_IN + 71.0, INNER_BOTTOM + PI_STANDOFF + PI_BOARD[2])
 PI_HOLES = [(3.5, 3.5), (61.5, 3.5), (3.5, 52.5), (61.5, 52.5)]
 PI_USB_BY = (29.0, 47.0)
 PI_USB_PORT_BZ = (4.5, 12.3)   # centres of the lower / upper port in a stack, UNVERIFIED
 PI_FAR_EDGE = 85.0 + 2.1       # USB / Ethernet fronts
-PI_ROTATION = 90.0             # about Z: bx -> +Y, by -> -X, bz -> +Z
+PI_ROTATION = 180.0            # about Z: bx -> -X, by -> -Y, bz -> +Z
 
 
 def pi_to_world(bx, by, bz):
     """Board frame -> world."""
-    return (PI_ORIGIN[0] - by, PI_ORIGIN[1] + bx, PI_ORIGIN[2] + bz)
+    return (PI_ORIGIN[0] - bx, PI_ORIGIN[1] - by, PI_ORIGIN[2] + bz)
 
 
-# --- shelf over the Pi and the power bank on it ---------------------------------------------------
-SHELF_Z = PI_ORIGIN[2] + 16.0 + 1.1     # underside, clear of the USB stacks
+# --- sound card under the eyes, shelf over the Pi and the power bank on it -------------------------
+SOUND = (53.0, 14.6, 23.5)     # Waveshare USB TO AUDIO standing on its edge under the eyes: x, y, z
+SOUND_MIN = (-26.5, FRONT_IN + 0.4, INNER_BOTTOM)  # USB plug at its left end
+SHELF_Z = PI_ORIGIN[2] + 16.0 + 2.1     # underside, clear of the USB stacks and the sound card
 SHELF_T = 2.0
-SHELF_X = (-INNER_X, INNER_X - 11.75)   # open on the right for the cables past the bank's ports
-SHELF_Y = (-39.5, 37.0)            # ends just in front of the rising plug boots
+SHELF_X = (-41.5, INNER_X)              # open on the left for the cables beside the Pi's ports
+SHELF_Y = (FRONT_IN + 15.2, 28.1)
 BANK = (92.0, 60.0, 22.0)      # compact 10000 mAh, lying flat: x, y, z
-BANK_MIN = (-50.0, -39.0, SHELF_Z + SHELF_T)
+BANK_MIN = (-42.0, FRONT_IN + 15.5, SHELF_Z + SHELF_T)
 BANK_PORTS_Z = BANK_MIN[2] + BANK[2] / 2
-# port centres along the right end, y; positions UNVERIFIED
-BANK_USBA_Y = (-24.0, -9.0)
-BANK_USBC_Y = 6.0
+# port centres along the left end, y; positions UNVERIFIED
+BANK_USBA_Y = (FRONT_IN + 68.0,)
+BANK_USBC_Y = FRONT_IN + 56.0
 
 # --- peripherals --------------------------------------------------------------------------------
 STRIP = (85.0, 9.5, 1.6)       # BlinkStick Strip PCB; LEDs 5 x 5 x 1.6 on top (WS2812)
 STRIP_LEDS = 8
-STRIP_Y = -14.0                # across the top, over the power bank; socket at the right end
+STRIP_Y = FRONT_IN + 30.0      # across the top, over the power bank; socket at the left end
 STRIP_Z = INNER_TOP - 7.2      # bottom of the strip PCB
-SOUND = (53.0, 14.6, 23.5)     # Waveshare USB TO AUDIO standing on its edge behind the bank: x, y, z
-SOUND_MIN = (-45.0, 21.5, SHELF_Z + SHELF_T)
-SPEAKER_D = 28.0               # UNVERIFIED: generic 28 mm 8 ohm speaker on the sound card's amp
-SPEAKER_DEPTH = 5.0
-SPEAKER_XY = (32.0, 0.0)       # on the floor beside the Pi, firing down between the feet
+SPEAKER_BOX = (30.0, 5.0, 20.0)  # UNVERIFIED: generic 2030 box speaker, 8 ohm: x, y, z; fires out of the back
+SPEAKER_MIN = (-41.0, INNER_BACK - 5.0, INNER_BOTTOM)
 
 SCREW_XZ = [(-40.0, INNER_TOP - 5.5), (40.0, INNER_TOP - 5.5),  # back cover screws
-            (-48.5, INNER_BOTTOM + 3.5), (48.5, INNER_BOTTOM + 3.5)]
+            (-50.0, INNER_BOTTOM + 3.5), (50.0, INNER_BOTTOM + 3.5)]
 BOSS_D = 7.0
 BOSS_FRONT = SPLIT_Y - 10.0
 

@@ -13,7 +13,7 @@ from soma.fasteners import Screw
 from .params import (ARM_COLS, ARM_Y, ARM_Z, BANK, BANK_MIN, BANK_PORTS_Z, BANK_USBC_Y, BODY_Z0, BOSS_D, BOSS_FRONT,
                      EDGE, EYE_COLS, EYE_Z, FOOT_COLS, FRONT_IN, INNER_BACK, INNER_BOTTOM, INNER_TOP, INNER_X, LIP,
                      OLED_PCB, OUTER_BACK, OUTER_BOTTOM, OUTER_FRONT, OUTER_TOP, OUTER_X, PI_BOARD, PI_HOLES, PI_ORIGIN,
-                     PX_W, SCREW_XZ, SHELF_T, SHELF_X, SHELF_Y, SHELF_Z, SOUND, SOUND_MIN, SPEAKER_D, SPEAKER_XY,
+                     PX_W, SCREW_XZ, SHELF_T, SHELF_X, SHELF_Y, SHELF_Z, SOUND, SOUND_MIN, SPEAKER_BOX, SPEAKER_MIN,
                      SPLIT_Y, STRIP, STRIP_Y, STRIP_Z, WALL, col_x, pi_to_world)
 
 BIG = 500.0
@@ -87,21 +87,15 @@ def front_shell(light_bar):
         shell = shell.union(cyl(3.0, board_bottom - INNER_BOTTOM + 0.5, (x, y, INNER_BOTTOM - 0.5), (0, 0, 1)))
         shell = shell.cut(cyl(1.05, 8.0, (x, y, board_bottom - 7.0), (0, 0, 1)))
 
-    # shelf over the Pi, tied to the left wall; open on the right for the cables past the bank's ports
-    shell = shell.union(box(SHELF_X[0] - 0.5, SHELF_X[1], SHELF_Y[0], SHELF_Y[1], SHELF_Z, SHELF_Z + SHELF_T))
+    # shelf over the Pi, tied to the right wall; open on the left for the cables beside the Pi's ports
+    shell = shell.union(box(SHELF_X[0], SHELF_X[1] + 0.5, SHELF_Y[0], SHELF_Y[1], SHELF_Z, SHELF_Z + SHELF_T))
 
-    # stops on the shelf for the power bank and the sound card
+    # a stop on the shelf in front of the power bank; the sound card stands between the front
+    # wall and the Pi
     bx0, by0, bz0 = BANK_MIN
     top = SHELF_Z + SHELF_T
     shell = shell.union(box(bx0 + 20, bx0 + 40, by0 - 2.0, by0, top - 0.5, top + 3.0))
-    shell = shell.union(box(bx0 - 2.0, bx0, by0 + 15, by0 + 35, top - 0.5, top + 3.0))
-    x0, y0, z0 = SOUND_MIN  # the sound card stands against the back of the power bank
-
-    # speaker ring on the floor, the speaker fires down between the feet
-    sx, sy = SPEAKER_XY
-    ring = (cyl(SPEAKER_D / 2 + 1.6, 4.5, (sx, sy, INNER_BOTTOM - 0.5), (0, 0, 1))
-            .cut(cyl(SPEAKER_D / 2 + 0.2, 8.0, (sx, sy, INNER_BOTTOM - 1), (0, 0, 1))))
-    shell = shell.union(ring)
+    x0, y0, z0 = SOUND_MIN
 
     # screw bosses for the back cover, each tied by a vertical rib to the top or the floor
     for x, z in SCREW_XZ:
@@ -111,20 +105,18 @@ def front_shell(light_bar):
         shell = shell.union(boss.union(rib.intersect(outer)))
         shell = shell.cut(cyl(1.25, SPLIT_Y - BOSS_FRONT + 1, (x, BOSS_FRONT + 3, z), (0, 1, 0)))  # M3 pilot
 
-    # openings: eyes, light bar slot, top vents, speaker grille, mic holes, charging socket
+    # openings: eyes, light bar slot, top vents, mic holes, charging socket
     for col in EYE_COLS:
         shell = shell.cut(eye_window(col))
     if light_bar:
         shell = shell.cut(cq.Workplane("XY").slot2D(SLOT[0], SLOT[1]).extrude(20).translate((0, STRIP_Y, INNER_TOP - 5)))
     for x in (6.0, 12.0, 18.0, 24.0, 30.0, 36.0):
-        shell = shell.cut(cq.Workplane("XY").slot2D(14, 2.4, 90).extrude(20).translate((x, 24.0, INNER_TOP - 5)))
-    for a, b in hole_disc(sx, sy, 10.5, 2.0, 3.2):
-        shell = shell.cut(cyl(1.0, 12, (a, b, OUTER_BOTTOM - 1), (0, 0, 1)))
-    # the sound card's microphones listen through the top, so the front stays plain like the sprite
+        shell = shell.cut(cq.Workplane("XY").slot2D(14, 2.4, 90).extrude(20).translate((x, 12.0, INNER_TOP - 5)))
+    # the sound card's microphones listen through the belly, so the front stays plain like the sprite
     for i in range(5):
-        shell = shell.cut(cyl(0.7, 12, (x0 + 8 + i * 3.0, y0 + SOUND[1] / 2, INNER_TOP - 5), (0, 0, 1)))
+        shell = shell.cut(cyl(0.7, 12, (-6.0 + i * 3.0, y0 + SOUND[1] / 2, OUTER_BOTTOM - 1), (0, 0, 1)))
     usbc = (cq.Workplane("YZ").rect(9.4, 3.8).extrude(20).edges("|X").fillet(1.2)
-            .translate((INNER_X - 6, BANK_USBC_Y, BANK_PORTS_Z)))
+            .translate((-INNER_X - 14, BANK_USBC_Y, BANK_PORTS_Z)))
     return shell.cut(usbc)
 
 
@@ -135,6 +127,9 @@ def back_cover():
            .intersect(box(-BIG, BIG, SPLIT_Y - LIP, SPLIT_Y + 0.5, -BIG, BIG)))
     for x, z in SCREW_XZ:  # the lip steps around the screw bosses of the front shell
         lip = lip.cut(cyl(BOSS_D / 2 + 0.4, LIP + 2, (x, SPLIT_Y - LIP - 1, z), (0, 1, 0)))
+    for bx, by in PI_HOLES:  # and around the Pi's standoffs
+        x, y, _ = pi_to_world(bx, by, 0)
+        lip = lip.cut(cyl(3.4, 20.0, (x, y, OUTER_BOTTOM - 1), (0, 0, 1)))
     lip = lip.cut(box(-46.0, -10.0, -BIG, BIG, -BIG, OUTER_BOTTOM + 12.0))  # and over the cables on the floor
     cover = cover.union(lip)
     for x, z in SCREW_XZ:
@@ -143,6 +138,14 @@ def back_cover():
         x = -18 + i * 6
         cover = cover.cut(cq.Workplane("XZ").slot2D(14, 2.4, 90).extrude(-20)
                           .translate((x, INNER_BACK - 5, INNER_TOP - 13)))
+    # the box speaker sits in two clips on the inside of the cover and fires out through a grille
+    sx0, sy0, sz0 = SPEAKER_MIN
+    sw, sd, sh = SPEAKER_BOX
+    for zc in (sz0 - 1.5, sz0 + sh):
+        cover = cover.union(box(sx0 + 4, sx0 + sw - 4, sy0 - 0.5, INNER_BACK + 0.5, zc, zc + 1.5))
+    for i in range(5):
+        for j in range(3):
+            cover = cover.cut(cyl(1.0, 10, (sx0 + 5 + i * 5.0, INNER_BACK - 2, sz0 + 5 + j * 5.0), (0, 1, 0)))
     return cover
 
 
@@ -178,15 +181,15 @@ def feet():
 
 def diffuser():
     """Frosted light bar across the top: a plug flush with the top over a channel that holds the
-    LED strip; the strip's micro-USB socket is at the right end."""
+    LED strip; the strip's micro-USB socket is at the left end."""
     sl, sw = STRIP[0], STRIP[1]
     plug = cq.Workplane("XY").slot2D(SLOT[0] - 0.3, SLOT[1] - 0.3).extrude(WALL).translate((0, STRIP_Y, INNER_TOP))
     channel = box(-sl / 2 - 3, sl / 2 + 3, STRIP_Y - sw / 2 - 2, STRIP_Y + sw / 2 + 2, STRIP_Z - 1.2, INNER_TOP)
     channel = channel.cut(box(-sl / 2 - 0.4, sl / 2 + 0.4, STRIP_Y - sw / 2 - 0.3, STRIP_Y + sw / 2 + 0.3,
                               STRIP_Z - 5, INNER_TOP - 0.8))
-    lips = (box(-sl / 2 - 0.4, sl / 2 - 6, STRIP_Y - sw / 2 - 0.3, STRIP_Y - sw / 2 + 0.9, STRIP_Z - 1.2, STRIP_Z)
-            .union(box(-sl / 2 - 0.4, sl / 2 - 6, STRIP_Y + sw / 2 - 0.9, STRIP_Y + sw / 2 + 0.3, STRIP_Z - 1.2, STRIP_Z)))
+    lips = (box(-sl / 2 + 6, sl / 2 + 0.4, STRIP_Y - sw / 2 - 0.3, STRIP_Y - sw / 2 + 0.9, STRIP_Z - 1.2, STRIP_Z)
+            .union(box(-sl / 2 + 6, sl / 2 + 0.4, STRIP_Y + sw / 2 - 0.9, STRIP_Y + sw / 2 + 0.3, STRIP_Z - 1.2, STRIP_Z)))
     channel = channel.union(lips)
-    # open end for the micro-USB plug of the strip
-    channel = channel.cut(box(sl / 2 - 1, BIG, STRIP_Y - sw / 2 - 0.3, STRIP_Y + sw / 2 + 0.3, STRIP_Z - 5, STRIP_Z + 0.2))
+    # open end for the micro-USB plug of the strip, at its left end
+    channel = channel.cut(box(-BIG, -sl / 2 + 1, STRIP_Y - 5.0, STRIP_Y + 5.0, STRIP_Z - 5, STRIP_Z + 0.4))
     return plug.union(channel)

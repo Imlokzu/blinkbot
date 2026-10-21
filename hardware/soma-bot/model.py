@@ -2,9 +2,9 @@
 
 From the front Clawd is pixel for pixel: a 13 × 4 pixel orange body, two arms of 2 × 1
 pixels, eight feet, and two eye pixels. Each eye is a 0.96" OLED screen, so the eyes can look
-around and blink. The body is about as deep as it is wide, a rough cube: a Raspberry Pi 3
-Model B lies on the floor, a compact 10000 mAh power bank on a shelf above it, an LED light bar
-runs across the top, and every plug and cable is modelled.
+around and blink. The body is a chunky box about as deep as the bot is tall: a Raspberry Pi 3
+Model B lies across the floor, a compact 10000 mAh power bank on a shelf above it, an LED light
+bar runs across the top, and every plug and cable is modelled.
 
 Layout and sources: parts/params.py.
 """
