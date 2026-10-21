@@ -13,8 +13,8 @@ Each character holds 2 × 2 pixels and a terminal cell is twice as tall as wide,
 pixel is U wide and 2U tall. That gives a body 13 pixels wide and 4 rows tall, arms of
 2 × 1 pixels, feet of 1 × 1 pixel, and 1-pixel eyes, so the front is 13U × 8U. The side view
 in Claude Code (the "edge" turn) has feet at the front and the back edge, so there are four
-feet at the front and four at the back. The body is deeper than the sprite's 5 pixels: it
-runs back far enough for the power bank lying flat, which keeps the front small.
+feet at the front and four at the back. The body is about as deep as it is wide, a rough
+cube: the Pi lies on the floor, a compact power bank on a shelf above it.
 
 The eyes are screens: a 0.96" OLED sits behind each eye pixel, each driven over USB by its
 own MCP2221A board, so nothing is wired to the Pi's GPIO header.
@@ -26,7 +26,8 @@ Sources:
 - Sound: Waveshare USB TO AUDIO, onboard dual microphones, 2.6 W speaker amp (PH2.0),
   53 x 23.5 x 14.6 (Waveshare size drawing).
 - BlinkStick Strip: blinkstick.com, 85 x 9.5 x 4.5 mm, 8 WS2812 LEDs, micro-USB socket.
-- Power bank: Redmi 20000 mAh PB200LZM, mi.com specs, 154 x 73.6 x 27.3.
+- Power bank: a compact 10000 mAh pack, 92 x 60 x 22 (Anker PowerCore 10000 size class). UNVERIFIED:
+  pick one whose maker documents pass-through charging, and check its size and port layout.
 Values marked UNVERIFIED are not published by the maker: measure the real part.
 """
 from soma import param
@@ -42,9 +43,9 @@ LED_STATE = param("thinking", "LED colour", options=["idle", "listening", "think
                   group="Electronics")
 
 # --- Clawd's pixel grid --------------------------------------------------------------------
-# 8 mm pixels: the smallest front that still holds the power bank lying flat (73.6 wide)
-# with the Pi on a shelf above it. The cable routes in wiring.py are laid out for this size.
-U = 8.0
+# 8.5 mm pixels: the smallest front that holds the compact power bank (92 wide) with room
+# for its plugs. The cable routes in wiring.py are laid out for this size.
+U = 8.5
 PX_W = U                 # one pixel wide
 PX_H = 2 * U             # one pixel (row) tall
 CENTER_COL = 9.5         # the body spans sprite columns 3..15
@@ -60,7 +61,7 @@ def col_x(c):
 
 BODY_W = 13 * PX_W
 BODY_H = 4 * PX_H
-BODY_D = 173.0           # front zone for the eyes, then the power bank's length
+BODY_D = 108.0           # about as deep as wide: a rough cube
 BODY_Z0 = PX_H           # the feet are one row tall
 OUTER_X = BODY_W / 2
 OUTER_FRONT = -BODY_D / 2
@@ -92,27 +93,13 @@ OLED_DEPTH = 6.2
 MCP = (17.7, 27.0, 5.0)       # MCP2221A standing behind the OLED: x, z, y; USB-C at the top
 MCP_DROP = 4.0                # MCP centre below the eye centre, so its plug clears the top
 
-# --- power bank: Redmi 20000 mAh PB200LZM, lying flat, ports at the front ---------------------
-BANK = (73.6, 154.0, 27.3)     # x, y, z as it lies in the body
-BANK_MIN = (-BANK[0] / 2, FRONT_IN + 13.0, INNER_BOTTOM + 0.5)
-BANK_PORTS_Z = BANK_MIN[2] + BANK[2] / 2
-# port centres across the front end, x; positions UNVERIFIED
-BANK_USBA_X = (-12.0, 2.0)
-BANK_USBC_X = 16.0
-CHARGE_SOCKET = (BANK_MIN[1] - 7.0, INNER_BOTTOM + 7.5)  # right wall, y and z: under the right arm
-
-# --- shelf over the power bank and the Raspberry Pi 3 Model B on it ----------------------------
-SHELF_Z = BANK_MIN[2] + BANK[2] + 0.7   # underside
-SHELF_T = 2.0
-SHELF_X = (-INNER_X + 4.5, INNER_X)     # open on the left for the speaker cable
-SHELF_Y = (BANK_MIN[1], SPLIT_Y - LIP - 0.4)
-SHELF_NOTCH_Y = (30.0, 62.0)            # notch in the open left edge where the speaker cable goes down
+# --- Raspberry Pi 3 Model B, lying on the floor ---------------------------------------------------
 # Board frame: bx along the 85 mm edge from the micro-USB end, by from the HDMI edge, bz up
-# from the top (component) surface. The board lies flat on 4 mm standoffs, micro-USB end at
-# the front, USB and Ethernet facing the back, HDMI edge to the right.
+# from the top (component) surface. The board lies on 4.5 mm standoffs, micro-USB end under
+# the eyes, USB and Ethernet facing the back, HDMI edge to the right.
 PI_BOARD = (85.0, 56.0, 1.4)   # thickness UNVERIFIED
-PI_STANDOFF = 4.0
-PI_ORIGIN = (7.5, BANK_MIN[1] + 1.0, SHELF_Z + SHELF_T + PI_STANDOFF + PI_BOARD[2])
+PI_STANDOFF = 4.5
+PI_ORIGIN = (10.0, FRONT_IN + 3.0, INNER_BOTTOM + PI_STANDOFF + PI_BOARD[2])  # microSD clears the front wall
 PI_HOLES = [(3.5, 3.5), (61.5, 3.5), (3.5, 52.5), (61.5, 52.5)]
 PI_USB_BY = (29.0, 47.0)
 PI_USB_PORT_BZ = (4.5, 12.3)   # centres of the lower / upper port in a stack, UNVERIFIED
@@ -125,19 +112,31 @@ def pi_to_world(bx, by, bz):
     return (PI_ORIGIN[0] - by, PI_ORIGIN[1] + bx, PI_ORIGIN[2] + bz)
 
 
+# --- shelf over the Pi and the power bank on it ---------------------------------------------------
+SHELF_Z = PI_ORIGIN[2] + 16.0 + 1.1     # underside, clear of the USB stacks
+SHELF_T = 2.0
+SHELF_X = (-INNER_X, INNER_X - 11.75)   # open on the right for the cables past the bank's ports
+SHELF_Y = (-39.5, 37.0)            # ends just in front of the rising plug boots
+BANK = (92.0, 60.0, 22.0)      # compact 10000 mAh, lying flat: x, y, z
+BANK_MIN = (-50.0, -39.0, SHELF_Z + SHELF_T)
+BANK_PORTS_Z = BANK_MIN[2] + BANK[2] / 2
+# port centres along the right end, y; positions UNVERIFIED
+BANK_USBA_Y = (-24.0, -9.0)
+BANK_USBC_Y = 6.0
+
 # --- peripherals --------------------------------------------------------------------------------
 STRIP = (85.0, 9.5, 1.6)       # BlinkStick Strip PCB; LEDs 5 x 5 x 1.6 on top (WS2812)
 STRIP_LEDS = 8
-STRIP_Y0 = -50.0               # front end of the strip; it runs back along the top, socket at the back
+STRIP_Y = -14.0                # across the top, over the power bank; socket at the right end
 STRIP_Z = INNER_TOP - 7.2      # bottom of the strip PCB
-SOUND = (53.0, 23.5, 14.6)     # Waveshare USB TO AUDIO lying on the shelf behind the Pi, plug to the right
-SOUND_MIN = (-INNER_X + 4.5, 51.0, SHELF_Z + SHELF_T)
+SOUND = (53.0, 14.6, 23.5)     # Waveshare USB TO AUDIO standing on its edge behind the bank: x, y, z
+SOUND_MIN = (-45.0, 21.5, SHELF_Z + SHELF_T)
 SPEAKER_D = 28.0               # UNVERIFIED: generic 28 mm 8 ohm speaker on the sound card's amp
 SPEAKER_DEPTH = 5.0
-SPEAKER_YZ = (40.0, (INNER_BOTTOM + SHELF_Z) / 2)  # stands beside the bank, fires out of the left side
+SPEAKER_XY = (32.0, 0.0)       # on the floor beside the Pi, firing down between the feet
 
 SCREW_XZ = [(-40.0, INNER_TOP - 5.5), (40.0, INNER_TOP - 5.5),  # back cover screws
-            (-43.0, INNER_BOTTOM + 3.5), (43.0, INNER_BOTTOM + 3.5)]
+            (-48.5, INNER_BOTTOM + 3.5), (48.5, INNER_BOTTOM + 3.5)]
 BOSS_D = 7.0
 BOSS_FRONT = SPLIT_Y - 10.0
 

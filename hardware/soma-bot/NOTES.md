@@ -6,18 +6,18 @@ of a desk bot built from parts that plug together with no soldering and no GPIO 
 ## Shape
 
 Taken from Clawd's pixel art in Claude Code (default pose, and the "edge" turn for the
-feet). One pixel is 8 mm wide and 16 mm tall (terminal cells are twice as tall as wide).
+feet). One pixel is 8.5 mm wide and 17 mm tall (terminal cells are twice as tall as wide).
 
-- Front: 13 × 4 pixels → 104 × 64 mm. The body runs 173 mm back (deeper than the sprite's
-  5 pixels) so the power bank can lie flat and the front stays small.
-- Eyes: one pixel each (8 × 16 mm), in the second row, two pixels in from each side.
+- Front: 13 × 4 pixels → 110.5 × 68 mm. The body is 108 mm deep, about as deep as wide: a
+  rough cube (the sprite's side view is only 5 pixels deep, too thin for the parts).
+- Eyes: one pixel each (8.5 × 17 mm), in the second row, two pixels in from each side.
 - Arms: 2 × 1 pixels on each side of the third row, 2 pixels deep, near the front.
 - Feet: one pixel each, one row tall, under columns 3, 5, 13 and 15 of the sprite, at the
   front edge and at the back edge (eight feet; four show from the front, two from the side).
 - Colour: Claude Code's orange, rgb(215, 119, 87).
 
-Overall 136 × 175 × 80 mm with arms, feet and the screw heads on the back: a little
-shorter than a phone standing up, and about one and a half phones wide with the arms.
+Overall 144.5 × 110 × 85 mm with arms, feet and the screw heads on the back: a bit more
+than half as tall as a phone standing up, and about two phones wide with the arms.
 
 ## Inside
 
@@ -25,20 +25,23 @@ shorter than a phone standing up, and about one and a half phones wide with the 
   connects by a STEMMA QT cable to its own Adafruit MCP2221A USB-to-I2C board (#4471), which
   plugs into the Pi over USB-C. Two boards, so the two OLEDs can keep the same I2C address.
   Off pixels are black, so a dark OLED looks exactly like Clawd's eye; lit pixels can make the
-  eyes look around, blink or wink. The 8 × 16 mm eye shows the middle of the OLED's
-  21.7 × 10.9 mm picture (about 94 × 47 of its pixels, turned upright).
-- Battery: Redmi 20000 mAh power bank (PB200LZM) lying flat on the floor, ports at the
-  front. Its manual documents output while charging. USB-A → up between the eye boards →
-  Pi micro-USB. Its USB-C port goes by a short cable to a panel-mount socket in the right
-  wall, just under the right arm: that is the charging port.
-- Brain: Raspberry Pi 3 Model B lying flat on 4 mm standoffs on a shelf over the power bank,
-  USB and Ethernet facing the back. All four USB ports are used: left eye, right eye, LED
-  strip, sound card.
-- Sound: Waveshare USB TO AUDIO (onboard dual microphones, 2.6 W amplifier on PH2.0) on the
-  shelf behind the Pi, on a short USB extension; the microphones listen through holes in the
-  left side. A 28 mm 8 Ω speaker stands beside the power bank and fires out of the left side.
-- Light bar: BlinkStick Strip (8 × WS2812, micro-USB) running front to back along the top,
-  under a frosted diffuser flush with the top (parameter "LED light bar on top").
+  eyes look around, blink or wink. The 8.5 × 17 mm eye shows the middle of the OLED's
+  21.7 × 10.9 mm picture (about 100 × 50 of its pixels, turned upright).
+- Brain: Raspberry Pi 3 Model B lying on 4.5 mm standoffs on the floor, its front end under
+  the eyes, USB and Ethernet facing the back. All four USB ports are used: left eye, right
+  eye, LED strip, sound card.
+- Battery: a compact 10000 mAh power bank (92 × 60 × 22 mm, Anker PowerCore 10000 size
+  class) on a shelf over the Pi, ports on its right end. USB-A → down past the shelf → Pi
+  micro-USB. Its USB-C port takes a straight panel-mount extension; the socket in the right
+  wall, behind the right arm, is the charging port. UNVERIFIED: pick a bank whose maker
+  documents pass-through charging (the bot runs while charging); Anker's PowerCore 10000
+  itself is not documented for that.
+- Sound: Waveshare USB TO AUDIO (onboard dual microphones, 2.6 W amplifier on PH2.0)
+  standing on its edge behind the power bank, on a short USB extension; the microphones
+  listen through holes in the top. A 28 mm 8 Ω speaker lies on the floor beside the Pi and
+  fires down between the feet.
+- Light bar: BlinkStick Strip (8 × WS2812, micro-USB) across the top under a frosted
+  diffuser flush with the top (parameter "LED light bar on top").
 - Vents in the top and the back cover. The front stays plain like the sprite.
 
 ## Parameters
@@ -50,7 +53,7 @@ wall, edge rounding and LED colour can be changed.
 
 - OLED glass position on its board (assumed centred) and the board's thickness.
 - Waveshare USB TO AUDIO: where its microphones and speaker header sit.
-- Power bank port positions on its end (only the outer size is published).
+- The power bank: size, port positions and pass-through (see above).
 - Pi 3 board thickness and USB port heights inside the stack.
 - Speaker: a generic 28 mm 8 Ω speaker is assumed.
 - USB-C panel-mount extension and right-angle plug housings: generic sizes.
@@ -58,7 +61,9 @@ wall, edge rounding and LED colour can be changed.
 ## Decisions
 
 - No 3.5" HDMI screen: Clawd has no screen, so the eyes are the screens.
-- The eye pixels are exactly 1 × 2 pixels; the OLED glass (26.6 mm tall) is 0.4 mm shorter
-  than the eye, the black board shows in that gap.
+- The eye pixels are exactly 1 × 2 pixels and smaller than the OLED glass, so the whole eye
+  is screen.
+- The 20000 mAh Redmi bank (154 mm long) made the body either very big or very long; the
+  compact 10000 mAh bank lets it be a small rough cube.
 - Arms and feet are separate prints glued to the body.
 - Back cover: 4 × ISO 7380 M3×16 button-head screws, self-tapping into printed bosses.

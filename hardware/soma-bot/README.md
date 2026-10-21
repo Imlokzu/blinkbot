@@ -4,14 +4,14 @@ A real-size 3D model of the phase-1 desk bot built as **Clawd**, the Claude Code
 written in CadQuery for the [SOMA](https://somacad.app/) CAD app. The outside is Clawd pixel
 for pixel (taken from the sprite in Claude Code); each eye pixel is a 0.96" OLED screen.
 Every internal part is modelled: the Raspberry Pi 3 with all its ports, the eye screens with
-their USB boards, the sound card and speaker, the 20000 mAh power bank, plugs and cables.
+their USB boards, the sound card and speaker, a compact 10000 mAh power bank, plugs and cables.
 
 | Front | Next to a phone | Shell hidden | Electronics only |
 |---|---|---|---|
 | ![front](preview-front-flat.png) | ![phone](preview-phone.png) | ![inside](preview-inside.png) | ![ports](preview-ports.png) |
 
-Front 104 × 64 mm (13 × 4 pixels of 8 × 16 mm), 173 mm deep so the power bank lies flat;
-136 × 175 × 80 mm with arms, feet and screw heads.
+Front 110.5 × 68 mm (13 × 4 pixels of 8.5 × 17 mm), 108 mm deep: a rough cube;
+144.5 × 110 × 85 mm with arms, feet and screw heads.
 
 | Path | What |
 |---|---|
