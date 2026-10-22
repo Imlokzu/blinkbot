@@ -98,6 +98,10 @@
 - Screen CSS owns Guide; no parallel design system or new dependency.
 - Reuse the existing PixelCrab artwork and animation engine unchanged in
   identity: no parallel Claude sprite or replacement face design.
+- Furniture actions use native body poses plus contact: folded seated legs,
+  hands at the real keyboard, a book on the lap and a duvet over the lower
+  sleeping body. Front furniture stays anchored when Claude stands up.
+  The follow camera keeps the face clear of captions in every pose.
 - Office modules own the local canvas world, state machine and localized
   controls. The existing screen owns transport, captions, voice and settings.
 

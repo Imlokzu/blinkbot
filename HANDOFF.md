@@ -3729,3 +3729,30 @@ was restarted after confirming zero active mobile jobs. Its initial office
 SSE snapshot and nine exact static-asset comparisons passed; both traversal
 probes returned 400. The isolated smoke server passed the same asset and
 traversal checks.
+
+
+## 2026-10-22 — Seated and contextual office actions
+
+Extended the existing PixelCrab renderer with optional furniture contact: the
+original body and eyes remain, legs fold when seated, the native book moves
+to the lap, and the sleepy body reclines beneath the duvet. The office now
+has seated typing at the actual keyboard, sit/stand transitions, page turns,
+bites and sips, sofa resting and visitor greetings. Native classic callers
+retain their original drawing.
+
+`office-actions.js` owns only visual contact timing; real work/navigation
+never waits for it. New work at the current desk/cart changes the action in
+place. Chair fronts remain anchored when Claude departs, and the follow
+camera accounts for the presented body position so captions cannot cover
+a seated face. Hidden views restore the current pose, and reduced motion
+freezes props, waves and contact transitions.
+
+Opus 5.5 supplied the pose/contact brief through mirasim. Fable 5.1 reviewed
+and fixed native stand-up, hidden-hop restoration and contextual glasses,
+then approved the final in-place activity switch. Full tests passed 2,023
+with 7 skipped and 178 subtests; the post-review office selection passed 35.
+Browser fixtures verified seating, typing, duvet sleep, sofa contact, food
+and interruption with zero runtime errors. The real 8100 server and isolated
+8137 server each passed nine final HTTP checks, including exact current
+assets and two traversal 400s. This is a static-screen change and needs a
+page reload; no backend restart or real model request was needed.

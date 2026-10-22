@@ -485,6 +485,37 @@ class PixelCrab {
       this._walkToward(this.x + dir * 2 * S, 26, dt, v);
     }
 
+    // A scene can seat the original body on its own furniture. Keep the
+    // bitmap and eyes; fold the existing legs and lower the body into them.
+    // Classic callers supply no contact values and keep their old poses.
+    const seat = Math.max(0, Math.min(1, Number(motion?.seat) || 0));
+    const recline = Math.max(0, Math.min(1, Number(motion?.recline) || 0));
+    // Standing up is immediate: the first walking frame already has the
+    // legs unfolded, even while the scene is still easing its seat value.
+    v.seated = motion?.walking ? 0 : Math.max(seat, recline);
+    if (v.seated > 0) {
+      this.jump = null;
+      this.airY = 0;
+      v.liftT = -2 * S * v.seated;
+      v.sxT = 1 + .1 * recline;
+      v.syT = 1 - .16 * seat - .4 * recline;
+      v.bobAmp *= .3;
+      v.walkShadow = 0;
+    }
+    if (motion?.furniture) {
+      // The office supplies the real desk/cart. Avoid a second floating
+      // terminal or table, while preserving the native reading book.
+      v.prop = null;
+      v.play = null;
+      v.book = motion.action === "read" || motion.action === "memory";
+      v.lapBook = v.book;
+      // Boredom can pick the native reading state; without its book the
+      // glasses would stay on, so they follow the book that is really held.
+      v.glasses = v.book;
+      v.snack = motion.snack;
+      v.snackTime = motion.actionTime || 0;
+    }
+
     // Стрибок (порт updateJump з PixelClaw) — перекриває позу стану
     if (this.jump) this._updateJump(dt, v);
 
@@ -956,7 +987,10 @@ class PixelCrab {
     // Ніжки
     for (let r = 0; r < legs.length; r++) {
       for (let c = 0; c < legs[r].length; c++) {
-        if (legs[r][c] === 1) cell(c, legTop + r * S);
+        if (legs[r][c] === 1) {
+          const fold = 1 - .65 * (v.seated || 0);
+          cell(c, g - (3 - r) * S * fold, S, Math.max(1, S * fold));
+        }
       }
     }
 
@@ -1026,7 +1060,8 @@ class PixelCrab {
     if (v.spinner) this._drawSpinner(cx, bodyRowY, S);
     if (v.confetti) this._drawConfetti(cx, bodyRowY, S, g);
     if (v.play) this._drawBall(v.play, cx, bodyRowY, S, g);
-    if (v.book) this._drawBook(cx, bodyRowY, S, g);
+    if (v.book) this._drawBook(cx, bodyRowY, S, g, v.lapBook);
+    if (v.snack) this._drawSnack(cx, bodyRowY, S, g, v.snack, v.snackTime);
     if (v.glasses) this._drawGlasses(cx, bodyRowY, S, ox);
 
     // Часточки: сердечка (love) та «z» (sleepy) — спливають і тануть
@@ -1319,7 +1354,7 @@ class PixelCrab {
      кутом: обкладинка визирає рамкою по всіх краях, дві сторінки з корінцем
      посередині, дальній край вужчий (перспектива), рядки тексту. Краб дивиться
      на неї згори-вниз. Раз на ~3с «гортає». Бік — this._readSide. */
-  _drawBook(cx, bodyRowY, S, g) {
+  _drawBook(cx, bodyRowY, S, g, lap = false) {
     const ctx = this.ctx, C = this.colors, t = this.t;
     const side = this._readSide || 1;
 
@@ -1328,21 +1363,23 @@ class PixelCrab {
     const botW = Math.round(5.2 * S);               // ближній край (ширший)
     const bookH = Math.round(1.5 * S);              // мала висота — лежить пласко
     const half = Math.round(botW / 2);
-    let tableCx = Math.round(cx + side * 7.1 * S);
+    let tableCx = Math.round(lap ? cx : cx + side * 7.1 * S);
     tableCx = Math.max(half + 4, Math.min(tableCx, this.W - half - 4));
 
     // НИЗЬКИЙ столик: стільниця недалеко від підлоги
-    const surfY = g - Math.round(2.1 * S);
+    const surfY = g - Math.round((lap ? 1.0 : 2.1) * S);
     const ttH = Math.max(2, Math.round(0.5 * S));
     const legW = Math.max(2, Math.round(0.6 * S));
     ctx.fillStyle = C.wood;
     const legTop = surfY + ttH;
     const tW = botW + Math.round(1.4 * S);
-    ctx.fillRect(tableCx - Math.round(tW / 2) + 2, legTop, legW, g - legTop);
-    ctx.fillRect(tableCx + Math.round(tW / 2) - 2 - legW, legTop, legW, g - legTop);
-    ctx.fillRect(tableCx - Math.round(tW / 2), surfY, tW, ttH);
-    ctx.fillStyle = C.woodHi;
-    ctx.fillRect(tableCx - Math.round(tW / 2), surfY, tW, Math.max(1, Math.round(0.2 * S)));
+    if (!lap) {
+      ctx.fillRect(tableCx - Math.round(tW / 2) + 2, legTop, legW, g - legTop);
+      ctx.fillRect(tableCx + Math.round(tW / 2) - 2 - legW, legTop, legW, g - legTop);
+      ctx.fillRect(tableCx - Math.round(tW / 2), surfY, tW, ttH);
+      ctx.fillStyle = C.woodHi;
+      ctx.fillRect(tableCx - Math.round(tW / 2), surfY, tW, Math.max(1, Math.round(0.2 * S)));
+    }
 
     const baseY = surfY;                            // книга лежить на стільниці
     const topY = baseY - bookH;
@@ -1388,6 +1425,36 @@ class PixelCrab {
       const seg = Math.max(2, Math.round(colW * (0.7 + 0.3 * ((i + page) % 2))));
       ctx.fillRect(tableCx - Math.round(w / 2) + 2, y, seg, 1);        // ліва сторінка
       ctx.fillRect(tableCx + Math.round(0.35 * S), y, seg, 1);         // права сторінка
+    }
+    if (lap) {
+      // A lifted page and a reaching claw reuse the existing book palette.
+      const phase = t % 3.2;
+      const turn = phase > 2.65 ? Math.sin((phase - 2.65) / .55 * Math.PI) : 0;
+      ctx.fillStyle = C.paperHi;
+      ctx.fillRect(tableCx - 1, topY - Math.round(turn * S), Math.max(1, Math.round(turn * 2 * S)), bookH);
+      ctx.fillStyle = C.body;
+      ctx.fillRect(tableCx - half - S, topY + 2, S, S);
+      ctx.fillRect(tableCx + half, topY + 2 - Math.round(turn * S), S, S);
+    }
+  }
+
+  /** A small bite or mug in the original crab's claw, with a readable hold. */
+  _drawSnack(cx, bodyRowY, S, g, kind, time) {
+    const ctx = this.ctx, C = this.colors;
+    const phase = time % 2.4;
+    const lift = phase < .4 ? 0 : phase < .8 ? (phase-.4)/.4 :
+      phase < 1.3 ? 1 : phase < 1.7 ? 1-(phase-1.3)/.4 : 0;
+    const x = Math.round(cx + 2.7*S - lift*S);
+    const y = Math.round(g - 1.4*S - lift*2*S);
+    ctx.fillStyle = C.body;
+    ctx.fillRect(cx + 2*S, y + S, 2*S, S);
+    ctx.fillStyle = kind === "sip" ? C.paperHi : "#d7ad72";
+    ctx.fillRect(x, y, 1.7*S, (kind === "sip" ? 2 : .9)*S);
+    ctx.fillStyle = kind === "sip" ? C.paperBack : "#a67c46";
+    ctx.fillRect(x+1, y, 1.7*S-2, Math.max(1,S*.3));
+    if (kind === "sip") {
+      ctx.fillStyle = C.paperHi;
+      ctx.fillRect(x+1.7*S, y+.5*S, .5*S, S);
     }
   }
 

@@ -1,3 +1,5 @@
+import { OfficeActions } from './office-actions.js';
+
 /** Adapt the existing PixelCrab; no office-specific sprite or face artwork. */
 export function officeEmotion(state) {
   if (state.pose === 'sleep' || state.pose === 'waking') return 'sleepy';
@@ -22,24 +24,44 @@ export function createOfficeMascot({source=null,visitor=false,Mascot=source?.con
     scale:4,autoStart:false,
     ...(visitor?{bodyColor:'#8ca879',shadowColor:'#657d58'}:{}),
   });
+  const actions=new OfficeActions(visitor);
+  let presentation={seat:0,recline:0,offsetY:0,kind:'stand',time:0};
   let previousPose='', previousX=null;
-  function update(state,dt) {
-    const emotion=officeEmotion(state);
+  function syncEmotion(state) {
+    const emotion=presentation.wave && (!state.emotion||state.emotion==='idle') ? 'greeting' : officeEmotion(state);
     if(mascot.emotion!==emotion)mascot.setEmotion(emotion);
     if(source){mascot.colors=source.colors;mascot.setAudioLevel(source.audioLevel);}
+  }
+  const contact=(state,direction,reduced)=>({walking:state.pose==='walk',direction,reduced,
+    seat:presentation.seat,recline:presentation.recline,furniture:true,
+    action:presentation.kind,snack:presentation.snack,actionTime:presentation.time});
+  function update(state,dt) {
+    presentation=actions.update(state,dt);
+    syncEmotion(state);
     if(state.pose==='hop'&&previousPose!=='hop'&&!state.reduced)mascot.hop();
     const direction=previousX===null||state.position.x>=previousX?1:-1;
     // Keep all native props within the offscreen frame while room movement
     // is applied when compositing. This is not another animation loop.
     mascot.x=mascot.homeX;
-    mascot.advance(dt,{walking:state.pose==='walk',direction,reduced:state.reduced});
+    mascot.advance(dt,contact(state,direction,state.reduced));
     previousPose=state.pose;previousX=state.position.x;
   }
   return {
     update,
+    get presentation(){return presentation;},
+    /* On show, nothing that happened while hidden plays back: the seat and
+       recline land on their targets, and the native body settles with them
+       (lift, squash, eyes, no pending jump) through its own reduced path. */
+    snap(state){
+      presentation=actions.update(state,0,true);
+      syncEmotion(state);
+      previousPose=state.pose;previousX=state.position.x;
+      mascot.x=mascot.homeX;
+      mascot.advance(0,contact(state,1,true));
+    },
     draw(ctx,state){
-      ctx.fillStyle='#d4d0c7';ctx.beginPath();ctx.ellipse(state.position.x,state.position.y,20,4,0,0,Math.PI*2);ctx.fill();
-      ctx.drawImage(canvas,Math.round(state.position.x-mascot.x),Math.round(state.position.y-mascot.groundY));
+      if(presentation.seat<.2 && presentation.recline<.2){ctx.fillStyle='#d4d0c7';ctx.beginPath();ctx.ellipse(state.position.x,state.position.y,20,4,0,0,Math.PI*2);ctx.fill();}
+      ctx.drawImage(canvas,Math.round(state.position.x-mascot.x),Math.round(state.position.y+presentation.offsetY-mascot.groundY));
     },
     destroy(){mascot.destroy();},
   };

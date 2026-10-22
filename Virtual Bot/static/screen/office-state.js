@@ -35,6 +35,14 @@ export class OfficeState {
   go(room) {
     const to = this.spots[room];
     const destination = room === 'library' && !this.active ? to.leisure : to.point;
+    // Already seated at this station: change the action in place. A new
+    // message must not make the crab stand, pace to the door and sit again.
+    if (this.position.x === destination.x && this.position.y === destination.y) {
+      this.target = room;
+      this.destination = { ...destination };
+      this.arrive();
+      return;
+    }
     // Already on the way there: keep walking. A new spot in the same room
     // (the chair for leisure, the cart for a memory job) still replans.
     if (this.target === room && this.route.length

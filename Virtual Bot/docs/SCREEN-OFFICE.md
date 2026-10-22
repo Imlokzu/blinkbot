@@ -45,6 +45,28 @@ The library's leisure chair and memory cart are separate destinations.
 Foreground work takes priority over background consolidation; a surviving
 background task becomes visible again when foreground work finishes.
 
+## Furniture actions
+
+The original PixelCrab gains optional contact parameters in manual mode;
+classic callers retain their original drawing. `office-actions.js` blends
+visual poses without changing navigation or delaying a bot request:
+
+- Settle into the desk chair and alternate the claws on the real keyboard.
+- Fold the existing legs into a seated pose and unfold when leaving.
+- Sit in the library chair with the native book on the lap and turn pages.
+- Sit at the kitchen table, take bites and occasionally lift a cup for a sip.
+- Sit on the lounge sofa and use the native wave animation to greet a visitor.
+- Lie on the pillow with the lower body covered by the duvet; rise and use
+  the existing jump when waking.
+
+Actual memory work stays at the cart and uses different book-sorting motions
+from leisure reading. Chair fronts, armrests and bedding are drawn after the
+mascot so contact is visible. They remain anchored while Claude leaves.
+The camera follows the presented body position to keep a seated or lying
+face above captions. Reduced motion snaps contact poses and freezes the
+page, bite, sip and greeting cycles. Returning to a hidden view restores the
+current pose directly instead of replaying an old entrance.
+
 ## Integration
 
 `screen.js` owns the existing SSE connection and calls `mountOffice` in
@@ -83,7 +105,7 @@ Run from `Virtual Bot` after muting the Mac:
 ```sh
 PYTHONPATH="$PWD" .venv/bin/pytest tests/test_screen_office.py \
   tests/test_office_integration.py tests/test_office_activity.py \
-  tests/test_office_mascot.py -q
+  tests/test_office_mascot.py tests/test_office_actions.py -q
 ```
 
 Tests cover sleep/wake, short replies, interrupted movement, full-sprite wall

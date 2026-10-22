@@ -29,7 +29,7 @@ function plant(c,x,y,p,r=12){
   round(c,x-3,y-3,6,6,'#5e7e50',2);
 }
 function wall(c,x,y,w,h,p){rect(c,x+3,y+4,w,h,p.shadow);rect(c,x,y,w,h,p.edge);rect(c,x+1,y+1,w-2,h-2,p.wall);}
-function chair(c,x,y,p,color=p.blue){round(c,x+2,y+4,28,28,p.shadow,7);round(c,x,y,28,28,color,6);round(c,x+3,y+3,22,17,'#c4cdd4',4);line(c,x+3,y+22,x+25,y+22,'#7f8f9b',2);}
+function chair(c,x,y,p,color=p.blue){round(c,x+2,y+4,44,38,p.shadow,7);round(c,x,y,44,38,color,6);round(c,x+4,y+3,36,25,'#c4cdd4',4);line(c,x+4,y+31,x+40,y+31,'#7f8f9b',2);}
 
 export function drawHouse(c,p,{roomName=()=>''}={}){
   c.clearRect(0,0,640,440);rect(c,0,0,640,440,p.floor);
@@ -61,7 +61,7 @@ export function drawHouse(c,p,{roomName=()=>''}={}){
     table(c,228+j*62,19,56,22,p);
     for(let i=0;i<8;i++){rect(c,231+j*62+i*6,22,4,15,books[(j+i)%6]);rect(c,232+j*62+i*6,25,2,1,p.cream);}
   }
-  round(c,229,111,60,61,'#d3ddcb',12);chair(c,237,120,p,'#91a182');
+  round(c,229,111,60,61,'#d3ddcb',12);chair(c,228,116,p,'#91a182');
   table(c,346,110,45,33,p);rect(c,352,116,15,20,'#aebbc8');rect(c,370,117,15,19,'#c6b398');
   for(const [x,y] of [[350,143],[385,143]])round(c,x,y,4,5,p.trim,1);
   plant(c,397,163,p,10);
@@ -70,7 +70,7 @@ export function drawHouse(c,p,{roomName=()=>''}={}){
   rect(c,546,42,6,5,p.ink);rect(c,537,47,24,2,p.trim);
   round(c,526,52,42,8,'#fdfdfb',1);for(let i=0;i<10;i++)rect(c,528+i*4,54,2,2,p.inset);
   round(c,574,52,6,8,p.cream,2);c.fillStyle=p.cream;c.beginPath();c.arc(588,42,5,0,Math.PI*2);c.fill();
-  chair(c,531,68,p);table(c,446,31,28,76,p);for(let i=0;i<4;i++)rect(c,451,37+i*16,18,11,i%2?p.cream:'#d3ddcb');
+  chair(c,522,58,p);table(c,446,31,28,76,p);for(let i=0;i<4;i++)rect(c,451,37+i*16,18,11,i%2?p.cream:'#d3ddcb');
   plant(c,604,155,p,14);
   // Kitchen: quiet white cabinets, steel sink, hob, fridge and round table.
   round(c,18,397,242,27,p.shadow);rect(c,16,394,244,27,p.cream);
@@ -81,7 +81,7 @@ export function drawHouse(c,p,{roomName=()=>''}={}){
   round(c,17,268,30,43,p.shadow,3);round(c,15,264,30,43,p.cream,3);line(c,15,278,45,278,p.inset);rect(c,39,283,2,12,p.trim);
   c.fillStyle=p.shadow;c.beginPath();c.arc(128,326,29,0,Math.PI*2);c.fill();
   c.fillStyle=p.woodHi;c.beginPath();c.arc(124,322,28,0,Math.PI*2);c.fill();
-  round(c,80,310,18,23,p.blue,5);round(c,151,310,18,23,p.blue,5);
+  round(c,80,310,18,23,p.blue,5);round(c,151,310,18,23,p.blue,5);chair(c,102,336,p);
   c.fillStyle=p.cream;c.beginPath();c.arc(124,321,11,0,Math.PI*2);c.fill();
   round(c,121,317,8,5,'#d4ad74',2);plant(c,282,280,p,12);
   // Lounge: generous sage rug, blue-gray sofa, guest chair and low table.
@@ -92,7 +92,7 @@ export function drawHouse(c,p,{roomName=()=>''}={}){
   for(let x=354;x<444;x+=30)round(c,x,383,26,23,'#b5c1c9',3);
   round(c,358,385,15,13,'#dfa38e',3);
   table(c,379,324,61,29,p);rect(c,386,329,17,18,p.cream);rect(c,405,332,14,14,'#b8c6ae');
-  chair(c,522,332,p);plant(c,601,276,p,14);plant(c,332,274,p,11);
+  chair(c,514,324,p);plant(c,601,276,p,14);plant(c,332,274,p,11);
   // Room names read as architectural labels, not floating interface cards.
   c.fillStyle='#9e9a91';c.font='10px monospace';c.textAlign='center';
   for(const [key,x,y] of [['sleep',108,177],['library',320,177],['work',532,177],['kitchen',155,277],['chat',472,277]])c.fillText(roomName(key).toUpperCase(),x,y);
@@ -120,5 +120,46 @@ export function drawWork(c,state,p){
   }
   if(state.active&&state.activity==='organize'&&state.room==='library'){
     rect(c,350,112,15,5,'#a8bba0');rect(c,351,117,16,5,'#c6b398');rect(c,349,122,17,5,p.blue);
+  }
+}
+
+/** Front edges establish physical contact without replacing the mascot art. */
+export function drawFurnitureFront(c,state,p,action,{visitor=false,body='#d98263'}={}) {
+  const {seat,recline,offsetY,kind,time}=action;
+  const x=state.position.x, y=state.position.y+offsetY;
+  if(seat>.05){
+    // Furniture stays in place while the crab unfolds and walks away.
+    const anchor=visitor?VISITOR:state.room==='library'?SPOTS.library.leisure:SPOTS[state.room]?.point;
+    const x=anchor?.x??state.position.x;
+    const y=(anchor?.y??state.position.y)+(state.room==='chat'&&!visitor?18:0);
+    c.save();c.globalAlpha=seat;
+    if(state.room==='chat'&&!visitor){
+      round(c,x-22,y+1,44,5,'#8b9bab',2);
+    } else {
+      const green=state.room==='library';
+      round(c,x-22,y-3,44,5,green?'#91a182':'#8b9bab',2);
+      round(c,x-23,y-20,5,18,green?'#809171':'#7f8f9b',2);
+      round(c,x+18,y-20,5,18,green?'#809171':'#7f8f9b',2);
+    }
+    c.restore();
+  }
+  if(kind==='type'&&seat>.6){
+    const tap=state.reduced?0:Math.floor(time*2)%2;
+    rect(c,532,58+tap,6,11-tap,body);rect(c,554,59-tap,6,10+tap,body);
+    rect(c,532,55+tap,7,4,body);rect(c,553,56-tap,7,4,body);
+  }
+  if(kind==='sort'){
+    const turn=state.reduced?0:Math.floor(time*1.5)%3;
+    for(let i=0;i<3;i++){
+      const lift=turn===i?5:0;
+      rect(c,351+i*10,120-lift,8,13,['#a8bba0','#c6b398','#aebbc8'][i]);
+    }
+    rect(c,x+15,128,10,4,body);
+  }
+  if(recline>.05){
+    // The face rests on the pillow; only the lower body is under the duvet.
+    const top=Math.round(72+(1-recline)*24);
+    rect(c,44,top,60,134-top,'#f0efeb');rect(c,44,top+4,60,5,'#dc9c87');
+    for(let yy=top+16;yy<130;yy+=12)line(c,48,yy,100,yy,'#e1dfd9');
   }
 }

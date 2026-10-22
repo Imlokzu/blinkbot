@@ -1,6 +1,6 @@
 import { OfficeState } from './office-state.js';
 import { createOfficeMascot } from './office-mascot.js';
-import { WORLD, SPOTS, PALETTES, drawHouse, drawWork, drawDoors, VISITOR } from './office-world.js';
+import { WORLD, SPOTS, PALETTES, drawHouse, drawWork, drawDoors, drawFurnitureFront, VISITOR } from './office-world.js';
 import { ot } from './office-i18n.js';
 
 const ICONS = {
@@ -82,24 +82,31 @@ export function mountOffice(host, callbacks={}) {
     if(theme===next)return;
     theme=next;palette=PALETTES[next];drawHouse(bg,palette,{light:next==='light',roomName:roomLabel});
   }
-  const visitorState=()=>({...state,position:{...VISITOR},active:false,activity:'idle',pose:'idle',emotion:'idle'});
+  const visitorState=()=>({...state,position:{...VISITOR},room:'chat',visitorPresent:state.room==='chat',active:false,activity:'idle',pose:'idle',emotion:'idle'});
   function render(dt=0) {
     if(destroyed||!visible)return;
     paintBackground();
+    state.visitorPresent=visitor;
     mascot.update(state,dt);
     if(visitor)guestMascot.update(visitorState(),dt);
     const tx=overview?0:Math.max(320-WORLD.width*zoom,Math.min(0,160-camera.x*zoom));
     // Overhead view with the face above captions; overview centers the floor plan.
-    const ty=overview?10:Math.max(240-WORLD.height*zoom,Math.min(30,110-camera.y*zoom));
+    const ty=overview?10:Math.min(30,110-(camera.y+mascot.presentation.offsetY)*zoom);
     c.setTransform(1,0,0,1,0,0);c.fillStyle=palette.void;c.fillRect(0,0,640,480);
     c.imageSmoothingEnabled=false;c.setTransform(2*zoom,0,0,2*zoom,2*tx,2*ty);
     c.drawImage(background,0,0);drawDoors(c,state,palette);drawWork(c,state,palette);
     if(visitor){
       guestMascot.draw(c,visitorState());
+      drawFurnitureFront(c,visitorState(),palette,guestMascot.presentation,{visitor:true,body:'#8ca879'});
       c.fillStyle=palette.ink;c.font='10px monospace';c.textAlign='center';c.fillText(ot('visitorName'),VISITOR.x,VISITOR.y-42);
     }
     mascot.draw(c,state);
+    drawFurnitureFront(c,state,palette,mascot.presentation,{body:callbacks.mascot?.colors?.body||'#d98263'});
     c.setTransform(1,0,0,1,0,0);
+    const contact=mascot.presentation.recline>.99?'lying':mascot.presentation.seat>.99?'seated':
+      mascot.presentation.seat>0||mascot.presentation.recline>0?'settling':'standing';
+    if(root.dataset.action!==mascot.presentation.kind)root.dataset.action=mascot.presentation.kind;
+    if(root.dataset.contact!==contact)root.dataset.contact=contact;
     root.dataset.pose=state.pose;root.dataset.room=state.room;root.dataset.activity=state.activity;root.dataset.connected=String(state.connected);
     const where=roomLabel(state.route.length?state.target:state.room);
     const next=state.status==='moving'?ot('moving',{room:where}):ot(statusKey[state.status]||state.status)+' · '+where;
@@ -122,7 +129,9 @@ export function mountOffice(host, callbacks={}) {
     raf=requestAnimationFrame(tick);
   }
   function setVisible(value) {
+    const wasVisible=visible;
     visible=!!value;
+    if(visible&&!wasVisible){mascot.snap(state);guestMascot.snap(visitorState());}
     if(raf)cancelAnimationFrame(raf);raf=0;last=0;
     if(visible&&!document.hidden){
       if(state.reduced)camera={...state.position};
