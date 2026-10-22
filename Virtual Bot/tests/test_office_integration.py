@@ -164,7 +164,8 @@ console.log(JSON.stringify({working, refused, idle, slept, woke: ctx.calls.at(-1
     assert result["working"] == [20000]            # home yes, sleep no
     assert result["refused"] == {"asleep": False, "told": False}
     assert result["idle"] == [20000, 180000]
-    assert result["slept"] == {"asleep": True, "told": ["setSleeping", True], "home": True}
+    # The idle timer's sleep is automatic: the office starts a finite nap
+    assert result["slept"] == {"asleep": True, "told": ["setSleeping", True, {"manual": False}], "home": True}
     assert result["woke"] == ["setSleeping", False] and result["asleep"] is False
 
 
@@ -292,7 +293,7 @@ const ctx = environment({mountOffice(host, cb) { callbacks = cb; return recorder
   homeView: 'office', document: {documentElement: {dataset: {home: 'office'}}}, writePref(k, v) { ctx.calls.push(['pref', k, v]); },
   syncOfficeVisibility() { ctx.calls.push(['sync']); }, applyDim() {}, HOME_VIEW_KEY: 'k',
   linkAlive: true, officeActivity: {activity: 'read', active: true}, crab: {emotion: 'happy'}, reducedMotion: true, asleep: false,
-  wake() { ctx.calls.push(['wake']); }, openChatKeyboard(o) { ctx.calls.push(['chat', o]); }, openSettings() { ctx.calls.push(['settings']); }});
+  wake(o) { ctx.calls.push(o ? ['wake', o] : ['wake']); }, openChatKeyboard(o) { ctx.calls.push(['chat', o]); }, openSettings() { ctx.calls.push(['settings']); }});
 install(ctx, ['mountHomeOffice', 'setHomeView']);
 ctx.mountHomeOffice();
 callbacks.onChat(); callbacks.onSettings(); callbacks.onInteract(); callbacks.onClassic();
@@ -302,8 +303,10 @@ console.log(JSON.stringify({mounted, calls: ctx.calls, home: ctx.homeView, attr:
         ["setConnected", True], ["setActivity", {"activity": "read", "active": True}], ["setEmotion", "happy"],
         ["setReducedMotion", True], ["setSleeping", False],
     ]
+    # Chat wakes the display but leaves the scene napping until the message
+    # is actually sent, so the visitor cue can play on send.
     assert result["calls"] == [
-        ["sync"], ["wake"], ["chat", {"returnHome": True}], ["wake"], ["settings"], ["wake"],
+        ["sync"], ["wake", {"keepOfficeSleep": True}], ["chat", {"returnHome": True}], ["wake"], ["settings"], ["wake"],
         ["pref", "k", "classic"], ["sync"], ["wake"],
     ]
     assert result["home"] == "classic" and result["attr"] == "classic"
@@ -324,3 +327,28 @@ def test_home_view_strings_and_host_styles_are_wired():
     assert ':root[data-home="classic"] .office-home { display: none; }' in css
     for state in ("captioned", "photo", "busy"):
         assert f".tile-face.{state} .home-office-switch" in css, state
+
+
+def test_chat_wake_keeps_the_scene_napping_until_the_message_is_sent():
+    # Opening the office Chat used to wake the napping crab before a word
+    # was typed, so the send never showed the visitor cue. The display still
+    # wakes (dim, timers), only the office is left asleep; every other wake
+    # and both sleeps are unchanged.
+    result = run_screen("""
+const ctx = environment({asleep: true, crab: {setEmotion(e) { ctx.calls.push(['crab', e]); }}, applyDim() { ctx.calls.push(['dim']); },
+  idleTimer: 0, sleepTimer: 0, chatBusy: false, listening: false, osk: null, idleHomeMs: 20000, idleSleepMs: 180000,
+  goHome() {}, syncQuickButtons() {}, officeActivity: {activity: 'idle', active: false}});
+install(ctx, ['wake', 'sleep']);
+ctx.wake({keepOfficeSleep: true});
+const kept = {asleep: ctx.asleep, calls: ctx.calls.slice(), timers: [...ctx.timers.values()].map(x => x.ms)};
+ctx.asleep = true; ctx.calls.length = 0;
+ctx.wake();
+const woke = ctx.calls.slice();
+ctx.calls.length = 0; ctx.sleep(); const automatic = ctx.calls.find(c => c[0] === 'setSleeping');
+ctx.asleep = false; ctx.calls.length = 0; ctx.sleep(true); const manual = ctx.calls.find(c => c[0] === 'setSleeping');
+console.log(JSON.stringify({kept, woke, automatic, manual}));
+""")
+    assert result["kept"] == {"asleep": False, "calls": [["crab", "idle"], ["dim"]], "timers": [20000, 180000]}
+    assert result["woke"] == [["crab", "idle"], ["setSleeping", False], ["dim"]]
+    assert result["automatic"] == ["setSleeping", True, {"manual": False}]
+    assert result["manual"] == ["setSleeping", True, {"manual": True}]

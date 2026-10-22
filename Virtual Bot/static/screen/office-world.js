@@ -98,13 +98,17 @@ export function drawHouse(c,p,{roomName=()=>''}={}){
   for(const [key,x,y] of [['sleep',108,177],['library',320,177],['work',532,177],['kitchen',155,277],['chat',472,277]])c.fillText(roomName(key).toUpperCase(),x,y);
 }
 
-export function drawDoors(c,state,p){
-  for(const spot of Object.values(SPOTS)){
+export function doorIsOpen(id,actors){
+  const door=SPOTS[id]?.door;
+  return !!door&&actors.some(actor=>actor&&actor.route?.length&&actor.doorIntents?.includes(id)&&
+    Math.hypot(actor.position.x-door.x,actor.position.y-door.y)<75);
+}
+export function drawDoors(c,state,p,visitor=null){
+  for(const [id,spot] of Object.entries(SPOTS)){
     const {x,y}=spot.door, upper=y<220;
-    const near=Math.hypot(state.position.x-x,state.position.y-y)<75;
-    const open=near||state.reduced;
-    // Swing arc remains part of the floor plan. The leaf opens before the
-    // crab reaches it and closes behind him; movement stays on door centers.
+    const open=doorIsOpen(id,[state,visitor]);
+    // Only an intended passage opens a door. Passing along the corridor
+    // must not open every nearby room, including in reduced motion.
     c.save();c.strokeStyle='#d6d0c6';c.lineWidth=1;c.setLineDash([2,3]);
     c.beginPath();c.arc(x-27,y,54,upper?-Math.PI/2:0,upper?0:Math.PI/2);c.stroke();c.setLineDash([]);
     line(c,x-27,y,open?x-27:x+27,open?y+(upper?-54:54):y,p.wood,4);
@@ -155,6 +159,13 @@ export function drawFurnitureFront(c,state,p,action,{visitor=false,body='#d98263
       rect(c,351+i*10,120-lift,8,13,['#a8bba0','#c6b398','#aebbc8'][i]);
     }
     rect(c,x+15,128,10,4,body);
+  }
+
+  if(kind==='water'){
+    const pouring=state.reduced?0:Math.max(0,Math.sin(time*1.4));
+    rect(c,x+14,y-18,9,4,body);rect(c,x+21,y-24,12,12,'#a2b8a0');
+    rect(c,x+30,y-22,8,3,'#a2b8a0');
+    if(pouring>.2){c.save();c.globalAlpha=.55;for(let i=0;i<3;i++)rect(c,x+35+i*3,y-17+i*3+Math.round(pouring*3),2,3,'#7aa8bc');c.restore();}
   }
   if(recline>.05){
     // The face rests on the pillow; only the lower body is under the duvet.

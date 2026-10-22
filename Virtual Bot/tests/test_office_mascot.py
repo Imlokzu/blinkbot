@@ -178,3 +178,34 @@ adapter.update(walking,1/24);assert.equal(adapter.presentation.kind,'walk');asse
 assert.ok(adapter.presentation.seat>0&&adapter.presentation.seat<1,'the scene eases its seat while the body already stands');
 adapter.destroy();
 """)
+
+
+def test_ball_play_stretch_and_the_startled_hop_reuse_the_native_crab():
+    run("""
+class Captured extends Mascot {_draw(v){this.lastV=v;super._draw(v);}}
+const crab=new Captured(makeCanvas(),null,null,{scale:4,autoStart:false});
+crab.setEmotion('ball');
+crab.advance(1/24,{furniture:true,action:'play'});assert.ok(crab.lastV.play,'the ball stays for play');
+crab.advance(1/24,{furniture:true,action:'rest',seat:1});assert.equal(crab.lastV.play,null);
+crab.setEmotion('idle');
+crab.advance(1/24,{furniture:true,action:'stretch',actionTime:.3});
+assert.equal(crab.lastV.arms,true);assert.ok(crab.lastV.liftT>0);
+const still=m=>{rects.length=0;crab.advance(1/24,m);return JSON.stringify(rects);};
+const frozen={reduced:true,furniture:true,action:'stretch',actionTime:.3};
+still(frozen);assert.equal(still(frozen),still(frozen),'reduced motion: no stretching');
+// Nap → call → startle → hop: the fright face is on, the body is up by
+// the hop, and the native jump is not swallowed by the lying contact.
+let sprite;class Spy extends Mascot {constructor(...a){super(...a);sprite=this;}_draw(v){this.lastV=v;super._draw(v);}}
+const adapter=createOfficeMascot({Mascot:Spy});
+const base={activity:'work',room:'sleep',emotion:'idle',position:{x:76,y:106},reduced:false,active:true,wakeVisitor:true};
+adapter.snap({...base,pose:'sleep',wakeStage:null});
+assert.equal(adapter.presentation.recline,1);assert.equal(sprite.emotion,'sleepy');
+for(let i=0;i<19;i++)adapter.update({...base,pose:'calling',wakeStage:'call'},1/24);
+assert.equal(sprite.emotion,'sleepy');assert.equal(adapter.presentation.recline,1);
+for(let i=0;i<12;i++)adapter.update({...base,pose:'waking',wakeStage:'startled'},1/24);
+assert.equal(sprite.emotion,'surprised');assert.equal(adapter.presentation.recline,0);
+adapter.update({...base,pose:'hop',wakeStage:'hop'},1/24);
+assert.ok(sprite.jump,'the native hop plays');assert.equal(sprite.emotion,'surprised');assert.equal(sprite.lastV.seated,0);
+adapter.update({...base,pose:'walk',wakeStage:null},1/24);assert.equal(sprite.emotion,'idle');
+adapter.destroy();
+""")

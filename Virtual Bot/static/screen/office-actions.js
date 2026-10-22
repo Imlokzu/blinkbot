@@ -1,7 +1,9 @@
 /** Furniture contact is visual: it never delays or queues a real bot task. */
 export function actionFor(state, visitor = false) {
-  if (state.pose === 'sleep') return 'sleep';
+  if (['sleep','dozing','calling'].includes(state.pose)) return 'sleep';
   if (['walk','waking','hop'].includes(state.pose)) return state.pose;
+  if (state.pose === 'visit') return 'stand';
+  if (['play','water','stretch'].includes(state.pose)) return state.pose;
   if (state.activity === 'help') return 'help';
   if (state.pose === 'organize') return 'sort';
   if (state.pose === 'read') return 'memory';

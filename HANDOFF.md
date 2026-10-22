@@ -3756,3 +3756,38 @@ and interruption with zero runtime errors. The real 8100 server and isolated
 8137 server each passed nine final HTTP checks, including exact current
 assets and two traversal 400s. This is a static-screen change and needs a
 page reload; no backend restart or real model request was needed.
+
+
+## 2026-10-22 — Quiet office life, diagonal routes and visitor wake scenes
+
+Added continuous full-sprite navigation with safe diagonal shortcuts around
+walls and furniture. Door intent follows actual route crossings; passing a
+room in the hallway leaves its door closed. The original mascot's ground
+shadow is translucent (18%, 8% in a hop).
+
+The target button opens avatar teleport mode in overview. Touch open floor,
+or use arrows/Enter; Escape cancels. Invalid surfaces and door channels are
+rejected. Placement is persisted separately from temporary bedside visits.
+The default idle schedule now spends most time in long naps, with purposeful
+food, reading, ball play, stretching, watering and lounge intervals. Automatic
+display sleep preserves finite naps; explicit Quick Sleep stays indefinite.
+
+A foreground message while asleep triggers dozing, a visitor approach, a
+silent visual call wave, startle/"!", and the original native hop, followed
+by travel to the current task. The visitor returns home afterwards. Fast
+replies and repeated events do not restart the sequence; the backend is
+never delayed. Background consolidation wakes without a pretend user visit.
+Hidden/reduced states skip the choreography and clear stale exclamations.
+Opening the office keyboard wakes the display while preserving the nap
+until Send. Original PixelCrab artwork/animations remain in use.
+
+The navigation implementation was delegated through mirasim; separate
+Fable 5.1 maximum-effort passes reviewed navigation, life/visitor state,
+input and rendering. Full tests passed 2,045 with 7 skipped and 178 subtests;
+the final focused review passed 107. Browser fixtures covered pointer
+placement/rejection/retry, trusted keyboard Enter/Escape in clean headless
+Chrome, persisted positions, manual sleeping while typing, and the complete
+wake scene despite a reply finishing after 200 ms, with zero runtime errors.
+Both the live 8100 service and isolated 8137 server passed 14 final HTTP
+checks, including exact static assets and two traversal 400s. No live AI
+request was sent by QA. This static-screen update needs a page reload.

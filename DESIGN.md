@@ -59,6 +59,14 @@
   a central hallway, bedroom, kitchen, library, computer desk and lounge.
   The camera follows the expressive crab by default; zoom, overview and an
   optional visitor avatar let the owner explore.
+- Travel uses full-sprite-safe diagonal shortcuts around furniture; only
+  doors on an actor's intended passage open. Ground shadows are translucent.
+- The visitor can teleport to validated open floor with a touch or keyboard;
+  the chosen home position persists independently of temporary wake visits.
+- Idle life is mostly long naps, interspersed with unhurried reading, food,
+  ball play, stretching and plant care. Foreground messages can stage a
+  visitor approach, silent call wave and surprised hop; reduced motion and
+  hidden views skip this choreography. Backend work never waits for it.
 - Actual chat/tool/background memory activity drives the office. Idle
   wandering is decorative; it never claims that a memory job is running.
   Sleep-to-work animation must not delay a real response.

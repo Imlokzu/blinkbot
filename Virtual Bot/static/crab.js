@@ -506,7 +506,7 @@ class PixelCrab {
       // The office supplies the real desk/cart. Avoid a second floating
       // terminal or table, while preserving the native reading book.
       v.prop = null;
-      v.play = null;
+      if (motion.action !== "play") v.play = null;
       v.book = motion.action === "read" || motion.action === "memory";
       v.lapBook = v.book;
       // Boredom can pick the native reading state; without its book the
@@ -514,6 +514,11 @@ class PixelCrab {
       v.glasses = v.book;
       v.snack = motion.snack;
       v.snackTime = motion.actionTime || 0;
+      if (motion.action === "stretch") {
+        v.arms = true;
+        v.liftT = S * (motion.reduced ? .5 : .5 + .4 * Math.sin((motion.actionTime || 0) * 1.5));
+        v.eyeCloseT = .5;
+      }
     }
 
     // Стрибок (порт updateJump з PixelClaw) — перекриває позу стану

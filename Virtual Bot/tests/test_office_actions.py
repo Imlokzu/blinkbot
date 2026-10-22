@@ -70,3 +70,18 @@ s.setReducedMotion(false);const at={...s.position};
 s.setActivity({activity:'organize',active:true});
 assert.equal(s.pose,'organize');assert.equal(s.route.length,0);assert.deepEqual(s.position,at);
 """)
+
+
+def test_dozing_and_calling_lie_down_and_errands_stand():
+    run("""
+const a=new OfficeActions();
+for(const pose of ['sleep','dozing','calling']){
+  const pose1=a.update({pose,activity:'work',room:'sleep',reduced:true},0,true);
+  assert.equal(pose1.kind,'sleep'); assert.equal(pose1.recline,1); assert.equal(pose1.offsetY,-30);
+}
+for(const pose of ['play','water','stretch']){
+  const p=a.update({pose,activity:'idle',room:'chat',reduced:true},0,true);
+  assert.equal(p.kind,pose); assert.equal(p.seat,0); assert.equal(p.recline,0);
+}
+assert.equal(a.update({pose:'visit',activity:'idle',room:'kitchen',reduced:true},0,true).kind,'stand');
+""")

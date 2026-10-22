@@ -2,7 +2,9 @@ import { OfficeActions } from './office-actions.js';
 
 /** Adapt the existing PixelCrab; no office-specific sprite or face artwork. */
 export function officeEmotion(state) {
-  if (state.pose === 'sleep' || state.pose === 'waking') return 'sleepy';
+  // The fright lasts through the hop: the native jump plays on that face
+  if(state.wakeStage==='startled'||(state.wakeStage==='hop'&&state.wakeVisitor))return 'surprised';
+  if (['sleep','dozing','calling','waking'].includes(state.pose)) return 'sleepy';
   if (state.activity === 'help') return 'asking';
   const expression = state.emotion || 'idle';
   if (!['idle', 'sleepy', 'working', 'thinking', 'searching', 'reading', 'writing'].includes(expression)) return expression;
@@ -10,6 +12,8 @@ export function officeEmotion(state) {
   if (state.pose === 'read' || state.pose === 'leisure') return 'reading';
   if (state.pose === 'organize') return 'searching';
   if (state.pose === 'work') return 'working';
+  if (state.pose === 'play') return 'ball';
+  if (state.pose === 'water') return 'working';
   return expression === 'sleepy' ? 'idle' : expression;
 }
 
@@ -60,7 +64,10 @@ export function createOfficeMascot({source=null,visitor=false,Mascot=source?.con
       mascot.advance(0,contact(state,1,true));
     },
     draw(ctx,state){
-      if(presentation.seat<.2 && presentation.recline<.2){ctx.fillStyle='#d4d0c7';ctx.beginPath();ctx.ellipse(state.position.x,state.position.y,20,4,0,0,Math.PI*2);ctx.fill();}
+      if(presentation.seat<.2 && presentation.recline<.2){
+        ctx.save();ctx.globalAlpha=state.pose==='hop'?.08:.18;ctx.fillStyle='#525951';
+        ctx.beginPath();ctx.ellipse(state.position.x,state.position.y,state.pose==='walk'?16:20,state.pose==='hop'?2.5:4,0,0,Math.PI*2);ctx.fill();ctx.restore();
+      }
       ctx.drawImage(canvas,Math.round(state.position.x-mascot.x),Math.round(state.position.y+presentation.offsetY-mascot.groundY));
     },
     destroy(){mascot.destroy();},

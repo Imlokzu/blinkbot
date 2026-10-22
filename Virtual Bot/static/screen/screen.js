@@ -378,11 +378,11 @@ function setTileShown(id, shown) {
 
 /* ---------- Бездіяльність: додому → сон ---------- */
 
-function wake() {
+function wake(options = {}) {
   if (asleep) {
     asleep = false;
     crab.setEmotion("idle");
-    office?.setSleeping(false);
+    if (!options.keepOfficeSleep) office?.setSleeping(false);
   }
   applyDim();
   clearTimeout(idleTimer);
@@ -397,13 +397,13 @@ function wake() {
   if (idleSleepMs > 0 && !officeActivity.active) sleepTimer = setTimeout(sleep, idleSleepMs);
 }
 
-function sleep() {
+function sleep(manual = false) {
   if (chatBusy || officeActivity.active) return;
   if (osk) osk.close(true);
   asleep = true;
   goHome();
   crab.setEmotion("sleepy");
-  office?.setSleeping(true);
+  office?.setSleeping(true, { manual });
   applyDim();
   syncQuickButtons();
 }
@@ -1033,7 +1033,7 @@ const volRange = $("volRange");
 
 /* Плитки: id → що це і що робить. Порядок за замовчуванням — цей масив. */
 const QUICK_TILES = {
-  sleep:  { labelKey: "quick.sleep", icon: "moon", toggle: () => (asleep ? wake() : sleep()), isOn: () => asleep },
+  sleep:  { labelKey: "quick.sleep", icon: "moon", toggle: () => (asleep ? wake() : sleep(true)), isOn: () => asleep },
   theme:  { labelKey: "quick.theme", icon: "contrast", toggle: toggleTheme, isOn: () => document.documentElement.dataset.theme === "light" },
   voice:  { labelKey: "quick.voice", icon: "speaker", toggle: toggleVoice, isOn: () => voiceOn, enabled: () => ttsAvailable },
   // Підпис динамічний («1.5×»): на 320×240 саме значення інформативніше за
@@ -6886,7 +6886,7 @@ function mountHomeOffice() {
   try {
     office = mountOffice($("officeHome"), {
       mascot: crab,
-      onChat: () => { wake(); openChatKeyboard({ returnHome: true }); },
+      onChat: () => { wake({ keepOfficeSleep: true }); openChatKeyboard({ returnHome: true }); },
       onSettings: () => { wake(); openSettings(); },
       onClassic: () => { setHomeView("classic"); wake(); },
       onInteract: () => wake(),
