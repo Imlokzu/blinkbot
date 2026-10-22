@@ -54,5 +54,6 @@ def test_without_a_token_only_events_for_everyone_arrive(monkeypatch):
     got = _first_events(None, [({"type": "music", "action": "stop"}, None),
                                ({"type": "ui", "kind": "todo"}, "user-a")])
     # Log lines ride the same bus once the log handler is installed
-    got = [line for line in got if '"type": "log"' not in line]
+    got = [line for line in got if '"type": "log"' not in line
+           and '"type": "office_activity"' not in line]
     assert len(got) == 1 and '"music"' in got[0]

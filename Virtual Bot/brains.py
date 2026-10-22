@@ -25,6 +25,7 @@ import httpx
 
 import app_config as cfg
 import brain_context
+import office_activity
 import profile_store
 import trace_log
 import usage_tracking
@@ -318,8 +319,9 @@ def system_prompt_parts(
         "проси повторити факт, доки не використав доступну памʼять.",
     ))
 
-    owner_notes = find_relevant_notes(user_message, top_n=3, root=owner_root)
-    session_notes = find_relevant_notes(user_message, top_n=3)
+    with office_activity.activity("read"):
+        owner_notes = find_relevant_notes(user_message, top_n=3, root=owner_root)
+        session_notes = find_relevant_notes(user_message, top_n=3)
     known_paths = {note["path"] for note in owner_notes}
     notes = owner_notes + [
         note for note in session_notes if note["path"] not in known_paths
@@ -1053,7 +1055,9 @@ async def _execute_tool_traced(name: str, args: dict) -> dict:
     """
     started = time.perf_counter()
     try:
-        result = await tool_registry.execute_tool(name, args)
+        with office_activity.activity(office_activity.tool_kind(name)) as job:
+            result = await tool_registry.execute_tool(name, args)
+            job.failed = isinstance(result, dict) and bool(result.get("error"))
     except Exception as exc:  # noqa: BLE001 — показуємо помилку як результат
         result = {"error": str(exc)}
     trace_log.step(
@@ -1923,6 +1927,7 @@ def _screen_notice(key: str = "", resolve: str = "", **kwargs) -> None:
         log.debug("screen notice failed", exc_info=True)
 
 
+@office_activity.chat_turn
 @usage_tracking.record_chat
 async def chat(
     message: str,

@@ -32,6 +32,12 @@ const FALLBACK = "uk";
 
 const DICT = {
   uk: {
+    // Home presentation.
+    "home.office": "Офіс",
+    "home.classic": "Обличчя",
+    "set.homeView": "Головний екран",
+    "set.homeView.hint": "Живий офіс або звичне обличчя.",
+
     /* ---- спільне ---- */
     "common.back": "Назад ✕",
     "common.loading": "Завантаження…",
@@ -604,6 +610,12 @@ const DICT = {
   },
 
   en: {
+    // Home presentation.
+    "home.office": "Office",
+    "home.classic": "Classic face",
+    "set.homeView": "Home screen",
+    "set.homeView.hint": "A living office or the familiar face.",
+
     "common.back": "Back ✕",
     "common.loading": "Loading…",
     "common.refresh": "Refresh",

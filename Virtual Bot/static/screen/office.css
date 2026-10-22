@@ -1,0 +1,17 @@
+.office-root { position:absolute; inset:0; overflow:hidden; color:#3d454a; }
+.office-canvas { display:block; position:absolute; inset:0; width:320px; height:240px; image-rendering:pixelated; }
+.office-controls { position:absolute; left:6px; top:78px; display:grid; grid-template-columns:24px 24px; gap:6px; }
+.office-button { display:flex; align-items:center; justify-content:center; box-sizing:border-box; width:24px; height:24px; padding:0; border:1px solid #d3cec4; border-radius:7px; color:#59605c; background:#fffefbf2; font:600 11px var(--font,monospace); cursor:pointer; touch-action:none; }
+.office-button svg { width:15px; height:15px; flex-shrink:0; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; pointer-events:none; }
+.office-button:focus-visible { outline:2px solid #ab6449; outline-offset:2px; }
+.office-button[aria-pressed="true"] { color:#fffdf9; background:#8c9f80; border-color:#7a8f6d; }
+.office-button:disabled { opacity:.4; cursor:default; }
+.office-footer { position:absolute; bottom:4px; left:6px; display:flex; align-items:center; gap:6px; }
+.office-chat { width:54px; padding:0 4px; gap:3px; font-size:10px; }
+.office-chat svg { width:13px; height:13px; }
+.office-status { position:absolute; bottom:53px; left:8px; right:8px; margin:0; padding:4px 6px; width:fit-content; max-width:calc(100% - 16px); color:#4e554f; background:#fffefbf2; border:1px solid #e8e4db; border-radius:5px; font:10px/1.2 var(--font,monospace); pointer-events:none; }
+.office-root[data-zoom="0.5"] .office-status { top:5px; bottom:auto; left:23px; max-width:193px; font-size:9px; }
+.office-root[data-connected="false"] .office-status { color:#777b76; }
+:root[data-home="office"] .tile-face.captioned .office-status,
+:root[data-home="office"] .tile-face.busy .office-status { visibility:hidden; }
+.office-a11y { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }

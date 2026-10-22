@@ -58,6 +58,7 @@ import mobile_images
 import mobile_skills
 import workspace_write_guard
 import brain_context
+import office_activity
 import brains
 import chat_bubbles
 import screen_widgets
@@ -3600,7 +3601,9 @@ async def api_tools_call(request: Request, req: ToolCallRequest) -> dict:
     # права впасти назад у спільний шаблон brain/.
     try:
         with _brain_context(req.session_id, clerk_uid):
-            result = await tools.execute_tool(req.name, req.args)
+            with office_activity.activity(office_activity.tool_kind(req.name)) as job:
+                result = await tools.execute_tool(req.name, req.args)
+                job.failed = result_failed(result)
     except Exception as exc:  # noqa: BLE001 — крок консолі, помилку віддаємо далі
         if show_generic:
             events.publish_tool(req.name, detail, "fail")

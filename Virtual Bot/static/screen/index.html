@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="uk" data-theme="dark" data-ui="material">
+<html lang="uk" data-theme="dark" data-ui="material" data-home="office">
 <head>
   <meta charset="UTF-8">
   <!-- viewport-fit + user-scalable=no: це «пристрій», а не сторінка; зум і
@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="/static/screen/screen.css">
   <!-- The "Deep UI" interface style: applies only under :root[data-ui="deep"] -->
   <link rel="stylesheet" href="/static/screen/deep.css">
+  <link rel="stylesheet" href="/static/screen/office.css">
+  <link rel="stylesheet" href="/static/screen/office-host.css">
   <link rel="icon" type="image/svg+xml" href="/static/shared/favicon.svg">
   <link rel="apple-touch-icon" href="/static/shared/apple-touch-icon.png">
 </head>
@@ -23,6 +25,8 @@
 
     <!-- Тайл 0 — «циферблат»: краб + час + стан -->
     <section class="tile tile-face" data-tile="face" data-emotion="idle">
+      <div id="officeHome" class="office-home"></div>
+      <button id="homeOfficeSwitch" class="home-office-switch" type="button" data-i18n="home.office"></button>
       <div class="face-top">
         <span class="link-dot" id="linkDot" data-i18n-title="face.link" title="Звʼязок із ботом"></span>
         <!-- Unread notices, like the icons in Android's status bar -->

@@ -21,6 +21,7 @@ import httpx
 
 import app_config
 import brain_context
+import office_activity
 import memory
 
 
@@ -745,6 +746,14 @@ async def _request(prompt: str) -> str:
 
 
 async def dream_cycle(retention_days: int = LOG_RETENTION_DAYS) -> bool:
+    """Expose background consolidation without revealing another user's activity."""
+    with office_activity.activity("organize", audience=office_activity.dream_audience(), priority=10) as job:
+        result = await _dream_cycle(retention_days)
+        job.failed = not result
+        return result
+
+
+async def _dream_cycle(retention_days: int = LOG_RETENTION_DAYS) -> bool:
     """Consolidate notes once with in-process and interprocess serialization."""
     async with _dream_lock:
         try:

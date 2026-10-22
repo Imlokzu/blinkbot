@@ -1,0 +1,48 @@
+/* The office is a home presentation inside the existing face tile. Keep
+   captions, voice, photos and navigation above its canvas and controls.
+   z-index: 0 gives the host its own stacking context, so whatever z-index
+   the office uses inside stays under the caption, the mic and the photo. */
+.office-home { position: absolute; inset: 0; z-index: 0; }
+:root[data-home="classic"] .office-home { display: none; }
+:root[data-home="office"] .tile-face > .crab,
+:root[data-home="office"] .tile-face > .face-label { display: none; }
+.home-office-switch {
+  position: absolute;
+  left: 12px;
+  bottom: 25px;
+  min-height: 26px;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--panel);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.home-office-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:root[data-home="office"] .home-office-switch { display: none; }
+/* While the classic face shows a caption, a photo or the busy line, the
+   bottom-left corner is theirs: the switch would sit under the caption or
+   on top of the microphone, which moves there in photo mode. */
+.tile-face.captioned .home-office-switch,
+.tile-face.photo .home-office-switch,
+.tile-face.busy .home-office-switch { display: none; }
+:root[data-home="office"] .tile-face .face-top { z-index: 2; pointer-events: none; }
+:root[data-home="office"] .tile-face .face-bell { pointer-events: auto; }
+:root[data-home="office"] .tile-face .face-mic { z-index: 4; }
+:root[data-home="office"] .tile-face .face-caption {
+  z-index: 5;
+  left: 8px;
+  right: 48px;
+  top: auto;
+  bottom: 38px;
+  max-height: 66px;
+  text-align: left;
+}
+:root[data-home="office"] .tile-face.captioned.busy:not(.photo) .face-caption { bottom: 54px; }
+:root[data-home="office"] .tile-face .face-busy { z-index: 6; right: 48px; bottom: 34px; }
+:root[data-home="office"] .tile-face .caption-page { z-index: 6; right: 8px; bottom: 58px; }
+:root[data-home="office"] .tile-face .face-photo,
+:root[data-home="office"] .tile-face .face-holder { z-index: 5; }
+:root[data-home="office"] .tile-face.photo .office-home { visibility: hidden; }

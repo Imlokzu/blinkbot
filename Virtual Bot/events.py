@@ -8,6 +8,8 @@
 - {"type": "log", "t": <unix>, "level": "...", "name": "...", "msg": "..."} — рядок консолі
 - {"type": "music", "action": "play"|"stop", "track": {...}}  — Now Playing
 - {"type": "video", "action": "play"|"pause"|"seek"|…, ...}    — плеєр застосунку youtube
+- {"type": "office_activity", "activity": "idle"|"work"|"read"|"organize"|"chat"|"help",
+   "active": bool}                                            — the office screen
 
 Keep-alive: коментар ": ping\n\n" кожні ~15 секунд.
 Кілька клієнтів підтримуються (у кожного своя asyncio.Queue);
@@ -258,6 +260,8 @@ async def sse_stream(audience: str | None = None) -> AsyncIterator[str]:
     """
     if _shutting_down:
         return  # застосунок уже завершується — нових потоків не відкриваємо
+    import office_activity
+    office_activity.register_subscriber(audience)
     queue: asyncio.Queue = asyncio.Queue(maxsize=_QUEUE_MAX)
     _subscribers.add(queue)
     log.info("SSE-клієнт підключився (усього: %d)", len(_subscribers))
@@ -269,17 +273,23 @@ async def sse_stream(audience: str | None = None) -> AsyncIterator[str]:
         todo = _latest_todo.get(audience or "")
         if todo:
             yield f"data: {json.dumps({'type': 'ui', 'kind': 'todo', 'data': todo}, ensure_ascii=False)}\n\n"
+        yield f"data: {json.dumps(office_activity.snapshot(audience))}\n\n"
         while not _shutting_down:
             try:
                 payload = await asyncio.wait_for(queue.get(), timeout=KEEPALIVE_S)
             except asyncio.TimeoutError:
+                # Repair dropped terminal events when a slow subscriber catches up.
+                yield f"data: {json.dumps(office_activity.snapshot(audience))}\n\n"
                 yield ": ping\n\n"
                 continue
             if payload is _CLOSE or _shutting_down:
                 break
             if isinstance(payload, tuple):
                 payload, event_audience = payload
-                if event_audience and event_audience != audience:
+                if payload.get("type") == "office_activity":
+                    if (event_audience or "") != (audience or ""):
+                        continue
+                elif event_audience and event_audience != audience:
                     continue
             yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
     finally:

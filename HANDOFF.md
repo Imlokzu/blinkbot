@@ -3679,3 +3679,31 @@ The local service was gracefully restarted with zero active mobile jobs.
 Live metadata offers code 25 to code 24 and reports code 25 as current. The
 served APK matches the tested checksum and 7,167,710-byte size; the dashboard
 remains healthy. See docs/mobile-app/RELEASE-0.4.18.md for validation scope.
+
+
+## 2026-10-22 — Living office home screen
+
+Added the owner's revised top-down white office as the default `/screen` home,
+with a persisted Classic face alternative. Rooms have opening doors and a
+shared hallway: sleep, library, study, kitchen and lounge. The camera follows
+Claude, with zoom and overview controls, an optional visitor, readable facial
+emotions, a sleep/stir/hop-to-work sequence and direct office chat.
+
+Content-free SSE activity snapshots connect real chat, memory tools and dream
+consolidation to the scene. Foreground work takes priority; cancellation and
+errors clear scopes. Authenticated and tokenless/local audiences remain
+separate. Unknown private dream roots are not broadcast. Existing voice,
+captions, photos, app drawer and settings are preserved. All new labels have
+English/Ukrainian entries; drawing is local, cached and capped at 24 fps.
+
+Opus 5.5 supplied the revised design through mirasim. Separate Fable 5.1
+reviews at maximum effort fixed integration and movement edge cases. The
+full suite passed 2,007 tests with 7 skipped and 178 subtests; the final
+post-review selection passed 84 tests. Browser fixture checks covered work,
+memory reading, sleep/wake, visitor, classic/office, chat return, languages
+and styles, with no runtime errors. An isolated actual-app server passed
+12 HTTP/static/traversal checks plus initial SSE replay, including traversal
+400s. No live AI message was submitted by browser QA.
+
+Details: `Virtual Bot/docs/SCREEN-OFFICE.md`. Unrelated existing workspace
+changes are preserved and excluded from this feature commit.

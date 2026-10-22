@@ -17,6 +17,7 @@ import { activities as islandActivities, selectKey as islandSelect, fmtClock } f
 import { ScreenKeyboard } from "./keyboard.js";
 import { WatchDrawer } from "./drawer.js";
 import { mountGuide } from "./guide.js";
+import { mountOffice } from "./office.js";
 import { appIconEl, themedColors } from "./app-icons.js";
 import { wxKind, wxSky, wxIconSvg, windArrowSvg } from "./weather-icons.js";
 import { GestureNav, EDGE as GESTURE_EDGE, BOTTOM as GESTURE_BOTTOM } from "./gesture-nav.js";
@@ -91,6 +92,61 @@ let sleepTimer = 0;
 let sayAt = 0;         // коли бот сказав останню репліку
 let statusAt = 0;      // коли востаннє оновлювався /api/status
 
+// Home presentation is independent of the Material/Deep UI appearance.
+const HOME_VIEW_KEY = "botScreenHomeView";
+const HOME_VIEWS = { office: "home.office", classic: "home.classic" };
+let homeView = readPref(HOME_VIEW_KEY, "office") === "classic" ? "classic" : "office";
+let office = null;
+let officeActivity = { activity: "idle", active: false };
+document.documentElement.dataset.home = homeView;
+
+/* The office runs only while it can be seen: another tile, a shade, an app,
+   a photo over the face or a hidden tab all pause it (the Pi has no core to
+   spare), and `inert` keeps its buttons out of the Tab order meanwhile. */
+function syncOfficeVisibility() {
+  if (!office) return;
+  const tile = tiles[tileIndex];
+  const visible = homeView === "office" && tile?.dataset.tile === "face"
+    && !tile.classList.contains("photo")
+    && !layer && !layerApp.classList.contains("open") && !document.hidden;
+  office.setVisible(visible);
+  const host = $("officeHome");
+  host.toggleAttribute("inert", !visible);
+  host.setAttribute("aria-hidden", String(!visible));
+}
+
+function setHomeView(value, save = true) {
+  const next = value === "classic" ? "classic" : "office";
+  // An office that failed to mount has nothing to show: the request is
+  // dropped rather than persisted, so the next load tries it again.
+  if (next === "office" && !office) return;
+  homeView = next;
+  document.documentElement.dataset.home = homeView;
+  if (save) writePref(HOME_VIEW_KEY, homeView);
+  syncOfficeVisibility();
+  applyDim();
+}
+
+/* What the bot is doing right now, as the server reports it: its own chat,
+   a Telegram turn, the dream cycle. The office animates it and the display
+   stays awake for it, as it does for a chat typed here. The server resends
+   the snapshot on connect and after every quiet 15 s, so a lost "finished"
+   repairs itself; "help" is a one-off cue after a failure. Only a change
+   wakes the screen: a repeated snapshot must not keep resetting the idle
+   timer, or the display would never come home while the bot works. */
+const OFFICE_ACTIVITIES = new Set(["idle", "work", "read", "organize", "chat", "help"]);
+
+function onOfficeActivity(ev) {
+  const active = !!ev.active;
+  // A kind this screen does not know yet is still work while it lasts
+  const activity = OFFICE_ACTIVITIES.has(ev.activity) ? ev.activity : (active ? "work" : "idle");
+  const wasActive = officeActivity.active;
+  officeActivity = { activity, active };
+  office?.setActivity({ activity, active });
+  // The sleep-to-work animation is visual only: the work itself has begun
+  if (active !== wasActive || activity === "help") wake();
+}
+
 /* ---------- Масштаб сцени ----------
    На справжньому 320×240 множник = 1 (пікселі один в один). На десктопі
    вписуємо у вікно, щоб можна було все перевірити без заліза. */
@@ -109,12 +165,20 @@ const crab = new PixelCrab($("crabCanvas"), $("faceLabel"), tiles[0], { scale: 8
 window.crab = crab;
 
 let emotionTimer = 0;
-function setEmotion(emotion) {
+/* hold: the face is a state, not a beat (the microphone is open, the bot is
+   listening), so it stays until the next change instead of fading back to
+   "idle" after 15 s while the person is still talking. */
+function setEmotion(emotion, hold = false) {
   if (!emotion) return;
   crab.setEmotion(emotion);
+  office?.setEmotion(emotion);
   clearTimeout(emotionTimer);
-  // Емоція не висить вічно: за 15 с бот повертається в «очікування»
-  emotionTimer = setTimeout(() => crab.setEmotion(asleep ? "sleepy" : "idle"), 15000);
+  if (hold) return;
+  // Return to a neutral expression after the short emotional beat.
+  emotionTimer = setTimeout(() => {
+    crab.setEmotion(asleep ? "sleepy" : "idle");
+    office?.setEmotion(asleep ? "sleepy" : "idle");
+  }, 15000);
 }
 
 /* ---------- Навігація ---------- */
@@ -160,6 +224,7 @@ function goTile(i, wrapped) {
   // Дані підтягуємо лише для видимого тайла — на Pi це не дрібниця
   if (tiles[tileIndex].dataset.tile === "state") refreshStatus();
   if (tiles[tileIndex].dataset.tile === "weather") loadWeather(false);
+  syncOfficeVisibility();
 }
 
 /* ---------- «Матове скло» під шарами ----------
@@ -211,6 +276,7 @@ function openLayer(name) {
   layerNotices.classList.toggle("open", name === "notices");
   stage.classList.toggle("layered", !!name);
   renderIsland();
+  syncOfficeVisibility();
 }
 
 function goHome() {
@@ -311,6 +377,7 @@ function wake() {
   if (asleep) {
     asleep = false;
     crab.setEmotion("idle");
+    office?.setSleeping(false);
   }
   applyDim();
   clearTimeout(idleTimer);
@@ -320,21 +387,25 @@ function wake() {
   // Typing is interaction too: going home mid-word would lose the context
   if (chatBusy || listening || (osk && osk.isOpen)) return;
   if (idleHomeMs > 0) idleTimer = setTimeout(goHome, idleHomeMs);
-  if (idleSleepMs > 0) sleepTimer = setTimeout(sleep, idleSleepMs);
+  // Work started elsewhere (Telegram, the dream cycle) keeps the display
+  // awake so the office can show it, but does not hold it on another tile.
+  if (idleSleepMs > 0 && !officeActivity.active) sleepTimer = setTimeout(sleep, idleSleepMs);
 }
 
 function sleep() {
+  if (chatBusy || officeActivity.active) return;
   if (osk) osk.close(true);
   asleep = true;
   goHome();
   crab.setEmotion("sleepy");
+  office?.setSleeping(true);
   applyDim();
   syncQuickButtons();
 }
 
 function applyDim() {
-  // Сон темніший за будь-яку яскравість; 100% = без затемнення взагалі
-  const opacity = asleep ? 0.85 : (100 - bright) / 100 * 0.85;
+  // Keep the bedroom readable while sleeping; classic retains its dim display.
+  const opacity = asleep ? (homeView === "office" ? 0.2 : 0.85) : (100 - bright) / 100 * 0.85;
   dimmer.style.opacity = String(opacity);
 }
 
@@ -380,12 +451,20 @@ function carouselFree() {
   return !layer && !appsOpen() && !layerApp.classList.contains("open");
 }
 
+/* Buttons, and anything inside the office, get their own tap: capturing the
+   pointer on the stage would retarget the click to the stage, and the office
+   draws its controls itself. The swipe is still tracked through bubbling, so
+   a drag across them flips the tile as it does across a button. */
+function handlesOwnTap(el) {
+  return !!(el && el.closest && el.closest("button, .office-home"));
+}
+
 stage.addEventListener("pointerdown", (e) => {
   if (ptrStart || isInteractive(e.target)) return;
-  const onButton = !!e.target.closest?.("button");
+  const ownTap = handlesOwnTap(e.target);
   const scroller = isScroller(e.target);
   ptrStart = { x: e.clientX, y: e.clientY, t: Date.now(), pointerId: e.pointerId, scroller, axis: "" };
-  if (!onButton && !scroller) {
+  if (!ownTap && !scroller) {
     try { stage.setPointerCapture(e.pointerId); } catch (e) {}
   }
 });
@@ -607,6 +686,11 @@ let linkAlive = false;   // памʼятаємо стан: після зміни
 
 function setLink(on) {
   linkAlive = !!on;
+  office?.setConnected(linkAlive);
+  // No link, no news: whatever the bot was doing is unknown now. The
+  // snapshot on reconnect restores the truth; until then the office rests
+  // and the display may go home and sleep again.
+  if (!linkAlive && officeActivity.active) onOfficeActivity({ activity: "idle", active: false });
   $("linkDot").classList.toggle("on", linkAlive);
   setState($("stLink"), linkAlive, linkAlive ? t("state.alive") : t("common.none"));
 }
@@ -621,6 +705,11 @@ setLink(false);
     let ev;
     try { ev = JSON.parse(e.data); } catch (err) { return; }
     if (!ev || typeof ev !== "object") return;
+
+    if (ev.type === "office_activity") {
+      onOfficeActivity(ev);
+      return;
+    }
 
     if (ev.type === "screen") {
       // Мозок попросив показати екран (тул open_screen) — слухаємось
@@ -981,6 +1070,7 @@ function validOption(value, options, fallback) {
 function applyMotion(value) {
   reducedMotion = value === "reduced";
   document.documentElement.dataset.motion = reducedMotion ? "reduced" : "full";
+  office?.setReducedMotion(reducedMotion);
 }
 
 /* ---- Голос: Piper через /api/tts, гучність — цим самим повзунком ---- */
@@ -1594,6 +1684,8 @@ async function sendChat(message, fromVoice, shown) {
   activeChat = controller;
   replyInterrupted = false;
   chatBusy = true;
+  office?.setActivity({ activity: "work", active: true });
+  let officeFailed = false;
   micButtons.forEach((b) => { b.classList.add("busy"); });
   // shown: a short bubble for a long message (a shared video's transcript)
   const userEl = addMsg("user", shown || message);
@@ -1812,12 +1904,15 @@ async function sendChat(message, fromVoice, shown) {
     if (!controller.signal.aborted) {
       if (!turn.texts().length) addMsg("bot", "✗ " + err.message);
       crab.showDefeat();
+      officeFailed = true;
+      office?.setActivity({ activity: "help", active: false });
     }
   } finally {
     if (!finished) turn.closeAll();
     if (activeChat !== controller) return;
     activeChat = null;
     chatBusy = false;
+    if (!officeActivity.active) office?.setActivity({ activity: officeFailed ? "help" : "idle", active: false });
     clearBusy();
     micButtons.forEach((b) => { b.classList.remove("busy"); });
     chatScrollDown();
@@ -2042,18 +2137,21 @@ function stepFacePhoto(delta) {
 function showFacePhotos(images) {
   facePhotos = images || [];
   facePhotoIdx = 0;
+  const hadPhoto = faceTile.classList.contains("photo");
   if (!facePhotos.length) {
     facePhoto.classList.add("hidden");
     faceHolder.classList.add("hidden");
     faceTile.classList.remove("photo");
     facePhotoImg.removeAttribute("src");
-    return;
+  } else {
+    renderFacePhoto();
+    facePhoto.classList.remove("hidden");
+    faceHolder.classList.remove("hidden");
+    faceTile.classList.add("photo");
+    drawHolder();
   }
-  renderFacePhoto();
-  facePhoto.classList.remove("hidden");
-  faceHolder.classList.remove("hidden");
-  faceTile.classList.add("photo");
-  drawHolder();
+  // The frame covers the office: pause it, and resume once the frame goes
+  if (hadPhoto !== faceTile.classList.contains("photo")) syncOfficeVisibility();
 }
 
 // Побите посилання не має лишати порожню рамку: викидаємо саме цю картинку
@@ -2378,7 +2476,7 @@ function setListening(on) {
   micLabel.textContent = label;
   // Wake mode keeps the mascot calm until its name is heard.
   const active = on && (voiceMode !== "wake" || wakeArmed);
-  crab.setEmotion(active ? "listening" : "idle");
+  setEmotion(active ? "listening" : "idle", true);
   if (!on) {
     crab.setAudioLevel(null);
     if (meter) meter.detach();
@@ -2524,7 +2622,7 @@ function acknowledgeWake(interim = false) {
   const text = t(wakeCueNumber++ % 2 ? "voice.wakeNeed" : "voice.wakeHi");
   warmWakeReplies();
   showCaption(text, "bot");
-  crab.setEmotion("listening");
+  setEmotion("listening", true);
   voiceAudio.wakeCueActive = speechWanted();
   speechSay(text, () => showCaption(text, "bot"), wakeCueCache.get(wakeCueScope(), text));
 }
@@ -2659,7 +2757,7 @@ function startRecognition(continuous) {
     // The name is already in the interim text: show that the bot heard it
     // now, not a second later when the phrase is final.
     if (voiceMode === "wake" && !wakeArmed && interim && findWake(interim, wakeWord)) {
-      crab.setEmotion("listening");
+      setEmotion("listening", true);
       micLabel.textContent = t("voice.listening");
     }
   };
@@ -3314,6 +3412,7 @@ function openAppLayer(titleKey, build, opts = {}) {
   stage.classList.add("layered");
   gestureNav?.setOn(true, true);
   renderIsland();
+  syncOfficeVisibility();
   wake();
 }
 
@@ -3340,6 +3439,7 @@ function closeAppLayer() {
   appBody.innerHTML = "";                 // MJPEG-стрім інакше тягнеться далі
   if (!layer && !appsOpen()) stage.classList.remove("layered");
   renderIsland();
+  syncOfficeVisibility();
 }
 
 /* Back: the previous app, or the drawer it was launched from, or the
@@ -3774,13 +3874,15 @@ function openPanel() {
 }
 
 function resetScreenPrefs() {
-  [THEME_KEY, UI_STYLE_KEY, BRIGHT_KEY, VOL_KEY, VOICE_KEY, ORDER_KEY, ICON_KEY, ICON_TINT_KEY, TILES_KEY, KB_MODE_KEY,
+  [THEME_KEY, UI_STYLE_KEY, HOME_VIEW_KEY, BRIGHT_KEY, VOL_KEY, VOICE_KEY, ORDER_KEY, ICON_KEY, ICON_TINT_KEY, TILES_KEY, KB_MODE_KEY,
     IDLE_HOME_KEY, IDLE_SLEEP_KEY, CLOCK_FORMAT_KEY, CLOCK_DATE_KEY, MOTION_KEY,
     SKIN_KEY, SKIN_VARS_KEY, PROVIDER_KEY]
     .forEach(removePref);
   document.documentElement.dataset.theme = "dark";
   document.documentElement.dataset.motion = "full";
   applyUiStyle("material");
+  setHomeView("office", false);
+  office?.setReducedMotion(false);
   iconStyle = "auto";
   iconTint = DEFAULT_ICON_TINT;
   bright = 100;
@@ -3812,6 +3914,7 @@ function openSettings() {
   openAppLayer("screen.settings", (box) => {
     const langButtons = [];
     const uiButtons = [];
+    const homeButtons = [];
     const styleButtons = [];
     const tintButtons = [];
     const themeButtons = [];
@@ -3918,6 +4021,20 @@ function openSettings() {
       langGrid.appendChild(button);
     }
     langRow.appendChild(langGrid);
+
+    const homeViewRow = row(appearance, t("set.homeView"), t("set.homeView.hint"));
+    const homeGrid = document.createElement("div");
+    homeGrid.className = "settings-choices settings-choices-two";
+    for (const [id, key] of Object.entries(HOME_VIEWS)) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "settings-choice";
+      button.textContent = t(key);
+      button.addEventListener("click", () => { setHomeView(id); sync(); wake(); });
+      homeButtons.push({ id, button });
+      homeGrid.appendChild(button);
+    }
+    homeViewRow.appendChild(homeGrid);
 
     // The interface style, right after the language: it changes the most
     const uiRow = row(appearance, t("set.uiStyle"), t("set.uiStyle.hint"));
@@ -4239,6 +4356,10 @@ function openSettings() {
       requestAnimationFrame(() => paintRanges(box));
       langButtons.forEach(({ id, button }) => button.classList.toggle("on", id === getLang()));
       uiButtons.forEach(({ id, button }) => button.classList.toggle("on", id === uiStyle));
+      homeButtons.forEach(({ id, button }) => {
+        button.classList.toggle("on", id === homeView);
+        button.setAttribute("aria-pressed", String(id === homeView));
+      });
       styleButtons.forEach(({ id, button }) => button.classList.toggle("on", id === iconStyle));
       tintButtons.forEach(({ value, button }) => button.classList.toggle("on", value === iconTint));
       themeButtons.forEach(({ id, button }) => button.classList.toggle("on", id === document.documentElement.dataset.theme));
@@ -5486,6 +5607,7 @@ function openStore() {
 
 function relocalize() {
   applyStatic();
+  office?.refreshLanguage();
   crab.labels = emotionLabels();
   crab.defeatLabel = t("emo.defeat");
   crab.setEmotion(crab.emotion);            // підпис емоції новою мовою
@@ -5564,8 +5686,11 @@ function kbLang() {
 }
 
 /* Chat: type a message, Enter sends it as if it were said — but marked as
-   typed (fromVoice=false), so the brain does not expect ASR mistakes. */
-function openChatKeyboard() {
+   typed (fromVoice=false), so the brain does not expect ASR mistakes.
+   returnHome: the message was started from the office, so Enter goes back
+   there before sending. The person came to watch the bot work, not to read
+   the log; the reply still lands in the log and in the face caption. */
+function openChatKeyboard({ returnHome = false } = {}) {
   if (chatBusy) return;
   goTile(chatTile());
   osk.open({
@@ -5575,7 +5700,10 @@ function openChatKeyboard() {
     onInput: (text) => { chatLive.textContent = text; },
     onDone: (text) => {
       chatLive.textContent = "";
-      if (text.trim()) sendChat(text.trim(), false);
+      const message = text.trim();
+      if (!message) return;
+      if (returnHome) goTile(0);
+      sendChat(message, false);
     },
     onClose: () => { chatLive.textContent = ""; },
   });
@@ -6744,3 +6872,37 @@ goTile(0);
 syncQuickButtons();
 wake();
 refreshInstalledApps();
+
+/* The office is mounted last, so its callbacks reach the finished chat,
+   settings, gesture and accessibility code above. It is a presentation
+   layer: if it throws, the classic face takes over for this session (the
+   preference is kept) rather than leaving an empty home tile. */
+function mountHomeOffice() {
+  try {
+    office = mountOffice($("officeHome"), {
+      onChat: () => { wake(); openChatKeyboard({ returnHome: true }); },
+      onSettings: () => { wake(); openSettings(); },
+      onClassic: () => { setHomeView("classic"); wake(); },
+      onInteract: () => wake(),
+    });
+    office.setConnected(linkAlive);
+    office.setActivity({ ...officeActivity });
+    office.setEmotion(crab.emotion);
+    office.setReducedMotion(reducedMotion);
+    office.setSleeping(asleep);
+  } catch (err) {
+    console.error("office failed to mount; showing the classic face", err);
+    try { office?.destroy(); } catch (e) { /* already broken */ }
+    office = null;
+    setHomeView("classic", false);
+    return;
+  }
+  syncOfficeVisibility();
+}
+mountHomeOffice();
+document.addEventListener("visibilitychange", syncOfficeVisibility);
+$("homeOfficeSwitch").addEventListener("click", (event) => {
+  event.stopPropagation();
+  setHomeView("office");
+  wake();
+});

@@ -111,7 +111,7 @@ const context = {{camTimer:0, clearTimeout(){{}}, openApp:null, appHistory:[], l
   $:()=>({{textContent:''}}), t:k=>k, applyFrost(){{}},
   appBody:{{className:'',innerHTML:'',scrollTop:90,removeAttribute(){{}}}},
   layerApp:{{classList:classes}}, stage:{{classList:classes,scrollTop:20,scrollLeft:10}},
-  gestureNav:{{setOn(){{}}}}, renderIsland(){{}}, wake(){{}}}};
+  gestureNav:{{setOn(){{}}}}, renderIsland(){{}}, syncOfficeVisibility(){{}}, wake(){{}}}};
 vm.runInNewContext(layer, context);
 context.openAppLayer('screen.guide', ()=>{{}});
 context.launchingFromDrawer = false;

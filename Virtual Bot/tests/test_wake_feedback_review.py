@@ -49,7 +49,7 @@ function environment(extra={}) {
     faceCaption:{classList:{contains:()=>false}},
     URL:{createObjectURL:()=> 'stub:audio',revokeObjectURL(){}},
     splitImages:text=>({text}),syncMusicVolume(){},captionSpeechStarted(){},captionSpeechEnded(){},
-    clearBusy(){},writePref(){},wake(){},hideCaption(){},setVoiceMode(){},
+    clearBusy(){},writePref(){},wake(){},hideCaption(){},setVoiceMode(){},setEmotion(){},
     crab:{setEmotion(){},setAudioLevel(){}},
     ...extra,
   });

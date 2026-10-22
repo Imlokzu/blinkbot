@@ -2,7 +2,7 @@
 
 ## Source of truth
 - Status: Active
-- Last refreshed: 2026-10-18
+- Last refreshed: 2026-10-22
 - Primary product surfaces: `/screen`, its native apps and local app store.
 - The dashboard has its own contract in `Virtual Bot/dashboard/DESIGN.md`.
 - The new Kotlin Multiplatform mobile client has a separate interview-derived
@@ -53,7 +53,17 @@
   sessions, unreliable internet, and quiet nighttime use.
 
 ## Information architecture
-- Keep the face and configurable tile carousel as home.
+- Default home is the living office, with a persistent Office / Classic face
+  choice. Keep the existing face tile identity and configurable carousel.
+- The office is a bright white top-down floor plan with walls, opening doors,
+  a central hallway, bedroom, kitchen, library, computer desk and lounge.
+  The camera follows the expressive crab by default; zoom, overview and an
+  optional visitor avatar let the owner explore.
+- Actual chat/tool/background memory activity drives the office. Idle
+  wandering is decorative; it never claims that a memory job is running.
+  Sleep-to-work animation must not delay a real response.
+- Office details and the Opus 5.5 design live in
+  `Virtual Bot/docs/SCREEN-OFFICE.md`.
 - Keep the watch drawer and its remembered honeycomb/list views.
 - Add Guide as an always-available native drawer app, before system tools.
 - Guide overview: eight activity groups, each with a short useful description.
@@ -86,6 +96,8 @@
 - Add guide overview/detail rows; reuse existing tokens and icon helpers.
 - App kit owns store app colours, insets, theme, language and style.
 - Screen CSS owns Guide; no parallel design system or new dependency.
+- Office modules own the local canvas world, state machine and localized
+  controls. The existing screen owns transport, captions, voice and settings.
 
 ## Accessibility
 - Target: keyboard operation and legible contrast within the device limits.

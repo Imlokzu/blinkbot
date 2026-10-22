@@ -63,6 +63,7 @@ function environment(extra={{}}) {{
     SR:null, SR_MAX_RESTARTS:5, SR_WINDOW_MS:10000, REC_MAX_MS:15000, PARTIAL_MS:5000,
     voiceDetector:new VoiceTurnDetector(), voiceMode:'open', wakeWord:'claude', wakeArmed:false,
     wakeTimer:0, followUpPending:false, activeChat:null, chatBusy:false, replyInterrupted:false,
+    office:null, officeActivity:{{activity:'idle', active:false}},
     sessionId:'review-session', micButtons:[], micLabel:{{textContent:''}}, chatLog:new Element(),
     URL:{{createObjectURL:()=> 'stub:audio', revokeObjectURL(){{}}}},
     document:{{createElement:()=>new Element()}},
