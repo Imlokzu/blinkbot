@@ -106,6 +106,11 @@ document.documentElement.dataset.home = homeView;
 function syncOfficeVisibility() {
   if (!office) return;
   const tile = tiles[tileIndex];
+  // The classic crab keeps its own loop only while it can be seen: the
+  // office, another tile, a shade, an app, a photo or a hidden tab pause it.
+  crab.setVisible?.(homeView === "classic" && tile?.dataset.tile === "face"
+    && !tile.classList.contains("photo")
+    && !layer && !layerApp.classList.contains("open") && !document.hidden);
   const visible = homeView === "office" && tile?.dataset.tile === "face"
     && !tile.classList.contains("photo")
     && !layer && !layerApp.classList.contains("open") && !document.hidden;
@@ -6880,6 +6885,7 @@ refreshInstalledApps();
 function mountHomeOffice() {
   try {
     office = mountOffice($("officeHome"), {
+      mascot: crab,
       onChat: () => { wake(); openChatKeyboard({ returnHome: true }); },
       onSettings: () => { wake(); openSettings(); },
       onClassic: () => { setHomeView("classic"); wake(); },

@@ -3707,3 +3707,25 @@ and styles, with no runtime errors. An isolated actual-app server passed
 
 Details: `Virtual Bot/docs/SCREEN-OFFICE.md`. Unrelated existing workspace
 changes are preserved and excluded from this feature commit.
+
+
+### Original Claude animation reuse and activation
+
+The owner requested the existing Claude animations instead of a separately
+drawn office sprite. The office now composites the original `PixelCrab`
+renderer through `office-mascot.js`, including its eyes, native walking
+frames, reading glasses/book, working props, sleep particles and original
+squash/air/landing jump. The replacement character drawing was removed.
+The covered classic canvas pauses and resumes on return; manual office
+instances use the existing frame budget and inherit the screen palette and
+audio level. A message while walking to bed turns Claude around immediately;
+only an actual nap has the sleepy beat and hop.
+
+Fable 5.1 at maximum effort reviewed the correction and its follow-up. The
+final full suite passed 2,014 tests, 7 skipped and 178 subtests. Browser
+checks confirmed calls to the original animation methods, classic pause/
+resume, a genuine bed wake, and zero runtime errors. The local 8100 service
+was restarted after confirming zero active mobile jobs. Its initial office
+SSE snapshot and nine exact static-asset comparisons passed; both traversal
+probes returned 400. The isolated smoke server passed the same asset and
+traversal checks.

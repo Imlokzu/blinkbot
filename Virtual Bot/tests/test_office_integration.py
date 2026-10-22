@@ -173,24 +173,33 @@ def test_office_pauses_under_photos_shades_apps_other_tiles_and_hidden_tabs():
 const host = {attrs: {}, toggleAttribute(name, on) { this.attrs[name] = on; }, setAttribute(name, v) { this.attrs[name] = v; }};
 const face = {dataset: {tile: 'face'}, classList: classes()};
 const clock = {dataset: {tile: 'clock'}, classList: classes()};
+const classic = [];
 const ctx = environment({homeView: 'office', tiles: [face, clock], tileIndex: 0, layer: null, appOpen: false,
-  layerApp: {classList: {contains: () => ctx.appOpen}}, document: {hidden: false}, $: () => host});
+  layerApp: {classList: {contains: () => ctx.appOpen}}, document: {hidden: false}, $: () => host,
+  crab: {setVisible: on => classic.push(on)}});
 install(ctx, ['syncOfficeVisibility']);
-const probe = () => { ctx.calls.length = 0; ctx.syncOfficeVisibility(); return [ctx.calls[0][0], ctx.calls[0][1], host.attrs.inert, host.attrs['aria-hidden']]; };
+const probe = () => { ctx.calls.length = 0; ctx.syncOfficeVisibility(); return [ctx.calls[0][0], ctx.calls[0][1], host.attrs.inert, host.attrs['aria-hidden'], classic.at(-1)]; };
 const out = {home: probe()};
 face.classList.add('photo'); out.photo = probe(); face.classList.remove('photo');
 ctx.tileIndex = 1; out.otherTile = probe(); ctx.tileIndex = 0;
 ctx.layer = 'quick'; out.shade = probe(); ctx.layer = null;
 ctx.appOpen = true; out.app = probe(); ctx.appOpen = false;
 ctx.document.hidden = true; out.hiddenTab = probe(); ctx.document.hidden = false;
-ctx.homeView = 'classic'; out.classic = probe(); ctx.homeView = 'office';
+ctx.homeView = 'classic'; out.classic = probe();
+face.classList.add('photo'); out.classicPhoto = probe(); face.classList.remove('photo');
+ctx.layer = 'apps'; out.classicShade = probe(); ctx.layer = null;
+ctx.homeView = 'office';
 out.back = probe();
 console.log(JSON.stringify(out));
 """)
-    shown, hidden = ["setVisible", True, False, "false"], ["setVisible", False, True, "true"]
+    # The last element is the classic crab's own loop: it runs only in classic
+    # view on an uncovered face tile, never under the office.
+    shown, hidden = ["setVisible", True, False, "false", False], ["setVisible", False, True, "true", False]
     assert result["home"] == shown and result["back"] == shown
-    for case in ("photo", "otherTile", "shade", "app", "hiddenTab", "classic"):
+    for case in ("photo", "otherTile", "shade", "app", "hiddenTab"):
         assert result[case] == hidden, case
+    assert result["classic"] == ["setVisible", False, True, "true", True]
+    assert result["classicPhoto"] == hidden and result["classicShade"] == hidden
 
 
 def test_a_photo_frame_pauses_the_office_only_when_it_appears_or_goes():

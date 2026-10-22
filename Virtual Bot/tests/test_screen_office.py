@@ -188,3 +188,28 @@ for(let round=0;round<40;round++) for(const [name,op] of ops) {{
 }}
 assert.ok(steps>20000);
 """)
+
+
+def test_heading_to_bed_turns_straight_around_and_only_a_real_nap_hops():
+    # The browser caught the yawn-and-hop playing in the corridor: sleeping
+    # was set the moment the walk to bed began, so a message mid-walk woke a
+    # crab that was never asleep. Only pose === 'sleep' is a nap.
+    run("""
+s.setSleeping(true); advance(3);
+assert.equal(s.pose,'walk'); assert.equal(s.target,'sleep'); assert.equal(s.sleeping,true);
+s.setActivity({activity:'work',active:true});
+assert.equal(s.sleeping,false); assert.equal(s.pose,'walk'); assert.equal(s.target,'work');
+assert.equal(s.status,'work');
+advance(12); assert.equal(s.room,'work'); assert.equal(s.pose,'work');
+// Waking the display on the way to bed turns back too, without the hop
+s.setActivity({activity:'idle',active:false});
+s.setSleeping(true); advance(3); assert.equal(s.target,'sleep');
+s.setSleeping(false);
+assert.equal(s.sleeping,false); assert.equal(s.pose,'walk'); assert.equal(s.target,'work');
+advance(6); assert.equal(s.room,'work'); assert.equal(s.pose,'idle');
+// A genuine nap still wakes with the yawn and hop
+s.setReducedMotion(true); s.setSleeping(true); s.setReducedMotion(false);
+assert.equal(s.pose,'sleep');
+s.setActivity({activity:'work',active:true}); assert.equal(s.pose,'waking');
+advance(.7); assert.equal(s.pose,'hop'); advance(1); assert.equal(s.pose,'walk');
+""")

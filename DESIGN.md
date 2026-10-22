@@ -96,6 +96,8 @@
 - Add guide overview/detail rows; reuse existing tokens and icon helpers.
 - App kit owns store app colours, insets, theme, language and style.
 - Screen CSS owns Guide; no parallel design system or new dependency.
+- Reuse the existing PixelCrab artwork and animation engine unchanged in
+  identity: no parallel Claude sprite or replacement face design.
 - Office modules own the local canvas world, state machine and localized
   controls. The existing screen owns transport, captions, voice and settings.
 

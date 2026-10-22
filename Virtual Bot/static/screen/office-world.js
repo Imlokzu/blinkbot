@@ -112,52 +112,6 @@ export function drawDoors(c,state,p){
     c.restore();
   }
 }
-export function drawCrab(c,state,p,visitor=false) {
-  const {x,y}=state.position;
-  const t=state.reduced?0:state.elapsed;
-  const walking=state.pose==='walk';
-  const hop=state.pose==='hop' ? Math.sin((.35-state.phase)/.35*Math.PI)*22 : 0;
-  const bob=walking?Math.sin(t*15)*1.5:0;
-  c.save();c.translate(Math.round(x),Math.round(y-hop+bob));
-  c.fillStyle='#d4d0c7';c.beginPath();c.ellipse(0,-1,21,5,0,0,Math.PI*2);c.fill();
-  const sleep=state.pose==='sleep';
-  if(sleep){c.translate(0,-7);c.scale(1,.65);}
-  const body=visitor?'#8ca879':'#d98263', edge=visitor?'#657d58':'#c4734f';
-  rect(c,-16,-33,32,20,body);rect(c,-20,-21,40,8,body);
-  rect(c,-16,-13,32,3,edge);rect(c,-16,-33,32,2,visitor?'#b3c49d':'#eaa587');
-  for(const xx of [-16,-5,5,16])rect(c,xx-2,-12+(walking?Math.round(Math.sin(t*16+xx)*2):0),4,10,edge);
-  rect(c,-25,-23,5,9,edge);rect(c,20,-23,5,9,edge);rect(c,-27,-26,7,5,body);rect(c,20,-26,7,5,body);
-  let mood=state.activity==='help'?'confused':state.emotion;
-  if(mood==='asking')mood='confused';
-  if(sleep||state.pose==='waking')mood='sleepy';
-  const eyes=visitor?'#243322':'#201c1b';
-  const blink=!state.reduced && Math.floor(t*2)%11===0;
-  if(mood==='sleepy'||blink){rect(c,-11,-24,7,2,eyes);rect(c,4,-24,7,2,eyes);}
-  else if(['sad','disappointed','defeat'].includes(mood)){
-    rect(c,-11,-25,7,4,eyes);rect(c,4,-25,7,4,eyes);
-    rect(c,-12,-29,7,2,edge);rect(c,6,-29,7,2,edge);
-  } else if(['happy','love','celebrating','greeting'].includes(mood)){
-    for(const xx of [-11,4]){rect(c,xx,-25,7,2,eyes);rect(c,xx,-24,2,3,eyes);rect(c,xx+5,-24,2,3,eyes);}
-  } else {
-    rect(c,-11,-27,7,8,eyes);rect(c,4,-27,7,mood==='confused'?5:8,eyes);
-    rect(c,-10,-26,2,2,p.cream);rect(c,5,-26,2,2,p.cream);
-  }
-  if(['sad','disappointed','defeat'].includes(mood)){rect(c,-3,-17,6,1,eyes);rect(c,-4,-16,2,2,eyes);rect(c,2,-16,2,2,eyes);}
-  else if(mood==='speaking'){rect(c,-3,-17,6,2+Math.round((Math.sin(t*13)+1)*2),eyes);}
-  else {rect(c,-3,-16,6,1,eyes);rect(c,-4,-18,1,2,eyes);rect(c,3,-18,1,2,eyes);}
-  if(['read','organize','leisure'].includes(state.pose)){
-    rect(c,-14,-11,28,12,p.cream);rect(c,-15,-12,14,2,'#8ca879');rect(c,1,-12,14,2,'#8ca879');
-    rect(c,0,-11,1,12,p.wood);for(let i=0;i<3;i++){rect(c,-11,-8+i*3,8,1,p.wood);rect(c,4,-8+i*3,7,1,p.wood);}
-  }
-  if(state.pose==='eat'){rect(c,14,-12,8,10,p.cream);rect(c,21,-10,4,5,p.trim);}
-  c.restore();
-  if(sleep||state.activity==='help'||mood==='confused'||mood==='love'){
-    c.fillStyle=p.ink;c.font='bold 13px monospace';c.textAlign='center';
-    c.fillText(sleep?'z':mood==='love'?'♥':'?',x+25,y-43-(sleep?Math.sin(t)*3:0));
-  }
-}
-
-
 export function drawWork(c,state,p){
   if(state.active&&state.room==='work'){
     const shift=state.reduced?0:Math.floor(state.elapsed*3)%3;

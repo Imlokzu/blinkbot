@@ -1,5 +1,6 @@
 import { OfficeState } from './office-state.js';
-import { WORLD, SPOTS, PALETTES, drawHouse, drawCrab, drawWork, drawDoors, VISITOR } from './office-world.js';
+import { createOfficeMascot } from './office-mascot.js';
+import { WORLD, SPOTS, PALETTES, drawHouse, drawWork, drawDoors, VISITOR } from './office-world.js';
 import { ot } from './office-i18n.js';
 
 const ICONS = {
@@ -18,6 +19,8 @@ const save=(key,value)=>{try{localStorage.setItem(key,value);}catch{/* Storage c
 
 export function mountOffice(host, callbacks={}) {
   const state=new OfficeState(SPOTS);
+  const mascot=createOfficeMascot({source:callbacks.mascot});
+  const guestMascot=createOfficeMascot({visitor:true,Mascot:callbacks.mascot?.constructor});
   const root=document.createElement('div');root.className='office-root';
   const canvas=document.createElement('canvas');canvas.className='office-canvas';canvas.width=640;canvas.height=480;
   canvas.setAttribute('aria-hidden','true');root.append(canvas);
@@ -79,9 +82,12 @@ export function mountOffice(host, callbacks={}) {
     if(theme===next)return;
     theme=next;palette=PALETTES[next];drawHouse(bg,palette,{light:next==='light',roomName:roomLabel});
   }
-  function render() {
+  const visitorState=()=>({...state,position:{...VISITOR},active:false,activity:'idle',pose:'idle',emotion:'idle'});
+  function render(dt=0) {
     if(destroyed||!visible)return;
     paintBackground();
+    mascot.update(state,dt);
+    if(visitor)guestMascot.update(visitorState(),dt);
     const tx=overview?0:Math.max(320-WORLD.width*zoom,Math.min(0,160-camera.x*zoom));
     // Overhead view with the face above captions; overview centers the floor plan.
     const ty=overview?10:Math.max(240-WORLD.height*zoom,Math.min(30,110-camera.y*zoom));
@@ -89,10 +95,10 @@ export function mountOffice(host, callbacks={}) {
     c.imageSmoothingEnabled=false;c.setTransform(2*zoom,0,0,2*zoom,2*tx,2*ty);
     c.drawImage(background,0,0);drawDoors(c,state,palette);drawWork(c,state,palette);
     if(visitor){
-      drawCrab(c,{...state,position:{...VISITOR},active:false,activity:'idle',pose:'idle',emotion:'happy'},palette,true);
+      guestMascot.draw(c,visitorState());
       c.fillStyle=palette.ink;c.font='10px monospace';c.textAlign='center';c.fillText(ot('visitorName'),VISITOR.x,VISITOR.y-42);
     }
-    drawCrab(c,state,palette);
+    mascot.draw(c,state);
     c.setTransform(1,0,0,1,0,0);
     root.dataset.pose=state.pose;root.dataset.room=state.room;root.dataset.activity=state.activity;root.dataset.connected=String(state.connected);
     const where=roomLabel(state.route.length?state.target:state.room);
@@ -111,7 +117,7 @@ export function mountOffice(host, callbacks={}) {
       const target={x:state.position.x,y:state.position.y};
       const k=state.reduced?1:Math.min(1,delta/1000*6);
       camera.x+=(target.x-camera.x)*k;camera.y+=(target.y-camera.y)*k;
-      render();
+      render(delta/1000);
     }
     raf=requestAnimationFrame(tick);
   }
@@ -135,6 +141,6 @@ export function mountOffice(host, callbacks={}) {
     setConnected(value){state.setConnected(value);render();},
     setReducedMotion(value){requestedReduced=!!value;motion();},
     setVisible,refreshLanguage,
-    destroy(){destroyed=true;if(raf)cancelAnimationFrame(raf);observer.disconnect();motionQuery.removeEventListener('change',motion);root.remove();},
+    destroy(){destroyed=true;if(raf)cancelAnimationFrame(raf);observer.disconnect();mascot.destroy();guestMascot.destroy();motionQuery.removeEventListener('change',motion);root.remove();},
   };
 }

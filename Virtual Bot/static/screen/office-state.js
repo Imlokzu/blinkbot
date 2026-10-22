@@ -89,7 +89,10 @@ export class OfficeState {
     if (active) this.hurry = true;
     if (active || next === 'help') {
       const room = next === 'read' || next === 'organize' ? 'library' : next === 'chat' ? 'chat' : 'work';
-      if (this.sleeping || this.pose === 'sleep') this.wakeUp();
+      // Only a real nap needs the yawn and hop. Still on the way to bed,
+      // the crab just forgets about sleep and turns towards the job.
+      if (this.pose === 'sleep') this.wakeUp();
+      else this.sleeping = false;
       if (this.pose === 'waking' || this.pose === 'hop') { this.target = room; return; }
       this.go(room);
       if (next === 'help') this.hold = 8;
@@ -107,9 +110,14 @@ export class OfficeState {
       if (this.active) return;
       this.sleeping = true;
       this.go('sleep');
-    } else if (this.sleeping || this.pose === 'sleep') {
+    } else if (this.pose === 'sleep') {
       this.target = 'work';
       this.wakeUp();
+    } else if (this.sleeping) {
+      // Woken on the way to bed: nothing to wake from, so no yawn and hop;
+      // the walk simply turns back towards the desk.
+      this.sleeping = false;
+      this.go('work');
     }
   }
 
@@ -134,7 +142,7 @@ export class OfficeState {
     if (this.pose === 'waking' || this.pose === 'hop') {
       this.phase -= dt;
       if (this.phase <= 0) {
-        if (this.pose === 'waking') { this.pose = 'hop'; this.phase = 0.35; }
+        if (this.pose === 'waking') { this.pose = 'hop'; this.phase = 0.72; }
         else this.go(this.target);
       }
       return;

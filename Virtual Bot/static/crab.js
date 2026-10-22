@@ -233,18 +233,23 @@ class PixelCrab {
     // Один requestAnimationFrame на сторінку; пауза, коли вкладка у фоні
     this._raf = null;
     this._lastTs = null;
+    this._visible = true;
     this._tick = this._tick.bind(this);
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
+    this._onVisibility = () => {
+      if (document.hidden || !this._visible) {
         if (this._raf !== null) cancelAnimationFrame(this._raf);
         this._raf = null;
         this._lastTs = null;
       } else if (this._raf === null) {
         this._raf = requestAnimationFrame(this._tick);
       }
-    });
+    };
+    // Scenes can reuse the exact mascot animation with their own frame
+    // budget. The ordinary screen/dashboard keep the original auto loop.
+    this.autoStart = opts.autoStart !== false;
+    if (this.autoStart) document.addEventListener("visibilitychange", this._onVisibility);
     this._applyLabel();
-    if (!document.hidden) this._raf = requestAnimationFrame(this._tick);
+    if (this.autoStart && !document.hidden) this._raf = requestAnimationFrame(this._tick);
   }
 
   /* ---------- Публічний API ---------- */
@@ -252,6 +257,29 @@ class PixelCrab {
   /* Живий рівень звуку 0..1 з AudioLevelMeter; null — рівня немає (fallback на синус) */
   setAudioLevel(level) {
     this.audioLevel = level == null ? null : Math.max(0, Math.min(1, level));
+  }
+
+  /** Advance the original sprite, eyes, props and particles in a scene. */
+  advance(dt, motion = {}) {
+    if (this.autoStart) return;
+    this._update(motion.reduced ? 0 : Math.max(0, Math.min(0.1, Number(dt) || 0)), motion);
+  }
+
+  /** Pause an auto-driven mascot when another home presentation covers it. */
+  setVisible(visible) {
+    this._visible = !!visible;
+    if (this.autoStart) this._onVisibility();
+  }
+
+  /** Use the same squash/air/landing animation as the surprised state. */
+  hop() {
+    this._startJump({ arc: 4 * this.S, squishDur: 0.09, airDur: 0.35, landDur: 0.28 });
+  }
+
+  destroy() {
+    if (this._raf !== null) cancelAnimationFrame(this._raf);
+    this._raf = null;
+    if (this.autoStart) document.removeEventListener("visibilitychange", this._onVisibility);
   }
 
   /* Змінює емоцію (невідома емоція → idle); скасовує defeat */
@@ -376,9 +404,15 @@ class PixelCrab {
     this._raf = requestAnimationFrame(this._tick);
   }
 
-  _update(dt) {
+  _update(dt, motion = null) {
     const S = this.S;
     this.t += dt;
+    if (motion) {
+      // Room navigation owns translation; the native mascot still owns
+      // its breathing, glances, fidgets and every emotional animation.
+      this.strollTarget = null;
+      this.strollWait = Infinity;
+    }
 
     // Згладжування живого рівня: швидка атака, повільне затухання —
     // так рухи потрапляють у склади, але не «дрижать» на кожному кадрі.
@@ -446,6 +480,11 @@ class PixelCrab {
       }
     }
 
+    if (motion?.walking && !motion.reduced) {
+      const dir = motion.direction < 0 ? -1 : 1;
+      this._walkToward(this.x + dir * 2 * S, 26, dt, v);
+    }
+
     // Стрибок (порт updateJump з PixelClaw) — перекриває позу стану
     if (this.jump) this._updateJump(dt, v);
 
@@ -480,6 +519,18 @@ class PixelCrab {
       this.sy = approach(this.sy, v.syT, 12, dt);
     }
 
+    if (motion?.reduced) {
+      this.lift = v.liftT;
+      this.eyeClose = v.eyeCloseT;
+      this.eyeScale = v.eyeScaleT;
+      this.lookDir = v.lookT;
+      this.sx = v.sxT;
+      this.sy = v.syT;
+      this.jump = null;
+      this.airY = 0;
+      this.particles = [];
+      v.bob = 0;
+    }
     this._updateParticles(dt);
     this._draw(v);
   }

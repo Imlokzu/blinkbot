@@ -7,7 +7,12 @@ classic face also has an Office shortcut. The choice stays in this browser.
 Claude Opus 5.5 supplied the visual direction through mirasim. The owner's
 revision specifies a top-down, single-floor office with walls and doors.
 The main agent implemented it; Fable 5.1 reviewed the integration at maximum
-effort. The office uses local canvas artwork, without a build step, CDN,
+effort. The office reuses the existing `PixelCrab` animations from `static/crab.js`.
+`office-mascot.js` adapts the same eyes, legs, reading/work props, particles
+and squash/air/landing jump; it does not redraw the character. Palette and
+audio level come from the existing screen mascot. A manual frame mode lets
+the office drive that renderer at 24 fps while pausing the covered classic
+canvas. The office uses local canvas artwork, without a build step, CDN,
 external font, or extra rendering dependency.
 
 ## Layout and controls
@@ -77,7 +82,8 @@ Run from `Virtual Bot` after muting the Mac:
 
 ```sh
 PYTHONPATH="$PWD" .venv/bin/pytest tests/test_screen_office.py \
-  tests/test_office_integration.py tests/test_office_activity.py -q
+  tests/test_office_integration.py tests/test_office_activity.py \
+  tests/test_office_mascot.py -q
 ```
 
 Tests cover sleep/wake, short replies, interrupted movement, full-sprite wall
