@@ -52,3 +52,26 @@ otherwise produce a false positive. It contains no secret value.
 If a detector finds a real credential, remove it from the working tree, rotate
 it at the provider, and audit the Git history before deciding whether an
 exception is safe. Never add a credential to an ignore file.
+
+
+### Exact public-fixture review
+
+The exit-183 filter in `scripts/filter_trufflehog_public_fixtures.py` accepts
+only reviewed public fixtures listed in `.trufflehog-public-fixtures.json`.
+Each entry binds a detector, the full SHA-256 of the detected value, and explicit
+repository paths to a review reason. Digests are four literal 16-character
+hex groups, joined before comparison; this avoids the policy hashes themselves
+matching a 40-character token detector. No digest bits are truncated.
+No raw matched values belong in that file.
+Changed values, new paths, verified findings, verification errors, malformed
+reports and unknown candidates still block the change. There are no glob-based
+exceptions in this policy. New entries require a separate review of the actual
+source and its public provenance; an unverified result alone is not evidence
+that a value is safe.
+
+Staged scans use the ignore file, filter and fixture policy from the exact
+`git write-tree` snapshot being scanned. The exporter reads raw Git blobs, so
+archive attributes and checkout filters cannot omit or substitute their bytes.
+Symlink targets are scanned as link text and never followed; submodule gitlinks
+contain no blobs from the nested repository. History scans use the current policy.
+Keep raw reports private; diagnostics expose only counts, never matched values.

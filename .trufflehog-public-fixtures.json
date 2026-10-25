@@ -1,0 +1,318 @@
+{
+  "schema_version": 1,
+  "reviewed_on": "2026-10-25",
+  "entries": [
+    {
+      "detector": "Box",
+      "sha256": [
+        "3b7dca5cf3c646a8",
+        "c930b8b5c63a1ec2",
+        "850e5a3fb805de6e",
+        "9be878e268593a9a"
+      ],
+      "paths": [
+        "agent-mail-worker/wrangler.toml"
+      ],
+      "reason": "Cloudflare KV namespace identifier in wrangler.toml; this identifier does not authorize API access."
+    },
+    {
+      "detector": "Circle",
+      "sha256": [
+        "05132fdc991e86af",
+        "df3395a86b228f5b",
+        "3bbefbf1a88e3527",
+        "c0cd8fb41d5893d2"
+      ],
+      "paths": [
+        "Virtual Bot/dashboard/src/vendor/solar-icons/compat-data.ts",
+        "Virtual Bot/dashboard/src/vendor/solar-icons/data.ts",
+        "Virtual Bot/static/dash/assets/ChatPanel-0wR9jLaw.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-3fUh3Uxr.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-B-dv2oKh.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-BCsXW6h5.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Bhf6Bptg.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Blvfrmu9.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Bm_NgKNq.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-BrgHai37.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-BsaR6rDC.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Bt6ZkCei.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-CdIIInCD.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-CzZssI65.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-D-GiYusE.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-D6nQmx1w.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-D7Qft0l6.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DOgdVfSp.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DfTUh7DP.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Dy4cUkOh.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DzQIihXN.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-bylq0Eeo.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-tAm_NK1d.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-uEDvzOdD.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-xCm-RcA2.js",
+        "Virtual Bot/static/dash/assets/_virtual_blink-ui-controls-Dv7UtDGE.js",
+        "Virtual Bot/static/dash/assets/compat-DmFDD_Q7.js"
+      ],
+      "reason": "Numeric SVG path data in the Solar icon vendor source and generated copies; not an authentication token."
+    },
+    {
+      "detector": "Circle",
+      "sha256": [
+        "6fd3047fca65bced",
+        "cb458525942ffc93",
+        "c8e6ef8f77af4767",
+        "2754d4de1a1a770c"
+      ],
+      "paths": [
+        "Virtual Bot/dashboard/src/vendor/solar-icons/compat-data.ts",
+        "Virtual Bot/static/dash/assets/_virtual_blink-ui-controls-Dv7UtDGE.js",
+        "Virtual Bot/static/dash/assets/compat-DmFDD_Q7.js"
+      ],
+      "reason": "Numeric SVG path data in the Solar icon vendor source and generated copies; not an authentication token."
+    },
+    {
+      "detector": "Circle",
+      "sha256": [
+        "978e4107a88941a5",
+        "37c4c64e03caa7ac",
+        "29f2e11ef4381293",
+        "4d481d1233fb8704"
+      ],
+      "paths": [
+        "Virtual Bot/dashboard/src/vendor/solar-icons/compat-data.ts",
+        "Virtual Bot/dashboard/src/vendor/solar-icons/data.ts",
+        "Virtual Bot/static/dash/assets/ChatPanel-0wR9jLaw.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-3fUh3Uxr.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-B-dv2oKh.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-BCsXW6h5.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Bhf6Bptg.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Blvfrmu9.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Bm_NgKNq.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-BrgHai37.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-BsaR6rDC.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Bt6ZkCei.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-CdIIInCD.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-CzZssI65.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-D-GiYusE.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-D6nQmx1w.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-D7Qft0l6.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DOgdVfSp.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DfTUh7DP.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Dy4cUkOh.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DzQIihXN.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-bylq0Eeo.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-tAm_NK1d.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-uEDvzOdD.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-xCm-RcA2.js",
+        "Virtual Bot/static/dash/assets/_virtual_blink-ui-controls-Dv7UtDGE.js",
+        "Virtual Bot/static/dash/assets/compat-DmFDD_Q7.js"
+      ],
+      "reason": "Numeric SVG path data in the Solar icon vendor source and generated copies; not an authentication token."
+    },
+    {
+      "detector": "Circle",
+      "sha256": [
+        "be99bf30d77c1f4e",
+        "7e469fe9d73eae90",
+        "49f27eeeaf84c1ac",
+        "165ac3dad5a6612e"
+      ],
+      "paths": [
+        "Virtual Bot/dashboard/src/vendor/solar-icons/compat-data.ts",
+        "Virtual Bot/dashboard/src/vendor/solar-icons/data.ts",
+        "Virtual Bot/static/dash/assets/ChatPanel-0wR9jLaw.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-3fUh3Uxr.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-B-dv2oKh.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-BCsXW6h5.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Bhf6Bptg.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Blvfrmu9.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Bm_NgKNq.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-BrgHai37.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-BsaR6rDC.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Bt6ZkCei.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-CdIIInCD.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-CzZssI65.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-D-GiYusE.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-D6nQmx1w.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-D7Qft0l6.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DOgdVfSp.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DfTUh7DP.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Dy4cUkOh.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DzQIihXN.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-bylq0Eeo.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-tAm_NK1d.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-uEDvzOdD.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-xCm-RcA2.js",
+        "Virtual Bot/static/dash/assets/_virtual_blink-ui-controls-Dv7UtDGE.js",
+        "Virtual Bot/static/dash/assets/compat-DmFDD_Q7.js"
+      ],
+      "reason": "Numeric SVG path data in the Solar icon vendor source and generated copies; not an authentication token."
+    },
+    {
+      "detector": "Circle",
+      "sha256": [
+        "c34b839a27292863",
+        "4f01b68931f6a7fe",
+        "74fee323d2f0c76f",
+        "826ffb81d686bd5c"
+      ],
+      "paths": [
+        "Virtual Bot/dashboard/src/vendor/solar-icons/data.ts",
+        "Virtual Bot/static/dash/assets/ChatPanel-0wR9jLaw.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-3fUh3Uxr.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-B-dv2oKh.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-BCsXW6h5.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Bhf6Bptg.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Blvfrmu9.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Bm_NgKNq.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-BrgHai37.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-BsaR6rDC.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Bt6ZkCei.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-CdIIInCD.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-CzZssI65.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-D-GiYusE.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-D6nQmx1w.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-D7Qft0l6.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DOgdVfSp.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DfTUh7DP.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-Dy4cUkOh.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DzQIihXN.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-bylq0Eeo.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-tAm_NK1d.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-uEDvzOdD.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-xCm-RcA2.js"
+      ],
+      "reason": "Numeric SVG path data in the Solar icon vendor source and generated copies; not an authentication token."
+    },
+    {
+      "detector": "Circle",
+      "sha256": [
+        "fbd2bdef1ecd316d",
+        "73fcb12ceb483bcd",
+        "38ec060df7e1b3dc",
+        "11bd9298bd684bb8"
+      ],
+      "paths": [
+        "Virtual Bot/dashboard/src/vendor/solar-icons/compat-data.ts",
+        "Virtual Bot/static/dash/assets/_virtual_blink-ui-controls-Dv7UtDGE.js",
+        "Virtual Bot/static/dash/assets/compat-DmFDD_Q7.js"
+      ],
+      "reason": "Numeric SVG path data in the Solar icon vendor source and generated copies; not an authentication token."
+    },
+    {
+      "detector": "GoogleGeminiAPIKey",
+      "sha256": [
+        "831eae7f580f7721",
+        "f62d7f654e8c0718",
+        "79bcafd6452d5613",
+        "f8db051f15082b85"
+      ],
+      "paths": [
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-B2k4Iko0.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-B9l-NDto.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-BDGhm8oz.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-BJCtkm8r.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-BJpImBT5.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-BK1tnnTI.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-BM5_pDSU.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-BbEQJTQI.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-Bhduk0_x.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-BxwCjr19.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-C2UUTQLd.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-C8JXX76y.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-CIIEV-cS.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-CJiw9TTk.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-COsXoHKO.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-CauoAiYB.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-CeYoK_CZ.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-Cj9Q_eB7.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-Cuknfiuf.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-CveJfoNs.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-CwUIQjrq.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-D515h5iv.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-DaA1hoQf.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-DaqR85Y2.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-DbEp_8rw.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-Dm4YuFi5.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-DotXjyhl.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-Dp50NmO3.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-Dqsp3Rm1.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-Dt1BmM2S.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-Eno2okh7.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-EpyBou5I.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-Kee3ofKE.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-PKJvqmYj.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-bzefWSmW.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-rktWIgFW.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-rl2ssGGs.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-rwYpgK5r.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-sU-3GhzM.js"
+      ],
+      "reason": "Public Excalidraw Firebase client configuration embedded in the shipped editor bundle; not a Gemini server credential."
+    },
+    {
+      "detector": "URI",
+      "sha256": [
+        "3ba4b9eb95fbafcb",
+        "38a3dd4bc9886809",
+        "ca70168cc4a8e552",
+        "ed23d894cbb07df3"
+      ],
+      "paths": [
+        "mobile-app/shared/src/commonTest/kotlin/me/waveio/claudebot/data/WorkspaceEditorTest.kt"
+      ],
+      "reason": "Literal deliberately unsafe URL in an input-validation or redaction test fixture; no service credential."
+    },
+    {
+      "detector": "URI",
+      "sha256": [
+        "4128978b8fa82150",
+        "c174ab4eec134663",
+        "17f6aca7ce276c21",
+        "47edf9480a0affa9"
+      ],
+      "paths": [
+        "Virtual Bot/tests/test_model_vision.py"
+      ],
+      "reason": "Literal deliberately unsafe URL in an input-validation or redaction test fixture; no service credential."
+    },
+    {
+      "detector": "URI",
+      "sha256": [
+        "5615950465cdf8de",
+        "f5c02d3c074e9699",
+        "790a02e5d0814a68",
+        "d98d592446d87571"
+      ],
+      "paths": [
+        "Virtual Bot/dashboard/tests/siteIcons.test.mjs"
+      ],
+      "reason": "Literal deliberately unsafe URL in an input-validation or redaction test fixture; no service credential."
+    },
+    {
+      "detector": "URI",
+      "sha256": [
+        "d519fc2f852cf8c8",
+        "a21f62351be4339a",
+        "359cc9245840d02e",
+        "cc02d9ac82aa4b7c"
+      ],
+      "paths": [
+        "Virtual Bot/tests/test_model_vision.py"
+      ],
+      "reason": "Literal deliberately unsafe URL in an input-validation or redaction test fixture; no service credential."
+    },
+    {
+      "detector": "URI",
+      "sha256": [
+        "f2482f8f7ead7f81",
+        "7aeaf7fb05310ce5",
+        "2394d333e3195928",
+        "f5f601e508e9385d"
+      ],
+      "paths": [
+        "Virtual Bot/tests/test_activity_stream.py"
+      ],
+      "reason": "Literal deliberately unsafe URL in an input-validation or redaction test fixture; no service credential."
+    }
+  ]
+}

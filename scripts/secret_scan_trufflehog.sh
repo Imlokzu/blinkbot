@@ -13,9 +13,17 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 run_scan() {
+  policy_root="$root"
+  if [ "$1" = "filesystem" ]; then
+    policy_root="$2"
+  fi
+  if [ ! -f "$policy_root/.trufflehogignore" ]; then
+    echo "TruffleHog scan policy is missing from the scanned snapshot." >&2
+    return 1
+  fi
   set +e
   trufflehog "$@" \
-    --exclude-paths .trufflehogignore \
+    --exclude-paths "$policy_root/.trufflehogignore" \
     --results=verified,unknown \
     --fail \
     --no-update \
@@ -28,6 +36,13 @@ run_scan() {
       return 0
       ;;
     183)
+      scan_root="$root"
+      if [ "$1" = "filesystem" ]; then
+        scan_root="$2"
+      fi
+      if python3 "$policy_root/scripts/filter_trufflehog_public_fixtures.py" "$report" "$scan_root"; then
+        return 0
+      fi
       echo "TruffleHog blocked this change: potential secrets were found." >&2
       echo "Inspect the staged files and rotate any exposed credentials before retrying." >&2
       return 1
@@ -42,11 +57,12 @@ run_scan() {
 case "$mode" in
   staged)
     tree="$(git write-tree)"
-    archive="$tmp_dir/staged.tar"
     worktree="$tmp_dir/worktree"
     mkdir "$worktree"
-    git archive "$tree" >"$archive"
-    tar -xf "$archive" -C "$worktree"
+    # Read exact blob bytes: git archive honors export-ignore/export-subst.
+    exporter="$tmp_dir/export-tree.py"
+    git show "$tree:scripts/export_git_tree_for_scan.py" >"$exporter"
+    python3 "$exporter" "$tree" "$worktree"
     run_scan filesystem "$worktree"
     ;;
   history)
