@@ -45,9 +45,12 @@ async def timer_control(action: str, label: str = "", minutes: float = 0, second
     if action not in ("cancel", "cancel_all", "pause", "resume", "add"):
         return {"error": "action must be one of cancel, cancel_all, pause, resume, add"}
     key = "all" if action == "cancel_all" else label
-    changed = screen_widgets.update_timer(
-        "cancel" if action == "cancel_all" else action, key, _seconds(0, minutes, seconds),
-    )
+    try:
+        changed = screen_widgets.update_timer(
+            "cancel" if action == "cancel_all" else action, key, _seconds(0, minutes, seconds),
+        )
+    except ValueError as exc:
+        return {"error": str(exc)}
     if not changed:
         return {"error": "no such timer", "timers": screen_widgets.list_timers()}
     return {"ok": True, "changed": changed, "timers": screen_widgets.list_timers()}
@@ -88,13 +91,24 @@ def _seconds_until(at: str, now: datetime | None = None) -> float:
     return (target - now).total_seconds()
 
 
-async def set_reminder(text: str, minutes: float = 0, hours: float = 0, at: str = "") -> dict:
+async def set_reminder(text: str, minutes: float = 0, hours: float = 0, at: str = "",
+                       repeat: str = "none", timezone: str = "") -> dict:
     try:
-        total = _seconds_until(at) if at else _seconds(hours, minutes, 0)
-        reminder = screen_widgets.add_timer(total, text, kind="reminder")
+        at = str(at or "")  # Preserve legacy optional/null relative reminders.
+        clock = bool(re.fullmatch(r"\s*[0-9]{1,2}[:.][0-9]{2}\s*", at))
+        if repeat not in screen_widgets.ALARM_REPEATS:
+            raise ValueError("repeat must be none, daily or weekdays")
+        if (repeat != "none" or timezone) and not clock:
+            raise ValueError("repeat and timezone require an HH:MM clock time")
+        if clock:
+            reminder = screen_widgets.add_alarm(at, text, repeat, timezone)
+        else:
+            total = _seconds_until(at) if at else _seconds(hours, minutes, 0)
+            reminder = screen_widgets.add_timer(total, text, kind="reminder")
     except ValueError as exc:
         return {"error": str(exc)}
-    when = datetime.now().astimezone() + timedelta(seconds=reminder["left"])
+    when = datetime.fromtimestamp(reminder["ends_at"],
+                                  screen_widgets._zone(reminder["timezone"]) if reminder.get("timezone") else None)
     log.info("🔔 Reminder «%s» at %s", reminder["label"], when.strftime("%Y-%m-%d %H:%M"))
     return {"ok": True, "reminder": reminder, "at": when.strftime("%Y-%m-%d %H:%M"),
             "left": _spoken_left(reminder["left"])}
@@ -168,6 +182,7 @@ SCHEMAS += [
                 "Remind the person about something later: it rings on the bot's screen and "
                 "waits in the notification shade. «нагадай о 18:30 подзвонити мамі» → at=18:30; "
                 "«нагадай через годину випити воду» → hours=1. Up to 7 days ahead. "
+                "For clock alarms use repeat=daily or weekdays and optionally an IANA timezone. "
                 "Cancel or list reminders with timer_control / timer_status."
             ),
             "parameters": {
@@ -177,6 +192,8 @@ SCHEMAS += [
                     "minutes": {"type": "number"},
                     "hours": {"type": "number"},
                     "at": {"type": "string", "description": "Local clock time 'HH:MM' or 'YYYY-MM-DD HH:MM'."},
+                    "repeat": {"type": "string", "enum": ["none", "daily", "weekdays"]},
+                    "timezone": {"type": "string", "description": "IANA zone for HH:MM, e.g. Europe/Kyiv. Defaults to the server zone (UTC fallback)."},
                 },
                 "required": ["text"],
             },

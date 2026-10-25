@@ -83,3 +83,11 @@ def isolated_chat_store():
             yield
         finally:
             chat_store.CHATS_DIR = original
+
+
+@pytest.fixture(autouse=True)
+def isolated_screen_widgets(tmp_path, monkeypatch):
+    """A TestClient lifespan must never advance the owner's saved alarms."""
+    import screen_widgets
+
+    monkeypatch.setattr(screen_widgets, "_state_path", lambda: tmp_path / "screen-widgets.json")

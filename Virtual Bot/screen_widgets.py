@@ -1,5 +1,5 @@
 """
-State behind the screen's live tiles: timers and the weather tile.
+State behind the screen's live tiles: timers, alarms and the weather tile.
 
 Both are things the bot and the person share. "Put a ten minute timer on"
 is said to the bot but ticks on the screen, and "how long is left?" is
@@ -7,10 +7,13 @@ asked of the bot about what the screen shows. So the state lives here, on
 the server, and both sides read it: the brain through tools
 (tools/timer_tools.py), the screen through /api/screen/* and SSE.
 
-The server never fires a timer itself. It stores when each one ends; the
-screen counts down and rings. A bot with no screen attached has nobody to
-ring for anyway, and a scheduler here would only add a second clock that
-could disagree with the one on display.
+Duration timers and one-shot dated reminders keep the original contract:
+the server never fires them. It stores when each one ends; the screen
+counts down and rings. A recurring clock alarm (daily/weekdays) is the one
+exception: a schedule outlives any one screen session, so process_due_alarms()
+on a lifespan task advances it to the next LOCAL-CALENDAR occurrence,
+persists the new deadline and notices atomically, and lets the screen ring
+through its existing audio path. No model or audio call happens here.
 
 Persisted to runtime/screen-widgets.json (runtime/ is not committed), so a
 restart in the middle of a pomodoro does not lose it.
@@ -18,13 +21,18 @@ restart in the middle of a pomodoro does not lose it.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import os
+import re
 import time
 import uuid
+from datetime import datetime, timedelta, timezone as dt_timezone
 from pathlib import Path
 from threading import Lock
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -50,6 +58,20 @@ MAX_REMINDER_TEXT = 200
 # notification shade is where it waits to be seen.
 DONE_KEEP_S = 10 * 60
 REMINDER_KEEP_S = 12 * 3600
+
+# ------------------------------------------------------------------ alarms
+# A clock alarm is a reminder that owns its own schedule: "at" (HH:MM) in an
+# explicit IANA zone, "daily" or on "weekdays". It advances on the alarm's
+# LOCAL CALENDAR — never by adding 24 hours of seconds, so a 25-hour DST day
+# still lands on the same clock time.
+ALARM_REPEATS = ("none", "daily", "weekdays")
+_RECURRING = ("daily", "weekdays")
+# An occurrence may ring when it is at most this late; anything older only
+# becomes a notice, so a long offline period never bursts into sound.
+ALARM_LATE_RING_S = 60.0
+ALARM_TICK_S = 1.0
+ALARM_MAX_DAYS = 8          # search bound for the next local occurrence
+ALARM_NOTICE_PREFIX = "alarm:"
 
 _lock = Lock()
 
@@ -112,8 +134,14 @@ def _view(timer: dict, now: float) -> dict:
         state = "paused"
     else:
         left = max(0.0, float(timer["ends_at"]) - now)
-        state = "done" if left <= 0 else "running"
-    return {
+        if timer.get("repeat") in _RECURRING:
+            # A recurring alarm is never "done": the backend fires it and the
+            # deadline always points at the upcoming occurrence. This also
+            # keeps an overdue one counted against the reminder cap.
+            state = "running"
+        else:
+            state = "done" if left <= 0 else "running"
+    view = {
         "id": timer["id"],
         "activation": _activation(timer),
         "kind": timer.get("kind", "timer"),
@@ -123,11 +151,26 @@ def _view(timer: dict, now: float) -> dict:
         "left": round(left, 1),
         "state": state,
     }
+    if timer.get("at"):
+        # Alarm views carry the schedule that produced them; plain countdown
+        # timers and one-shot dated reminders do not.
+        view.update({
+            "at": timer.get("at"),
+            "repeat": timer.get("repeat", "none"),
+            "timezone": timer.get("timezone", ""),
+        })
+    return view
 
 
 def _alive(timers: list[dict], now: float) -> list[dict]:
     keep = []
     for timer in timers:
+        if timer.get("repeat") in _RECURRING:
+            # A recurring schedule survives the old one-shot grace pruning,
+            # even after days offline: the alarm loop owns its lifetime, not
+            # REMINDER_KEEP_S.
+            keep.append(timer)
+            continue
         grace = REMINDER_KEEP_S if timer.get("kind") == "reminder" else DONE_KEEP_S
         if timer.get("paused_left") is None and float(timer["ends_at"]) + grace < now:
             continue
@@ -190,6 +233,170 @@ def add_timer(seconds: float, label: str = "", kind: str = "timer") -> dict:
     return view
 
 
+def _zone(name: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(name)
+    except (KeyError, ValueError) as exc:
+        raise ValueError("unknown IANA timezone") from exc
+
+
+def _default_zone() -> ZoneInfo:
+    candidates = [os.environ.get("TZ", "").lstrip(":")]
+    try:
+        local = str(Path("/etc/localtime").resolve())
+        if "/zoneinfo/" in local:
+            candidates.append(local.split("/zoneinfo/", 1)[1])
+    except OSError:
+        pass
+    for name in candidates:
+        if name:
+            try:
+                return _zone(name)
+            except ValueError:
+                pass
+    return _zone("UTC")
+
+
+def _clock_time(at: str) -> str:
+    match = re.fullmatch(r"\s*([0-9]{1,2})[:.]([0-9]{2})\s*", at)
+    if not match or int(match[1]) > 23 or int(match[2]) > 59:
+        raise ValueError("alarm time must be HH:MM")
+    return f"{int(match[1]):02d}:{int(match[2]):02d}"
+
+
+def _calendar_stamp(local: datetime, zone: ZoneInfo) -> float:
+    # Round-trip through UTC detects nonexistent local times. fold=0 selects
+    # the first occurrence in an autumn overlap; never ring twice that day.
+    for minute in range(24 * 60 + 1):
+        candidate = (local + timedelta(minutes=minute)).replace(tzinfo=zone, fold=0)
+        back = candidate.astimezone(dt_timezone.utc).astimezone(zone)
+        if back.replace(tzinfo=None) == candidate.replace(tzinfo=None):
+            return candidate.timestamp()
+    raise ValueError("no valid local alarm time within one day")
+
+
+def _next_occurrence(at: str, repeat: str, zone: ZoneInfo, now: float) -> tuple[str, float]:
+    at = _clock_time(at)
+    if repeat not in ALARM_REPEATS:
+        raise ValueError("repeat must be none, daily or weekdays")
+    hour, minute = map(int, at.split(":"))
+    today = datetime.fromtimestamp(now, zone).date()
+    for offset in range(ALARM_MAX_DAYS):
+        day = today + timedelta(days=offset)
+        if repeat == "weekdays" and day.weekday() >= 5:
+            continue
+        stamp = _calendar_stamp(datetime(day.year, day.month, day.day, hour, minute), zone)
+        if stamp > now:
+            return at, stamp
+    raise ValueError("could not find the next alarm occurrence")
+
+
+def add_alarm(at: str, label: str = "", repeat: str = "none", timezone: str = "") -> dict:
+    """Create a clock reminder, shared by the screen and the bot tool."""
+    zone = _zone(timezone) if timezone else _default_zone()
+    now = _now()
+    at, stamp = _next_occurrence(at, repeat, zone, now)
+    text = " ".join(str(label or "").split())[:MAX_REMINDER_TEXT]
+    if not text:
+        raise ValueError("a reminder needs a text")
+    timer = {"id": uuid.uuid4().hex[:8], "activation": 1, "kind": "reminder",
+             "label": text, "seconds": int(round(stamp - now)), "ends_at": stamp,
+             "paused_left": None, "at": at, "repeat": repeat, "timezone": zone.key}
+    with _lock:
+        data = _load()
+        timers = _timer_state(data, now)
+        active = [t for t in timers if t.get("kind") == "reminder"
+                  and (_view(t, now)["state"] != "done" or t.get("repeat") in _RECURRING)]
+        if len(active) >= MAX_REMINDERS:
+            raise ValueError(f"at most {MAX_REMINDERS} reminders at once")
+        data["timers"] = [*timers, timer]
+        _save(data)
+    view = _view(timer, now)
+    _publish("set", view)
+    return view
+
+
+def process_due_alarms() -> int:
+    """Advance a batch and save notices before emitting any live occurrence."""
+    now = _now()
+    due = []
+    count = 0
+    with _lock:
+        data = _load()
+        timers = _alive(data.get("timers") or [], now)
+        notices = data.get("notices") or []
+        for timer in timers:
+            if (timer.get("repeat") not in _RECURRING or timer.get("paused_left") is not None
+                    or float(timer["ends_at"]) > now):
+                continue
+            try:
+                _, next_stamp = _next_occurrence(timer["at"], timer["repeat"], _zone(timer["timezone"]), now)
+            except (KeyError, TypeError, ValueError):
+                # A removed timezone or damaged schedule must not starve other
+                # alarms or retry noisily every second. Keep it for correction.
+                log.warning("Pausing invalid alarm schedule %s", timer["id"])
+                timer["paused_left"] = 0.0
+                fresh, code = False, "alarmInvalid"
+            else:
+                fresh = now - float(timer["ends_at"]) <= ALARM_LATE_RING_S
+                code = "alarmDue" if fresh else "alarmMissed"
+                if fresh:
+                    due.append(_view(timer, now))
+                timer.update(ends_at=next_stamp, seconds=int(round(next_stamp - now)),
+                             activation=_activation(timer) + 1)
+            key = ALARM_NOTICE_PREFIX + timer["id"]
+            notice = next((n for n in notices if n.get("key") == key), None)
+            if notice is None:
+                notice = {"id": uuid.uuid4().hex[:8], "key": key, "count": 0}
+                notices.append(notice)
+            notice.update(code=code,
+                          params={"label": timer["label"][:120]}, title="", body="",
+                          level="info" if fresh else "warn", source="system", at=now,
+                          count=int(notice.get("count") or 0) + 1)
+            count += 1
+        if not count:
+            return 0
+        data["timers"] = timers
+        data["notices"] = sorted(notices, key=lambda n: -float(n.get("at") or 0))[:MAX_NOTICES]
+        _save(data)
+        snapshot = [_view(t, now) for t in timers]
+    try:
+        events.publish({"type": "timer", "action": "alarms_due", "due": due, "timers": snapshot})
+    except Exception:  # a disconnected screen does not roll back persisted advancement
+        log.exception("Could not publish alarm occurrences")
+    _publish_notices("add")
+    return count
+
+
+_alarm_task: asyncio.Task | None = None
+
+
+async def _alarm_loop() -> None:
+    while True:
+        try:
+            process_due_alarms()
+        except Exception:
+            log.exception("Could not advance clock alarms")
+        await asyncio.sleep(ALARM_TICK_S)
+
+
+def start_alarm_loop() -> None:
+    global _alarm_task
+    if _alarm_task is None or _alarm_task.done():
+        _alarm_task = asyncio.create_task(_alarm_loop(), name="screen-clock-alarms")
+
+
+async def stop_alarm_loop() -> None:
+    global _alarm_task
+    task, _alarm_task = _alarm_task, None
+    if task is not None:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+
 def _find(timers: list[dict], key: str) -> list[dict]:
     """By id, by label (case-insensitive substring), or "" for the nearest one."""
     key = _clean_label(key).lower()
@@ -209,6 +416,8 @@ def update_timer(action: str, key: str = "", seconds: float = 0) -> list[dict]:
     """
     cancel / pause / resume / add (extend by `seconds`) the timers matching key.
     "all" with cancel clears every timer. Returns the timers that changed.
+    Raises ValueError for attempts that would leave broken state (a recurring
+    alarm offered to the old countdown `add`), before anything is mutated.
     """
     now = _now()
     with _lock:
@@ -217,13 +426,27 @@ def update_timer(action: str, key: str = "", seconds: float = 0) -> list[dict]:
         targets = list(timers) if (action == "cancel" and key == "all") else _find(timers, key)
         if not targets:
             return []
+        if action == "add" and any(t.get("repeat") in _RECURRING for t in targets):
+            # A recurring alarm owns its schedule; stretching the countdown
+            # would silently re-time the next occurrence. Rejected atomically:
+            # nothing is mutated or saved.
+            raise ValueError("a repeating alarm cannot be extended; cancel it or set a new one")
         for timer in targets:
             if action == "cancel":
                 timers.remove(timer)
             elif action == "pause" and timer.get("paused_left") is None:
                 timer["paused_left"] = max(0.0, float(timer["ends_at"]) - now)
             elif action == "resume" and timer.get("paused_left") is not None:
-                timer["ends_at"] = now + float(timer["paused_left"])
+                if timer.get("repeat") in _RECURRING:
+                    # Resume never replays the pause: skip to the next future
+                    # clock occurrence on the alarm's own local calendar.
+                    zone = _zone(str(timer.get("timezone") or "UTC"))
+                    _, stamp = _next_occurrence(str(timer.get("at", "")), timer["repeat"], zone, now)
+                    timer["ends_at"] = round(stamp, 3)
+                    timer["seconds"] = int(round(stamp - now))
+                    timer["activation"] = _activation(timer) + 1
+                else:
+                    timer["ends_at"] = now + float(timer["paused_left"])
                 timer["paused_left"] = None
             elif action == "add":
                 # Zero remaining time ends an activation even if it was then paused.
@@ -426,6 +649,9 @@ class TimerAction(BaseModel):
     label: str = Field(default="", max_length=200)
     id: str = Field(default="", max_length=40)
     kind: str = Field(default="timer", pattern="^(timer|reminder)$")
+    at: str = Field(default="", max_length=20)
+    repeat: str = Field(default="none", pattern="^(none|daily|weekdays)$")
+    timezone: str = Field(default="", max_length=100)
 
 
 @router.get("/timers")
@@ -436,8 +662,17 @@ async def api_timers() -> dict:
 @router.post("/timers")
 async def api_timer_action(req: TimerAction) -> dict:
     try:
+        if (req.repeat != "none" or req.timezone) and not req.at:
+            raise ValueError("repeat and timezone require a clock time")
+        if req.at and (req.action != "set" or req.kind != "reminder"):
+            raise ValueError("clock time requires setting a reminder")
         if req.action == "set":
-            add_timer(req.seconds, req.label, req.kind)
+            if req.at:
+                if req.seconds:
+                    raise ValueError("choose a clock time or a duration")
+                add_alarm(req.at, req.label, req.repeat, req.timezone)
+            else:
+                add_timer(req.seconds, req.label, req.kind)
         else:
             update_timer(req.action, req.id or req.label, req.seconds)
     except ValueError as exc:

@@ -20,7 +20,31 @@
   #tabs { flex: none; }
   #tabs .kit-chip { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 0 6px; }
   #tabs .kit-chip svg.i { width: 14px; height: 14px; }
+  #tabs .kit-chip { flex: 1; min-width: 0; flex-direction: column; gap: 1px; min-height: 34px; padding: 0 3px; font-size: 10px; }
+  #tabs .kit-chip span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .view { display: flex; gap: 10px; }
+  #viewAlarm { flex-direction: column; gap: 6px; }
+  .alarm-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .alarm-toolbar .kit-btn { min-height: 28px; }
+  #alarmRows { flex: 1; min-height: 0; overflow-y: auto; }
+  .alarm-row { display: flex; align-items: center; gap: 6px; padding: 7px; margin-bottom: 6px; border-radius: 12px; background: var(--kit-surface); }
+  .alarm-info { flex: 1; min-width: 0; }
+  .alarm-time { font-size: 18px; font-variant-numeric: tabular-nums; }
+  .alarm-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+  .alarm-meta { color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
+  .alarm-row .kit-btn { width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 5px; }
+  #alarmEditor { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; }
+  .alarm-time-row { display: flex; align-items: center; gap: 8px; }
+  #alarmTime { min-width: 108px; max-width: 132px; height: 34px; border: 0; border-radius: 10px; padding: 2px 8px; font: 600 20px var(--font); color: var(--text); background: var(--kit-surface); }
+  #alarmZone { flex: 1; min-width: 0; color: var(--muted); font-size: 10px; overflow-wrap: anywhere; }
+  .alarm-label-row { display: flex; gap: 6px; }
+  .alarm-label-row .kit-input { flex: 1; min-width: 0; }
+  .alarm-label-row input { width: 100%; min-width: 0; font-size: 12px; }
+  .alarm-label-row .kit-btn { min-width: 28px; width: 28px; min-height: 28px; padding: 4px; }
+  #alarmRepeat { width: 100%; min-height: 28px; border: 0; border-radius: 10px; padding: 3px 8px; font: 500 12px var(--font); color: var(--text); background: var(--kit-surface); }
+  .alarm-actions { display: flex; gap: 6px; }
+  .alarm-actions .kit-btn { flex: 1; min-height: 28px; }
+  #alarmError { margin: 0; min-height: 12px; font-size: 10px; color: var(--accent); }
 
   /* ---- clock: the time here on the left, the cities on the right ---- */
   .here { width: 118px; flex: none; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 10px 12px; }
@@ -133,6 +157,7 @@
   <main class="kit-app" id="app">
     <nav class="kit-segment" id="tabs">
       <button class="kit-chip" type="button" data-tab="clock"><span data-icon="clock"></span><span data-i18n="tabClock"></span></button>
+      <button class="kit-chip" type="button" data-tab="alarm"><span data-icon="alarm"></span><span data-i18n="tabAlarm"></span></button>
       <button class="kit-chip" type="button" data-tab="timer"><span data-icon="hourglass"></span><span data-i18n="tabTimer"></span></button>
       <button class="kit-chip" type="button" data-tab="sw"><span data-icon="stopwatch"></span><span data-i18n="tabSw"></span></button>
     </nav>
@@ -146,6 +171,35 @@
         <button class="kit-btn icon sm" id="editBtn" type="button" aria-pressed="false" data-i18n-aria="edit"></button>
       </div>
       <div class="kit-list cities" id="cities"></div>
+    </section>
+
+    <!-- Alarms and reminders share the backend and tool path. -->
+    <section class="kit-fill view" id="viewAlarm" hidden>
+      <div class="alarm-toolbar" id="alarmToolbar">
+        <span class="kit-label" data-i18n="alarmTitle"></span>
+        <button class="kit-btn primary" id="alarmNew" type="button" data-i18n="alarmNew"></button>
+      </div>
+      <div id="alarmRows" class="kit-scroll" data-noswipe></div>
+      <form id="alarmEditor" hidden data-noswipe>
+        <div class="alarm-time-row">
+          <input id="alarmTime" type="time" required value="07:00" data-i18n-aria="alarmTime">
+          <span id="alarmZone"></span>
+        </div>
+        <div class="alarm-label-row">
+          <label class="kit-input"><input id="alarmLabel" type="text" maxlength="200" autocomplete="off" data-i18n-aria="alarmLabel"></label>
+          <button class="kit-btn tonal icon" id="alarmKeyboard" type="button" data-i18n-aria="alarmKeyboard"><span data-icon="keyboard"></span></button>
+        </div>
+        <select id="alarmRepeat" data-i18n-aria="alarmRepeat">
+          <option value="none" data-i18n="alarmOnce"></option>
+          <option value="daily" data-i18n="alarmDaily"></option>
+          <option value="weekdays" data-i18n="alarmWeekdays"></option>
+        </select>
+        <div class="alarm-actions">
+          <button class="kit-btn tonal" id="alarmBack" type="button" data-i18n="back"></button>
+          <button class="kit-btn primary" id="alarmSave" type="submit" data-i18n="alarmSave"></button>
+        </div>
+      </form>
+      <p id="alarmError" role="status" aria-live="polite"></p>
     </section>
 
     <!-- Timers: the same ones the bot sets by voice (/api/screen/timers) -->
@@ -230,6 +284,11 @@
   const STR = {
     uk: {
       title: "Годинник", tabClock: "Час", tabTimer: "Таймер", tabSw: "Секундомір",
+      tabAlarm: "Сигнали", alarmTitle: "Будильники й нагадування", alarmNew: "Додати", alarmSave: "Зберегти",
+      alarmTime: "Час сигналу", alarmLabel: "Назва сигналу", alarmKeyboard: "Клавіатура бота", alarmRepeat: "Повторення",
+      alarmOnce: "Один раз", alarmDaily: "Щодня", alarmWeekdays: "У будні", alarmDefault: "Будильник",
+      alarmEmpty: "Додайте будильник або попросіть бота.", alarmFailed: "Не вдалося зберегти. Спробуйте ще раз.",
+      alarmFull: "Уже 20 активних нагадувань", alarmDone: "Минуле нагадування", alarmDelete: "Видалити сигнал",
       here: "Тут", edit: "Змінити міста", close: "Закрити", pickTitle: "Додати місто", add: "Додати місто",
       remove: "Прибрати", empty: "Додай до чотирьох міст", today: "Сьогодні", tomorrow: "Завтра", yesterday: "Вчора",
       same: "як тут", hours: "{sign}{h} год", hoursMin: "{sign}{h}:{m} год", day: "День", night: "Ніч",
@@ -248,6 +307,11 @@
     },
     en: {
       title: "Clock", tabClock: "Clock", tabTimer: "Timer", tabSw: "Stopwatch",
+      tabAlarm: "Alarms", alarmTitle: "Alarms & reminders", alarmNew: "Add", alarmSave: "Save",
+      alarmTime: "Alarm time", alarmLabel: "Alarm label", alarmKeyboard: "Open bot keyboard", alarmRepeat: "Repeat",
+      alarmOnce: "Once", alarmDaily: "Daily", alarmWeekdays: "Weekdays", alarmDefault: "Alarm",
+      alarmEmpty: "Add an alarm or ask the bot.", alarmFailed: "Could not save. Try again.",
+      alarmFull: "20 active reminders already", alarmDone: "Past reminder", alarmDelete: "Delete alarm",
       here: "Here", edit: "Edit cities", close: "Close", pickTitle: "Add a city", add: "Add a city",
       remove: "Remove", empty: "Add up to four cities", today: "Today", tomorrow: "Tomorrow", yesterday: "Yesterday",
       same: "same as here", hours: "{sign}{h} h", hoursMin: "{sign}{h}:{m} h", day: "Day", night: "Night",
@@ -266,6 +330,8 @@
     },
   };
   const ICONS = {
+    alarm: '<path d="M6 9a6 6 0 0 1 12 0v5l2 3H4l2-3zM10 20h4M3 5l3-3M18 2l3 3"/>',
+    keyboard: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M5 9h2m2 0h2m2 0h2m2 0h2M6 14h12"/>',
     clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
     hourglass: '<path d="M7 3.5h10M7 20.5h10M8 3.5c0 4.5 4 5.5 4 8.5s-4 4-4 8.5M16 3.5c0 4.5-4 5.5-4 8.5s4 4 4 8.5"/>',
     stopwatch: '<circle cx="12" cy="13.5" r="7"/><path d="M12 13.5V10M10 2.5h4M18.5 6.5l1.2-1.2"/>',
@@ -328,7 +394,7 @@
     return (h ? h + ":" + pad(m) : pad(m)) + ":" + pad(s);
   }
 
-  const TABS = ["clock", "timer", "sw"];
+  const TABS = ["clock", "alarm", "timer", "sw"];
   let tab = load("tab", "clock");
   if (!TABS.includes(tab)) tab = "clock";
 
@@ -478,6 +544,7 @@
   let pickedId = "";      // which timer the ring shows when there are several
   let adding = false;     // the setup page is open over running timers
   let online = true, pollId = 0, tickId = 0, busy = false;
+  let timerRevision = 0, pollSequence = 0;
 
   function leftOf(tm) {
     if (tm.state === "paused") return Math.max(0, tm.left);
@@ -503,15 +570,24 @@
     online = true;
   }
   async function fetchTimers() {
+    if (busy || alarmBusy) return;
+    const revision = timerRevision, sequence = ++pollSequence;
     try {
       const r = await fetch("/api/screen/timers", { cache: "no-store" });
-      setTimers(await r.json());
-    } catch (_) { online = false; }
+      if (!r.ok) throw new Error("Timer fetch failed");
+      const data = await r.json();
+      if (revision !== timerRevision || sequence !== pollSequence) return;
+      setTimers(data);
+    } catch (_) {
+      if (revision !== timerRevision || sequence !== pollSequence) return;
+      online = false;
+    }
     renderTimer();
+    renderAlarms();
   }
   async function act(body) {
-    if (busy) return;
-    busy = true;
+    if (busy || alarmBusy) return;
+    busy = true; timerRevision++;
     try {
       const r = await fetch("/api/screen/timers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
@@ -625,12 +701,104 @@
   });
   // Any touch in the app silences a timer that is ringing, as a touch
   // anywhere else on the screen does
-  document.addEventListener("pointerdown", () => { if (shown().some(isDone)) silence(); }, true);
+  document.addEventListener("pointerdown", silence, true);
+
+  /* ================= alarms: backend-owned calendar reminders ================= */
+
+  let alarmBusy = false, alarmError = "", alarmKeyboardPending = false;
+  let alarmZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+  function alarmList() { return timers.filter(tm => tm.kind === "reminder"); }
+  function openAlarmEditor(open) {
+    if (alarmBusy) return;
+    $("alarmEditor").hidden = !open;
+    $("alarmToolbar").hidden = open;
+    $("alarmRows").hidden = open;
+    alarmError = "";
+    if (open) {
+      $("alarmTime").value = "07:00";
+      $("alarmLabel").value = "";
+      $("alarmRepeat").value = "none";
+    } else {
+      alarmKeyboardPending = false;
+      post({ type: "botKeyboard", action: "close" });
+    }
+    renderAlarms();
+  }
+  function renderAlarms() {
+    $("alarmZone").textContent = alarmZone;
+    const list = alarmList();
+    const full = list.filter(tm => tm.state !== "done" || (tm.repeat && tm.repeat !== "none")).length >= 20;
+    $("alarmNew").disabled = alarmBusy || full;
+    $("alarmSave").disabled = alarmBusy;
+    $("alarmBack").disabled = alarmBusy;
+    for (const id of ["alarmTime", "alarmLabel", "alarmRepeat", "alarmKeyboard"]) $(id).disabled = alarmBusy;
+    $("alarmLabel").placeholder = t("alarmLabel");
+    $("alarmError").textContent = alarmError ? t(alarmError) : !online ? t("offline") : full ? t("alarmFull") : "";
+    const rows = $("alarmRows");
+    rows.replaceChildren();
+    if (!list.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty kit-sub"; empty.textContent = t("alarmEmpty"); rows.appendChild(empty);
+    }
+    for (const tm of list) {
+      const row = document.createElement("div"); row.className = "alarm-row";
+      const info = document.createElement("div"); info.className = "alarm-info";
+      const clock = document.createElement("div"); clock.className = "alarm-time";
+      try { clock.textContent = tm.at || new Intl.DateTimeFormat(lang, { hour: "2-digit", minute: "2-digit", timeZone: tm.timezone || alarmZone }).format(new Date(tm.ends_at * 1000)); }
+      catch (_) { clock.textContent = "—"; }
+      const label = document.createElement("div"); label.className = "alarm-label"; label.textContent = tm.label || t("alarmDefault");
+      const meta = document.createElement("div"); meta.className = "alarm-meta";
+      const repetition = t(tm.repeat === "daily" ? "alarmDaily" : tm.repeat === "weekdays" ? "alarmWeekdays" : "alarmOnce");
+      meta.textContent = tm.state === "paused" ? t("paused") : tm.state === "done" ? t("alarmDone") : repetition + (tm.timezone ? " · " + tm.timezone : "");
+      info.append(clock, label, meta); row.appendChild(info);
+      const toggle = document.createElement("button"); toggle.type = "button"; toggle.className = "kit-btn tonal icon";
+      const resume = tm.state === "paused"; toggle.innerHTML = FILLED[resume ? "play" : "pause"];
+      toggle.setAttribute("aria-label", t(resume ? "resume" : "pause")); toggle.disabled = alarmBusy || tm.state === "done";
+      toggle.addEventListener("click", () => alarmAction({ action: resume ? "resume" : "pause", id: tm.id }));
+      const remove = document.createElement("button"); remove.type = "button"; remove.className = "kit-btn ghost icon";
+      remove.innerHTML = icon("x"); remove.setAttribute("aria-label", t("alarmDelete")); remove.disabled = alarmBusy;
+      remove.addEventListener("click", () => alarmAction({ action: "cancel", id: tm.id }));
+      row.append(toggle, remove); rows.appendChild(row);
+    }
+  }
+  async function alarmAction(body) {
+    if (alarmBusy || busy) return false;
+    timerRevision++;
+    alarmBusy = true; alarmError = ""; renderAlarms();
+    try {
+      const response = await fetch("/api/screen/timers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!response.ok) throw new Error("Alarm save failed");
+      setTimers(await response.json());
+      return true;
+    } catch (_) { alarmError = "alarmFailed"; return false; }
+    finally { alarmBusy = false; renderAlarms(); }
+  }
+  $("alarmNew").addEventListener("click", () => openAlarmEditor(true));
+  $("alarmBack").addEventListener("click", () => openAlarmEditor(false));
+  $("alarmEditor").addEventListener("submit", async event => {
+    event.preventDefault();
+    if (!$("alarmTime").value || alarmBusy) return;
+    const saved = await alarmAction({ action: "set", kind: "reminder", at: $("alarmTime").value,
+      repeat: $("alarmRepeat").value, timezone: alarmZone, label: $("alarmLabel").value.trim() || t("alarmDefault") });
+    if (saved) openAlarmEditor(false);
+  });
+  $("alarmKeyboard").addEventListener("click", () => {
+    alarmKeyboardPending = window.parent !== window;
+    if (alarmKeyboardPending) post({ type: "botKeyboard", action: "open", value: $("alarmLabel").value, placeholder: t("alarmLabel"), enter: "done" });
+    else $("alarmLabel").focus({ preventScroll: true });
+  });
+  window.addEventListener("message", event => {
+    if (event.source !== window.parent || !alarmKeyboardPending || event.data?.type !== "botKeyboardInput") return;
+    if (event.origin !== location.origin && event.origin !== "null") return;
+    if (!event.data.cancelled && typeof event.data.value === "string") $("alarmLabel").value = event.data.value.slice(0, 200);
+    if (event.data.done || event.data.cancelled) alarmKeyboardPending = false;
+  });
 
   // Voice timers change behind the app's back, so while the tab is open the
   // list is read again every few seconds (a small JSON, fine on the Pi).
   function syncPolling() {
-    const want = tab === "timer" && !document.hidden;
+    const want = (tab === "timer" || tab === "alarm") && !document.hidden;
     if (want && !pollId) { fetchTimers(); pollId = setInterval(fetchTimers, 3000); }
     if (!want && pollId) { clearInterval(pollId); pollId = 0; }
   }
@@ -711,10 +879,12 @@
   function renderTabs() {
     document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));
     $("viewClock").hidden = tab !== "clock";
+    $("viewAlarm").hidden = tab !== "alarm";
     $("viewTimer").hidden = tab !== "timer";
     $("viewSw").hidden = tab !== "sw";
     if (tab !== "clock") { editing = false; openPicker(false); }
     if (tab === "clock") renderClock();
+    else if (tab === "alarm") renderAlarms();
     else if (tab === "timer") renderTimer();
     else renderSw();
     syncPolling();
@@ -764,7 +934,7 @@
 
   applyI18n();
   // Read the timers once on open, whatever the tab, so switching to it is instant
-  if (tab !== "timer") fetchTimers();
+  if (tab !== "timer" && tab !== "alarm") fetchTimers();
 
   // The screen's style and theme are applied by the kit; the app only
   // follows the language.

@@ -236,6 +236,8 @@ async def lifespan(_app: FastAPI):
     await integrations.start_all(_messenger_chat, _messenger_transcribe, _messenger_reaction)
     scheduler = None
     try:
+        # Recurring schedules are server-owned and cancelled on startup failure too.
+        screen_widgets.start_alarm_loop()
         scheduler = AsyncIOScheduler()
         scheduler.add_job(
             _dream_cycle_all_users,
@@ -256,6 +258,7 @@ async def lifespan(_app: FastAPI):
             except Exception:  # noqa: BLE001 — cleanup інших сервісів мусить продовжитися
                 log.exception("Не вдалося зупинити dream-cycle scheduler")
         # Порядок очистки: SSE → watcher → display-відправки → дочірні процеси.
+        await screen_widgets.stop_alarm_loop()
         events.close_all()
         try:
             await integrations.stop_all()

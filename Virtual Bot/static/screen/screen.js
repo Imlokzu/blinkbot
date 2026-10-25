@@ -5846,6 +5846,8 @@ function nearestTimer() {
 function setTimers(list, serverNow) {
   const incoming = Array.isArray(list) ? list : [];
   const obsolete = incoming.some(tm => timerDeliveries.older(tm));
+  // An older generation also means this response's membership is stale.
+  if (obsolete) return;
   timers = timerDeliveries.snapshot(incoming);
   if (typeof serverNow === "number" && !obsolete) timerSkew = serverNow - Date.now() / 1000;
   // Done snapshots suppress historical alarms only for their own activation.
@@ -5944,6 +5946,9 @@ stage.addEventListener("pointerdown", stopRing, true);
 
 function tickTimers() {
   for (const tm of timers) {
+    // Calendar alarms ring only from the persisted server occurrence event.
+    // A suspended/offline screen must not ring its stale countdown on return.
+    if (["daily", "weekdays"].includes(tm.repeat)) continue;
     if (tm.state === "running" && !timerDeliveries.delivered(tm) && timerLeft(tm) <= 0) ringTimerDone(tm);
   }
   // Redraw only when someone can see it: the tile or the face chip
@@ -5987,6 +5992,12 @@ $("timerCancel").addEventListener("click", (e) => {
 });
 
 function onTimerEvent(ev) {
+  if (ev.action === "alarms_due" && Array.isArray(ev.due)) {
+    const now = Date.now() / 1000 + timerSkew;
+    for (const timer of ev.due) {
+      if (timerDeliveries.shouldDeliverDue(timer, now)) ringTimerDone(timer);
+    }
+  }
   setTimers(ev.timers);
 }
 
@@ -6518,7 +6529,9 @@ $("noticesClear").addEventListener("click", async (e) => {
   // means "I have seen these", not "cancel my plans".
   // "Fired" by our clock: the server's copy still says running until it
   // is asked again
-  for (const r of reminders()) if (reminderFired(r)) timerAction({ action: "cancel", id: r.id });
+  for (const r of reminders()) {
+    if (!["daily", "weekdays"].includes(r.repeat) && reminderFired(r)) timerAction({ action: "cancel", id: r.id });
+  }
   try {
     const r = await fetch("/api/screen/notices/dismiss", {
       method: "POST",
