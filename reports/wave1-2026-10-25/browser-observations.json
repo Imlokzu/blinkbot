@@ -1,0 +1,418 @@
+{
+  "screens": [
+    {
+      "lang": "en",
+      "ui": "material",
+      "theme": "light",
+      "bounds": [
+        {
+          "bottom": 96,
+          "height": 38,
+          "id": "alarmTime",
+          "right": 136,
+          "x": 12,
+          "y": 58
+        },
+        {
+          "bottom": 129.5,
+          "height": 17,
+          "id": "alarmLabel",
+          "right": 262,
+          "x": 24,
+          "y": 112.5
+        },
+        {
+          "bottom": 174,
+          "height": 28,
+          "id": "alarmRepeat",
+          "right": 308,
+          "x": 12,
+          "y": 146
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmBack",
+          "right": 157,
+          "x": 12,
+          "y": 180
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmSave",
+          "right": 308,
+          "x": 163,
+          "y": 180
+        }
+      ]
+    },
+    {
+      "lang": "en",
+      "ui": "material",
+      "theme": "dark",
+      "bounds": [
+        {
+          "bottom": 96,
+          "height": 38,
+          "id": "alarmTime",
+          "right": 136,
+          "x": 12,
+          "y": 58
+        },
+        {
+          "bottom": 129.5,
+          "height": 17,
+          "id": "alarmLabel",
+          "right": 262,
+          "x": 24,
+          "y": 112.5
+        },
+        {
+          "bottom": 174,
+          "height": 28,
+          "id": "alarmRepeat",
+          "right": 308,
+          "x": 12,
+          "y": 146
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmBack",
+          "right": 157,
+          "x": 12,
+          "y": 180
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmSave",
+          "right": 308,
+          "x": 163,
+          "y": 180
+        }
+      ]
+    },
+    {
+      "lang": "en",
+      "ui": "deep",
+      "theme": "light",
+      "bounds": [
+        {
+          "bottom": 96,
+          "height": 38,
+          "id": "alarmTime",
+          "right": 136,
+          "x": 12,
+          "y": 58
+        },
+        {
+          "bottom": 129.5,
+          "height": 17,
+          "id": "alarmLabel",
+          "right": 262,
+          "x": 24,
+          "y": 112.5
+        },
+        {
+          "bottom": 174,
+          "height": 28,
+          "id": "alarmRepeat",
+          "right": 308,
+          "x": 12,
+          "y": 146
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmBack",
+          "right": 157,
+          "x": 12,
+          "y": 180
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmSave",
+          "right": 308,
+          "x": 163,
+          "y": 180
+        }
+      ]
+    },
+    {
+      "lang": "en",
+      "ui": "deep",
+      "theme": "dark",
+      "bounds": [
+        {
+          "bottom": 96,
+          "height": 38,
+          "id": "alarmTime",
+          "right": 136,
+          "x": 12,
+          "y": 58
+        },
+        {
+          "bottom": 129.5,
+          "height": 17,
+          "id": "alarmLabel",
+          "right": 262,
+          "x": 24,
+          "y": 112.5
+        },
+        {
+          "bottom": 174,
+          "height": 28,
+          "id": "alarmRepeat",
+          "right": 308,
+          "x": 12,
+          "y": 146
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmBack",
+          "right": 157,
+          "x": 12,
+          "y": 180
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmSave",
+          "right": 308,
+          "x": 163,
+          "y": 180
+        }
+      ]
+    },
+    {
+      "lang": "uk",
+      "ui": "material",
+      "theme": "light",
+      "bounds": [
+        {
+          "bottom": 96,
+          "height": 38,
+          "id": "alarmTime",
+          "right": 136,
+          "x": 12,
+          "y": 58
+        },
+        {
+          "bottom": 129.5,
+          "height": 17,
+          "id": "alarmLabel",
+          "right": 262,
+          "x": 24,
+          "y": 112.5
+        },
+        {
+          "bottom": 174,
+          "height": 28,
+          "id": "alarmRepeat",
+          "right": 308,
+          "x": 12,
+          "y": 146
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmBack",
+          "right": 157,
+          "x": 12,
+          "y": 180
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmSave",
+          "right": 308,
+          "x": 163,
+          "y": 180
+        }
+      ]
+    },
+    {
+      "lang": "uk",
+      "ui": "material",
+      "theme": "dark",
+      "bounds": [
+        {
+          "bottom": 96,
+          "height": 38,
+          "id": "alarmTime",
+          "right": 136,
+          "x": 12,
+          "y": 58
+        },
+        {
+          "bottom": 129.5,
+          "height": 17,
+          "id": "alarmLabel",
+          "right": 262,
+          "x": 24,
+          "y": 112.5
+        },
+        {
+          "bottom": 174,
+          "height": 28,
+          "id": "alarmRepeat",
+          "right": 308,
+          "x": 12,
+          "y": 146
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmBack",
+          "right": 157,
+          "x": 12,
+          "y": 180
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmSave",
+          "right": 308,
+          "x": 163,
+          "y": 180
+        }
+      ]
+    },
+    {
+      "lang": "uk",
+      "ui": "deep",
+      "theme": "light",
+      "bounds": [
+        {
+          "bottom": 96,
+          "height": 38,
+          "id": "alarmTime",
+          "right": 136,
+          "x": 12,
+          "y": 58
+        },
+        {
+          "bottom": 129.5,
+          "height": 17,
+          "id": "alarmLabel",
+          "right": 262,
+          "x": 24,
+          "y": 112.5
+        },
+        {
+          "bottom": 174,
+          "height": 28,
+          "id": "alarmRepeat",
+          "right": 308,
+          "x": 12,
+          "y": 146
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmBack",
+          "right": 157,
+          "x": 12,
+          "y": 180
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmSave",
+          "right": 308,
+          "x": 163,
+          "y": 180
+        }
+      ]
+    },
+    {
+      "lang": "uk",
+      "ui": "deep",
+      "theme": "dark",
+      "bounds": [
+        {
+          "bottom": 96,
+          "height": 38,
+          "id": "alarmTime",
+          "right": 136,
+          "x": 12,
+          "y": 58
+        },
+        {
+          "bottom": 129.5,
+          "height": 17,
+          "id": "alarmLabel",
+          "right": 262,
+          "x": 24,
+          "y": 112.5
+        },
+        {
+          "bottom": 174,
+          "height": 28,
+          "id": "alarmRepeat",
+          "right": 308,
+          "x": 12,
+          "y": 146
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmBack",
+          "right": 157,
+          "x": 12,
+          "y": 180
+        },
+        {
+          "bottom": 208,
+          "height": 28,
+          "id": "alarmSave",
+          "right": 308,
+          "x": 163,
+          "y": 180
+        }
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "action": "set",
+      "kind": "reminder",
+      "at": "08:45",
+      "repeat": "daily",
+      "timezone": "Europe/Berlin",
+      "label": "<b>Literal alarm</b>"
+    },
+    {
+      "action": "set",
+      "kind": "reminder",
+      "at": "08:45",
+      "repeat": "daily",
+      "timezone": "Europe/Berlin",
+      "label": "<b>Literal alarm</b>"
+    },
+    {
+      "action": "pause",
+      "id": "alarm-2"
+    },
+    {
+      "action": "resume",
+      "id": "alarm-2"
+    },
+    {
+      "action": "cancel",
+      "id": "alarm-2"
+    }
+  ],
+  "form": {
+    "lang": "en",
+    "theme": "light",
+    "time": "08:45",
+    "ui": "material",
+    "valid": true
+  },
+  "errors": []
+}
