@@ -3791,3 +3791,27 @@ wake scene despite a reply finishing after 200 ms, with zero runtime errors.
 Both the live 8100 service and isolated 8137 server passed 14 final HTTP
 checks, including exact static assets and two traversal 400s. No live AI
 request was sent by QA. This static-screen update needs a page reload.
+
+
+## 2026-10-25 — Blink Wave 1 integrated
+
+Wave 1 is implemented and published: compact pixel-crab identity and greeting
+style seed; exact-first Ukrainian inflection retrieval; time-aware ambient
+moods; Clock 1.1.0 with shared backend/tool/API calendar alarms, recurring
+schedules, DST handling and missed notices; emotion status correction and
+mobile push/iOS audit. Runtime providers, routing and the configured name are
+preserved. The owner's bot and OpenClaw were not restarted.
+
+Full regression run: 2,125 tests and 489 subtests passed, 8 skipped. The opt-in
+paid live ASR test and real speech-model startup warmup were disabled only in
+the test process. The isolated HTTP smoke passed 23 checks, including traversal
+rejection and static byte equality. Browser checks covered eight 320x240
+locale/style/theme combinations and alarm mutations/error recovery.
+
+See `reports/wave1-2026-10-25/VALIDATION.md` for reproducible commands and
+limitations, `REVIEWS.md` for completed reviews and timed-out follow-ups, and
+`NEXT-AGENT.md` for a Git-only reviewer prompt. Strict staged secret scans and
+normal commit hooks passed. The owner's unrelated local changes were kept
+separate, including the existing memory profile-preservation fix and stricter
+scanner flag. Phone fallback, push implementation, alarm music and hardware
+validation remain deferred.
