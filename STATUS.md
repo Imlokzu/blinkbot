@@ -7,6 +7,12 @@
 статус, короткий опис, перевірки та залишкові ризики. Детальний історичний
 контекст залишається в [`HANDOFF.md`](HANDOFF.md).
 
+**Emotions-row review: 2026-10-25.** The corrected row below reflects source
+and test coverage; the other rows retain their historical review dates.
+For current screen behavior, consult [`DESIGN.md`](DESIGN.md),
+[`SCREEN-OFFICE.md`](Virtual%20Bot/docs/SCREEN-OFFICE.md), and
+[`SCREEN-VOICE.md`](Virtual%20Bot/docs/SCREEN-VOICE.md).
+
 ## Roadmap і розділи
 
 | Напрям | Статус | Опис | Перевірка |
@@ -15,7 +21,7 @@
 | Крок 1: зір | Зроблено | Vision Agent: детекція обличчя/руху, HTTP і MJPEG | Тести й ручні перевірки виконані |
 | Крок 2: RAG/пам’ять | Зроблено | Довготривала пам’ять, reasoning і пошук | `memory.py`, `dream_cycle.py`, `test_memory_reasoning.py` |
 | Крок 3: голос | Зроблено з ризиком | Whisper STT → OpenClaw → pyttsx3 TTS | Перевірено; є критичний баг |
-| Крок 4: емоції | Не почато | Емоційний шар і стани | Тестів немає |
+| Step 4: emotions | Implemented | Reply tags, streaming tag filtering, transient-state settling and ambient moods | `Virtual Bot/emotions.py`, `vision_watcher.py`, `tests/test_stream_emotion.py`, and `tests/test_spontaneous_mood.py`; source inspection, not a live-device test |
 | Крок 5: камери | Частково | Інтеграція камер і просторове сприйняття | Частково |
 | Крок 6: UI/дисплей | Частково зроблено | Pixel eyes, екрани й WebSocket | Build і 6 pytest чисті |
 | Віртуальний бот | У роботі | Вебпанель до появи фізичного пристрою; Agent Talk/Watch і учасники розмови | Базово: 218 passed, 1 skipped; `npm run build` чистий |

@@ -51,9 +51,34 @@ MOOD_CALM_S = float(cfg.cfg("liveliness", "mood_calm_s", default=12.0))
 if MOOD_MAX_S < MOOD_MIN_S:
     MOOD_MAX_S = MOOD_MIN_S
 
-# «Живі» емоції для спонтанного простою (без sad/sleepy — у них свої тригери,
-# без speaking — воно натякає на репліку). Бот виглядає цікавим і бадьорим.
+# "Alive" moods for idle time; sad/sleepy have their own triggers and speaking
+# hints at a reply, so none of them belong here. This is what makes the bot
+# look curious and awake while nothing is going on.
 _AMBIENT_MOODS = ["happy", "thinking", "surprised", "love", "listening"]
+
+# Time-aware weighting for those moods: livelier around midday, calmer late at
+# night. All five moods stay possible at every hour — only the odds shift.
+# The day boundaries are deliberately hard-coded (not user settings): this is
+# ambience polish, and the setup wizard should not grow a clock knob.
+# Day is [DAY_START_HOUR, NIGHT_START_HOUR) in local server time, night is the
+# rest of the circle. Both tables cover every _AMBIENT_MOODS entry and sum to
+# 1.0 — a test guards against typos, because _pick_ambient_mood indexes by name.
+_DAY_START_HOUR = 8
+_NIGHT_START_HOUR = 21
+_DAY_MOOD_WEIGHTS = {
+    "happy": 0.30,
+    "surprised": 0.25,
+    "love": 0.15,
+    "listening": 0.15,
+    "thinking": 0.15,
+}
+_NIGHT_MOOD_WEIGHTS = {
+    "thinking": 0.30,
+    "listening": 0.30,
+    "happy": 0.20,
+    "love": 0.10,
+    "surprised": 0.10,
+}
 
 # Варіанти короткого привітання, коли бот побачив людину
 _GREETINGS = [
@@ -214,12 +239,31 @@ def _schedule_next_mood(now: float) -> None:
     _next_mood_at = now + random.uniform(MOOD_MIN_S, MOOD_MAX_S)
 
 
+def _local_hour() -> int:
+    """Local server hour (0-23). A function so tests can inject the clock."""
+    return time.localtime().tm_hour
+
+
+def _mood_weights(hour: int) -> dict[str, float]:
+    """Weight table over _AMBIENT_MOODS for a local hour: day lively, night calm."""
+    if hour < _DAY_START_HOUR or hour >= _NIGHT_START_HOUR:
+        return _NIGHT_MOOD_WEIGHTS
+    return _DAY_MOOD_WEIGHTS
+
+
+def _pick_ambient_mood() -> str:
+    """One of _AMBIENT_MOODS, drawn with the day/night weighting."""
+    weights = _mood_weights(_local_hour())
+    return random.choices(_AMBIENT_MOODS, weights=[weights[name] for name in _AMBIENT_MOODS])[0]
+
+
 def _check_spontaneous_mood(now: float) -> None:
     """
-    Коли бот спокійний (не дрімає, не сумує, давно не було взаємодій) — зрідка
-    САМ ставить випадкову «живу» емоцію на кілька секунд, потім → idle. Так бот
-    сам міняє емоції й виглядає живим навіть без Vision і без чату.
-    mood_duration_s == 0 повністю вимикає поведінку.
+    While the bot is calm (not drowsy, not sad, no recent interaction) it
+    occasionally puts a random "alive" mood on the screen for a few seconds,
+    then falls back to idle — so it looks alive even without Vision or chat.
+    The picker is time-aware: livelier moods by day, calmer ones at night.
+    mood_duration_s == 0 turns the behaviour off entirely.
     """
     global _mood_until, _next_mood_at
 
@@ -250,7 +294,7 @@ def _check_spontaneous_mood(now: float) -> None:
         if not profile_store.load().get("spontaneous", True):
             _schedule_next_mood(now)
             return
-        emotion = random.choice(_AMBIENT_MOODS)
+        emotion = _pick_ambient_mood()
         _mood_until = now + MOOD_DURATION_S
         log.debug("Спонтанна емоція: %s", emotion)
         _set_emotion(emotion)
