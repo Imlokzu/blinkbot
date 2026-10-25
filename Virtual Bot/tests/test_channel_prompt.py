@@ -46,7 +46,14 @@ def test_messenger_turn_passes_its_channel_to_the_brain():
         req = main.ChatRequest(message="hi", session_id="channel-telegram")
         return await main.chat_turn(req, "", "telegram")
 
-    with patch.object(main.brains, "chat", chat), patch.object(main, "_autoname_chat", AsyncMock()):
+    # This test owns channel forwarding, not the external display transport.
+    # Its private event loop must not leave display tasks for another test's
+    # application shutdown to cancel on a different loop.
+    with (
+        patch.object(main.brains, "chat", chat),
+        patch.object(main, "_autoname_chat", AsyncMock()),
+        patch.object(main.display_bridge, "send_chat_exchange_bg"),
+    ):
         loop = asyncio.new_event_loop()
         try:
             loop.run_until_complete(turn())

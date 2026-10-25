@@ -69,6 +69,45 @@ searching, web, working, writing, asking, greeting, loading, celebrating, cool.
 - Якщо настрій змінюється далі у відповіді, постав новий тег [emotion:…] — обличчя читає кожен, не лише перший.
 - Після тега — звичайний текст без інших тегів."""
 
+# Compact identity block, folded into the "persona" part (see the assembly in
+# system_prompt_parts). Kept short on purpose: the tools block already takes
+# over half the prompt and a long rule at the end drowns in it — the same
+# dilution reason as _VOICE_RULES. A ceiling test pins it under 600 chars.
+# The middle sentence keeps a concise/professional/custom persona from being
+# washed into forced warmth: "companion" describes the body, not the tone.
+_IDENTITY_BLOCK = (
+    "IDENTITY: You are a small virtual pixel-crab companion living on the "
+    "owner's device screen. The [emotion:*] tag you write IS your face, so "
+    "use it honestly and expressively, matching what you say. Talk plainly "
+    "and usefully: help first, no clutter. The temperament or custom persona "
+    "the owner chose above always wins; do not trade it for forced warmth or "
+    "extra small talk. Stay honest about what you cannot do, as stated "
+    "elsewhere in this prompt. Nothing here grants you new abilities."
+)
+
+
+def _greeting_style_seed(profile: dict) -> str:
+    """
+    Optional STYLE SEED built from the stored greeting; "" for empty or
+    whitespace-only profiles, so no instruction is added at all.
+
+    A note on what this deliberately does NOT do: there is no
+    first-contact-of-day tracking anywhere. "Genuinely appropriate" is judged
+    per turn from the conversation itself, and the seed repeats only inside
+    the prompt, once per build. The time part already supplies exact
+    local time, so the seed points at it instead of restating the clock.
+    """
+    greeting = str(profile.get("greeting") or "").strip()
+    if not greeting:
+        return ""
+    return (
+        "STYLE SEED (optional): when a greeting is genuinely appropriate, you "
+        "may open with a variation of the owner's greeting, adapted to the "
+        f"current local time supplied with this request: {json.dumps(greeting, ensure_ascii=False)}. It is a seed for "
+        "your own words, not a script - never repeat the same greeting at "
+        "the start of every turn."
+    )
+
 
 def _tools_instruction() -> str:
     """Додає в системний промпт перелік доступних публічних інструментів."""
@@ -278,11 +317,18 @@ def system_prompt_parts(
 
     prof = profile_store.load()
     name = prof.get("name") or "Клод Бот"
+    # The identity block and the optional greeting seed live INSIDE the
+    # "persona" part: no new part name or order, nothing for the panel or the
+    # ordering tests to re-learn. Identity nearest the chosen persona reads
+    # as one continuous "who you are", before the rules and the tool flood.
+    seed = _greeting_style_seed(prof)
+    persona_extras = _IDENTITY_BLOCK + ("\n\n" + seed if seed else "")
     base = (
         f"Ти — «{name}», DIY робот-компаньйон. Зараз ти живеш у віртуальному втіленні "
         f"(веб-панель на компʼютері власника), а згодом переїдеш у справжнє тіло на "
         f"Raspberry Pi 3 з камерою та маленьким дисплеєм.\n\n"
         f"{profile_store.persona_prompt(prof)}\n\n"
+        f"{persona_extras}\n\n"
         f"Правила:\n"
         f"- {profile_store.language_instruction(prof)} {profile_store.style_prompt(prof)}\n"
         f"{_EMOTION_RULES}"
