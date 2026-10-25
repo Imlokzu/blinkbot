@@ -434,9 +434,32 @@ def append_chat_log(user_text: str, reply_text: str, emotion: str) -> str:
 
 
 def _tokenize(text: str) -> list[str]:
-    """Ключові слова: кирилиця/латиниця/цифри, довжина >= 3."""
+    """Keep the existing Cyrillic/Latin/digit keyword rules, length >= 3."""
     words = re.findall(r"[а-щьюяіїєґa-z0-9']+", text.lower())
     return [w for w in words if len(w) >= 3]
+
+
+_UK_RETRIEVAL_ENDINGS = (
+    "ами", "ями", "ові", "еві", "ою", "ею", "ах", "ях", "ам", "ям", "ом", "ем", "ів", "ей",
+    "а", "я", "у", "ю", "і", "и", "е", "о",
+)
+_UK_MIN_RETRIEVAL_STEM = 4
+
+
+def _uk_retrieval_stem(word: str) -> str | None:
+    """A conservative noun-ending heuristic, not a Ukrainian lemmatizer.
+
+    Whole Cyrillic words only; do not fold Latin identifiers or short names.
+    Stop at the longest recognized ending instead of repeatedly stripping:
+    a short root such as Мія/Мії is intentionally unsupported.
+    """
+    if not re.fullmatch(r"[а-щьюяіїєґ]+", word) or len(word) < _UK_MIN_RETRIEVAL_STEM:
+        return None
+    for ending in _UK_RETRIEVAL_ENDINGS:
+        if word.endswith(ending):
+            stem = word[:-len(ending)]
+            return stem if len(stem) >= _UK_MIN_RETRIEVAL_STEM else None
+    return word
 
 
 _USER_PROFILE_PATH = "people/user.md"
@@ -562,18 +585,22 @@ def find_relevant_notes(
     top_n: int = 3,
     root: Optional[Path] = None,
 ) -> list[dict[str, str]]:
-    """
-    Топ-N нотаток за збігом ключових слів запиту з текстом нотатки.
-    Повертає [{"path", "title", "snippet"}] тільки з ненульовим скором.
+    """Rank legacy exact matches first, then Ukrainian inflection matches.
+
+    Supplementary whole-word matches fill spare primary slots without changing
+    exact-match scores or their path tie-breaks. Link expansion and snippet
+    bounds apply to the resulting primary notes as before.
     """
     tokens = set(_tokenize(query))
     if not tokens:
         return []
+    query_stems = {stem for token in tokens if (stem := _uk_retrieval_stem(token)) is not None}
 
     root = root.resolve() if root is not None else _ensure_brain_dir()
     if not root.is_dir():
         return []
     scored: list[tuple[int, str, str, str, Path]] = []
+    inflected: list[tuple[int, str, str, str, Path]] = []
     for path in _durable_note_paths(root):
         try:
             content = path.read_text(encoding="utf-8", errors="replace")
@@ -584,9 +611,17 @@ def find_relevant_notes(
         if score > 0:
             rel = path.relative_to(root).as_posix()
             scored.append((score, rel, _note_title(path), content, path))
+        elif query_stems:
+            morphology_score = sum(
+                _uk_retrieval_stem(word) in query_stems for word in _tokenize(haystack)
+            )
+            if morphology_score > 0:
+                rel = path.relative_to(root).as_posix()
+                inflected.append((morphology_score, rel, _note_title(path), content, path))
 
     scored.sort(key=lambda item: (-item[0], item[1]))
-    primary = scored[: max(0, top_n)]
+    inflected.sort(key=lambda item: (-item[0], item[1]))
+    primary = (scored + inflected)[: max(0, top_n)]
     selected = list(primary)
     selected_paths = {item[4].resolve() for item in primary}
     linked_count = 0
