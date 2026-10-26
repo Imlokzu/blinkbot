@@ -249,6 +249,38 @@ class MobileMotionTest {
         compose.onNodeWithTag("effort-slider").assertIsDisplayed()
     }
 
+    @Test fun fontPickerSwitchesTheWholeInterfaceAndKeepsUkrainianLetters() {
+        strings = runBlocking { LocaleText.load("uk") }
+        state = AppState(connected = true, screen = Screen.Appearance,
+            preferences = Preferences(language = "uk", theme = "light", wallpaper = false, haptics = false),
+            sessionId = "chat", messages = listOf(
+                MessageRow("u-1", "user", "Ґанок, їжак, єнот і Іра"),
+                MessageRow("a-1", "assistant", "Шви щастя з'їли ґедзя, а фокстрот — їжака. Quick brown fox 0123456789", model = "fixture/claude")))
+        compose.setContent {
+            MobileTheme(dark = false, font = state.preferences.font) {
+                CompositionLocalProvider(LocalText provides strings) { MobileShell(state, actions, true) }
+            }
+        }
+        compose.waitForIdle()
+        assertEquals("nunito", state.preferences.font)
+        val directory = java.io.File(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .targetContext.getExternalFilesDir(null), "fonts").apply { deleteRecursively(); mkdirs() }
+        fun save(name: String) {
+            val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+            java.io.File(directory, "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        }
+        for ((id, label) in listOf("nunito" to "Nunito", "mplus" to "M PLUS Rounded", "soft" to "Blink Soft", "googlesans" to "Google Sans")) {
+            state = state.copy(screen = Screen.Appearance)
+            compose.onNodeWithText(label).performScrollTo().performClick()
+            compose.waitForIdle()
+            assertEquals(id, state.preferences.font)
+            save("appearance-$id")
+            state = state.copy(screen = Screen.Chat)
+            compose.waitForIdle()
+            save("chat-$id")
+        }
+    }
+
     @Test fun effortNameRollsLikeAReelAndSettlesSharp() {
         launch(screen = Screen.Chat)
         compose.onNodeWithText("Claude Sonnet").performClick()

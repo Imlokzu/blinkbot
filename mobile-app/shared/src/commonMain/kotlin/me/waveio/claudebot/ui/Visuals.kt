@@ -20,6 +20,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import org.jetbrains.compose.resources.Font
+import org.jetbrains.compose.resources.FontResource
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -42,18 +45,47 @@ private val DayPalette = Palette(Color(0xFFF5F1EA), Color(0xFFFFFDF8), Color(0xF
 private val NightPalette = Palette(Color(0xFF13110F), Color(0xFF1A1715), Color(0xFF221E1B), Color(0xFFF2ECE5), Color(0xFFABA096), Color(0xFF3A332C), Color(0xFFDA956E), true)
 val LocalPalette = staticCompositionLocalOf { DayPalette }
 
+/**
+ * Selectable interface fonts, all rounded to match the Solar line icons.
+ * [scale] evens out optical size: Blink Soft (Comfortaa) is wide with a tall x-height and
+ * would read a size larger than the others at the same sp.
+ */
+class AppFont(val id: String, val regular: FontResource, val semibold: FontResource, val scale: Float = 1f)
+
+val AppFonts = listOf(
+    AppFont("nunito", Res.font.nunito_regular, Res.font.nunito_semibold),
+    AppFont("mplus", Res.font.mplus_rounded_regular, Res.font.mplus_rounded_medium),
+    // Comfortaa reserves its name under the OFL, so this subset is renamed.
+    AppFont("soft", Res.font.blink_soft_regular, Res.font.blink_soft_semibold, scale = .9f),
+    AppFont("googlesans", Res.font.google_sans_regular, Res.font.google_sans_semibold),
+)
+
+fun appFont(id: String): AppFont = AppFonts.firstOrNull { it.id == id } ?: AppFonts.first()
+
 @Composable
-fun MobileTheme(dark: Boolean, content: @Composable () -> Unit) {
+fun rememberFontFamily(font: AppFont): FontFamily {
+    // M PLUS Rounded has no 600 master; its Medium fills the SemiBold slot.
+    val regular = Font(font.regular)
+    val semibold = Font(font.semibold, FontWeight.SemiBold)
+    return remember(regular, semibold) { FontFamily(regular, semibold) }
+}
+
+@Composable
+fun MobileTheme(dark: Boolean, font: String = AppFonts.first().id, content: @Composable () -> Unit) {
     val colors = if (dark) NightPalette else DayPalette
-    val regular = Font(Res.font.manrope_regular)
-    val semibold = Font(Res.font.manrope_semibold, FontWeight.SemiBold)
-    val body = remember(regular, semibold) { FontFamily(regular, semibold) }
+    val selected = appFont(font)
+    val body = rememberFontFamily(selected)
     val typography = remember(body) { val type = Typography(); type.copy(
+        displayLarge = type.displayLarge.copy(fontFamily = body), displayMedium = type.displayMedium.copy(fontFamily = body), displaySmall = type.displaySmall.copy(fontFamily = body),
         bodyLarge = type.bodyLarge.copy(fontFamily = body), bodyMedium = type.bodyMedium.copy(fontFamily = body), bodySmall = type.bodySmall.copy(fontFamily = body),
         titleLarge = type.titleLarge.copy(fontFamily = body), titleMedium = type.titleMedium.copy(fontFamily = body), titleSmall = type.titleSmall.copy(fontFamily = body),
         labelLarge = type.labelLarge.copy(fontFamily = body), labelMedium = type.labelMedium.copy(fontFamily = body), labelSmall = type.labelSmall.copy(fontFamily = body),
         headlineSmall = type.headlineSmall.copy(fontFamily = body), headlineMedium = type.headlineMedium.copy(fontFamily = body), headlineLarge = type.headlineLarge.copy(fontFamily = body),
     ) }
+    val density = LocalDensity.current
+    // Scaling fontScale shrinks every sp in the app at once, including
+    // hard-coded sizes, while dp layout stays untouched.
+    val scaled = remember(density, selected.scale) { if (selected.scale == 1f) density else Density(density.density, density.fontScale * selected.scale) }
     val scheme = remember(colors) { (if (dark) darkColorScheme() else lightColorScheme()).copy(
         primary = colors.accent, onPrimary = Color.White,
         secondary = colors.accent, secondaryContainer = colors.secondary,
@@ -61,7 +93,7 @@ fun MobileTheme(dark: Boolean, content: @Composable () -> Unit) {
         surface = colors.surface, onSurface = colors.ink, onBackground = colors.ink,
         outline = colors.muted, outlineVariant = colors.line,
     ) }
-    CompositionLocalProvider(LocalPalette provides colors, LocalContentColor provides colors.ink) { MaterialTheme(colorScheme = scheme, typography = typography, content = content) }
+    CompositionLocalProvider(LocalPalette provides colors, LocalContentColor provides colors.ink, LocalDensity provides scaled) { MaterialTheme(colorScheme = scheme, typography = typography, content = content) }
 }
 
 @Composable

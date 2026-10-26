@@ -44,6 +44,20 @@ License copies: `licenses/manrope-OFL.txt` and `licenses/lora-OFL.txt`.
 Sources: https://github.com/google/fonts/tree/main/ofl/manrope and
 https://github.com/google/fonts/tree/main/ofl/lora .
 
+Interface fonts, also from the Google Fonts upstream repositories under the SIL
+Open Font License, are instantiated at 400/600 where variable and subset to
+Latin, Latin Extended, Cyrillic (including Ukrainian ґ, є, і, ї) and common
+punctuation. Nunito is the default; M PLUS Rounded 1c (Regular and Medium, as it
+has no 600 master), Comfortaa and Google Sans are selectable. The Comfortaa
+subset is renamed **Blink Soft** internally and in the picker, because
+"Comfortaa" is a Reserved Font Name. License copies:
+`licenses/nunito-OFL.txt`, `licenses/mplus-rounded-OFL.txt`,
+`licenses/comfortaa-OFL.txt` and `licenses/google-sans-OFL.txt`. Sources:
+https://github.com/google/fonts/tree/main/ofl/nunito,
+https://github.com/google/fonts/tree/main/ofl/mplusrounded1c,
+https://github.com/google/fonts/tree/main/ofl/comfortaa and
+https://github.com/google/fonts/tree/main/ofl/googlesans .
+
 The instantiated Lora-derived font uses the internal family name **Claude Greeting**
 to respect Lora's reserved font name. Original author, copyright and license
 metadata remain in the font; its outlines are from the upstream Lora source.

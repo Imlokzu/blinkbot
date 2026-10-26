@@ -65,6 +65,8 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
                 Text(tr("appearance.deviceOnly"), color = p.muted, fontSize = 13.sp)
                 Text(tr("appearance.theme"), color = p.ink)
                 Choices(listOf("system" to "profile.system", "light" to "appearance.light", "dark" to "appearance.dark"), preferences.theme) { actions.preferences(preferences.copy(theme = it)) }
+                Text(tr("appearance.font"), color = p.ink)
+                FontChoices(appFont(preferences.font).id) { actions.preferences(preferences.copy(font = it)) }
                 ToggleRow("appearance.wallpaper", preferences.wallpaper) { actions.preferences(preferences.copy(wallpaper = it)) }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     ActionButton(tr("appearance.change"), { actions.pickFile("wallpaper") }, icon = "photo")
@@ -171,6 +173,14 @@ private fun ToggleRow(key: String, value: Boolean, onChange: (Boolean) -> Unit) 
 @Composable
 private fun Choices(options: List<Pair<String, String>>, selected: String, onSelect: (String) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) { options.forEach { (id, key) -> ChoicePill(tr(key), selected == id, { onSelect(id) }) } }
+}
+
+/** Each option previews itself: its name is drawn in that font. */
+@Composable
+private fun FontChoices(selected: String, onSelect: (String) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        AppFonts.forEach { font -> ChoicePill(tr("font.${font.id}"), selected == font.id, { onSelect(font.id) }, fontFamily = rememberFontFamily(font)) }
+    }
 }
 
 

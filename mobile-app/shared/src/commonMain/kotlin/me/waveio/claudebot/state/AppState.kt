@@ -14,6 +14,8 @@ enum class Screen { Chat, Search, Files, Agents, Profile, Appearance, Models, No
 @Serializable
 data class Preferences(
     val theme: String = "system",
+    /** One of [me.waveio.claudebot.ui.AppFonts]; unknown ids fall back to the default. */
+    val font: String = "nunito",
     val language: String = "system",
     val wallpaper: Boolean = true,
     val fullWallpaper: Boolean = true,

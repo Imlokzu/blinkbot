@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
@@ -130,7 +131,7 @@ fun QuietAction(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
 }
 
 @Composable
-fun ChoicePill(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun ChoicePill(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, fontFamily: FontFamily? = null) {
     val p = LocalPalette.current
     val reduced = LocalReducedMotion.current
     val surface by animateColorAsState(if (selected) p.ink else p.secondary, tween(if (reduced) 0 else MotionTiming.Release), label = "choiceSurface")
@@ -138,7 +139,7 @@ fun ChoicePill(text: String, selected: Boolean, onClick: () -> Unit, modifier: M
     Box(modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(14.dp)).background(surface)
         .semantics { this.selected = selected }.clickable(role = Role.RadioButton, onClick = onClick)
         .padding(horizontal = 14.dp, vertical = 12.dp), contentAlignment = Alignment.Center) {
-        Text(text, color = ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(text, color = ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, fontFamily = fontFamily)
     }
 }
 

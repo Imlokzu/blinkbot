@@ -29,7 +29,7 @@ fun App(
         (state.screen.name in state.preferences.wallpaperScreens || "all" in state.preferences.wallpaperScreens || !state.connected)
     val darkStatusIcons = !dark && !wallpaperVisible
     LaunchedEffect(darkStatusIcons, dark) { onSystemBarAppearance(darkStatusIcons, !dark) }
-    MobileTheme(dark) {
+    MobileTheme(dark, state.preferences.font) {
         val local = strings
         if (local == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingDots() }
         else CompositionLocalProvider(LocalText provides local, LocalUriHandler provides remember(controller) {
