@@ -618,7 +618,13 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val p = current.preferences.copy(chatModels = current.preferences.chatModels + (session to if (inherited) "" else current.selectedModel), chatEfforts = current.preferences.chatEfforts + (session to current.effort))
         preferences(p); draftVersion++
         writeScoped("draft.${current.sessionId.ifBlank { "new" }}", null)
-        update { it.copy(sessionId = session, draft = "", editingMessageId = null, attachments = emptyList(), scheduling = false, sendModeOpen = false, error = null) }
+        // Show the message at once rather than after the host acknowledges it,
+        // so the send animation has a bubble to land on. Forks rebuild the
+        // conversation and scheduled sends stay out of it until they run.
+        val optimistic = scheduledAt == null && current.editingMessageId == null
+        update { it.copy(sessionId = session, draft = "", editingMessageId = null, attachments = emptyList(), scheduling = false, sendModeOpen = false, error = null,
+            messages = if (optimistic) it.messages + MessageRow("u-${item.clientId}", "user", item.message, attachments = item.attachments, presentationId = "u-${item.clientId}") else it.messages,
+            sending = it.sending || optimistic) }
         feedback()
         run { submit(item, askOnFailure = true) }
     }
@@ -724,7 +730,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             if (navigation == navigationVersion && state.value.sessionId == item.sessionId) {
                 if (item.forkAction != null) {
                     update { it.copy(sessionId = job.sessionId, messages = emptyList(), busy = true, activeJobId = job.id) }
-                } else update { it.copy(messages = if (item.scheduledAt == null) it.messages + MessageRow("u-${item.clientId}", "user", item.message, attachments = item.attachments, presentationId = "u-${item.clientId}") else it.messages,
+                } else update { it.copy(messages = if (item.scheduledAt == null && it.messages.none { m -> m.id == "u-${item.clientId}" }) it.messages + MessageRow("u-${item.clientId}", "user", item.message, attachments = item.attachments, presentationId = "u-${item.clientId}") else it.messages,
                     busy = it.busy || job.state in setOf("running", "stopping"), activeJobId = if (job.state in setOf("running", "stopping")) job.id else it.activeJobId,
                     pending = if (job.state in setOf("queued", "scheduled")) it.pending + PendingRow(job.id, item.message, job.state, item.scheduledAt) else it.pending) }
             }
@@ -741,6 +747,8 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                 val index = outbox.indexOfFirst { it.clientId == item.clientId }
                 if (index >= 0) outbox[index] = item.copy(lastError = (failure as ApiFailure).code)
                 permitted.remove(item.clientId); persistOutbox()
+                // The host refused it: the text goes back to the composer, so its optimistic bubble goes.
+                update { it.copy(messages = it.messages.filterNot { m -> m.id == "u-${item.clientId}" }) }
                 if (item.questionId == null && navigation == navigationVersion && state.value.sessionId == item.sessionId) {
                     if (state.value.draft.isBlank()) draft(item.message)
                     update { it.copy(attachments = if (it.attachments.isEmpty()) item.attachments else it.attachments) }
@@ -748,6 +756,9 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                 if (navigation == navigationVersion) error(failure)
             } else if (askOnFailure && platform.foreground.value && navigation == navigationVersion) update { it.copy(offlineQuestion = true) }
             else { permitted.add(item.clientId); persistOutbox() }
+        } finally {
+            // Acknowledged, refused or parked for retry: the dots now follow the job itself.
+            if (state.value.sending) update { it.copy(sending = false) }
         }
     }
     private suspend fun retryOutbox() {

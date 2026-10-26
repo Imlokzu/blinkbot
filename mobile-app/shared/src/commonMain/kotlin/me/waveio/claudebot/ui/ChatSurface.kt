@@ -50,6 +50,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.window.Dialog
@@ -90,12 +92,20 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
         layout.totalItemsCount == 0 || last != null && last.index == layout.totalItemsCount - 1 &&
             last.offset + last.size <= layout.viewportEndOffset - composerHeight + bottomTolerance
     } }
-    val waiting = (state.busy && state.messages.lastOrNull()?.let { it.role != "assistant" || it.text.isBlank() && it.parts.none { part -> part.text.isNotBlank() } } != false) ||
+    val waiting = (state.sending && state.messages.lastOrNull()?.role == "user") || (state.busy && state.messages.lastOrNull()?.let { it.role != "assistant" || it.text.isBlank() && it.parts.none { part -> part.text.isNotBlank() } } != false) ||
         (state.pending.any { it.state == "queued" } && state.messages.lastOrNull()?.role == "user")
     var showTyping by remember(state.sessionId) { mutableStateOf(false) }
+    val flight = remember { SendFlight() }
+    var surfaceOrigin by remember { mutableStateOf(Offset.Zero) }
     LaunchedEffect(waiting, state.sessionId) {
         showTyping = false
-        if (waiting) { delay(850); showTyping = true }
+        if (waiting) {
+            // The dots follow the sent bubble as soon as it has landed, so the
+            // reply grows out of something visible rather than popping in late.
+            delay(TypingDelayMillis)
+            snapshotFlow { flight.active }.first { !it }
+            showTyping = true
+        }
     }
     // A blank live reply already holds the indicator's slot, so its own bubble
     // shows the dots and later grows out of them in place.
@@ -156,7 +166,9 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
     }
     // Bubbles above a growing tool tree or reaction glide instead of jumping.
     val itemPlacement = if (reducedMotion) null else spring(dampingRatio = .86f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold)
-    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).testTag("chat-surface")) {
+    CompositionLocalProvider(LocalSendFlight provides flight) {
+    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).testTag("chat-surface")
+        .onGloballyPositioned { surfaceOrigin = it.positionInRoot() }) {
         val questionMaxHeight = ((maxHeight - topPanel).coerceAtLeast(0.dp) * .6f).coerceAtMost(440.dp)
         Box(Modifier.align(Alignment.TopCenter).widthIn(max = ChatContentMaxWidth).fillMaxSize().testTag("chat-column")) {
         Box(Modifier.fillMaxSize()) {
@@ -177,11 +189,16 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
                     }
                 }, contentPadding = PaddingValues(start = 18.dp, top = topPanel + 20.dp, end = 18.dp, bottom = bottomPanel + 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     items(state.messages, key = { it.presentationId ?: it.id }) { message ->
+                        val itemKey = message.presentationId ?: message.id
+                        val fresh = message.role == "user" && seen.add(itemKey) && message.id.startsWith("u-") ||
+                            message.role == "assistant" && seen.add(itemKey) && message.live
+                        // Only a human message first shown during this flight may become its bubble;
+                        // history scrolled back into view is never fresh again.
+                        val born = remember(itemKey) { if (fresh && message.role == "user" && flight.active) flight.token else -1 }
                         Box(Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = itemPlacement)) {
                         MessageContent(message, actions, reducedMotion, state.busy, state.attachmentThumbnails, state.mediaGeneration, state.baseUrl, state.imageFailures,
-                            message.role == "user" && seen.add(message.presentationId ?: message.id) && message.id.startsWith("u-") ||
-                            message.role == "assistant" && seen.add(message.presentationId ?: message.id) && message.live,
-                            typing = inlineTyping && message === state.messages.last(), replacesTyping = typingWasVisible[0])
+                            fresh, typing = inlineTyping && message === state.messages.last(), replacesTyping = typingWasVisible[0],
+                            rides = flight.active && (flight.targetKey == itemKey || flight.targetKey == null && born == flight.token))
                         }
                     }
                     if (showTyping && waiting && !inlineTyping) item(key = "typing") {
@@ -232,6 +249,8 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
         Composer(state, actions, questionMaxHeight)
         }
         }
+        SendFlightOverlay(flight, surfaceOrigin, palette.ink, palette.userBubble, palette.background)
+    }
     }
 }
 
@@ -254,7 +273,7 @@ private fun Welcome(modifier: Modifier, reducedMotion: Boolean) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageContent(message: MessageRow, actions: AppActions, reducedMotion: Boolean, busy: Boolean, thumbnails: Map<String, ByteArray>, mediaGeneration: Long, origin: String, imageFailures: Set<String>, animate: Boolean,
-                           typing: Boolean = false, replacesTyping: Boolean = false) {
+                           typing: Boolean = false, replacesTyping: Boolean = false, rides: Boolean = false) {
     val palette = LocalPalette.current
     val user = message.role == "user"
     var menuText by remember(message.id) { mutableStateOf<String?>(null) }
@@ -265,15 +284,26 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
     val lines = message.bubbles.filter { it.isNotBlank() }.ifEmpty { listOf(message.text).filter { it.isNotBlank() } }
     val parts = message.parts.ifEmpty { lines.map { ContentPart("text", it) } }
     val lastTextPart = parts.indexOfLast { it.type != "steps" && it.text.isNotBlank() }
+    val firstTextPart = parts.indexOfFirst { it.type != "steps" && it.text.isNotBlank() }
     // Bubbles that already had text when this reply was first shown (history,
     // a reopened live chat) stay put; later ones grow out of the typing pill.
     val presentAtStart = remember(message.presentationId ?: message.id) {
         if (animate || user) emptySet() else parts.indices.filter { parts[it].type != "steps" && parts[it].text.isNotBlank() }.toSet()
     }
+    // A sent message arrives as the flying send button: it stays hidden until
+    // the button lands on it, then its text comes into focus.
+    val flight = LocalSendFlight.current
+    val key = message.presentationId ?: message.id
+    val riding = rides && flight != null
+    if (riding) SideEffect { if (flight!!.targetKey == null) flight.targetKey = key }
+    val hidden = riding && flight!!.landedKey != key
+    val reveal = remember(key) { Animatable(if (riding) 0f else 1f) }
+    LaunchedEffect(hidden) { if (!hidden && reveal.value < 1f) reveal.animateTo(1f, tween(200, easing = LinearOutSlowInEasing)) }
+    val textBlur = rememberMotionBlur(8.dp)
     // A reply that takes over visible dots continues from them instead of
     // making a second entrance.
-    MessageArrival(animate && !(replacesTyping && !user), user) { motion ->
-    Column(motion.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+    MessageArrival(animate && !riding && !(replacesTyping && !user), user) { motion ->
+    Column(motion.graphicsLayer { if (hidden) alpha = 0f }.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start, verticalArrangement = Arrangement.spacedBy(7.dp)) {
         for ((partIndex, part) in parts.withIndex()) {
             if (part.type == "steps") {
                 ActivityTree(message.steps.filter { it.id in part.stepIds }, message.live)
@@ -285,12 +315,18 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
             val grows = !user && message.live && partIndex !in presentAtStart && !reducedMotion && !hasTableRow(line)
             key(part.noteId, partIndex) {
                 Surface(
-                    modifier = Modifier.growFromTypingPill(grows, BotBubbleShape).widthIn(max = if (user) 320.dp else 600.dp).testTag("message-bubble:${message.id}:$partIndex").combinedClickable(onClick = {}, onLongClick = { selectedBubble = parts.take(partIndex).count { it.type == "text" }; selectedNote = part.note || part.noteId != null; menuText = line }),
+                    modifier = Modifier.then(if (riding && partIndex == firstTextPart) Modifier.onGloballyPositioned {
+                        if (flight!!.targetKey == key) flight.target = it.boundsInRoot()
+                    } else Modifier).growFromTypingPill(grows, BotBubbleShape).widthIn(max = if (user) 320.dp else 600.dp).testTag("message-bubble:${message.id}:$partIndex").combinedClickable(onClick = {}, onLongClick = { selectedBubble = parts.take(partIndex).count { it.type == "text" }; selectedNote = part.note || part.noteId != null; menuText = line }),
                     shape = if (user) UserBubbleShape else BotBubbleShape,
                     color = if (user) palette.userBubble else palette.botBubble,
                 ) {
                     Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                        if (user) Text(line, color = palette.userInk, fontSize = 16.sp, lineHeight = 23.sp)
+                        if (user) Text(line, color = palette.userInk, fontSize = 16.sp, lineHeight = 23.sp, modifier = Modifier.graphicsLayer {
+                            val v = reveal.value
+                            alpha = v
+                            renderEffect = textBlur.effect(focus = (1f - v) * 6.dp.toPx())
+                        })
                         else ReplyMarkdown(line, origin, message.live, mediaGeneration, thumbnails, imageFailures, actions,
                             animateTail = message.live && partIndex == lastTextPart, flowFromStart = grows)
                         if (grows) FadingDots()
@@ -403,13 +439,24 @@ private val UserBubbleShape = RoundedCornerShape(21.dp, 21.dp, 6.dp, 21.dp)
 private val TypingPillWidth = 66.dp
 private val TypingPillHeight = 42.dp
 
+/** Show the dots this long after a send at the earliest, and only once its flight has landed. */
+private const val TypingDelayMillis = 300L
+
+/** The pill buds from its tail corner, just below the message it answers. */
 @Composable
 private fun TypingBubble() {
     val palette = LocalPalette.current
-    MessageArrival(true, false) { motion ->
-        Box(motion.testTag("chat-typing").clip(BotBubbleShape).background(palette.botBubble).padding(horizontal = 16.dp, vertical = 13.dp)) {
-            TypingDots(palette.ink)
-        }
+    val reduced = LocalReducedMotion.current
+    val bud = remember { Animatable(if (reduced) 1f else 0f) }
+    LaunchedEffect(Unit) { bud.animateTo(1f, spring(dampingRatio = .58f, stiffness = 460f)) }
+    Box(Modifier.testTag("chat-typing").graphicsLayer {
+        val v = bud.value
+        transformOrigin = TransformOrigin(0f, 1f)
+        scaleX = .2f + .8f * v; scaleY = scaleX
+        alpha = (v * 3f).coerceIn(0f, 1f)
+        translationY = (1f - v) * 6.dp.toPx()
+    }.clip(BotBubbleShape).background(palette.botBubble).padding(horizontal = 16.dp, vertical = 13.dp)) {
+        TypingDots(palette.ink)
     }
 }
 

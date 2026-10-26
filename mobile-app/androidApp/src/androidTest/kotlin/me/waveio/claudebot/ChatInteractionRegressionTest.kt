@@ -605,11 +605,16 @@ class ChatInteractionRegressionTest {
             }
             val bubble = compose.onNodeWithTag("message-bubble:${requireNotNull(userId)}:0")
             val entrance = bubble.fetchSemanticsNode().boundsInRoot
-            compose.mainClock.advanceTimeBy(500)
+            // The send button flies into this slot; the bubble shows only once it lands.
+            val inFlight = bubble.captureToImage().toPixelMap()
+            compose.mainClock.advanceTimeBy(900)
             compose.waitForIdle()
             val settled = bubble.assertIsDisplayed().fetchSemanticsNode().boundsInRoot
-            assertTrue("Typed user messages must finish their entrance scale over Compose frames (entrance=$entrance, settled=$settled)",
-                settled.width > entrance.width + .1f * compose.activity.resources.displayMetrics.density)
+            assertEquals("The landed bubble must not jump", entrance, settled)
+            val landed = bubble.captureToImage().toPixelMap()
+            var changed = 0
+            for (y in 0 until landed.height) for (x in 0 until landed.width) if (inFlight[x, y] != landed[x, y]) changed++
+            assertTrue("Typed user messages must arrive over Compose frames (changed=$changed)", changed > landed.width * landed.height / 4)
             assertEquals("Only the typed draft must reach the host", draft, server.submitted.single().getValue("message").jsonPrimitive.content)
             assertEquals("", controller.state.value.draft)
             assertTrue(controller.state.value.busy)
@@ -644,10 +649,11 @@ class ChatInteractionRegressionTest {
                 compose.waitForIdle()
                 controller.state.value.busy && controller.state.value.messages.any { it.role == "user" }
             }
-            compose.mainClock.advanceTimeBy(400)
+            // The dots wait briefly after a send, so an instant reply never flashes them.
+            compose.mainClock.advanceTimeBy(150)
             compose.waitForIdle()
             compose.onNodeWithTag("chat-typing").assertDoesNotExist()
-            compose.mainClock.advanceTimeBy(500)
+            compose.mainClock.advanceTimeBy(400)
             compose.waitForIdle()
             compose.onNodeWithTag("chat-typing").assertIsDisplayed()
             assertTrue("The typing indicator must appear while the real IME stays visible", imeVisible())

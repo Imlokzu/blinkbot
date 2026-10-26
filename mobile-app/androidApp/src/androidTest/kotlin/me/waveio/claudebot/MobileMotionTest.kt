@@ -42,6 +42,7 @@ class MobileMotionTest {
     private lateinit var inputMode: InputModeManager
     private var state by mutableStateOf(AppState())
     private var newChats = 0
+    private var sends = 0
     private val actions = object : MotionFixtureActions() {
         override fun navigate(screen: Screen) { state = state.copy(screen = screen, menuOpen = false) }
         override fun menu(open: Boolean) { state = state.copy(menuOpen = open) }
@@ -50,6 +51,11 @@ class MobileMotionTest {
         override fun selectModel(id: String) { state = state.copy(selectedModel = id) }
         override fun selectEffort(value: String) { state = state.copy(effort = value) }
         override fun preferences(value: Preferences) { state = state.copy(preferences = value) }
+        override fun draft(value: String) { state = state.copy(draft = value) }
+        override fun send(delivery: String, scheduledAt: String?) {
+            sends++
+            state = state.copy(draft = "", busy = true, messages = state.messages + MessageRow("u-sent-$sends", "user", state.draft))
+        }
     }
 
     @After fun restoreClockForActivityTeardown() {
@@ -440,6 +446,33 @@ class MobileMotionTest {
         for (frame in 0 until 30) { save("stream-%02d".format(frame)); compose.mainClock.advanceTimeByFrame() }
         step(800)
         compose.onNodeWithTag("chat-typing").assertDoesNotExist()
+    }
+
+    /** The send button flies up into the bubble it becomes; Stop rises in its place; the dots bud after landing. */
+    @Test fun sendButtonFliesIntoTheSentBubble() {
+        val earlier = MessageRow("a-0", "assistant", "What would you like to build today?", model = "fixture/claude")
+        launchChat(listOf(earlier), busy = false)
+        state = state.copy(draft = "Make the send fly")
+        step(400)
+        val directory = java.io.File(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .targetContext.getExternalFilesDir(null), "send-flight").apply { deleteRecursively(); mkdirs() }
+        compose.onNodeWithContentDescription(strings.get("chat.send")).performClick()
+        for (frame in 0 until 44) {
+            val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+            java.io.File(directory, "flight-%02d.png".format(frame)).outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            compose.mainClock.advanceTimeByFrame()
+        }
+        assertEquals(1, sends)
+        compose.onNodeWithText("Make the send fly").assertIsDisplayed()
+        compose.onNodeWithContentDescription(strings.get("chat.stop")).assertIsDisplayed()
+        compose.onNodeWithTag("chat-typing").assertIsDisplayed()
+        // Once everything settles the chat matches a freshly opened one: no flight left behind.
+        state = state.copy(busy = false)
+        step(1500)
+        val settled = history()
+        mount++
+        step(2500)
+        assertEquals("Nothing from the flight may stay drawn", 0, changedPixels(settled, history()))
     }
 
     /** The host opens a blank live reply first: its own bubble shows the dots and grows out of them. */

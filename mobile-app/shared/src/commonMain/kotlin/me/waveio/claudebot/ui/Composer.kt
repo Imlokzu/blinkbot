@@ -22,6 +22,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,8 +65,8 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
     LaunchedEffect(sending) { if (sending != null) { kotlinx.coroutines.delay(250); sending = null } }
     LaunchedEffect(ghost) {
         if (ghost == null) return@LaunchedEffect
-        // Accelerate away, as if thrown into the chat, rather than drift.
-        ghostLift.animateTo(1f, tween(MotionTiming.Ghost, easing = FastOutLinearInEasing))
+        // A quick lift and fade: the send button itself carries the message away.
+        ghostLift.animateTo(1f, tween(160, easing = FastOutLinearInEasing))
         ghost = null
         ghostLift.snapTo(0f)
     }
@@ -114,8 +117,8 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
                 flying?.let { sent ->
                     Text(sent, style = textStyle, maxLines = 6, overflow = TextOverflow.Ellipsis, modifier = Modifier.graphicsLayer {
                         val t = ghostLift.value
-                        val travel = 44.dp.toPx()
-                        alpha = 1f - t * t
+                        val travel = 16.dp.toPx()
+                        alpha = 1f - t
                         translationY = -t * travel
                         transformOrigin = TransformOrigin(1f, 0f)
                         scaleX = 1f - .05f * t; scaleY = scaleX
@@ -150,27 +153,22 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
                     val ready by animateFloatAsState(if (enabled) 1f else 0f, if (reduced) snap() else spring(dampingRatio = .45f, stiffness = 420f), label = "sendReady")
                     val fill by animateColorAsState(if (enabled) p.ink else p.secondary, tween(if (reduced) 0 else MotionTiming.Panel), label = "sendFill")
                     val arrowTint by animateColorAsState(if (enabled) p.background else p.muted, tween(if (reduced) 0 else MotionTiming.Panel), label = "sendTint")
-                    // The arrow shoots out through the top of the button and springs back from below.
-                    val arrow = remember { Animatable(0f) }
-                    val scope = rememberCoroutineScope()
+                    // The button itself flies off and becomes the sent bubble; the chat
+                    // draws it in flight, so the original hides meanwhile.
+                    val flight = LocalSendFlight.current
+                    var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
                     val fire: (String) -> Unit = { delivery ->
+                        val from = bounds
+                        val launches = !reduced && flight != null && from != null && (state.draft.isNotBlank() || state.attachments.isNotEmpty())
                         submit(delivery)
-                        if (!reduced) scope.launch {
-                            arrow.animateTo(1f, tween(120, easing = FastOutLinearInEasing))
-                            arrow.snapTo(-1f)
-                            arrow.animateTo(0f, spring(dampingRatio = .62f, stiffness = 700f))
-                        }
+                        if (launches) flight!!.launch(from!!)
                     }
-                    Box(Modifier.size(44.dp).graphicsLayer { scaleX = .86f + .14f * ready; scaleY = scaleX }.clip(CircleShape).background(fill)
+                    Box(Modifier.size(44.dp).onGloballyPositioned { bounds = it.boundsInRoot() }
+                        .graphicsLayer { scaleX = .86f + .14f * ready; scaleY = scaleX; if (flight?.active == true) alpha = 0f }.clip(CircleShape).background(fill)
                         .semantics { contentDescription = sendLabel; if (!enabled) disabled() }
                         .combinedClickable(interactionSource = null, indication = remember(p.background, reduced) { PressIndication(p.background, reduced) },
                             enabled = enabled, role = Role.Button, onClick = { fire("queue") }, onLongClick = { actions.sendModes(true) }), contentAlignment = Alignment.Center) {
-                        Glyph("send", modifier = Modifier.size(20.dp).graphicsLayer {
-                            val travel = 30.dp.toPx()
-                            translationY = -arrow.value * travel
-                            alpha = 1f - kotlin.math.abs(arrow.value)
-                            renderEffect = motionBlur.effect(speedY = arrow.velocity * travel)
-                        }, tint = arrowTint)
+                        Glyph("send", modifier = Modifier.size(20.dp), tint = arrowTint)
                     }
                     MotionPopup(state.sendModeOpen, { actions.sendModes(false) }, Modifier.width(260.dp), Alignment.BottomEnd, IntOffset(0, popupRise), focusable = false) {
                         MenuRow("time", tr("queue.title"), { actions.sendModes(false); fire("queue") })
@@ -196,7 +194,15 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
 private fun RoundComposerAction(icon: String, label: String, onClick: () -> Unit, accent: Boolean = false) {
     val p = LocalPalette.current
     val reduced = LocalReducedMotion.current
-    Box(Modifier.size(46.dp).clip(CircleShape).background(if (accent) p.accent else p.ink)
+    // Rises into its slot from below, e.g. Stop taking over from a sent button.
+    val rise = remember { Animatable(if (reduced) 1f else 0f) }
+    LaunchedEffect(Unit) { rise.animateTo(1f, spring(dampingRatio = .6f, stiffness = 520f)) }
+    Box(Modifier.size(46.dp).graphicsLayer {
+        val v = rise.value
+        translationY = (1f - v) * 26.dp.toPx()
+        alpha = v.coerceIn(0f, 1f)
+        scaleX = .7f + .3f * v; scaleY = scaleX
+    }.clip(CircleShape).background(if (accent) p.accent else p.ink)
         .clickable(interactionSource = null, indication = remember(p.background, reduced) { PressIndication(p.background, reduced) }, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
         Glyph(icon, label, Modifier.size(20.dp), if (accent) Color.White else p.background)
     }

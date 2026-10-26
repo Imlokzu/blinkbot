@@ -166,6 +166,8 @@ data class AppState(
     val selectedModel: String = "",
     val effort: String = "none",
     val busy: Boolean = false,
+    /** A send is on its way to the host; its message is already shown optimistically. */
+    val sending: Boolean = false,
     val activeJobId: String? = null,
     val pending: List<PendingRow> = emptyList(),
     val allPending: List<PendingRow> = emptyList(),
