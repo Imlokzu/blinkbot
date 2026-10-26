@@ -3827,3 +3827,12 @@ Built from committed source in a clean sparse worktree; the APK keeps the
 0.4.18 package and signing certificate and updates it in place on an emulator.
 332 shared tests pass; 156/160 instrumentation tests pass and the four failures
 reproduce on the pre-change source. See docs/mobile-app/RELEASE-0.4.19.md.
+
+## 2026-10-26 — Blink Android 0.4.20: velocity motion blur
+
+Prepared Android 0.4.20 (code 27) after owner feedback that 0.4.19's entrances
+looked cheap. Motion is now speed-driven: a shutter-style motion blur, fast
+springs, opaque within a few frames. The typing indicator no longer uses a list
+fade-out that could leave it drawn under the reply. 332 shared tests pass and
+159/163 instrumentation tests pass (same four pre-existing failures). See
+docs/mobile-app/RELEASE-0.4.20.md.
