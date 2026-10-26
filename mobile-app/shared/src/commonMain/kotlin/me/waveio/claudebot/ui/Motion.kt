@@ -28,7 +28,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.ceil
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /** Shared timings keep controls responsive without delaying their actions. */
 object MotionTiming {
@@ -36,9 +37,8 @@ object MotionTiming {
     const val Release = 120
     const val Exit = 100
     const val Panel = 180
-    const val MessageFocus = 420
-    const val ReplyFocus = 620
-    const val Ghost = 380
+    const val ReplyFocus = 180
+    const val Ghost = 240
 }
 
 /** Exiting content keeps its pixels, but cannot retain an interactive surface. */
@@ -153,52 +153,71 @@ fun EnterMotion(
 }
 
 /**
- * Fine blur ladder for entrances. Twenty-four cached radii read as a continuous
- * focus pull, while the render effects are still allocated only once.
+ * Shutter-style blur. Moving content smears along its own path in proportion
+ * to its on-screen speed, as a camera exposure would, and is sharp the moment
+ * it stops. Effects are cached per half-dp step, so a whole flight allocates a
+ * handful of render effects rather than one per frame.
  */
-@Composable
-internal fun rememberBlurLadder(maxRadius: Dp, steps: Int = 24): List<BlurEffect> {
-    val radius = with(LocalDensity.current) { maxRadius.toPx() }
-    return remember(radius, steps) { (1..steps).map { BlurEffect(radius * it / steps, radius * it / steps, TileMode.Decal) } }
+internal class MotionBlur(private val quantum: Float, private val maxRadius: Float) {
+    private val cache = HashMap<Long, BlurEffect>()
+
+    /** [speedX]/[speedY] are px per second; [focus] adds a uniform defocus in px. */
+    fun effect(speedX: Float = 0f, speedY: Float = 0f, focus: Float = 0f): BlurEffect? {
+        fun radius(speed: Float) = kotlin.math.hypot(abs(speed) * ShutterSeconds, focus).coerceAtMost(maxRadius)
+        val x = (radius(speedX) / quantum).roundToInt()
+        val y = (radius(speedY) / quantum).roundToInt()
+        if (x == 0 && y == 0) return null
+        return cache.getOrPut((x.toLong() shl 32) or y.toLong()) { BlurEffect(x * quantum, y * quantum, TileMode.Decal) }
+    }
+
+    private companion object { const val ShutterSeconds = 1f / 120f }
 }
 
-internal fun List<BlurEffect>.at(amount: Float): BlurEffect? {
-    val step = ceil(amount.coerceIn(0f, 1f) * size).toInt()
-    return if (step == 0) null else this[step - 1]
+@Composable
+internal fun rememberMotionBlur(maxRadius: Dp = 18.dp): MotionBlur {
+    val density = LocalDensity.current
+    return remember(density, maxRadius) { with(density) { MotionBlur(.5.dp.toPx(), maxRadius.toPx()) } }
 }
 
 /**
- * A sent bubble springs up out of the composer and comes into focus; a reply
- * condenses out of a heavier blur. Restored history stays still.
- *
- * Position and scale use a spring, so a sent bubble overshoots slightly and
- * settles. Focus and opacity use a separate eased track that never overshoots,
- * because a negative blur or an alpha above one has no meaning.
+ * A sent bubble is thrown up out of the composer: a quick spring with a slight
+ * overshoot, stretched and smeared along its path while it is fast. A reply
+ * lands from just below, coming out of a brief defocus. Restored history stays
+ * still. Opacity is reached within a few frames, so nothing lingers as a pale
+ * ghost; the sense of motion comes from speed, not from a slow fade.
  */
 @Composable
 fun MessageArrival(animate: Boolean, human: Boolean, content: @Composable (Modifier) -> Unit) {
     val reduced = LocalReducedMotion.current
-    val rise = remember { Animatable(if (animate && !reduced) 0f else 1f) }
-    val focus = remember { Animatable(if (animate && !reduced) 0f else 1f) }
-    val blur = rememberBlurLadder(if (human) 14.dp else 20.dp)
+    val start = if (animate && !reduced) 0f else 1f
+    val rise = remember { Animatable(start) }
+    val shown = remember { Animatable(start) }
+    val focus = remember { Animatable(start) }
+    val blur = rememberMotionBlur()
     LaunchedEffect(reduced) {
-        if (reduced) { rise.snapTo(1f); focus.snapTo(1f); return@LaunchedEffect }
-        launch {
-            if (rise.value < 1f) rise.animateTo(1f,
-                if (human) spring(dampingRatio = .62f, stiffness = 360f) else spring(dampingRatio = .82f, stiffness = 240f))
-        }
-        if (focus.value < 1f) focus.animateTo(1f, tween(if (human) MotionTiming.MessageFocus else MotionTiming.ReplyFocus, easing = LinearOutSlowInEasing))
+        if (reduced) { rise.snapTo(1f); shown.snapTo(1f); focus.snapTo(1f); return@LaunchedEffect }
+        launch { if (shown.value < 1f) shown.animateTo(1f, tween(if (human) 60 else 110, easing = LinearEasing)) }
+        launch { if (focus.value < 1f) focus.animateTo(1f, tween(MotionTiming.ReplyFocus, easing = FastOutSlowInEasing)) }
+        if (rise.value < 1f) rise.animateTo(1f,
+            if (human) spring(dampingRatio = .74f, stiffness = 520f) else spring(dampingRatio = .86f, stiffness = 700f))
     }
     content(Modifier.graphicsLayer {
         if (reduced) return@graphicsLayer
+        val travel = (if (human) 76.dp else 16.dp).toPx()
         val lift = 1f - rise.value
-        val clear = focus.value.coerceIn(0f, 1f)
-        alpha = (clear * 1.8f).coerceAtMost(1f)
-        translationY = lift * (if (human) 72.dp else 30.dp).toPx()
-        translationX = if (human) lift * 14.dp.toPx() else 0f
+        val speed = rise.velocity * travel
+        // Normalised speed drives a slight stretch along the path.
+        val pace = (abs(speed) / 2400.dp.toPx()).coerceAtMost(1f)
+        // A reply takes the indicator's place in the same frame, so it starts
+        // partly visible: a transparent first frame would read as a flicker.
+        alpha = shown.value.coerceIn(0f, 1f).let { if (human) it else .4f + .6f * it }
+        translationY = lift * travel
+        translationX = if (human) lift * 10.dp.toPx() else 0f
         transformOrigin = TransformOrigin(if (human) 1f else 0f, 1f)
-        scaleX = 1f - lift * (if (human) .2f else .1f)
-        scaleY = scaleX
-        renderEffect = blur.at(1f - clear)
+        val settle = 1f - lift * (if (human) .06f else .04f)
+        scaleY = settle * (1f + pace * .07f)
+        scaleX = settle * (1f - pace * .03f)
+        val defocus = if (human) 0f else (1f - focus.value.coerceIn(0f, 1f)) * 5.dp.toPx()
+        renderEffect = blur.effect(speedX = if (human) rise.velocity * 10.dp.toPx() else 0f, speedY = speed, focus = defocus)
     })
 }

@@ -3,10 +3,12 @@ package me.waveio.claudebot
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.InputMode
@@ -18,6 +20,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import kotlinx.coroutines.runBlocking
 import me.waveio.claudebot.data.WebPreviewResource
 import me.waveio.claudebot.state.AppState
+import me.waveio.claudebot.state.MessageRow
 import me.waveio.claudebot.state.ModelRow
 import me.waveio.claudebot.state.Preferences
 import me.waveio.claudebot.state.Screen
@@ -278,6 +281,100 @@ class MobileMotionTest {
         assertEquals("fixture/available", state.preferences.defaultModel)
         assertEquals("fixed", state.preferences.defaultModelMode)
         assertEquals("New-chat preferences must not replace the current model", "fixture/current", state.selectedModel)
+    }
+
+    private var mount by mutableStateOf(0)
+
+    /** Open a chat with motion on and the clock paused, so frames can be stepped. */
+    private fun launchChat(messages: List<MessageRow>, busy: Boolean) {
+        strings = runBlocking { LocaleText.load("en") }
+        state = AppState(
+            connected = true, screen = Screen.Chat, sessionId = "chat", messages = messages, busy = busy,
+            preferences = Preferences(language = "en", theme = "light", wallpaper = false, haptics = false),
+            models = listOf(ModelRow("fixture/claude", "Claude Sonnet", "fixture", "anthropic")),
+            selectedModel = "fixture/claude",
+        )
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            MobileTheme(dark = false) {
+                CompositionLocalProvider(LocalText provides strings) {
+                    key(mount) { MobileShell(state, actions, false) }
+                }
+            }
+        }
+        step(600)
+    }
+
+    private fun step(millis: Long) {
+        var left = millis
+        while (left > 0) { compose.mainClock.advanceTimeByFrame(); left -= 16 }
+        compose.waitForIdle()
+    }
+
+    private fun history() = compose.onNodeWithTag("chat-history").captureToImage()
+
+    @Test fun replyReplacingTypingLeavesNoIndicatorBehind() {
+        val user = MessageRow("u-1", "user", "sup")
+        launchChat(listOf(user), busy = true)
+        step(1200)
+        compose.onNodeWithTag("chat-typing").assertExists()
+        // The host first opens an empty live reply; the indicator stays below it
+        // until the first text arrives.
+        state = state.copy(messages = listOf(user, MessageRow("a-1", "assistant", "", live = true)))
+        step(300)
+        compose.onNodeWithTag("chat-typing").assertExists()
+        state = state.copy(messages = listOf(user, MessageRow("a-1", "assistant", "Hello there! \uD83D\uDC4B", live = true)))
+        step(1200)
+        state = state.copy(busy = false, messages = listOf(user, MessageRow("a-1", "assistant", "Hello there! \uD83D\uDC4B", model = "fixture/claude")))
+        step(1200)
+        val settled = history()
+        // A freshly opened chat in the same state is the reference: any pixel
+        // left over from the departed indicator differs from it.
+        mount++
+        step(2000)
+        assertEquals("The departed typing indicator must not stay drawn under the reply", 0, changedPixels(settled, history()))
+    }
+
+    @Test fun newChatFinalReplyLeavesNoIndicatorBehind() {
+        launchChat(emptyList(), busy = false)
+        state = state.copy(sessionId = "")
+        step(300)
+        val user = MessageRow("u-1", "user", "sup")
+        state = state.copy(sessionId = "fresh", messages = listOf(user), busy = true)
+        step(1100)
+        compose.onNodeWithTag("chat-typing").assertExists()
+        // A short reply can arrive complete, ending the job in the same snapshot.
+        state = state.copy(busy = false, messages = listOf(user, MessageRow("a-1", "assistant", "Hello there! \uD83D\uDC4B", model = "fixture/claude")))
+        step(1500)
+        val settled = history()
+        mount++
+        step(2000)
+        assertEquals("The departed typing indicator must not stay drawn under the reply", 0, changedPixels(settled, history()))
+    }
+
+    /** Saves a filmstrip of a send, the typing indicator and a reply for visual review. */
+    @Test fun chatArrivalsSettleQuicklyAndRecordAFilmstrip() {
+        val directory = java.io.File(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .targetContext.getExternalFilesDir(null), "chat-motion").apply { deleteRecursively(); mkdirs() }
+        fun save(name: String) {
+            val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+            java.io.File(directory, "$name.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        }
+        val earlier = MessageRow("a-0", "assistant", "What would you like to build today?", model = "fixture/claude")
+        launchChat(listOf(earlier), busy = false)
+        val user = MessageRow("u-1", "user", "Make the chat feel alive")
+        state = state.copy(messages = listOf(earlier, user))
+        for (frame in 0 until 24) { save("send-%02d".format(frame)); compose.mainClock.advanceTimeByFrame() }
+        step(200)
+        val sentSettled = history()
+        step(600)
+        assertEquals("A sent bubble must settle within ~0.6 s", 0, changedPixels(sentSettled, history()))
+        state = state.copy(busy = true)
+        step(1000)
+        for (frame in 0 until 16) { save("typing-%02d".format(frame)); compose.mainClock.advanceTimeByFrame() }
+        val reply = MessageRow("a-1", "assistant", "Here is a reply that arrives while the provider is still streaming.", live = true)
+        state = state.copy(messages = listOf(earlier, user, reply))
+        for (frame in 0 until 30) { save("reply-%02d".format(frame)); compose.mainClock.advanceTimeByFrame() }
     }
 
     private fun changedPixels(first: ImageBitmap, second: ImageBitmap): Int {

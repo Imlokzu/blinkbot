@@ -62,14 +62,15 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
     LaunchedEffect(sending) { if (sending != null) { kotlinx.coroutines.delay(250); sending = null } }
     LaunchedEffect(ghost) {
         if (ghost == null) return@LaunchedEffect
-        ghostLift.animateTo(1f, tween(MotionTiming.Ghost, easing = FastOutSlowInEasing))
+        // Accelerate away, as if thrown into the chat, rather than drift.
+        ghostLift.animateTo(1f, tween(MotionTiming.Ghost, easing = FastOutLinearInEasing))
         ghost = null
         ghostLift.snapTo(0f)
     }
     // Draw the departing text in the very frame the draft clears, before the
     // effect above promotes it, so the placeholder never flashes in between.
     val flying = ghost ?: sending?.takeIf { state.draft.isEmpty() && !reduced }
-    val ghostBlur = rememberBlurLadder(12.dp)
+    val motionBlur = rememberMotionBlur()
     val submit: (String) -> Unit = { delivery -> sending = state.draft.takeIf { it.isNotBlank() }; actions.send(delivery) }
     Column(Modifier.padding(horizontal = 12.dp, vertical = if (landscape) 0.dp else 8.dp).fillMaxWidth().drawBehind {
         if (dictating) {
@@ -113,11 +114,12 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
                 flying?.let { sent ->
                     Text(sent, style = textStyle, maxLines = 6, overflow = TextOverflow.Ellipsis, modifier = Modifier.graphicsLayer {
                         val t = ghostLift.value
-                        alpha = 1f - t
-                        translationY = -t * 30.dp.toPx()
+                        val travel = 44.dp.toPx()
+                        alpha = 1f - t * t
+                        translationY = -t * travel
                         transformOrigin = TransformOrigin(1f, 0f)
-                        scaleX = 1f - .06f * t; scaleY = scaleX
-                        renderEffect = ghostBlur.at(t)
+                        scaleX = 1f - .05f * t; scaleY = scaleX
+                        renderEffect = motionBlur.effect(speedY = ghostLift.velocity * travel)
                     })
                 }
                 // Text layout offsets are relative to the inner field, which this box places at its origin.
@@ -154,9 +156,9 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
                     val fire: (String) -> Unit = { delivery ->
                         submit(delivery)
                         if (!reduced) scope.launch {
-                            arrow.animateTo(1f, tween(150, easing = FastOutLinearInEasing))
+                            arrow.animateTo(1f, tween(120, easing = FastOutLinearInEasing))
                             arrow.snapTo(-1f)
-                            arrow.animateTo(0f, spring(dampingRatio = .55f, stiffness = 520f))
+                            arrow.animateTo(0f, spring(dampingRatio = .62f, stiffness = 700f))
                         }
                     }
                     Box(Modifier.size(44.dp).graphicsLayer { scaleX = .86f + .14f * ready; scaleY = scaleX }.clip(CircleShape).background(fill)
@@ -164,8 +166,10 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
                         .combinedClickable(interactionSource = null, indication = remember(p.background, reduced) { PressIndication(p.background, reduced) },
                             enabled = enabled, role = Role.Button, onClick = { fire("queue") }, onLongClick = { actions.sendModes(true) }), contentAlignment = Alignment.Center) {
                         Glyph("send", modifier = Modifier.size(20.dp).graphicsLayer {
-                            translationY = -arrow.value * 30.dp.toPx()
+                            val travel = 30.dp.toPx()
+                            translationY = -arrow.value * travel
                             alpha = 1f - kotlin.math.abs(arrow.value)
+                            renderEffect = motionBlur.effect(speedY = arrow.velocity * travel)
                         }, tint = arrowTint)
                     }
                     MotionPopup(state.sendModeOpen, { actions.sendModes(false) }, Modifier.width(260.dp), Alignment.BottomEnd, IntOffset(0, popupRise), focusable = false) {

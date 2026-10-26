@@ -216,7 +216,7 @@ private class TailFade(private var previous: String) {
 
 /** Blur only fresh glyphs, then go completely idle even if the provider is still running. */
 @Composable
-internal fun rememberStreamingTail(text: String, live: Boolean, maxBlur: Dp = 4.5.dp, durationMillis: Int = 460): StreamingTail {
+internal fun rememberStreamingTail(text: String, live: Boolean, maxBlur: Dp = 4.dp, durationMillis: Int = 320): StreamingTail {
     val enabled = live && !LocalReducedMotion.current
     val fade = remember { TailFade(text) }
     var clock by remember { mutableLongStateOf(0L) }

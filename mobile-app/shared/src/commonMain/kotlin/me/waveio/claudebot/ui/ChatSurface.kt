@@ -147,7 +147,6 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
     }
     // Bubbles above a growing tool tree or reaction glide instead of jumping.
     val itemPlacement = if (reducedMotion) null else spring(dampingRatio = .86f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold)
-    val typingExit = if (reducedMotion) null else tween<Float>(140)
     BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).testTag("chat-surface")) {
         val questionMaxHeight = ((maxHeight - topPanel).coerceAtLeast(0.dp) * .6f).coerceAtMost(440.dp)
         Box(Modifier.align(Alignment.TopCenter).widthIn(max = ChatContentMaxWidth).fillMaxSize().testTag("chat-column")) {
@@ -176,10 +175,9 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
                         }
                     }
                     if (showTyping && waiting) item(key = "typing") {
-                        // The reply that replaces the indicator condenses in its place.
-                        Box(Modifier.animateItem(fadeInSpec = null, fadeOutSpec = typingExit, placementSpec = itemPlacement)) {
-                            MessageArrival(true, false) { motion -> Box(motion.testTag("chat-typing")) { TypingIndicator() } }
-                        }
+                        // No animateItem here: a fading-out indicator is kept drawn by the
+                        // list and could linger under the reply that lands in its place.
+                        MessageArrival(true, false) { motion -> Box(motion.testTag("chat-typing")) { TypingIndicator() } }
                     }
                 }
             }
@@ -388,7 +386,7 @@ private fun TypingIndicator() {
 @Composable
 private fun TypingDots(color: Color) {
     if (LocalReducedMotion.current) { LoadingDots(color = color); return }
-    val phase by rememberInfiniteTransition(label = "typing").animateFloat(0f, 1f, infiniteRepeatable(tween(1150, easing = LinearEasing)), label = "typingWave")
+    val phase by rememberInfiniteTransition(label = "typing").animateFloat(0f, 1f, infiniteRepeatable(tween(960, easing = LinearEasing)), label = "typingWave")
     Canvas(Modifier.width(34.dp).height(16.dp)) {
         val radius = 2.6.dp.toPx()
         val hop = 5.dp.toPx()
