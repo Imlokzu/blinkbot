@@ -26,6 +26,11 @@ The owner-distributed APK is `mobile-app/build/Blink-0.4.20.apk`
 
 SHA-256: `a43d19f6bd7617f63e4567bdfc4ebdd5550f79d5201e01be1d533a49ae226a82`.
 
+Published to the stable in-app update channel on 2026-10-26 with
+`scripts/mobile_publish.sh --restart --public` (zero active mobile jobs). Live
+metadata offers code 27 to code 26 on stable and beta and reports code 27 as
+current; both download routes serve bytes matching the checksum above.
+
 ## Verification
 
 - 332 shared unit tests pass; Android and iOS simulator compilation succeed.
