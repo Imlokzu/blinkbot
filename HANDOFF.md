@@ -3854,3 +3854,12 @@ Prepared and published Android 0.4.22 (code 29): the effort level name rolls on
 a blurred slot-machine reel instead of swapping. 332 shared tests and 153/157
 instrumentation tests pass (same four pre-existing failures). See
 docs/mobile-app/RELEASE-0.4.22.md.
+
+## 2026-10-26 — Blink Android 0.5.0: rounded interface fonts
+
+Released Android 0.5.0 (code 30), the first under the owner's new numbering
+(feature = minor, small change = patch). Nunito is the default interface font;
+Appearance offers M PLUS Rounded, Blink Soft (renamed Comfortaa subset, 0.9
+scale) and Google Sans. Zen Maru Gothic was dropped for missing Ukrainian
+letters. 332 shared and 154/158 instrumentation tests pass (same four
+pre-existing failures). See docs/mobile-app/RELEASE-0.5.0.md.
