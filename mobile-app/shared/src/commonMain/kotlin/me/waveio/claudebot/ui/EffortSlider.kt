@@ -1,6 +1,11 @@
 package me.waveio.claudebot.ui
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -73,8 +78,7 @@ internal fun EffortSlider(
         Column(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(7.dp))
             .testTag("change-model").semantics { contentDescription = changeModelLabel }
             .clickable(role = Role.Button, onClick = onChangeModel).padding(horizontal = 8.dp, vertical = 7.dp)) {
-            Text(label, color = palette.ink, fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            EffortReel(levels.map { tr("model.$it") }, index)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 BrandMark(modelBrand, Modifier.size(14.dp).testTag("effort-model-brand"))
                 Text(modelLabel, color = palette.muted, fontSize = 12.sp, lineHeight = 15.sp,
@@ -171,5 +175,47 @@ internal fun EffortSlider(
             }
         }
         if (levels.size == 1) Text(tr("model.effortUnavailable"), color = palette.muted, fontSize = 12.sp, modifier = Modifier.padding(8.dp))
+    }
+}
+
+/**
+ * The level name sits on a slot-machine reel. Every name is stacked on it,
+ * higher levels above, and the reel springs to the selected one: a new name
+ * drops in from the top (or rises from below when lowering), and a fast swipe
+ * spins through each level in between. Names blur with the reel's speed and
+ * fade towards the edges of the window, and are sharp once it settles.
+ */
+@Composable
+private fun EffortReel(labels: List<String>, index: Int) {
+    val palette = LocalPalette.current
+    val reduced = LocalReducedMotion.current
+    val reel = remember { Animatable(index.toFloat()) }
+    LaunchedEffect(index, reduced) {
+        if (reduced) reel.snapTo(index.toFloat())
+        else reel.animateTo(index.toFloat(), spring(dampingRatio = .72f, stiffness = 520f))
+    }
+    val blur = rememberMotionBlur(10.dp)
+    val position = reel.value
+    Box(Modifier.fillMaxWidth().height(20.dp).clipToBounds()) {
+        labels.forEachIndexed { level, text ->
+            val distance = position - level
+            // Only the names inside or entering the window are composed.
+            if (abs(distance) >= 1f) return@forEachIndexed
+            val settled = level == index
+            Text(text, color = palette.ink, fontSize = 14.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.align(Alignment.CenterStart)
+                    .then(if (settled) Modifier else Modifier.clearAndSetSemantics { })
+                    .graphicsLayer {
+                        val step = 20.dp.toPx()
+                        val away = abs(distance)
+                        translationY = distance * step
+                        alpha = (1f - away * 1.2f).coerceIn(0f, 1f)
+                        // A wheel turning away: names compress as they leave.
+                        scaleY = 1f - away * .35f
+                        transformOrigin = TransformOrigin(0f, if (distance > 0) 1f else 0f)
+                        renderEffect = blur.effect(speedY = reel.velocity * step, focus = away * 3.dp.toPx())
+                    })
+        }
     }
 }

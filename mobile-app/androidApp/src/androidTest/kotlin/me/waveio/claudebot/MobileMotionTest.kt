@@ -249,6 +249,34 @@ class MobileMotionTest {
         compose.onNodeWithTag("effort-slider").assertIsDisplayed()
     }
 
+    @Test fun effortNameRollsLikeAReelAndSettlesSharp() {
+        launch(screen = Screen.Chat)
+        compose.onNodeWithText("Claude Sonnet").performClick()
+        compose.waitForIdle()
+        val directory = java.io.File(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .targetContext.getExternalFilesDir(null), "effort-reel").apply { deleteRecursively(); mkdirs() }
+        val reel = compose.onNodeWithTag("change-model")
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag("effort-slider").performTouchInput {
+            down(centerLeft + androidx.compose.ui.geometry.Offset(20f, 0f))
+            moveTo(centerRight - androidx.compose.ui.geometry.Offset(20f, 0f))
+        }
+        for (frame in 0 until 20) {
+            val bitmap = reel.captureToImage().asAndroidBitmap()
+            java.io.File(directory, "reel-%02d.png".format(frame)).outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            compose.mainClock.advanceTimeByFrame()
+        }
+        compose.mainClock.advanceTimeBy(600)
+        val settled = reel.captureToImage()
+        compose.mainClock.advanceTimeBy(400)
+        assertEquals("The reel must come to rest", 0, changedPixels(settled, reel.captureToImage()))
+        compose.onNodeWithText(strings.get("model.high")).assertIsDisplayed()
+        compose.onNodeWithTag("effort-slider").performTouchInput { cancel() }
+        compose.mainClock.advanceTimeBy(800)
+        compose.onNodeWithText(strings.get("model.none")).assertIsDisplayed()
+        assertEquals("none", state.effort)
+    }
+
     @Test fun cancellingAnEffortDragRestoresTheSavedValue() {
         launch(screen = Screen.Chat, reducedMotion = true)
         compose.onNodeWithText("Claude Sonnet").performClick()
