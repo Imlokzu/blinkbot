@@ -25,6 +25,15 @@ The owner-distributed APK is `mobile-app/build/Blink-0.4.19.apk`
 
 SHA-256: `dd6fa8e811d1b424a4452d13f3377203f3407afad55bf2b556daede551634bff`.
 
+Published to the stable in-app update channel on 2026-10-26 with
+`scripts/mobile_publish.sh --restart --public` (zero active mobile jobs). Live
+metadata offers code 26 to code 25 on both stable and beta (beta has no
+separate release and falls back to stable) and reports code 26 as current.
+Both download routes serve bytes matching the checksum above; the dashboard
+answers 200 and the public endpoint 401 without a token. Before the restart,
+80 backend memory, profile and mobile API tests passed against the working
+tree the service now runs, including the owner's uncommitted edits.
+
 ## Verification
 
 - 332 shared unit tests pass; Android and iOS simulator compilation succeed.
