@@ -3863,3 +3863,12 @@ Appearance offers M PLUS Rounded, Blink Soft (renamed Comfortaa subset, 0.9
 scale) and Google Sans. Zen Maru Gothic was dropped for missing Ukrainian
 letters. 332 shared and 154/158 instrumentation tests pass (same four
 pre-existing failures). See docs/mobile-app/RELEASE-0.5.0.md.
+
+## 2026-10-26 — Blink Android 0.5.1: send button flies into the bubble
+
+Released Android 0.5.1 (code 31). The send button hops and flies into the sent
+bubble, Stop rises in its place, and the typing dots bud after landing instead of
+popping in 850 ms later. Sent messages now appear optimistically on tap (a 4xx
+refusal removes them; network failures keep them queued). 332 shared and 155/159
+instrumentation tests pass (same four pre-existing failures). See
+docs/mobile-app/RELEASE-0.5.1.md.
