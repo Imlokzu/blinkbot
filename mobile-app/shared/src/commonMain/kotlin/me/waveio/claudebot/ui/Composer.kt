@@ -1,6 +1,7 @@
 package me.waveio.claudebot.ui
 
 import androidx.compose.animation.core.*
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -25,6 +26,7 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
+import kotlinx.coroutines.launch
 import me.waveio.claudebot.state.*
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -41,6 +43,34 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
     val amplitude = animateFloatAsState(if (state.recording) state.amplitude.coerceIn(0f, 1f) else 0f, tween(if (LocalReducedMotion.current) 0 else 80), label = "voiceAmplitude")
     val corners = RoundedCornerShape(25.dp)
     val shownDraft = if (dictating) listOf(state.draft, state.transcript).filter { it.isNotBlank() }.joinToString(" ") else state.draft
+    val textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.ink, fontSize = 16.sp)
+    // Typed characters and live dictation come into focus like streamed replies.
+    val typedTail = rememberStreamingTail(shownDraft, true, maxBlur = 3.5.dp, durationMillis = 300)
+    // Sent text lifts out of the field and dissolves while its bubble rises in
+    // the chat. It starts only once the controller has really cleared the
+    // draft, so a rejected send never leaves a duplicate floating away.
+    var sending by remember { mutableStateOf<String?>(null) }
+    var ghost by remember { mutableStateOf<String?>(null) }
+    val ghostLift = remember { Animatable(0f) }
+    LaunchedEffect(state.draft) {
+        val sent = sending ?: return@LaunchedEffect
+        sending = null
+        if (state.draft.isEmpty() && !reduced) ghost = sent
+    }
+    // A send the controller rejected keeps its draft; forget it so a later
+    // manual clear does not launch stale text.
+    LaunchedEffect(sending) { if (sending != null) { kotlinx.coroutines.delay(250); sending = null } }
+    LaunchedEffect(ghost) {
+        if (ghost == null) return@LaunchedEffect
+        ghostLift.animateTo(1f, tween(MotionTiming.Ghost, easing = FastOutSlowInEasing))
+        ghost = null
+        ghostLift.snapTo(0f)
+    }
+    // Draw the departing text in the very frame the draft clears, before the
+    // effect above promotes it, so the placeholder never flashes in between.
+    val flying = ghost ?: sending?.takeIf { state.draft.isEmpty() && !reduced }
+    val ghostBlur = rememberBlurLadder(12.dp)
+    val submit: (String) -> Unit = { delivery -> sending = state.draft.takeIf { it.isNotBlank() }; actions.send(delivery) }
     Column(Modifier.padding(horizontal = 12.dp, vertical = if (landscape) 0.dp else 8.dp).fillMaxWidth().drawBehind {
         if (dictating) {
             val brush = Brush.linearGradient(listOf(p.accent.copy(alpha = .65f), Color(0xFFDAB397), Color(0xFFC4826A)), start = Offset(0f, size.height * amplitude.value), end = Offset(size.width, size.height * (1f - amplitude.value)))
@@ -76,8 +106,23 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
         }
         val input: @Composable (Modifier) -> Unit = { modifier ->
         BasicTextField(shownDraft, actions::draft, modifier.testTag("composer-input").heightIn(min = if (dictating && !landscape) 78.dp else 48.dp, max = if (landscape) 96.dp else 190.dp).padding(11.dp, 11.dp),
-            readOnly = dictating, textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.ink, fontSize = 16.sp), cursorBrush = SolidColor(p.accent),
-            decorationBox = { field -> Box { if (shownDraft.isEmpty()) Text(tr(if (dictating) "input.dictationHelp" else "chat.placeholder"), color = p.muted, fontSize = 15.sp, lineHeight = 22.sp); field() } })
+            readOnly = dictating, textStyle = textStyle, cursorBrush = SolidColor(p.accent), onTextLayout = typedTail.onTextLayout,
+            decorationBox = { field -> Box {
+                if (shownDraft.isEmpty()) Text(tr(if (dictating) "input.dictationHelp" else "chat.placeholder"), color = p.muted, fontSize = 15.sp, lineHeight = 22.sp,
+                    modifier = Modifier.graphicsLayer { alpha = if (flying != null) ghostLift.value else 1f })
+                flying?.let { sent ->
+                    Text(sent, style = textStyle, maxLines = 6, overflow = TextOverflow.Ellipsis, modifier = Modifier.graphicsLayer {
+                        val t = ghostLift.value
+                        alpha = 1f - t
+                        translationY = -t * 30.dp.toPx()
+                        transformOrigin = TransformOrigin(1f, 0f)
+                        scaleX = 1f - .06f * t; scaleY = scaleX
+                        renderEffect = ghostBlur.at(t)
+                    })
+                }
+                // Text layout offsets are relative to the inner field, which this box places at its origin.
+                Box(typedTail.modifier) { field() }
+            } })
         }
         // Preserve field focus, selection and IME composition when the host
         // becomes short enough to put controls beside the input.
@@ -100,15 +145,32 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
                 IconAction("mic", tr("input.microphone"), { keyboard?.hide(); actions.startDictation() })
                 if (state.draft.isNotBlank() || state.attachments.isNotEmpty() || !state.busy) Box {
                     val enabled = !state.uploading && (state.draft.isNotBlank() || state.attachments.isNotEmpty())
-                    Box(Modifier.size(44.dp).clip(CircleShape).background(if (enabled) p.ink else p.secondary)
+                    val ready by animateFloatAsState(if (enabled) 1f else 0f, if (reduced) snap() else spring(dampingRatio = .45f, stiffness = 420f), label = "sendReady")
+                    val fill by animateColorAsState(if (enabled) p.ink else p.secondary, tween(if (reduced) 0 else MotionTiming.Panel), label = "sendFill")
+                    val arrowTint by animateColorAsState(if (enabled) p.background else p.muted, tween(if (reduced) 0 else MotionTiming.Panel), label = "sendTint")
+                    // The arrow shoots out through the top of the button and springs back from below.
+                    val arrow = remember { Animatable(0f) }
+                    val scope = rememberCoroutineScope()
+                    val fire: (String) -> Unit = { delivery ->
+                        submit(delivery)
+                        if (!reduced) scope.launch {
+                            arrow.animateTo(1f, tween(150, easing = FastOutLinearInEasing))
+                            arrow.snapTo(-1f)
+                            arrow.animateTo(0f, spring(dampingRatio = .55f, stiffness = 520f))
+                        }
+                    }
+                    Box(Modifier.size(44.dp).graphicsLayer { scaleX = .86f + .14f * ready; scaleY = scaleX }.clip(CircleShape).background(fill)
                         .semantics { contentDescription = sendLabel; if (!enabled) disabled() }
                         .combinedClickable(interactionSource = null, indication = remember(p.background, reduced) { PressIndication(p.background, reduced) },
-                            enabled = enabled, role = Role.Button, onClick = { actions.send() }, onLongClick = { actions.sendModes(true) }), contentAlignment = Alignment.Center) {
-                        Glyph("send", modifier = Modifier.size(20.dp), tint = if (enabled) p.background else p.muted)
+                            enabled = enabled, role = Role.Button, onClick = { fire("queue") }, onLongClick = { actions.sendModes(true) }), contentAlignment = Alignment.Center) {
+                        Glyph("send", modifier = Modifier.size(20.dp).graphicsLayer {
+                            translationY = -arrow.value * 30.dp.toPx()
+                            alpha = 1f - kotlin.math.abs(arrow.value)
+                        }, tint = arrowTint)
                     }
                     MotionPopup(state.sendModeOpen, { actions.sendModes(false) }, Modifier.width(260.dp), Alignment.BottomEnd, IntOffset(0, popupRise), focusable = false) {
-                        MenuRow("time", tr("queue.title"), { actions.sendModes(false); actions.send("queue") })
-                        if (state.steerAvailable) MenuRow("edit", tr("queue.steer"), { actions.sendModes(false); actions.send("steer") }, enabled = state.busy)
+                        MenuRow("time", tr("queue.title"), { actions.sendModes(false); fire("queue") })
+                        if (state.steerAvailable) MenuRow("edit", tr("queue.steer"), { actions.sendModes(false); fire("steer") }, enabled = state.busy)
                         MenuRow("calendar", tr("queue.later"), { actions.sendModes(false); actions.schedule(true) })
                     }
                 }

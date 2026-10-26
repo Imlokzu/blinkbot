@@ -1,12 +1,8 @@
 package me.waveio.claudebot.ui
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.TileMode
@@ -17,6 +13,7 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.ceil
 import kotlin.math.max
@@ -188,58 +185,103 @@ internal fun rememberStreamingText(text: String, streaming: Boolean): StreamingT
     return StreamingText(reveal.rendered, reveal.animateTail && enabled, reveal.revision)
 }
 
+private const val StreamTailBands = 4
+
+private class TailChunk(val start: Int, val end: Int) {
+    /** Frame time of the first draw; negative until the frame clock reaches it. */
+    var born = -1L
+}
+
+/**
+ * Appended fragments, oldest first. Each keeps its own age, so a steady stream
+ * draws a soft gradient: the newest glyphs are the most blurred and earlier
+ * ones keep sharpening instead of snapping into focus when the next chunk lands.
+ */
+private class TailFade(private var previous: String) {
+    val chunks = ArrayList<TailChunk>()
+
+    fun update(text: String, enabled: Boolean) {
+        val before = previous
+        previous = text
+        if (!enabled || !text.startsWith(before)) { chunks.clear(); return }
+        val changed = changedStreamTail(before, text) ?: return
+        chunks += TailChunk(changed.first, changed.last + 1)
+    }
+
+    fun tick(now: Long, durationMillis: Int) {
+        chunks.forEach { if (it.born < 0) it.born = now }
+        chunks.removeAll { now - it.born >= durationMillis }
+    }
+}
+
 /** Blur only fresh glyphs, then go completely idle even if the provider is still running. */
 @Composable
-internal fun rememberStreamingTail(text: String, live: Boolean): StreamingTail {
+internal fun rememberStreamingTail(text: String, live: Boolean, maxBlur: Dp = 4.5.dp, durationMillis: Int = 460): StreamingTail {
     val enabled = live && !LocalReducedMotion.current
-    var previous by remember { mutableStateOf(text) }
-    var range by remember { mutableStateOf<IntRange?>(null) }
+    val fade = remember { TailFade(text) }
+    var clock by remember { mutableLongStateOf(0L) }
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
-    val progress = remember { Animatable(1f) }
-    LaunchedEffect(text, enabled) {
-        val changed = if (enabled && text.startsWith(previous)) changedStreamTail(previous, text) else null
-        previous = text
-        range = changed
-        if (changed == null) progress.snapTo(1f)
-        else {
-            progress.snapTo(0f)
-            progress.animateTo(1f, tween(220, easing = FastOutSlowInEasing))
-            range = null
-        }
+    // Chunks are recorded in composition, so a new glyph is never drawn sharp
+    // for a frame before its blur starts.
+    remember(text, enabled) { fade.update(text, enabled) }
+    LaunchedEffect(text, enabled, durationMillis) {
+        while (fade.chunks.isNotEmpty()) withFrameMillis { now -> fade.tick(now, durationMillis); clock = now }
     }
     if (!enabled) return StreamingTail(Modifier) { layout = it }
-    val layer = rememberGraphicsLayer()
-    val radius = with(LocalDensity.current) { 2.4.dp.toPx() }
-    val effects = remember(radius) { (1..12).map { step -> BlurEffect(radius * step / 12f, radius * step / 12f, TileMode.Decal) } }
-    val modifier = Modifier.drawWithCache {
+    val layers = listOf(rememberGraphicsLayer(), rememberGraphicsLayer(), rememberGraphicsLayer(), rememberGraphicsLayer())
+    val density = LocalDensity.current
+    val radius = with(density) { maxBlur.toPx() }
+    val rise = with(density) { 3.dp.toPx() }
+    val effects = remember(radius) { (1..16).map { step -> BlurEffect(radius * step / 16f, radius * step / 16f, TileMode.Decal) } }
+    val modifier = Modifier.drawWithContent {
+        val now = clock
         val measured = layout
-        val currentRange = range
+        val chunks = fade.chunks
         // Parsing/measurement may lag a snapshot. Never apply offsets to an old layout.
-        val valid = measured != null && measured.layoutInput.text.text == text && currentRange != null && currentRange.last < text.length
-        val path = if (valid) measured!!.getPathForRange(currentRange!!.first, currentRange.last + 1) else null
-        val bounds = path?.getBounds() ?: Rect.Zero
+        // A text field taller than its viewport scrolls its glyphs away from
+        // layout coordinates; leave that text sharp rather than blur the wrong line.
+        if (chunks.isEmpty() || measured == null || measured.layoutInput.text.text != text || chunks.last().end > text.length ||
+            measured.size.height > size.height + 1f) {
+            drawContent(); return@drawWithContent
+        }
+        // Group chunks into contiguous runs of similar age: at most one
+        // offscreen layer per band, however fast the provider streams.
+        val runStarts = IntArray(StreamTailBands); val runAges = FloatArray(StreamTailBands); var runs = 0; var lastBand = -1
+        for (chunk in chunks) {
+            val age = if (chunk.born < 0) 0f else ((now - chunk.born).toFloat() / durationMillis).coerceIn(0f, 1f)
+            val band = (age * StreamTailBands).toInt().coerceAtMost(StreamTailBands - 1)
+            if (band == lastBand) continue
+            val start = if (runs == 0) chunk.start else maxOf(chunk.start, runStarts[runs - 1])
+            if (runs == StreamTailBands) break
+            runStarts[runs] = start; runAges[runs] = age; runs++; lastBand = band
+        }
+        val end = chunks.maxOf { it.end }
         val padding = radius * 2f
-        val crop = IntSize(ceil(bounds.width + padding * 2).toInt().coerceAtLeast(1),
-            ceil(bounds.height + padding * 2).toInt().coerceAtLeast(1))
-        // Unusually long joined glyphs or extreme font sizes stay sharp instead
-        // of allocating an unbounded blur texture (at most 2 MiB of RGBA pixels).
-        val bounded = crop.width.toLong() * crop.height <= 512L * 1024
-        onDrawWithContent {
-            val value = progress.value
-            val step = ceil((1f - value) * effects.size).toInt().coerceIn(0, effects.size)
-            if (path == null || bounds.isEmpty || !bounded || step == 0 || !effects[step - 1].isSupported()) {
-                drawContent()
-            } else {
-                // Cache only the small suffix rectangle, not a full growing paragraph.
-                layer.renderEffect = effects[step - 1]
-                layer.alpha = .65f + value * .35f
-                layer.record(size = crop) {
-                    translate(padding - bounds.left, padding - bounds.top) { this@onDrawWithContent.drawContent() }
-                }
-                clipPath(path, clipOp = ClipOp.Difference) { this@onDrawWithContent.drawContent() }
-                clipPath(path) {
-                    translate(bounds.left - padding, bounds.top - padding) { drawLayer(layer) }
-                }
+        clipPath(measured.getPathForRange(runStarts[0], end), clipOp = ClipOp.Difference) { this@drawWithContent.drawContent() }
+        for (index in 0 until runs) {
+            val runEnd = if (index + 1 < runs) runStarts[index + 1] else end
+            if (runEnd <= runStarts[index]) continue
+            val path = measured.getPathForRange(runStarts[index], runEnd)
+            val bounds = path.getBounds()
+            val crop = IntSize(ceil(bounds.width + padding * 2).toInt().coerceAtLeast(1),
+                ceil(bounds.height + padding * 2).toInt().coerceAtLeast(1))
+            // Unusually long joined glyphs or extreme font sizes stay sharp instead
+            // of allocating an unbounded blur texture (at most 2 MiB of RGBA pixels).
+            if (bounds.isEmpty || crop.width.toLong() * crop.height > 512L * 1024) {
+                clipPath(path) { this@drawWithContent.drawContent() }
+                continue
+            }
+            val focus = 1f - (1f - runAges[index]).let { it * it }
+            val step = ceil((1f - focus) * effects.size).toInt().coerceIn(0, effects.size)
+            val layer = layers[index]
+            // Cache only the small suffix rectangle, not a full growing paragraph.
+            layer.renderEffect = if (step > 0 && effects[step - 1].isSupported()) effects[step - 1] else null
+            layer.alpha = .15f + focus * .85f
+            layer.record(size = crop) {
+                translate(padding - bounds.left, padding - bounds.top) { this@drawWithContent.drawContent() }
+            }
+            clipPath(path) {
+                translate(bounds.left - padding, bounds.top - padding + (1f - focus) * rise) { drawLayer(layer) }
             }
         }
     }

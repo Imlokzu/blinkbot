@@ -28,6 +28,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
@@ -41,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -143,6 +145,9 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
             }
         }
     }
+    // Bubbles above a growing tool tree or reaction glide instead of jumping.
+    val itemPlacement = if (reducedMotion) null else spring(dampingRatio = .86f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold)
+    val typingExit = if (reducedMotion) null else tween<Float>(140)
     BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).testTag("chat-surface")) {
         val questionMaxHeight = ((maxHeight - topPanel).coerceAtLeast(0.dp) * .6f).coerceAtMost(440.dp)
         Box(Modifier.align(Alignment.TopCenter).widthIn(max = ChatContentMaxWidth).fillMaxSize().testTag("chat-column")) {
@@ -164,12 +169,17 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
                     }
                 }, contentPadding = PaddingValues(start = 18.dp, top = topPanel + 20.dp, end = 18.dp, bottom = bottomPanel + 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     items(state.messages, key = { it.presentationId ?: it.id }) { message ->
+                        Box(Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = itemPlacement)) {
                         MessageContent(message, actions, reducedMotion, state.busy, state.attachmentThumbnails, state.mediaGeneration, state.baseUrl, state.imageFailures,
                             message.role == "user" && seen.add(message.presentationId ?: message.id) && message.id.startsWith("u-") ||
                             message.role == "assistant" && seen.add(message.presentationId ?: message.id) && message.live)
+                        }
                     }
                     if (showTyping && waiting) item(key = "typing") {
-                        EnterMotion(true) { motion -> Box(motion.testTag("chat-typing")) { TypingIndicator() } }
+                        // The reply that replaces the indicator condenses in its place.
+                        Box(Modifier.animateItem(fadeInSpec = null, fadeOutSpec = typingExit, placementSpec = itemPlacement)) {
+                            MessageArrival(true, false) { motion -> Box(motion.testTag("chat-typing")) { TypingIndicator() } }
+                        }
                     }
                 }
             }
@@ -370,6 +380,24 @@ private fun ActivityTree(steps: List<ActivityRow>, live: Boolean) {
 private fun TypingIndicator() {
     val palette = LocalPalette.current
     Box(Modifier.padding(start = 2.dp).clip(RoundedCornerShape(19.dp, 19.dp, 19.dp, 6.dp)).background(palette.botBubble).padding(horizontal = 16.dp, vertical = 13.dp)) {
-        LoadingDots(color = palette.ink)
+        TypingDots(palette.ink)
+    }
+}
+
+/** Dots hop in a travelling wave, brightening and swelling at the top of each hop. */
+@Composable
+private fun TypingDots(color: Color) {
+    if (LocalReducedMotion.current) { LoadingDots(color = color); return }
+    val phase by rememberInfiniteTransition(label = "typing").animateFloat(0f, 1f, infiniteRepeatable(tween(1150, easing = LinearEasing)), label = "typingWave")
+    Canvas(Modifier.width(34.dp).height(16.dp)) {
+        val radius = 2.6.dp.toPx()
+        val hop = 5.dp.toPx()
+        repeat(3) { index ->
+            val local = ((phase - index * .15f) % 1f + 1f) % 1f
+            // Each dot hops during the first half of its cycle and rests for the second.
+            val lift = if (local < .5f) kotlin.math.sin(local * 2f * kotlin.math.PI).toFloat() else 0f
+            drawCircle(color.copy(alpha = .32f + .68f * lift), radius * (1f + .2f * lift),
+                Offset(radius + 2.dp.toPx() + index * 11.dp.toPx(), size.height - radius - 1.dp.toPx() - lift * hop))
+        }
     }
 }

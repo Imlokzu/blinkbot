@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.scale
@@ -21,9 +23,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.node.DelegatableNode
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.math.ceil
 
 /** Shared timings keep controls responsive without delaying their actions. */
 object MotionTiming {
@@ -31,7 +36,9 @@ object MotionTiming {
     const val Release = 120
     const val Exit = 100
     const val Panel = 180
-    const val Message = 220
+    const val MessageFocus = 420
+    const val ReplyFocus = 620
+    const val Ghost = 380
 }
 
 /** Exiting content keeps its pixels, but cannot retain an interactive surface. */
@@ -145,25 +152,53 @@ fun EnterMotion(
     })
 }
 
-/** A sent bubble lifts from the composer; restored history stays still. */
+/**
+ * Fine blur ladder for entrances. Twenty-four cached radii read as a continuous
+ * focus pull, while the render effects are still allocated only once.
+ */
+@Composable
+internal fun rememberBlurLadder(maxRadius: Dp, steps: Int = 24): List<BlurEffect> {
+    val radius = with(LocalDensity.current) { maxRadius.toPx() }
+    return remember(radius, steps) { (1..steps).map { BlurEffect(radius * it / steps, radius * it / steps, TileMode.Decal) } }
+}
+
+internal fun List<BlurEffect>.at(amount: Float): BlurEffect? {
+    val step = ceil(amount.coerceIn(0f, 1f) * size).toInt()
+    return if (step == 0) null else this[step - 1]
+}
+
+/**
+ * A sent bubble springs up out of the composer and comes into focus; a reply
+ * condenses out of a heavier blur. Restored history stays still.
+ *
+ * Position and scale use a spring, so a sent bubble overshoots slightly and
+ * settles. Focus and opacity use a separate eased track that never overshoots,
+ * because a negative blur or an alpha above one has no meaning.
+ */
 @Composable
 fun MessageArrival(animate: Boolean, human: Boolean, content: @Composable (Modifier) -> Unit) {
     val reduced = LocalReducedMotion.current
-    val progress = remember { Animatable(if (animate && !reduced) 0f else 1f) }
-    val blurSteps = remember { (1..4).map { BlurEffect(it.toFloat(), it.toFloat()) } }
+    val rise = remember { Animatable(if (animate && !reduced) 0f else 1f) }
+    val focus = remember { Animatable(if (animate && !reduced) 0f else 1f) }
+    val blur = rememberBlurLadder(if (human) 14.dp else 20.dp)
     LaunchedEffect(reduced) {
-        if (reduced) progress.snapTo(1f)
-        else if (progress.value < 1f) progress.animateTo(1f, tween(MotionTiming.Message, easing = FastOutSlowInEasing))
+        if (reduced) { rise.snapTo(1f); focus.snapTo(1f); return@LaunchedEffect }
+        launch {
+            if (rise.value < 1f) rise.animateTo(1f,
+                if (human) spring(dampingRatio = .62f, stiffness = 360f) else spring(dampingRatio = .82f, stiffness = 240f))
+        }
+        if (focus.value < 1f) focus.animateTo(1f, tween(if (human) MotionTiming.MessageFocus else MotionTiming.ReplyFocus, easing = LinearOutSlowInEasing))
     }
     content(Modifier.graphicsLayer {
-        val value = if (reduced) 1f else progress.value
-        alpha = value
-        translationY = (1f - value) * (if (human) 18.dp else 10.dp).toPx()
-        translationX = if (human) (1f - value) * 4.dp.toPx() else 0f
-        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(if (human) 1f else 0f, 1f)
-        scaleX = .97f + .03f * value
+        if (reduced) return@graphicsLayer
+        val lift = 1f - rise.value
+        val clear = focus.value.coerceIn(0f, 1f)
+        alpha = (clear * 1.8f).coerceAtMost(1f)
+        translationY = lift * (if (human) 72.dp else 30.dp).toPx()
+        translationX = if (human) lift * 14.dp.toPx() else 0f
+        transformOrigin = TransformOrigin(if (human) 1f else 0f, 1f)
+        scaleX = 1f - lift * (if (human) .2f else .1f)
         scaleY = scaleX
-        val blur = ((1f - value) * 4f).toInt()
-        renderEffect = if (!reduced && blur > 0) blurSteps[blur - 1] else null
+        renderEffect = blur.at(1f - clear)
     })
 }
