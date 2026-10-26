@@ -1,12 +1,16 @@
 # Blink
 
-[Website](https://waveio.me) · [Repository](https://github.com/Imlokzu/blinkbot)
+[Website](https://waveio.me) · [Repository](https://github.com/Imlokzu/claude-bot)
 
-A DIY personal AI companion for experimenting with a software-first, virtual AI companion before buying hardware. The repository combines vision, voice, display, remote control, setup tooling, and a Virtual Bot control panel around a Raspberry Pi/home-server architecture. The physical bot will be a **Raspberry Pi 3**
-(camera, mic, speaker, SPI touchscreen) talking to a **home i5 server** and the
-**Claude API** as its "personality". The guiding philosophy is **software first,
-hardware later** — every module runs virtually on macOS/Linux today, before any
-hardware is purchased.
+A DIY personal AI companion with a virtual crab mascot, a web workspace, and
+Android, iOS, and macOS clients. Start with the software on your computer;
+the physical Raspberry Pi 3 bot is being developed separately.
+
+The host brings together conversation, voice, vision, persistent memory,
+tools, and an animated device screen. OpenClaw connects the host to configured
+AI providers. An optional demo mode supports basic conversations without a
+working gateway. Hardware, microphones, and external integrations have their
+own setup requirements.
 
 > Documentation and code comments must be written in **English**. User-visible
 > text belongs in locale files and is referenced by translation keys, with
@@ -19,29 +23,48 @@ hardware is purchased.
 - [`blink-dev-order.md`](blink-dev-order.md) — development order (6 steps)
 - [`HANDOFF.md`](HANDOFF.md) — session handoff, current state, known bugs, next tasks
 - [`AGENTS.md`](AGENTS.md) — rules for AI agents/tools working in this repo
-- [`STATUS.md`](STATUS.md) — current status summary, known bugs, and next steps
+- [`DESIGN.md`](DESIGN.md) — current product and screen design decisions
+- [`STATUS.md`](STATUS.md) — historical status summary with dated updates
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — multi-agent workflow, review, and validation evidence
 - [`LICENSE`](LICENSE) — GNU GPL v3
 
-## GitHub metadata
+## What is implemented
 
-**Description:** DIY personal AI companion robot powered by Claude.
+- **Web workspace:** a React dashboard for chat, files, memory, tools,
+  model selection, and device settings, served by the Virtual Bot host.
+- **Living screen:** a top-down office where the crab works, reads, rests,
+  and reacts to actual bot activity. The classic face remains available.
+  The screen includes voice interaction, apps, skins, timers, and alarms.
+- **Memory and emotions:** persistent Markdown notes, retrieval with
+  Ukrainian word-form matching, background dream-cycle consolidation,
+  reply emotions, and ambient moods weighted by local time of day.
+- **Companion clients:** shared Kotlin Multiplatform/Compose chat and file
+  editors on Android, iOS, and Apple Silicon macOS. Devices pair with the
+  existing host and receive individually revocable credentials.
+- **Vision and voice:** a separate face/motion detection service, camera
+  streaming, host speech recognition and synthesis, and the standalone
+  OpenClaw voice loop.
 
-**Recommended topics:** `raspberry-pi`, `claude-ai`, `home-automation`, `diy-robot`.
-
-GitHub repository description and topics are repository settings; after pushing,
-set them in **Settings → General** (or the repository About panel). They are not
-controlled by files in this repository.
+This is an actively developed prototype. Android and iOS simulator validation
+are documented; physical iPhone testing and signed store distribution remain
+pending. Remote APNs/FCM push is not configured, and iOS has no background
+outbox worker. The macOS build is unsigned and not notarized. See the
+[mobile](mobile-app/README.md) and [macOS](mobile-app/desktopApp/README.md)
+guides for current platform limits.
 
 ---
 
 ## Architecture (three tiers)
 
-| Tier | Device | Latency | Role |
-|---|---|---|---|
-| **Edge** (reaction) | Raspberry Pi 3 | <50 ms | Sensors, local UI, obstacle-avoidance reflexes |
-| **Fog** (processing) | Home i5 server | 100–500 ms | Orchestration, scheduler, memory, light ML |
-| **Cloud** (thinking) | Anthropic / Groq API | 300 ms–3 s | Vision analysis, conversation, decisions |
+| Tier | Target | Role |
+|---|---|---|
+| **Edge** (device) | Raspberry Pi 3 | Physical display, audio, sensors, and planned local reflexes |
+| **Fog** (host) | Computer / home server | FastAPI host, orchestration, tools, scheduler, memory, and client APIs |
+| **Cloud** (models) | Configured model providers | Conversation, reasoning, vision, and optional speech services |
+
+The virtual screen runs in a browser against the same host. Physical mobility
+and autonomous navigation remain roadmap work; the architecture table describes
+the intended hardware split, not measured latency or a completed robot.
 
 ---
 
@@ -55,11 +78,28 @@ controlled by files in this repository.
 | [`blink-display/`](blink-display/) | Face: pixel eyes, 15+ emotions, 4 screens | FastAPI + React/Vite | **8001** (WS) |
 | [`Remote Control/`](Remote%20Control/) | USB remote (VID:PID `0627:697d`) + I2C LCD status | Python (Pi) | — |
 | [`Device Setup Wizard/`](Device%20Setup%20Wizard/) | "Blink Studio" — setup UI | Electron + Vite/React/TS | — |
-| [`Virtual Bot/`](Virtual%20Bot/) | Virtual bot + control panel (runs before hardware exists) | FastAPI + vanilla JS | **8100** |
+| [`Virtual Bot/`](Virtual%20Bot/README.md) | Main host, tools, memory, voice, screen, and client APIs | FastAPI + Python + browser JS | **8100** |
+| [`Virtual Bot/dashboard/`](Virtual%20Bot/dashboard/) | Current web workspace; production build served by the host | React + TypeScript + Vite | **5180** (dev) |
+| [`mobile-app/`](mobile-app/README.md) | Current Android/iOS companion clients | Kotlin Multiplatform + Compose; SwiftUI iOS host | Uses host API |
+| [`mobile-app/desktopApp/`](mobile-app/desktopApp/README.md) | Current Apple Silicon macOS client | Compose Desktop + native integrations | Uses host API |
+| [`launcher/`](launcher/README.md) | Selectively start local services and open their interfaces | Go + native macOS picker | — |
+| [`hardware/soma-bot/`](hardware/soma-bot/README.md) | Current Clawd-shaped physical prototype model | CadQuery + SOMA | — |
 
-**Brain / gateway:** OpenClaw gateway runs at `127.0.0.1:18789`. Other optional
-brains used by Virtual Bot: Omni router (`:20128`), direct Anthropic API,
-Chat2API (`:8080`), and a built-in demo mode so the app always works.
+[`blink-app/`](blink-app/README.md) is the earlier Expo/Electron client scaffold.
+[`hardware/enclosure/`](hardware/enclosure/README.md) contains the earlier
+OpenSCAD enclosure design. Use the current client guides above when starting
+new work.
+
+**Brain / gateway:** conversation routes through OpenClaw, by default at
+`127.0.0.1:18789`. Configure models and provider fallbacks in OpenClaw; host
+settings live in `Virtual Bot/config.yaml`. The host reads a local gateway's
+token from OpenClaw's own configuration; `OPENCLAW_TOKEN` can supply a remote
+gateway token. Omni, Anthropic-compatible, and Chat2API adapters remain as
+legacy helpers.
+
+Gateway failures produce an explicit offline response by default. For a local
+demonstration, enable `chat.demo_fallback` in `Virtual Bot/config.yaml`.
+Mobile turns still require a working gateway.
 
 ---
 
@@ -67,36 +107,94 @@ Chat2API (`:8080`), and a built-in demo mode so the app always works.
 
 > The project path contains a space — always quote paths (`cd "Virtual Bot"`).
 
-### Virtual Bot (recommended starting point) — port 8100
+Before running the server, audio, or UI tests on macOS, mute the output and
+leave it muted, as required by [`AGENTS.md`](AGENTS.md):
+
 ```bash
-cd "Virtual Bot"
-./start.sh          # creates .venv, installs deps, starts uvicorn
-# then open http://127.0.0.1:8100
+osascript -e 'set volume output muted true'
 ```
-Manual:
+
+### Virtual Bot (recommended starting point) — port 8100
+
+Install Python 3.10 or newer; `start.sh` selects an available compatible
+interpreter, creates `.venv`, and installs the Python requirements.
+
 ```bash
 cd "Virtual Bot"
+./start.sh
+```
+
+Open the interface you need:
+
+| Interface | Local URL |
+|---|---|
+| Current dashboard | <http://127.0.0.1:8100/static/dash/> |
+| Bot screen and living office | <http://127.0.0.1:8100/screen/> |
+| Original control panel | <http://127.0.0.1:8100/> |
+| API documentation | <http://127.0.0.1:8100/docs> |
+
+For local development without Clerk sign-in, run `CLERK_DISABLED=1 ./start.sh`
+instead. This disables API authentication; keep that process bound to loopback
+and do not expose it through a public tunnel. Normal authenticated setup uses
+Clerk; see the [host environment template](Virtual%20Bot/.env.example).
+
+Manual startup from `Virtual Bot/`:
+
+```bash
 python3 -m venv .venv
 ./.venv/bin/pip install -r requirements.txt
-./.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8100
+./.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8100 \
+  --timeout-graceful-shutdown 3
 ```
+
+### Rebuild or develop the web dashboard
+
+The repository includes built dashboard assets. After editing its React
+sources, rebuild them from the repository root with pnpm and a Node.js version
+supported by the dashboard's Vite dependency:
+
+```bash
+cd "Virtual Bot/dashboard"
+pnpm install --frozen-lockfile
+pnpm run typecheck
+pnpm test
+pnpm run build
+```
+
+The build publishes to `Virtual Bot/static/dash/`. For development, keep the
+backend running and use `pnpm run dev`; Vite serves the dashboard at
+`http://localhost:5180/static/dash/` and proxies backend routes to `:8100`.
+
+### Companion apps and launcher
+
+- [Android and iOS](mobile-app/README.md): build instructions, host pairing,
+  file editors, offline queue behavior, and platform limits.
+- [macOS](mobile-app/desktopApp/README.md): Apple Silicon build, Keychain
+  credentials, native previews, and packaging requirements.
+- [Quick launcher](launcher/README.md): `Launch Bot.command` on macOS,
+  `Launch Bot.cmd` on Windows, or `./launch-bot.sh` on Linux. Prepare each
+  module's environment first; the launcher does not install dependencies.
 
 ### Vision Agent — port 8000
 ```bash
 cd "Vision Agent"
-pip install -r requirements.txt --break-system-packages
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+python3 -m venv .venv
+./.venv/bin/pip install -r requirements.txt
+./.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8000
 # health: curl http://127.0.0.1:8000/health
-python test_webcam.py   # optional live webcam test (quit with q)
+# In another terminal: ./.venv/bin/python test_webcam.py (quit with q)
 ```
 
 ### Voice Loop
 ```bash
 cd "Voice Loop"
-pip install -r requirements.txt --break-system-packages
-# Requires OpenClaw gateway running on :18789 and a token in config.yaml
-python voice_loop.py    # speak after the listening prompt, Ctrl+C to quit
+python3 -m venv .venv
+./.venv/bin/pip install -r requirements.txt
+# Requires OpenClaw on :18789 with chatCompletions enabled and OPENCLAW_TOKEN set.
+./.venv/bin/python voice_loop.py  # speak after the prompt; Ctrl+C to quit
 ```
+
+See the [Voice Loop guide](Voice%20Loop/README.md) for gateway and OS audio setup.
 
 ### blink-display — port 8001
 ```bash
@@ -134,8 +232,9 @@ npm run electron:build # build a distributable (dmg/nsis/AppImage)
 ### Remote Control (runs on the Raspberry Pi)
 ```bash
 cd "Remote Control"
-pip install evdev --break-system-packages
-python3 remote_listener.py   # user must be in the `input` group
+python3 -m venv .venv
+./.venv/bin/pip install evdev
+./.venv/bin/python remote_listener.py  # user must be in the `input` group
 ```
 
 ---
@@ -145,24 +244,46 @@ python3 remote_listener.py   # user must be in the `input` group
 **Never commit tokens or API keys.** Secrets come from environment variables or
 a local, git-ignored `.env` file (see `.gitignore`):
 
-- `OMNI_API_KEY` — Omni router key (Virtual Bot main brain)
-- `OPENCLAW_TOKEN` — OpenClaw gateway token
-- `ANTHROPIC_API_KEY` — direct Anthropic API key
-- `CHAT2API_API_KEY` — optional local Chat2API key
+- `OPENCLAW_TOKEN` — gateway token for the standalone Voice Loop or a remote host gateway
+- `REGOLO_ASR_API_KEY` — optional host speech recognition provider key
+- `ELEVENLABS_API_KEY` — optional speech synthesis provider key
+
+[`Virtual Bot/.env.example`](Virtual%20Bot/.env.example) lists the supported
+environment variables without values. Only configure integrations you use.
+Agent workflows must use the agents' vault described in [`AGENTS.md`](AGENTS.md).
 
 ---
 
-## Roadmap (see spec for detail)
+## Validation
 
-- **Phase 0** — Software prototype, no hardware (now)
-- **Phase 1** — Sensor core (camera, mic, speaker, display on RPi3)
-- **Phase 2** — Mobility (4WD chassis, motors, rangefinder)
-- **Phase 3** — Agent + memory (tool use, Telegram notifications, RAG, dream cycle)
-- **Phase 4** — Spatial awareness (face recognition, reactive navigation, `find_person`)
+From the repository root, after muting macOS output:
 
-Done so far: vision (step 1), voice loop via OpenClaw (step 3), display UI
-(partial step 6). Not started: RAG memory (step 2), emotion layer (step 4),
-face recognition, navigation.
+```bash
+cd "Virtual Bot"
+PYTHONPATH="$PWD" .venv/bin/pytest tests/ -q
+```
+
+For dashboard changes, run the typecheck, tests, and build shown above.
+For mobile and hardware changes, follow their module-specific checks. Service
+changes also need a live smoke test: check the affected APIs and static assets,
+verify rejected file traversal returns `400`, then stop the test processes.
+
+## Roadmap and current boundaries
+
+- **Software companion:** implemented and evolving: chat, tools, memory,
+  dream cycle, emotions, web workspace, living screen, and companion clients.
+- **Physical desk bot:** CAD models and component planning are in
+  [`hardware/soma-bot/`](hardware/soma-bot/README.md); dimensions and real
+  assembly still need hardware validation.
+- **Mobility and spatial awareness:** chassis integration, reactive navigation,
+  recognition of specific people, and physical `find_person` remain planned.
+- **Client releases:** physical-device validation, signing/distribution,
+  remote push, and platform background-delivery work remain open.
+
+The [full specification](blink-full-spec-v3.md) preserves the original phase
+plan. Use the dated entries in [`HANDOFF.md`](HANDOFF.md) and the linked
+module guides for implementation and validation details; older handoff and
+status sections describe earlier snapshots.
 
 ---
 
