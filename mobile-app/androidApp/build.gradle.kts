@@ -11,8 +11,8 @@ android {
         applicationId = "me.waveio.claudebot"
         minSdk = 26
         targetSdk = 36
-        versionCode = 28
-        versionName = "0.4.21"
+        versionCode = 29
+        versionName = "0.4.22"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {

@@ -3847,3 +3847,10 @@ because per-frame re-parsing and size animation raised the worst frame to
 152/156 instrumentation tests pass (same four pre-existing failures; the file
 workspace WebView test crashes natively on this emulator for 0.4.20 too). See
 docs/mobile-app/RELEASE-0.4.21.md.
+
+## 2026-10-26 — Blink Android 0.4.22: effort name reel
+
+Prepared and published Android 0.4.22 (code 29): the effort level name rolls on
+a blurred slot-machine reel instead of swapping. 332 shared tests and 153/157
+instrumentation tests pass (same four pre-existing failures). See
+docs/mobile-app/RELEASE-0.4.22.md.
