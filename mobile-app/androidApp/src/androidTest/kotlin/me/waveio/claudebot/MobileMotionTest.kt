@@ -375,6 +375,36 @@ class MobileMotionTest {
         val reply = MessageRow("a-1", "assistant", "Here is a reply that arrives while the provider is still streaming.", live = true)
         state = state.copy(messages = listOf(earlier, user, reply))
         for (frame in 0 until 30) { save("reply-%02d".format(frame)); compose.mainClock.advanceTimeByFrame() }
+        // A later provider chunk flows in instead of appearing as a block.
+        state = state.copy(messages = listOf(earlier, user, reply.copy(text = reply.text + " A second chunk arrives and wraps onto more lines as it flows in.")))
+        for (frame in 0 until 30) { save("stream-%02d".format(frame)); compose.mainClock.advanceTimeByFrame() }
+        step(800)
+        compose.onNodeWithTag("chat-typing").assertDoesNotExist()
+    }
+
+    /** The host opens a blank live reply first: its own bubble shows the dots and grows out of them. */
+    @Test fun blankLiveReplyGrowsOutOfItsOwnTypingPill() {
+        val directory = java.io.File(androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .targetContext.getExternalFilesDir(null), "chat-motion-inline").apply { deleteRecursively(); mkdirs() }
+        val user = MessageRow("u-1", "user", "sup")
+        launchChat(listOf(user, MessageRow("a-1", "assistant", "", live = true)), busy = true)
+        step(1200)
+        compose.onNodeWithTag("chat-typing").assertExists()
+        val pill = compose.onNodeWithTag("chat-typing").fetchSemanticsNode().boundsInRoot
+        state = state.copy(messages = listOf(user, MessageRow("a-1", "assistant", "Hello there! \uD83D\uDC4B How can I help?", live = true)))
+        compose.mainClock.advanceTimeByFrame()
+        val bubble = compose.onNodeWithTag("message-bubble:a-1:0").fetchSemanticsNode().boundsInRoot
+        assertEquals("The reply must open where the dots were", pill.left, bubble.left, 1f)
+        assertEquals("The reply must open where the dots were", pill.top, bubble.top, 1f)
+        assertTrue("The reply must start at the pill's size", bubble.width < pill.width + 8f)
+        for (frame in 0 until 24) {
+            val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+            java.io.File(directory, "grow-%02d.png".format(frame)).outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            compose.mainClock.advanceTimeByFrame()
+        }
+        step(800)
+        assertTrue("The bubble must widen to the right", compose.onNodeWithTag("message-bubble:a-1:0").fetchSemanticsNode().boundsInRoot.width > pill.width * 2)
+        compose.onNodeWithTag("chat-typing").assertDoesNotExist()
     }
 
     private fun changedPixels(first: ImageBitmap, second: ImageBitmap): Int {

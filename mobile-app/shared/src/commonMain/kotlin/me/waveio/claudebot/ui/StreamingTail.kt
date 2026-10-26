@@ -19,9 +19,15 @@ import kotlin.math.ceil
 import kotlin.math.max
 
 private const val StreamRevealGraphemes = 2
-internal const val StreamRevealDeadlineMillis = 96L
-private const val StreamRevealWindow = 16
-private const val StreamRevealMaxTextLength = 2048
+/** Everything queued is visible this long after it starts to flow, however much arrives. */
+internal const val StreamRevealDeadlineMillis = 280L
+/** A burst larger than this shows its older part at once; only the rest flows. */
+internal const val StreamRevealWindow = 480
+private const val StreamRevealMaxTextLength = 4096
+private const val StreamRevealFrameMillis = 16L
+/** Above this length each reveal step re-parses a sizeable document, so steps are spaced out. */
+private const val StreamRevealDenseLength = 1024
+private const val StreamRevealSparseMillis = 48L
 
 internal expect fun isStreamCombiningMark(codePoint: Int): Boolean
 
@@ -110,7 +116,13 @@ internal fun nextStreamRevealIndex(text: String, start: Int, graphemes: Int = St
     return index
 }
 
-/** Latest snapshots own the text; only a small append window may wait for frames. */
+/**
+ * Latest snapshots own the text, but an appended chunk flows in like typing
+ * instead of appearing as a block. The pending text is spread evenly over the
+ * frames left before a deadline that starts when it begins to flow; later
+ * chunks speed the flow up rather than extend that deadline, so the visible
+ * text never lags the provider by more than [StreamRevealDeadlineMillis].
+ */
 internal class StreamTextReveal(initial: String, enabled: Boolean) {
     var target = initial
         private set
@@ -121,7 +133,8 @@ internal class StreamTextReveal(initial: String, enabled: Boolean) {
     var revision = 0
         private set
     private var wasEnabled = enabled
-    private var firstFrameMillis: Long? = null
+    private var deadlineMillis: Long? = null
+    private var lastFrameMillis = 0L
     val pending: Boolean get() = rendered != target
 
     fun update(text: String, enabled: Boolean) {
@@ -136,16 +149,16 @@ internal class StreamTextReveal(initial: String, enabled: Boolean) {
             // Mode changes alone must preserve parsed Markdown and table scroll.
             if (rendered != text) revision++
             rendered = text
-            firstFrameMillis = null
+            deadlineMillis = null
         } else {
-            if (text.length > StreamRevealMaxTextLength) {
-                // Avoid extra full-document Markdown parses for large tables
-                // and replies; their real chunks still receive suffix blur.
+            if (text.length > StreamRevealMaxTextLength || hasTableRow(text)) {
+                // Avoid extra full-document Markdown parses for tables and very
+                // large replies; their real chunks still receive suffix blur.
                 rendered = text
-                firstFrameMillis = null
+                deadlineMillis = null
                 return
             }
-            // Large bursts catch up immediately except for a bounded suffix.
+            // Huge bursts catch up at once except for a bounded window.
             // Never move an already visible prefix backwards.
             val keepFrom = (text.length - StreamRevealWindow).coerceAtLeast(rendered.length)
             var boundary = rendered.length
@@ -156,22 +169,41 @@ internal class StreamTextReveal(initial: String, enabled: Boolean) {
 
     fun advance(frameMillis: Long): String {
         if (!pending) return rendered
-        val first = firstFrameMillis ?: frameMillis.also { firstFrameMillis = it }
-        val end = if (frameMillis - first >= StreamRevealDeadlineMillis) target.length
-            else nextStreamRevealIndex(target, rendered.length)
-        rendered = target.substring(0, end)
-        if (!pending) firstFrameMillis = null
+        val deadline = deadlineMillis ?: (frameMillis + StreamRevealDeadlineMillis).also {
+            deadlineMillis = it
+            lastFrameMillis = frameMillis - StreamRevealFrameMillis
+        }
+        // Longer replies take fewer, larger steps; the tail blur hides the difference.
+        if (target.length > StreamRevealDenseLength && frameMillis < deadline &&
+            frameMillis - lastFrameMillis < StreamRevealSparseMillis) return rendered
+        val elapsed = (frameMillis - lastFrameMillis).coerceAtLeast(1L)
+        lastFrameMillis = frameMillis
+        val remaining = deadline - frameMillis
+        val end = if (remaining <= 0) target.length else {
+            // This frame's even share of what is left before the deadline.
+            val backlog = target.length - rendered.length
+            val goal = rendered.length + (backlog * elapsed + remaining + elapsed - 1) / (remaining + elapsed)
+            var index = nextStreamRevealIndex(target, rendered.length)
+            while (index < goal) index = nextStreamRevealIndex(target, index, 1)
+            index
+        }
+        rendered = target.substring(0, end.toInt())
+        if (!pending) deadlineMillis = null
         return rendered
     }
 }
 
+/** Tables re-parse expensively and already arrive row by row. */
+internal fun hasTableRow(text: String): Boolean = text.lineSequence().any { it.trimStart().startsWith("|") }
+
 internal data class StreamingText(val text: String, val animateTail: Boolean, val revision: Int)
 
-/** A fixed frame deadline survives new chunks; terminal/corrected text is synchronous. */
+/** A fixed flow deadline survives new chunks; terminal/corrected text is synchronous. */
 @Composable
-internal fun rememberStreamingText(text: String, streaming: Boolean): StreamingText {
+internal fun rememberStreamingText(text: String, streaming: Boolean, flowFromStart: Boolean = false): StreamingText {
     val enabled = streaming && !LocalReducedMotion.current
-    val reveal = remember { StreamTextReveal(text, enabled) }
+    // A bubble that just opened lets its first chunk flow in as well.
+    val reveal = remember { StreamTextReveal(if (flowFromStart && enabled) "" else text, enabled) }
     var frame by remember { mutableIntStateOf(0) }
     // Snapshot changes are authoritative in this composition, before effects run.
     remember(text, enabled) { reveal.update(text, enabled) }
@@ -216,9 +248,11 @@ private class TailFade(private var previous: String) {
 
 /** Blur only fresh glyphs, then go completely idle even if the provider is still running. */
 @Composable
-internal fun rememberStreamingTail(text: String, live: Boolean, maxBlur: Dp = 4.dp, durationMillis: Int = 320): StreamingTail {
+internal fun rememberStreamingTail(text: String, live: Boolean, maxBlur: Dp = 4.dp, durationMillis: Int = 320,
+                                   fromEmpty: Boolean = false): StreamingTail {
     val enabled = live && !LocalReducedMotion.current
-    val fade = remember { TailFade(text) }
+    // A paragraph that first appears mid-stream blurs in from its first glyph.
+    val fade = remember { TailFade(if (fromEmpty && enabled) "" else text) }
     var clock by remember { mutableLongStateOf(0L) }
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     // Chunks are recorded in composition, so a new glyph is never drawn sharp

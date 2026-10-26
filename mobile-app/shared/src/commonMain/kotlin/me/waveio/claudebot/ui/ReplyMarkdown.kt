@@ -20,9 +20,9 @@ import me.waveio.claudebot.state.PreviewItem
 @Composable
 internal fun ReplyMarkdown(text: String, origin: String, live: Boolean, generation: Long,
                            thumbnails: Map<String, ByteArray>, failures: Set<String>, actions: AppActions,
-                           animateTail: Boolean = live) {
+                           animateTail: Boolean = live, flowFromStart: Boolean = false) {
     val images = remember(text, origin, live) { replyImages(text, origin, live) }
-    if (images.isEmpty()) { ChatMarkdown(text, animateTail); return }
+    if (images.isEmpty()) { ChatMarkdown(text, animateTail, flowFromStart); return }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         var offset = 0
         for (image in images) {

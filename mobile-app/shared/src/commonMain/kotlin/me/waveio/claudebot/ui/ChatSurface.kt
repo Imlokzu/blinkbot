@@ -43,6 +43,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -94,6 +97,12 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
         showTyping = false
         if (waiting) { delay(850); showTyping = true }
     }
+    // A blank live reply already holds the indicator's slot, so its own bubble
+    // shows the dots and later grows out of them in place.
+    val inlineTyping = showTyping && waiting && state.messages.lastOrNull()?.let { it.role == "assistant" && it.live } == true
+    // Read in the next composition: a reply created then replaces visible dots.
+    val typingWasVisible = remember(state.sessionId) { booleanArrayOf(false) }
+    SideEffect { typingWasVisible[0] = showTyping && waiting }
     LaunchedEffect(tailVisible, fingerDown.value, list.isScrollInProgress) {
         if (tailVisible && !fingerDown.value && !list.isScrollInProgress) following = true
     }
@@ -171,13 +180,14 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
                         Box(Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null, placementSpec = itemPlacement)) {
                         MessageContent(message, actions, reducedMotion, state.busy, state.attachmentThumbnails, state.mediaGeneration, state.baseUrl, state.imageFailures,
                             message.role == "user" && seen.add(message.presentationId ?: message.id) && message.id.startsWith("u-") ||
-                            message.role == "assistant" && seen.add(message.presentationId ?: message.id) && message.live)
+                            message.role == "assistant" && seen.add(message.presentationId ?: message.id) && message.live,
+                            typing = inlineTyping && message === state.messages.last(), replacesTyping = typingWasVisible[0])
                         }
                     }
-                    if (showTyping && waiting) item(key = "typing") {
+                    if (showTyping && waiting && !inlineTyping) item(key = "typing") {
                         // No animateItem here: a fading-out indicator is kept drawn by the
                         // list and could linger under the reply that lands in its place.
-                        MessageArrival(true, false) { motion -> Box(motion.testTag("chat-typing")) { TypingIndicator() } }
+                        TypingBubble()
                     }
                 }
             }
@@ -243,7 +253,8 @@ private fun Welcome(modifier: Modifier, reducedMotion: Boolean) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MessageContent(message: MessageRow, actions: AppActions, reducedMotion: Boolean, busy: Boolean, thumbnails: Map<String, ByteArray>, mediaGeneration: Long, origin: String, imageFailures: Set<String>, animate: Boolean) {
+private fun MessageContent(message: MessageRow, actions: AppActions, reducedMotion: Boolean, busy: Boolean, thumbnails: Map<String, ByteArray>, mediaGeneration: Long, origin: String, imageFailures: Set<String>, animate: Boolean,
+                           typing: Boolean = false, replacesTyping: Boolean = false) {
     val palette = LocalPalette.current
     val user = message.role == "user"
     var menuText by remember(message.id) { mutableStateOf<String?>(null) }
@@ -254,7 +265,14 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
     val lines = message.bubbles.filter { it.isNotBlank() }.ifEmpty { listOf(message.text).filter { it.isNotBlank() } }
     val parts = message.parts.ifEmpty { lines.map { ContentPart("text", it) } }
     val lastTextPart = parts.indexOfLast { it.type != "steps" && it.text.isNotBlank() }
-    MessageArrival(animate, user) { motion ->
+    // Bubbles that already had text when this reply was first shown (history,
+    // a reopened live chat) stay put; later ones grow out of the typing pill.
+    val presentAtStart = remember(message.presentationId ?: message.id) {
+        if (animate || user) emptySet() else parts.indices.filter { parts[it].type != "steps" && parts[it].text.isNotBlank() }.toSet()
+    }
+    // A reply that takes over visible dots continues from them instead of
+    // making a second entrance.
+    MessageArrival(animate && !(replacesTyping && !user), user) { motion ->
     Column(motion.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start, verticalArrangement = Arrangement.spacedBy(7.dp)) {
         for ((partIndex, part) in parts.withIndex()) {
             if (part.type == "steps") {
@@ -263,16 +281,19 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
             }
             val line = part.text
             if (line.isBlank()) continue
+            // Tables stay out: re-laying out a growing table every frame is costly.
+            val grows = !user && message.live && partIndex !in presentAtStart && !reducedMotion && !hasTableRow(line)
             key(part.noteId, partIndex) {
                 Surface(
-                    modifier = Modifier.widthIn(max = if (user) 320.dp else 600.dp).testTag("message-bubble:${message.id}:$partIndex").combinedClickable(onClick = {}, onLongClick = { selectedBubble = parts.take(partIndex).count { it.type == "text" }; selectedNote = part.note || part.noteId != null; menuText = line }),
-                    shape = RoundedCornerShape(21.dp, 21.dp, if (user) 6.dp else 21.dp, if (user) 21.dp else 6.dp),
+                    modifier = Modifier.growFromTypingPill(grows, BotBubbleShape).widthIn(max = if (user) 320.dp else 600.dp).testTag("message-bubble:${message.id}:$partIndex").combinedClickable(onClick = {}, onLongClick = { selectedBubble = parts.take(partIndex).count { it.type == "text" }; selectedNote = part.note || part.noteId != null; menuText = line }),
+                    shape = if (user) UserBubbleShape else BotBubbleShape,
                     color = if (user) palette.userBubble else palette.botBubble,
                 ) {
                     Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         if (user) Text(line, color = palette.userInk, fontSize = 16.sp, lineHeight = 23.sp)
                         else ReplyMarkdown(line, origin, message.live, mediaGeneration, thumbnails, imageFailures, actions,
-                            animateTail = message.live && partIndex == lastTextPart)
+                            animateTail = message.live && partIndex == lastTextPart, flowFromStart = grows)
+                        if (grows) FadingDots()
                     }
                 }
             }
@@ -290,6 +311,7 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
                 Text(emoji, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
             }
         }
+        if (typing && parts.none { it.type != "steps" && it.text.isNotBlank() }) TypingBubble()
         if (message.steps.isNotEmpty() && parts.none { it.type == "steps" }) ActivityTree(message.steps, message.live)
         val media = message.attachments.map { PreviewItem(it.path, it.name, it.mimeType, "upload") } +
             message.workFiles.filterNot { it.active }.map { PreviewItem(it.path, it.name, it.mimeType, "workspace") }
@@ -374,11 +396,65 @@ private fun ActivityTree(steps: List<ActivityRow>, live: Boolean) {
 
 }
 
+private val BotBubbleShape = RoundedCornerShape(21.dp, 21.dp, 21.dp, 6.dp)
+private val UserBubbleShape = RoundedCornerShape(21.dp, 21.dp, 6.dp, 21.dp)
+// The pill is exactly a bot bubble holding only the dots, so a reply can grow
+// out of it without a jump: 16dp + 34dp dots + 16dp across, 13dp + 16dp + 13dp down.
+private val TypingPillWidth = 66.dp
+private val TypingPillHeight = 42.dp
+
 @Composable
-private fun TypingIndicator() {
+private fun TypingBubble() {
     val palette = LocalPalette.current
-    Box(Modifier.padding(start = 2.dp).clip(RoundedCornerShape(19.dp, 19.dp, 19.dp, 6.dp)).background(palette.botBubble).padding(horizontal = 16.dp, vertical = 13.dp)) {
-        TypingDots(palette.ink)
+    MessageArrival(true, false) { motion ->
+        Box(motion.testTag("chat-typing").clip(BotBubbleShape).background(palette.botBubble).padding(horizontal = 16.dp, vertical = 13.dp)) {
+            TypingDots(palette.ink)
+        }
+    }
+}
+
+/** The pill's dots are nudged aside by the first words and fade out. */
+@Composable
+private fun FadingDots() {
+    val fade = remember { Animatable(1f) }
+    LaunchedEffect(Unit) { fade.animateTo(0f, tween(200, easing = LinearOutSlowInEasing)) }
+    if (fade.value > 0f) Box(Modifier.padding(top = 1.dp).graphicsLayer {
+        alpha = fade.value
+        translationX = (1f - fade.value) * 22.dp.toPx()
+    }) { TypingDots(LocalPalette.current.ink) }
+}
+
+/**
+ * A live bubble starts at the typing pill's size and springs out to its
+ * measured size, widening to the right and growing down; it keeps easing to
+ * each new size as text streams in, so line wraps never jump. Content is laid
+ * out at full size and clipped, so text is uncovered as the bubble opens.
+ */
+@Composable
+private fun Modifier.growFromTypingPill(enabled: Boolean, shape: Shape): Modifier {
+    if (!enabled) return this
+    val density = LocalDensity.current
+    val pill = remember(density) { with(density) { IntSize(TypingPillWidth.roundToPx(), TypingPillHeight.roundToPx()) } }
+    val size = remember { Animatable(pill, IntSize.VectorConverter) }
+    val goal = remember { arrayOfNulls<IntSize>(1) }
+    val scope = rememberCoroutineScope()
+    // While the first words are shorter than the pill, hold its size rather
+    // than shrink before growing; a reply that stays tiny settles soon after.
+    var holdPill by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) { delay(360); holdPill = false }
+    return clip(shape).layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        val measured = IntSize(placeable.width, placeable.height).let {
+            if (holdPill) IntSize(maxOf(it.width, pill.width), maxOf(it.height, pill.height)) else it
+        }
+        if (goal[0] != measured) {
+            goal[0] = measured
+            scope.launch { size.animateTo(measured, spring(dampingRatio = .78f, stiffness = 420f, visibilityThreshold = IntSize.VisibilityThreshold)) }
+        }
+        val current = size.value
+        layout(current.width.coerceIn(constraints.minWidth, constraints.maxWidth), current.height.coerceIn(constraints.minHeight, constraints.maxHeight)) {
+            placeable.place(0, 0)
+        }
     }
 }
 

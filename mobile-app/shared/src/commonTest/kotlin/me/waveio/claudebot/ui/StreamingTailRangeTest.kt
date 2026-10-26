@@ -55,7 +55,7 @@ class StreamingTailRangeTest {
     @Test fun largeAndRepeatedBurstsCannotExtendTheOriginalDeadline() {
         val reveal = StreamTextReveal("Prefix ", true)
         reveal.update("Prefix " + "a".repeat(1000), true)
-        assertTrue(reveal.target.length - reveal.rendered.length <= 16)
+        assertTrue(reveal.target.length - reveal.rendered.length <= StreamRevealWindow)
         assertTrue(reveal.rendered.startsWith("Prefix "))
         reveal.advance(1000)
         for (elapsed in listOf(16L, 32L, 64L, 80L)) {
@@ -89,7 +89,7 @@ class StreamingTailRangeTest {
     }
 
     @Test fun largeMarkdownBlocksUseRealChunksWithoutAdditionalParseFrames() {
-        val full = "A long existing answer. ".repeat(100)
+        val full = "A long existing answer. ".repeat(200)
         val reveal = StreamTextReveal(full, true)
         assertEquals(full, reveal.rendered)
         assertFalse(reveal.pending)

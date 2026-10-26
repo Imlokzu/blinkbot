@@ -35,8 +35,8 @@ private val LocalStreamTail = compositionLocalOf { false }
 
 /** Keep the last parsed frame visible while real streamed text is being parsed. */
 @Composable
-fun ChatMarkdown(text: String, streaming: Boolean = false) {
-    val renderedText = rememberStreamingText(text, streaming)
+fun ChatMarkdown(text: String, streaming: Boolean = false, flowFromStart: Boolean = false) {
+    val renderedText = rememberStreamingText(text, streaming, flowFromStart)
     // Keep the last measured Markdown frame while replacements parse; a raw
     // loading frame can collapse a table and incorrectly restore auto-follow.
     val math = remember(renderedText.text) { mathMarkdown(renderedText.text) }
@@ -86,7 +86,7 @@ private fun StreamingMarkdownText(model: MarkdownComponentModel, style: TextStyl
         }
     }
     val isTail = model.node.endOffset >= model.content.trimEnd().length
-    val tail = rememberStreamingTail(styled.text, LocalStreamTail.current && isTail && !mathMarker.containsMatchIn(styled.text))
+    val tail = rememberStreamingTail(styled.text, LocalStreamTail.current && isTail && !mathMarker.containsMatchIn(styled.text), fromEmpty = true)
     val modifier = tail.modifier.then(if (childType != null) Modifier.semantics { heading() } else Modifier)
     if (mathMarker.containsMatchIn(styled.text)) MathText(styled, modifier = modifier, style = style, onTextLayout = tail.onTextLayout)
     else MarkdownText(styled, modifier = modifier, style = style, onTextLayout = { layout, _ -> tail.onTextLayout(layout) })
