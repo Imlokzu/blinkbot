@@ -3836,3 +3836,14 @@ springs, opaque within a few frames. The typing indicator no longer uses a list
 fade-out that could leave it drawn under the reply. 332 shared tests pass and
 159/163 instrumentation tests pass (same four pre-existing failures). See
 docs/mobile-app/RELEASE-0.4.20.md.
+
+## 2026-10-26 — Blink Android 0.4.21: typing pill grows into the reply
+
+Prepared Android 0.4.21 (code 28) from owner feedback: streamed text now flows
+like typing instead of landing in blocks, and the typing pill widens into the
+reply bubble while the first words stream in. Tables keep the immediate path
+because per-frame re-parsing and size animation raised the worst frame to
+~250 ms; with the exclusions frame costs match 0.4.20. 332 shared tests and
+152/156 instrumentation tests pass (same four pre-existing failures; the file
+workspace WebView test crashes natively on this emulator for 0.4.20 too). See
+docs/mobile-app/RELEASE-0.4.21.md.
