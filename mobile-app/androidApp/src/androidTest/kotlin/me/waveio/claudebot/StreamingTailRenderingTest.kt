@@ -278,7 +278,8 @@ class StreamingTailRenderingTest {
         assertEquals(prefix+suffix,layout(prefix+suffix).layoutInput.text.text)
         val tail=bounds(prefix+suffix,prefix.length)
         val early=capture();screenshot("tail-arriving")
-        compose.mainClock.advanceTimeBy(300)
+        // Longer than the tail's age-banded fade (460 ms), so the suffix has settled.
+        compose.mainClock.advanceTimeBy(700)
         val settled=capture();screenshot("tail-settled")
         assertOnlyTailChanges(early,settled,tail)
         assertTrue(streaming.value)
