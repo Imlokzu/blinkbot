@@ -3815,3 +3815,15 @@ normal commit hooks passed. The owner's unrelated local changes were kept
 separate, including the existing memory profile-preservation fix and stricter
 scanner flag. Phone fallback, push implementation, alarm music and hardware
 validation remain deferred.
+
+## 2026-10-26 — Blink Android 0.4.19: chat blur and spring motion
+
+Prepared Android 0.4.19 (code 26). Sent bubbles spring out of the composer
+from a heavy blur; replies and the typing indicator condense out of one; streamed
+and typed text sharpen as an age gradient; sent text dissolves out of the field;
+the send button pops and fires its arrow. Reduced motion disables all of it.
+
+Built from committed source in a clean sparse worktree; the APK keeps the
+0.4.18 package and signing certificate and updates it in place on an emulator.
+332 shared tests pass; 156/160 instrumentation tests pass and the four failures
+reproduce on the pre-change source. See docs/mobile-app/RELEASE-0.4.19.md.
