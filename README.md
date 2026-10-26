@@ -1,6 +1,6 @@
 # Blink
 
-[Website](https://waveio.me) · [Repository](https://github.com/Imlokzu/claude-bot)
+[Website](https://waveio.me) · [Repository](https://github.com/Imlokzu/blinkbot)
 
 A DIY personal AI companion with a virtual crab mascot, a web workspace, and
 Android, iOS, and macOS clients. Start with the software on your computer;
