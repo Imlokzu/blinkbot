@@ -12,6 +12,22 @@ AI providers. An optional demo mode supports basic conversations without a
 working gateway. Hardware, microphones, and external integrations have their
 own setup requirements.
 
+## Screenshots
+
+### Web dashboard
+
+The web workspace with a sample conversation.
+
+![Blink web dashboard showing chat and the conversation sidebar](docs/screenshots/dashboard-chat.png)
+
+### Android app
+
+Native Markdown and drawing editors, captured during app UI validation.
+
+| Markdown notes | Drawing workspace |
+|---|---|
+| <img src="docs/mobile-app/screenshots/0.4.16-markdown.png" alt="Blink Android app editing a Markdown note with a table and checklist" width="260"> | <img src="docs/mobile-app/screenshots/0.4.16-drawing-dark.png" alt="Blink Android app editing a drawing in dark mode" width="260"> |
+
 > Documentation and code comments must be written in **English**. User-visible
 > text belongs in locale files and is referenced by translation keys, with
 > Ukrainian and English translations (see [`AGENTS.md`](AGENTS.md) and the
