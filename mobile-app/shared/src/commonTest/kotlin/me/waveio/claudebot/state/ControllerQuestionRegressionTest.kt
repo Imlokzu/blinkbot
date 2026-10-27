@@ -260,4 +260,79 @@ class ControllerQuestionRegressionTest {
             """{"step":{"id":"c","label":"ask_question","status":"failed","input":{"question":"Failed"}}}"""
         )) assertNull(decode(body), body)
     }
+
+    /** The exact event sequence of a gateway turn that asked a question (job c4ae90a5, 27.10.2026). */
+    private val gatewayQuestionTurn = listOf(
+        "mobile_state" to "{\"id\":\"job\",\"state\":\"running\"}",
+        "session" to "{\"session_id\":\"chat_1\"}",
+        "model" to "{\"fallback\":false,\"model\":\"gpt-6-luna\",\"provider\":\"openai\",\"type\":\"model\"}",
+        "agent_status" to "{\"status\":\"connecting\",\"type\":\"agent_status\"}",
+        "agent_status" to "{\"status\":\"running\",\"type\":\"agent_status\"}",
+        "model" to "{\"fallback\":false,\"model\":\"gpt-6-luna\",\"provider\":\"openai\",\"type\":\"model\"}",
+        "note" to "{\"bubbles\":[\"Зроблю! Який саме\"],\"id\":\"chatcmpl_5e52938e-6d7f-4fbf-9438-cd0e6c6eeb90:msg_0d682c709dbe0cf1016ae05ea4d52c819187e29ebfc71ce7f5\",\"type\":\"note\"}",
+        "note" to "{\"bubbles\":[\"Зроблю! Який саме документ потрібен?\"],\"id\":\"chatcmpl_5e52938e-6d7f-4fbf-9438-cd0e6c6eeb90:msg_0d682c709dbe0cf1016ae05ea4d52c819187e29ebfc71ce7f5\",\"type\":\"note\"}",
+        "tool_start" to "{\"call_id\":\"chatcmpl_5e52938e-6d7f-4fbf-9438-cd0e6c6eeb90:exec-40296bb4-e39e-4190-8267-55edda362d2b\",\"detail\":\"Який документ створити?\",\"input\":{\"options\":[\"Список справ\",\"Нотатку про щось\",\"Інше — напишу\"],\"question\":\"Який документ створити?\"},\"status\":\"active\",\"step\":{\"detail\":\"Який документ створити?\",\"id\":\"chatcmpl_5e52938e-6d7f-4fbf-9438-cd0e6c6eeb90:exec-40296bb4-e39e-4190-8267-55edda362d2b\",\"input\":{\"options\":[\"Список справ\",\"Нотатку про щось\",\"Інше — напишу\"],\"question\":\"Який документ створити?\"},\"label\":\"tools__ask_question\",\"source\":\"openclaw\",\"startedAt\":1793089189763,\"status\":\"active\"},\"tool\":\"tools__ask_question\",\"type\":\"tool_start\"}",
+        "tool_done" to "{\"call_id\":\"chatcmpl_5e52938e-6d7f-4fbf-9438-cd0e6c6eeb90:exec-40296bb4-e39e-4190-8267-55edda362d2b\",\"detail\":\"Який документ створити?\",\"input\":{\"options\":[\"Список справ\",\"Нотатку про щось\",\"Інше — напишу\"],\"question\":\"Який документ створити?\"},\"result\":{\"ok\":true,\"ui\":{\"data\":{\"allow_custom\":true,\"id\":\"fb1d0ae568e2\",\"option_ids\":[\"option-0\",\"option-1\",\"option-2\"],\"options\":[\"Список справ\",\"Нотатку про щось\",\"Інше — напишу\"],\"question\":\"Який документ створити?\"},\"id\":\"fb1d0ae568e2\",\"kind\":\"question\",\"version\":1}},\"status\":\"done\",\"step\":{\"detail\":\"Який документ створити?\",\"endedAt\":1793089189806,\"id\":\"chatcmpl_5e52938e-6d7f-4fbf-9438-cd0e6c6eeb90:exec-40296bb4-e39e-4190-8267-55edda362d2b\",\"input\":{\"options\":[\"Список справ\",\"Нотатку про щось\",\"Інше — напишу\"],\"question\":\"Який документ створити?\"},\"label\":\"tools__ask_question\",\"result\":{\"ok\":true,\"ui\":{\"data\":{\"allow_custom\":true,\"id\":\"fb1d0ae568e2\",\"option_ids\":[\"option-0\",\"option-1\",\"option-2\"],\"options\":[\"Список справ\",\"Нотатку про щось\",\"Інше — напишу\"],\"question\":\"Який документ створити?\"},\"id\":\"fb1d0ae568e2\",\"kind\":\"question\",\"version\":1}},\"source\":\"openclaw\",\"startedAt\":1793089189763,\"status\":\"done\"},\"tool\":\"tools__ask_question\",\"type\":\"tool_done\"}",
+        "emotion" to "{\"emotion\":\"asking\",\"type\":\"emotion\"}",
+        "emotion" to "{\"emotion\":\"asking\"}",
+        "done" to "{\"assistant_message_id\":\"fd745eaa9869\",\"bubbles\":[\"Який документ створити? Обери картку або напиши свій варіант.\"],\"emotion\":\"asking\",\"mode\":\"openclaw\",\"model\":\"openai/gpt-6-luna\",\"parts\":[{\"note\":true,\"text\":\"Зроблю! Який саме документ потрібен?\",\"type\":\"text\"},{\"ids\":[\"chatcmpl_5e52938e-6d7f-4fbf-9438-cd0e6c6eeb90:exec-40296bb4-e39e-4190-8267-55edda362d2b\"],\"type\":\"steps\"},{\"text\":\"Який документ створити? Обери картку або напиши свій варіант.\",\"type\":\"text\"}],\"reaction\":null,\"reply\":\"Який документ створити? Обери картку або напиши свій варіант.\",\"session_id\":\"chat_1\",\"steps\":[{\"detail\":\"Який документ створити?\",\"endedAt\":1793089189806,\"id\":\"chatcmpl_5e52938e-6d7f-4fbf-9438-cd0e6c6eeb90:exec-40296bb4-e39e-4190-8267-55edda362d2b\",\"input\":{\"options\":[\"Список справ\",\"Нотатку про щось\",\"Інше — напишу\"],\"question\":\"Який документ створити?\"},\"label\":\"tools__ask_question\",\"result\":{\"ok\":true,\"ui\":{\"data\":{\"allow_custom\":true,\"id\":\"fb1d0ae568e2\",\"option_ids\":[\"option-0\",\"option-1\",\"option-2\"],\"options\":[\"Список справ\",\"Нотатку про щось\",\"Інше — напишу\"],\"question\":\"Який документ створити?\"},\"id\":\"fb1d0ae568e2\",\"kind\":\"question\",\"version\":1}},\"source\":\"openclaw\",\"startedAt\":1793089189763,\"status\":\"done\"}],\"tool_results\":[],\"user_message_id\":\"8c6841124234\"}",
+        "mobile_state" to "{\"id\":\"job\",\"state\":\"completed\"}"
+    )
+
+    @Test fun realGatewayQuestionTurnKeepsTheCard() = scenario {
+        for ((kind, payload) in gatewayQuestionTurn) event(kind, payload)
+        val prompt = fixture.controller.state.value.questions.single()
+        assertEquals("Який документ створити?", prompt.text)
+        assertEquals(listOf("Список справ", "Нотатку про щось", "Інше — напишу"), prompt.options)
+    }
+
+    @Test fun realGatewayQuestionTurnAfterSendKeepsTheCard() = scenario {
+        fixture.handler = { request -> when {
+            request.url.encodedPath == "/api/mobile/messages" && request.method == HttpMethod.Post ->
+                jsonResponse("""{"id":"job","session_id":"chat_1","state":"running"}""")
+            request.url.encodedPath == "/api/mobile/messages" && request.url.parameters["session_id"] == "chat_1" ->
+                jsonResponse("""{"messages":[]}""")
+            request.url.encodedPath == "/api/mobile/messages/job/events" ->
+                respond(channel, headers = headersOf(HttpHeaders.ContentType, "text/event-stream"))
+            else -> null
+        } }
+        fixture.controller.openChat("chat_1"); runCurrent()
+        fixture.controller.draft("зробидокумент")
+        fixture.controller.send(); runCurrent()
+        for ((kind, payload) in gatewayQuestionTurn) event(kind, payload)
+        assertEquals("Який документ створити?", fixture.controller.state.value.questions.single().text)
+        assertEquals("chat_1", fixture.controller.state.value.sessionId)
+    }
+
+    private fun historyWith(vararg messages: String) = """{"messages":[${messages.joinToString(",")}]}"""
+    private val askedInHistory = """{"id":"reply","role":"assistant","content":"Обери картку","steps":[{"id":"call:ask","label":"tools__ask_question","status":"done","input":{"question":"Який документ створити?","options":["Список справ","Нотатку"]}}]}"""
+
+    @Test fun reopenedChatRestoresAnUnansweredQuestionFromHistory() = scenario {
+        val previous = fixture.handler
+        fixture.handler = { request -> when (request.url.encodedPath) {
+            "/api/sessions/chat_2" -> jsonResponse(historyWith("""{"id":"human","role":"user","content":"зробидокумент"}""", askedInHistory))
+            else -> previous.invoke(this, request)
+        } }
+        fixture.controller.openChat("chat_2"); runCurrent()
+        val prompt = fixture.controller.state.value.questions.single { it.sessionId == "chat_2" }
+        assertEquals("Який документ створити?", prompt.text)
+        assertEquals(listOf("Список справ", "Нотатку"), prompt.options)
+        // Dismissed once, it stays dismissed when the chat is reopened.
+        fixture.controller.dismissQuestion(prompt.id)
+        fixture.controller.openChat("chat_1"); runCurrent()
+        fixture.controller.openChat("chat_2"); runCurrent()
+        assertTrue(fixture.controller.state.value.questions.none { it.sessionId == "chat_2" })
+    }
+
+    @Test fun answeredOrSupersededHistoryQuestionsStayClosed() = scenario {
+        val previous = fixture.handler
+        fixture.handler = { request -> when (request.url.encodedPath) {
+            "/api/sessions/chat_2" -> jsonResponse(historyWith(askedInHistory, """{"id":"answer","role":"user","content":"Нотатку"}"""))
+            "/api/sessions/chat_3" -> jsonResponse(historyWith(askedInHistory.replace("\"done\"", "\"failed\"")))
+            else -> previous.invoke(this, request)
+        } }
+        fixture.controller.openChat("chat_2"); runCurrent()
+        fixture.controller.openChat("chat_3"); runCurrent()
+        assertTrue(fixture.controller.state.value.questions.none { it.sessionId != "chat_1" })
+    }
 }

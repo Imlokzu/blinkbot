@@ -23,18 +23,38 @@ internal fun botQuestion(job: MobileJob, event: BotEvent): BotQuestion? {
     val data = event.data
     val step = data["step"] as? JsonObject ?: data
     val tool = step.string("label") ?: data.string("tool") ?: return null
-    if (tool.substringAfterLast("__").substringAfterLast("--").replace('-', '_') != "ask_question") return null
-    if (step.string("status") in setOf("failed", "interrupted") ||
-        (data["is_error"] as? JsonPrimitive)?.booleanOrNull == true) return null
+    if ((data["is_error"] as? JsonPrimitive)?.booleanOrNull == true) return null
     val call = step.string("id") ?: data.string("call_id") ?: return null
-    if (call.isBlank()) return null
-    val input = step["input"] ?: data["input"] ?: return null
+    return questionFromStep("${job.sessionId}/${job.id}/$call", job.sessionId, job.id, tool, step.string("status"),
+        step["input"] ?: data["input"])
+}
+
+internal fun isQuestionTool(label: String): Boolean =
+    label.substringAfterLast("__").substringAfterLast("--").replace('-', '_') == "ask_question"
+
+/** Every receipt for a question ends with its tool call ID, whichever path showed it. */
+internal fun questionCall(id: String): String = id.substringAfterLast('/')
+
+internal fun questionFromStep(id: String, sessionId: String, jobId: String, label: String, status: String?, input: JsonElement?): BotQuestion? {
+    if (!isQuestionTool(label) || status in setOf("failed", "interrupted", "error")) return null
+    if (questionCall(id).isBlank() || input == null) return null
     val args = input as? JsonObject ?: (input as? JsonPrimitive)?.takeIf { it.isString }
         ?.content?.let { runCatching { Json.parseToJsonElement(it) as? JsonObject }.getOrNull() } ?: return null
     val question = args.string("question")?.trim()?.takeIf { it.isNotEmpty() } ?: return null
     val options = (args["options"] as? JsonArray).orEmpty().mapNotNull {
         (it as? JsonPrimitive)?.takeIf { value -> value.isString }?.content?.trim()?.takeIf(String::isNotEmpty)
     }.distinct().take(6)
-    return BotQuestion("${job.sessionId}/${job.id}/$call", job.sessionId, job.id,
-        question, options, (args["allow_custom"] as? JsonPrimitive)?.booleanOrNull ?: true)
+    return BotQuestion(id, sessionId, jobId, question, options, (args["allow_custom"] as? JsonPrimitive)?.booleanOrNull ?: true)
+}
+
+/**
+ * A question the chat is still waiting on: the newest message is a finished
+ * reply that asked it, and nobody has written since. Live prompts vanish when
+ * the app restarts or the chat is reopened; this brings the card back.
+ */
+internal fun openHistoryQuestion(sessionId: String, messages: List<MessageRow>): BotQuestion? {
+    val last = messages.lastOrNull()?.takeIf { it.role == "assistant" && !it.live } ?: return null
+    // Only a question the tool really delivered; a stopped turn leaves it unfinished.
+    val step = last.steps.lastOrNull { isQuestionTool(it.label) }?.takeIf { it.status in setOf("done", "completed") } ?: return null
+    return questionFromStep("$sessionId/history/${step.id}", sessionId, "", step.label, step.status, step.input)
 }

@@ -151,7 +151,18 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     fun strings(value: LocaleText) { text = value }
     private fun readScoped(key: String) = platform.readPreference("$accountScope.$key")
     private fun writeScoped(key: String, value: String?) = platform.writePreference("$accountScope.$key", value)
-    private fun update(block: (AppState) -> AppState) = mutable.update(block)
+    private fun update(block: (AppState) -> AppState) = mutable.update { previous ->
+        val next = block(previous)
+        if (next.messages === previous.messages && next.sessionId == previous.sessionId) next else withOpenQuestion(next)
+    }
+
+    /** Restore the open chat's unanswered card from its history, unless already shown or handled. */
+    private fun withOpenQuestion(current: AppState): AppState {
+        val question = openHistoryQuestion(current.sessionId, current.messages) ?: return current
+        val call = questionCall(question.id)
+        if (current.questions.any { questionCall(it.id) == call } || handledQuestions.any { questionCall(it) == call }) return current
+        return current.copy(questions = current.questions + question)
+    }
     private fun initialModel(p: Preferences) = if (p.defaultModelMode == "fixed") p.defaultModel else p.lastModel
     private fun modelForChat(id: String): String {
         val p = state.value.preferences
@@ -670,9 +681,11 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
 
     private fun receiveQuestion(job: MobileJob, event: BotEvent) {
         // Listen even while another chat is open; only the matching chat may
-        // display or answer this prompt. Never restore prompts from history.
+        // display or answer this prompt. History restores only a still-open last question.
         botQuestion(job, event)?.let { question ->
-            if (question.id !in handledQuestions && seenQuestions.add(question.id)) update { it.copy(questions = it.questions + question) }
+            val call = questionCall(question.id)
+            if (handledQuestions.none { questionCall(it) == call } && seenQuestions.add(question.id))
+                update { it.copy(questions = it.questions.filterNot { q -> questionCall(q.id) == call } + question) }
         }
         val status = (event.data["state"] as? JsonPrimitive)?.contentOrNull
         if (event.event == "error" || event.event == "mobile_state" && status in setOf("stopped", "failed", "interrupted", "cancelled")) {
