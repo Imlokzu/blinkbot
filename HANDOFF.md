@@ -3872,3 +3872,11 @@ popping in 850 ms later. Sent messages now appear optimistically on tap (a 4xx
 refusal removes them; network failures keep them queued). 332 shared and 155/159
 instrumentation tests pass (same four pre-existing failures). See
 docs/mobile-app/RELEASE-0.5.1.md.
+
+## 2026-10-27 — Blink Android 0.5.2: question cards survive reopening
+
+Released Android 0.5.2 (code 32). Question cards from `ask_question` were lost on
+reopening a chat or restarting the app; an unanswered, completed question in the
+chat's newest reply is now restored from history. 336 shared tests pass.
+Instrumentation tests and the emulator smoke were not run: the disk was nearly
+full and the emulator refused to start. See docs/mobile-app/RELEASE-0.5.2.md.
