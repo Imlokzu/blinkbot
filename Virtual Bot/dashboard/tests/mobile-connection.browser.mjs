@@ -30,7 +30,7 @@ const count = method => evaluate(`window.__mobile.requests.filter(request => req
 const held = method => evaluate(`window.__mobile.requests.findIndex(request => request.method === ${JSON.stringify(method)} && !request.done)`);
 const release = (index, response = {}) => evaluate(`window.__mobile.release(${index}, ${JSON.stringify(response)}); true`);
 const poll = () => evaluate('window.__mobile.poll(); true');
-const phone = { device_id: 'fixture-phone', device_name: 'Pixel 8 · Android 16', platform: 'android', created_at: 1760000000, expires_at: 1767772800, revoked_at: null };
+const phone = { device_id: 'fixture-phone', device_name: 'Pixel 8 · Android 16', platform: 'android', created_at: 1760000000, expires_at: Date.now() / 1000 + 90 * 86400, revoked_at: null, status: 'active' };
 const fixtures = {
   '/api/auth/config': { disabled: true },
   '/api/setup': { configured: true, profile: { configured: true, name: 'Fixture', language: 'en', persona: 'friendly', persona_custom: '', greeting: '', reply_length: 'balanced', use_emoji: true, spontaneous: false }, languages: [], personas: [], reply_lengths: [], models: [], selected_model: '', keys_set: {} },
@@ -86,12 +86,18 @@ const init = `(() => {
     let response = state.plans[method].shift() || {};
     if (response.hold) response = { ...response, ...await new Promise(resolve => { request.resolve = resolve; }) };
     // Device reads retain their original snapshot; a held issuance gets a fresh lifetime.
-    const fallback = method === 'GET' ? { devices } : method === 'DELETE' ? { ok: true } :
+    const renewing = method === 'POST' && pathname.endsWith('/renew');
+    const target = state.devices.find(device => device.device_id === pathname.split('/').at(-2));
+    const fallback = renewing ? { ok: true, device: { ...target, status: 'active', revoked_at: null,
+      expires_at: Date.now() / 1000 + 90 * 86400, last_auth_failure: null, last_auth_failure_at: null } } :
+      method === 'GET' ? { devices } : method === 'DELETE' ? { ok: true } :
       { qr_svg: '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="300" height="300" fill="white"/></svg>', expires_at: Date.now() / 1000 + 37, pairing_code: ${JSON.stringify(pairingCode)}, code: ${JSON.stringify(opaqueToken)} };
     request.done = true;
     if (response.network) throw new TypeError('Failed to fetch');
     const status = response.status || 200;
-    if (method === 'DELETE' && status < 400) state.devices = state.devices.filter(device => device.device_id !== pathname.split('/').at(-1));
+    if (method === 'DELETE' && status < 400) state.devices = state.devices.map(device => device.device_id === pathname.split('/').at(-1)
+      ? { ...device, status: 'revoked', revoked_at: Date.now() / 1000 } : device);
+    if (renewing && status < 400 && !response.body) state.devices = state.devices.map(device => device.device_id === target?.device_id ? fallback.device : device);
     return Response.json(response.body || (status >= 400 ? { detail: 'Fixture failure' } : fallback), { status });
   };
 })();`;
@@ -291,9 +297,10 @@ try {
     assert.ok(read >= 0 && deletion >= 0);
     poll(); poll();
     assert.equal(count('GET'), reads, 'slow polling cannot create overlapping device reads');
-    release(deletion); wait(`!${pane}.textContent.includes(${JSON.stringify(phone.device_name)})`);
+    release(deletion); wait(`${pane}.textContent.includes(${JSON.stringify(mobileLocales.en.statusRevoked)})`);
     release(read, { body: { devices: [phone] } }); flush();
-    assert.equal(evaluate(`${pane}.textContent.includes(${JSON.stringify(phone.device_name)})`), false, 'an older read cannot restore a revoked phone');
+    assert.equal(evaluate(`${pane}.textContent.includes(${JSON.stringify(phone.device_name)})`), true, 'a revoked phone remains available for explicit repair');
+    assert.equal(evaluate(`${pane}.textContent.includes(${JSON.stringify(mobileLocales.en.statusRevoked)})`), true, 'an older read cannot restore a revoked phone');
   }
 
   remount([phone]);
@@ -303,6 +310,64 @@ try {
   plan('DELETE', { status: 404 }); click('revoke');
   wait(`${pane}.querySelector('[role=alert]')?.textContent === ${JSON.stringify(mobileLocales.en.deviceMissing)}`);
   assert.deepEqual(alerts(), [mobileLocales.en.deviceMissing], 'a missing device does not tell users to update a working backend');
+
+  // Repair keeps the existing device identity and requires explicit restoration.
+  for (const language of ['en', 'uk']) {
+    evaluate(`localStorage.setItem('claudeBotLang', '${language}'); true`); browser('reload');
+    wait(`document.documentElement.lang === '${language}' && Boolean(document.querySelector('#mobile-api-origin'))`);
+    const labels = mobileLocales[language];
+    const revoked = { ...phone, status: 'revoked', revoked_at: Date.now() / 1000 - 60,
+      last_auth_failure: 'revoked', last_auth_failure_at: Date.now() / 1000 - 20 };
+    remount([revoked]);
+    assert.ok(alerts().includes(labels.sessionAttentionRevoked));
+    const before = count('POST');
+    click('repair', language); flush();
+    assert.equal(count('POST'), before, 'opening repair cannot silently restore a revoked credential');
+    assert.equal(evaluate('document.activeElement.textContent.trim()'), labels.cancel, 'restore opens with the safe action focused');
+    assert.equal(evaluate(`${pane}.querySelector('[role=group]').getAttribute('aria-describedby') === ${pane}.querySelector('[role=group] p:last-of-type').id`), true, 'the confirmation exposes its consequences to assistive technology');
+    evaluate(`[...${pane}.querySelectorAll('button')].find(button => button.textContent.trim() === ${JSON.stringify(labels.restoreConfirm)}).focus(); true`);
+    poll(); flush();
+    assert.equal(evaluate('document.activeElement.textContent.trim()'), labels.restoreConfirm, 'background device refresh preserves keyboard focus');
+    click('cancel', language); flush();
+    assert.equal(count('POST'), before, 'cancelling repair leaves access revoked');
+    assert.equal(evaluate('document.activeElement.textContent.trim()'), labels.repair, 'cancel returns focus to the same phone');
+    click('repair', language); flush(); browser('press', 'Escape'); flush();
+    assert.equal(evaluate(`${pane}.querySelector('[role=group]') === null`), true, 'Escape cancels inline restoration');
+    assert.equal(count('POST'), before, 'Escape leaves access revoked');
+    assert.equal(evaluate('document.activeElement.textContent.trim()'), labels.repair);
+    click('repair', language);
+    browser('set', 'viewport', '320', '844'); flush();
+    assert.equal(evaluate(`${pane}.scrollWidth <= ${pane}.clientWidth`), true, 'repair controls wrap at 320px');
+    browser('screenshot', `/tmp/blink-session-repair-web-${language}.png`);
+    browser('set', 'viewport', '1440', '1000'); flush();
+    plan('POST', { hold: true }); click('restoreConfirm', language);
+    const repair = held('POST');
+    assert.equal(evaluate(`window.__mobile.requests[${repair}].body.restore_revoked`), true);
+    evaluate(`[...${pane}.querySelectorAll('button')].find(button => button.textContent.trim() === ${JSON.stringify(labels.restoreConfirm)}).click(); true`); flush();
+    assert.equal(count('POST'), before + 1, 'duplicate restore is suppressed');
+    release(repair); wait(`${pane}.textContent.includes(${JSON.stringify(labels.accessRestored)})`);
+    flush();
+    assert.equal(evaluate('document.activeElement.textContent.trim()'), labels.extend, 'successful repair leaves focus on the renewed phone');
+    assert.deepEqual(alerts(), [], 'successful repair clears the device warning');
+    assert.equal(evaluate(`${pane}.textContent.includes(${JSON.stringify(phone.device_name)})`), true);
+
+    remount([{ ...phone, status: 'expired', expires_at: 1, last_auth_failure: 'expired' }]);
+    assert.ok(alerts().includes(labels.sessionAttentionExpired));
+    click('extend', language); wait(`${pane}.textContent.includes(${JSON.stringify(labels.sessionExtended)})`);
+    assert.equal(evaluate('window.__mobile.requests.filter(request => request.method === "POST").at(-1).body.restore_revoked'), false);
+    assert.deepEqual(alerts(), []);
+
+    remount([revoked]); click('repair', language);
+    plan('POST', { body: { ok: true, device: { ...phone, device_id: 'wrong-device' } } }); click('restoreConfirm', language);
+    wait(`${pane}.textContent.includes(${JSON.stringify(labels.failed)})`);
+    assert.equal(evaluate(`${pane}.textContent.includes(${JSON.stringify(labels.accessRestored)})`), false, 'a malformed receipt cannot claim access restored');
+    for (const [status, key] of [[403, 'ownerSessionRequired'], [404, 'deviceMissing'], [409, 'deviceRevokedNeedRestore']]) {
+      plan('POST', { status }); click('restoreConfirm', language);
+      wait(`${pane}.textContent.includes(${JSON.stringify(labels[key])})`);
+    }
+  }
+  evaluate("localStorage.setItem('claudeBotLang', 'en'); true"); browser('reload');
+  wait("document.documentElement.lang === 'en' && Boolean(document.querySelector('#mobile-api-origin'))");
 
   // A late completion belongs to the component that initiated it, even after remount.
   for (const response of [{}, { status: 401 }]) {

@@ -159,6 +159,7 @@ no-store`. Auth is required except for one-time code exchange.
 | POST `/pair/exchange` | `{code,device_name,platform:"android"|"ios"}` | `{token,device_id,expires_at}` |
 | GET `/devices` | Owner auth | `{devices:[{device_id,device_name,platform,created_at,expires_at,revoked_at}]}` |
 | DELETE `/devices/{device_id}` | Owner auth | `{ok:true}` |
+| POST `/devices/{device_id}/renew` | Web owner auth; `{restore_revoked?:bool}` | `{ok:true,device}` |
 | GET `/capabilities` | Owner auth | `{version:1,pairing:true,queue:true,steer:false,stop:true,scheduled_send:true,event_replay:true,idempotency:true,history_fork:true,push:false}` |
 | POST `/messages` | Submission below | Job summary below |
 | GET `/messages?session_id=` | Optional conversation filter | `{messages:[submission/status projection]}` |
@@ -227,6 +228,36 @@ The optional server request must match the configured approved origin. Without
 an explicitly configured origin, an operator must supply a valid HTTPS origin.
 Device revocation rejects future authenticated requests; already accepted host
 work remains durable.
+
+### Manual session extension and repair
+
+`GET /devices` retains expired and revoked devices. Each row adds
+`status:active|expired|revoked`, `last_auth_failure:expired|revoked|null` and
+`last_auth_failure_at:number|null`. Known failed credentials record a warning
+without storing the raw token; repeated failures update the timestamp at most
+once per minute unless the reason changes. Unknown credentials remain 401 and
+do not create device records. The tracking table is an additive migration.
+
+The signed-in web owner may POST `/devices/{device_id}/renew` for their own
+device. A disabled-auth local owner must pass the existing direct-local operator
+checks, including Origin and forwarded-header checks. Device credentials cannot
+use this endpoint, even for themselves. Another owner's device returns 404.
+
+Renewal sets expiry to at least 90 days from now without shortening an existing
+longer lifetime. Repeated clicks do not accumulate another 90 days. The device
+ID, credential hash, owner and queued work remain intact. Revoked devices return
+409 `device_revoked` unless the strict boolean `restore_revoked:true` explicitly
+confirms restoration. Restoration makes that existing credential valid again;
+the web UI requires confirmation that the owner recognizes the phone. Repair
+clears its recorded authentication warning, and the phone can tap Retry using
+its existing secure credential and local drafts.
+
+Blink presents authentication failures as a persistent recovery screen with
+Repair connection and Retry. The repair link carries no credential. The default
+mobile hostname opens the existing `https://klodbot.waveio.me/dash/#/settings?tab=devices`;
+custom deployments open `/dash/#/settings?tab=devices` on their saved origin and
+must serve the web dashboard there or use the host computer's dashboard directly.
+Network and service failures retain their separate Retry advice.
 
 Submission fields:
 

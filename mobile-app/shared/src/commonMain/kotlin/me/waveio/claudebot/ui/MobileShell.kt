@@ -54,7 +54,7 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
     val adaptive = AdaptiveLayout(maxWidth, maxHeight, state.connected)
     val modalMenuOpen = state.menuOpen && !adaptive.persistentSidebar
-    NativeBackHandler(state.sendModeOpen || state.attachmentPickerOpen || state.dictationOpen || modalMenuOpen || state.openFile != null || state.screen != Screen.Chat) {
+    NativeBackHandler(state.connected && (state.sendModeOpen || state.attachmentPickerOpen || state.dictationOpen || modalMenuOpen || state.openFile != null || state.screen != Screen.Chat)) {
         when {
             state.sendModeOpen -> actions.sendModes(false)
             state.attachmentPickerOpen -> actions.attachments(false)
@@ -67,7 +67,7 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
     }
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
-    LaunchedEffect(modalMenuOpen) { if (modalMenuOpen) { focus.clearFocus(); keyboard?.hide() } }
+    LaunchedEffect(modalMenuOpen, state.connected) { if (modalMenuOpen || !state.connected) { focus.clearFocus(); keyboard?.hide() } }
     LaunchedEffect(adaptive.persistentSidebar, state.menuOpen) {
         if (adaptive.persistentSidebar && state.menuOpen) actions.menu(false)
     }
@@ -149,6 +149,8 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
                 }
             }
         }
+        // Retain the work underneath recovery without letting its overlays hide the repair action.
+        if (state.connected) {
         Box(Modifier.matchParentSize().padding(start = adaptive.sidebarWidth)) {
             ModelPicker(state, actions)
             AttachmentMenu(state, actions)
@@ -180,6 +182,7 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
             )
             if (!update.mandatory) QuietAction(tr("update.close"), actions::dismissUpdate, Modifier.fillMaxWidth())
         } }
+        }
     }
     }
     }
@@ -195,7 +198,7 @@ private fun StartupScreen(state: AppState, actions: AppActions) {
             verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
             BotMark(Modifier.size(76.dp))
             Spacer(Modifier.height(22.dp))
-            Text(tr(if (failure == null) "startup.title" else "startup.failed"),
+            Text(tr(if (failure == null) "startup.title" else if (failure == "error.auth") "startup.repairTitle" else "startup.failed"),
                 fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Medium, color = p.ink,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
@@ -204,7 +207,10 @@ private fun StartupScreen(state: AppState, actions: AppActions) {
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             Spacer(Modifier.height(26.dp))
             if (failure == null) LoadingDots(color = p.accent) else {
-                ActionButton(tr("action.retry"), actions::refresh, Modifier.fillMaxWidth().heightIn(min = 54.dp), primary = true)
+                if (failure == "error.auth") {
+                    ActionButton(tr("startup.repair"), actions::repairConnection, Modifier.fillMaxWidth().heightIn(min = 54.dp), primary = true)
+                    QuietAction(tr("action.retry"), actions::refresh, Modifier.fillMaxWidth())
+                } else ActionButton(tr("action.retry"), actions::refresh, Modifier.fillMaxWidth().heightIn(min = 54.dp), primary = true)
                 QuietAction(tr("profile.disconnect"), actions::disconnect, Modifier.fillMaxWidth().padding(top = 6.dp))
             }
         }

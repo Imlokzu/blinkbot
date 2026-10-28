@@ -1,5 +1,16 @@
 # DESIGN.md — Claude Bot Dashboard
 
+## Phone session recovery (2026-10-28)
+
+Settings / Devices retains expired and revoked devices and names each session's
+status, expiry and last known authentication failure. An attention notice points
+to the affected row's Extend session or Repair connection action. Restoring a
+revoked credential uses an inline confirmation naming the device and explaining
+that its previous credential will become valid again. Only the authenticated web
+owner (or the direct local operator) can do this. Success tells the user to tap
+Retry in Blink. Reuse existing Button, status/alert semantics, English/Ukrainian
+locales and wrapping device rows; keep controls usable at 320px.
+
 Every person or agent touching `dashboard/` reads this file. It describes
 _why_ the dashboard looks the way it does. If a change contradicts something here — either the change
 is wrong, or the file is outdated; there is no third option.

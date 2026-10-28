@@ -6,6 +6,7 @@ import me.waveio.claudebot.data.WebPreviewResource
 
 interface AppActions {
     fun connect()
+    fun repairConnection() {}
     fun codePairing(open: Boolean)
     fun pairingCode(value: String)
     fun pairingServer(value: String)

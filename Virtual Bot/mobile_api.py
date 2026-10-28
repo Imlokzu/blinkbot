@@ -190,6 +190,11 @@ class PairingRequest(BaseModel):
     server: str = Field(default="", max_length=512)
 
 
+class RenewDeviceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    restore_revoked: bool = Field(default=False, strict=True)
+
+
 class ExchangeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     code: str = Field(min_length=1, max_length=128)
@@ -577,6 +582,22 @@ def router(require_user, require_operator, run_turn: RunTurn, *, store: MobileSt
     async def revoke(device_id: str, user_id: str = Depends(identity)):
         call(lambda: selected_store.revoke(user_id, device_id))
         return {"ok": True}
+
+    async def web_owner(request: Request) -> str:
+        # A phone credential must never be able to renew itself or another
+        # device. Local disabled-auth access retains the operator's proxy and
+        # Origin checks; signed-in web users can manage only their own rows.
+        if _token(request).startswith(TOKEN_PREFIX):
+            raise HTTPException(403, {"code": "web_session_required"})
+        user_id = await require_user(request)
+        if not user_id:
+            await require_operator(request)
+        return user_id
+
+    @routes.post("/devices/{device_id}/renew")
+    async def renew_device(device_id: str, req: RenewDeviceRequest, user_id: str = Depends(web_owner)):
+        device = call(lambda: selected_store.renew(user_id, device_id, restore_revoked=req.restore_revoked))
+        return {"ok": True, "device": device}
 
     @routes.get("/update/download")
     async def download_update(

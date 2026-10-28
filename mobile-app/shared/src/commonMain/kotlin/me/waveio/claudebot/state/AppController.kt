@@ -210,9 +210,9 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             failure is ApiFailure && failure.code == "workspace_file_too_large" -> "files.tooLarge"
             failure is ApiFailure && failure.code == "invalid_workspace_path" -> "files.invalidPath"
             failure is ApiFailure && failure.code == "mobile_image_model_unavailable" -> "error.imageModel"
+            failure is ApiFailure && failure.code in listOf("invalid_pairing", "invalid_server") -> "error.qr"
             failure is ApiFailure && failure.status == 401 -> "error.auth"
             failure is ApiFailure && failure.status == 501 -> "error.unsupported"
-            failure is ApiFailure && failure.code in listOf("invalid_pairing", "invalid_server") -> "error.qr"
             failure is ApiFailure && (failure.code.contains("revision") || failure.code == "file_conflict") -> "error.fileConflict"
             failure is ApiFailure && failure.status == 409 -> "error.busy"
             failure is ApiFailure && failure.status != 0 -> "error.service"
@@ -220,9 +220,33 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         }
     private fun error(failure: Exception) {
         val key = errorKey(failure)
-        update { it.copy(error = if (it.initializing) null else key,
-            initializationError = if (it.initializing) key else it.initializationError,
+        val needsRepair = key == "error.auth"
+        if (needsRepair) {
+            watchers.values.forEach { it.cancel() }
+            watchers.clear()
+        }
+        update { it.copy(error = if (it.initializing || needsRepair) null else key,
+            initializationError = if (it.initializing || needsRepair) key else it.initializationError,
+            connected = it.connected && !needsRepair,
             initializing = false, loading = false, connecting = false, modelPickerOpen = it.modelPickerOpen || key == "error.imageModel") }
+    }
+
+    /** Inline file errors must expose the same persistent recovery as chat failures. */
+    private fun handleAuthenticationFailure(failure: Exception): Boolean {
+        if (errorKey(failure) != "error.auth") return false
+        error(failure)
+        return true
+    }
+
+    override fun repairConnection() {
+        if (state.value.initializationError != "error.auth") return
+        run {
+            val origin = normalizeApiOrigin(state.value.baseUrl)
+            // The public mobile hostname deliberately excludes web routes.
+            // Other hosts use their own dashboard; never guess another domain.
+            val webOrigin = if (origin == "https://api-bot.waveio.me") "https://klodbot.waveio.me" else origin
+            platform.openExternalUrl("$webOrigin/dash/#/settings?tab=devices")
+        }
     }
     private fun feedback() {
         if (platform.foreground.value && state.value.preferences.haptics) platform.haptic()
@@ -766,7 +790,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                     if (state.value.draft.isBlank()) draft(item.message)
                     update { it.copy(attachments = if (it.attachments.isEmpty()) item.attachments else it.attachments) }
                 }
-                if (navigation == navigationVersion) error(failure)
+                if (navigation == navigationVersion || errorKey(failure) == "error.auth") error(failure)
             } else if (askOnFailure && platform.foreground.value && navigation == navigationVersion) update { it.copy(offlineQuestion = true) }
             else { permitted.add(item.clientId); persistOutbox() }
         } finally {
@@ -782,7 +806,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val owner = accountScope
         try {
             for (item in outbox.toList().filter { it.clientId in permitted }) {
-                if (version != connectionVersion || owner != accountScope) break
+                if (!state.value.connected || version != connectionVersion || owner != accountScope) break
                 if (item.sessionId in deletingChats) continue
                 submit(item, false)
             }
@@ -1265,7 +1289,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                     previewEditable = !result.binary && !result.tooLarge, previewWriteActive = false,
                     previewRevision = ++previewVersion, loading = false) }
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (failure: Exception) { if (current()) update { it.copy(error = errorKey(failure), loading = false) } }
+            catch (failure: Exception) { if (current()) error(failure) }
         }
     }
     override fun loadAttachmentThumbnail(path: String) {
@@ -1749,8 +1773,12 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                     }) }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) {
-                if (epoch == connectionVersion && readVersion == fileReadVersion) update { it.copy(
-                    loading = false, fileLoading = false, fileLoadError = errorKey(failure), fileSaveState = if (target in fileDrafts) "failed" else it.fileSaveState) }
+                if (epoch == connectionVersion && readVersion == fileReadVersion) {
+                    val authFailure = handleAuthenticationFailure(failure)
+                    update { it.copy(loading = false, fileLoading = false,
+                        fileLoadError = if (authFailure) null else errorKey(failure),
+                        fileSaveState = if (target in fileDrafts) "failed" else it.fileSaveState) }
+                }
             }
         }
     }
@@ -1868,7 +1896,9 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) {
                 if (owner == accountScope && version == connectionVersion) {
-                    if (failure is ApiFailure && failure.status == 409) {
+                    if (handleAuthenticationFailure(failure)) {
+                        if (editorTarget() == target) update { it.copy(fileSaveState = "failed", fileLoadError = null) }
+                    } else if (failure is ApiFailure && failure.status == 409) {
                         val remote = try { latestFile(connection, target) }
                         catch (cancelled: CancellationException) { throw cancelled }
                         catch (_: Exception) { null }
@@ -1920,7 +1950,8 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                         fileLoadError = null, fileExternallyChanged = false, error = null) }
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (failure: Exception) {
-                    if (epoch == connectionVersion && generation == state.value.fileEditorGeneration) update { it.copy(fileLoadError = errorKey(failure)) }
+                    if (epoch == connectionVersion && generation == state.value.fileEditorGeneration && !handleAuthenticationFailure(failure))
+                        update { it.copy(fileLoadError = errorKey(failure)) }
                 }
             }
         }
@@ -1963,7 +1994,10 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) {
-                if (epoch == connectionVersion && current()) update { it.copy(error = if (failure is ApiFailure && failure.status == 409) "files.alreadyExists" else errorKey(failure)) }
+                if (epoch == connectionVersion && current()) {
+                    if (failure is ApiFailure && failure.status == 409) update { it.copy(error = "files.alreadyExists") }
+                    else error(failure)
+                }
             } finally {
                 if (epoch == connectionVersion) update { it.copy(fileCreating = false) }
                 complete(resultPath.takeIf { epoch == connectionVersion && current() })

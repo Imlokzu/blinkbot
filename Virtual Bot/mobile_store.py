@@ -19,6 +19,9 @@ from typing import Any, Callable, Iterator
 import uuid
 
 TOKEN_PREFIX = "cbm_"
+DEVICE_SESSION_TTL = 90 * 86400
+# A dead credential replayed in a loop moves its warning at most this often.
+AUTH_FAILURE_THROTTLE = 60
 PAIRING_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 PAIRING_ATTEMPT_LIMIT = 10
 PAIRING_ATTEMPT_WINDOW = 300
@@ -74,6 +77,10 @@ class MobileStore:
                     name TEXT NOT NULL, platform TEXT NOT NULL,
                     token_hash TEXT NOT NULL UNIQUE, created_at REAL NOT NULL,
                     expires_at REAL NOT NULL, revoked_at REAL
+                );
+                CREATE TABLE IF NOT EXISTS device_auth_failures (
+                    device_id TEXT PRIMARY KEY REFERENCES devices(id),
+                    code TEXT NOT NULL, occurred_at REAL NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS conversations (
                     user_id TEXT NOT NULL, session_id TEXT NOT NULL,
@@ -160,7 +167,7 @@ class MobileStore:
                 raise StoreError("pairing_unavailable", 503)
         return {"code": code, "pairing_code": short[:4] + "-" + short[4:], "expires_at": expires}
 
-    def exchange(self, code: str, device_name: str, platform: str, *, ttl: int = 90 * 86400) -> dict:
+    def exchange(self, code: str, device_name: str, platform: str, *, ttl: int = DEVICE_SESSION_TTL) -> dict:
         normalized = "".join(ch for ch in code if ch != "-" and not ch.isspace()).upper()
         short = len(normalized) <= 8
         error = None
@@ -205,17 +212,78 @@ class MobileStore:
         if not token.startswith(TOKEN_PREFIX):
             return None
         with self._db() as db:
-            row = db.execute("SELECT user_id, expires_at, revoked_at FROM devices WHERE token_hash = ?",
-                             (_hash(token),)).fetchone()
-        if row is None or row["revoked_at"] is not None or row["expires_at"] <= self.clock():
+            row = db.execute(
+                "SELECT d.id, d.user_id, d.expires_at, d.revoked_at, f.code, f.occurred_at "
+                "FROM devices d LEFT JOIN device_auth_failures f ON f.device_id=d.id WHERE d.token_hash = ?",
+                (_hash(token),)).fetchone()
+        if row is None:
             raise StoreError("invalid_mobile_token", 401)
-        return row["user_id"]
+        now = self.clock()
+        reason = self._failure(row, now)
+        if reason is None:
+            return row["user_id"]
+        # Record only a known credential's failure, durably, for the web owner.
+        # A fresh warning that already names this reason is answered from the
+        # plain read: a revoked token replayed in a loop must not queue one
+        # BEGIN IMMEDIATE per request behind the scheduler and submitters.
+        if row["code"] != reason or row["occurred_at"] <= now - AUTH_FAILURE_THROTTLE:
+            # Recheck under the write lock so a web repair that lands while
+            # this request waits is neither denied nor left a stale warning.
+            with self._write() as db:
+                row = db.execute("SELECT id, user_id, expires_at, revoked_at FROM devices WHERE token_hash = ?",
+                                 (_hash(token),)).fetchone()
+                now = self.clock()
+                reason = self._failure(row, now) if row is not None else None
+                if reason:
+                    db.execute(
+                        "INSERT INTO device_auth_failures VALUES (?, ?, ?) "
+                        "ON CONFLICT(device_id) DO UPDATE SET code=excluded.code, occurred_at=excluded.occurred_at "
+                        "WHERE device_auth_failures.occurred_at <= ? OR device_auth_failures.code != excluded.code",
+                        (row["id"], reason, now, now - AUTH_FAILURE_THROTTLE),
+                    )
+            if row is not None and reason is None:
+                return row["user_id"]
+        raise StoreError("invalid_mobile_token", 401)
+
+    @staticmethod
+    def _failure(row: sqlite3.Row, now: float) -> str | None:
+        """Why this credential is refused right now, or None while it is valid."""
+        if row["revoked_at"] is not None:
+            return "revoked"
+        return "expired" if row["expires_at"] <= now else None
+
+    def _devices(self, db: sqlite3.Connection, user_id: str, device_id: str | None = None) -> list[dict]:
+        rows = db.execute(
+            "SELECT d.id AS device_id, d.name AS device_name, d.platform, d.created_at, d.expires_at, d.revoked_at, "
+            "f.code AS last_auth_failure, f.occurred_at AS last_auth_failure_at "
+            "FROM devices d LEFT JOIN device_auth_failures f ON f.device_id=d.id "
+            "WHERE d.user_id = ? AND (? IS NULL OR d.id = ?) ORDER BY d.created_at, d.id",
+            (user_id, device_id, device_id),
+        ).fetchall()
+        now = self.clock()
+        return [{**dict(row), "status": self._failure(row, now) or "active"} for row in rows]
 
     def devices(self, user_id: str) -> list[dict]:
         with self._db() as db:
-            rows = db.execute("SELECT id AS device_id, name AS device_name, platform, created_at, expires_at, revoked_at "
-                              "FROM devices WHERE user_id = ? ORDER BY created_at, id", (user_id,)).fetchall()
-        return [dict(row) for row in rows]
+            return self._devices(db, user_id)
+
+    def renew(self, user_id: str, device_id: str, *, restore_revoked: bool = False) -> dict:
+        """A web owner explicitly repairs the existing credential and identity."""
+        with self._write() as db:
+            row = db.execute("SELECT expires_at, revoked_at FROM devices WHERE user_id=? AND id=?",
+                             (user_id, device_id)).fetchone()
+            if row is None:
+                raise StoreError("device_not_found", 404)
+            if row["revoked_at"] is not None and not restore_revoked:
+                raise StoreError("device_revoked", 409)
+            expires = max(row["expires_at"], self.clock() + DEVICE_SESSION_TTL)
+            db.execute("UPDATE devices SET expires_at=?, revoked_at=NULL WHERE user_id=? AND id=?",
+                       (expires, user_id, device_id))
+            db.execute("DELETE FROM device_auth_failures WHERE device_id=?", (device_id,))
+            # The receipt is the row this transaction commits. A read after the
+            # commit can be blocked by another writer or show a revoke that
+            # landed later, and the dashboard trusts only an active receipt.
+            return self._devices(db, user_id, device_id)[0]
 
     def revoke(self, user_id: str, device_id: str) -> None:
         with self._write() as db:

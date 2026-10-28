@@ -3919,3 +3919,25 @@ reopening a chat or restarting the app; an unanswered, completed question in the
 chat's newest reply is now restored from history. 336 shared tests pass.
 Instrumentation tests and the emulator smoke were not run: the disk was nearly
 full and the emulator refused to start. See docs/mobile-app/RELEASE-0.5.2.md.
+
+## 2026-10-28 — Manual phone-session extension and repair
+
+Fixed issue #9: web Settings / Devices retains expired/revoked sessions and
+observed authentication failures, with owner-controlled extension and explicit
+revoked-access restoration. Existing device credentials and identity survive;
+phones cannot renew themselves. Blink offers persistent Repair connection and
+Retry while preserving drafts and queued work. Bad pairing codes remain in the
+pairing flow. English/Ukrainian labels and keyboard focus recovery are covered.
+
+Backend Fable review fixed throttled-token write contention and transaction
+receipt races; Astra completed the UI/controller review at the owner's request.
+Validation: 134 focused backend tests; 344 shared and 78 Android tests; 244 web
+tests, TypeScript and the mocked EN/UK recovery browser fixture; 56 isolated HTTP
+smoke checks including same-token recovery and traversal 400. The complete clean
+source suite passed 2,128 tests and 489 subtests, with 8 skipped. Source and runtime
+publication are separate steps. Earlier shared-checkout screen/app-kit failures
+were handed to that owner; its committed fixes are included in the clean base.
+
+Android 0.6.0/code33 is built. See `docs/mobile-app/RELEASE-0.6.0.md` for its digest
+and validation limits. No emulator, physical-device or iOS runtime check is
+claimed; native desktop UI checks were blocked by the incomplete JCEF cache.

@@ -49,6 +49,21 @@ Explicit non-goals for this version:
 Necessary changes to the shared backend or PC pairing surface must be scoped
 against these requirements, preserving existing clients and contracts.
 
+### Recovering a saved phone session
+
+Authentication failures must name the saved connection as the problem and offer
+Repair connection plus Retry. Repair opens the web Devices settings without a
+credential in the URL. Keep the phone's credential, device identity and drafts
+so Retry can resume after the owner repairs access on the web.
+
+Web Settings / Devices keeps expired and revoked sessions visible, names their
+status and reports known failed authentication attempts. The web owner can extend
+a session to at least 90 days from now. Restoring a revoked credential requires
+an explicit confirmation that the device is recognized. A phone credential
+cannot renew itself. Successful repair clears the warning and tells the user
+to tap Retry in Blink. English/Ukrainian messages reuse existing native controls.
+
+
 ## Brand, visual language, and accessibility
 
 - Clean, spacious surfaces following the owner's two desktop references.
