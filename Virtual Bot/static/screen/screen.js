@@ -64,6 +64,8 @@ function chatTile() {
 }
 const layerQuick = $("layerQuick");
 const layerNotices = $("layerNotices");
+// Preference setup may notify an app before the app builders are initialized.
+const layerApp = $("layerApp");
 const dimmer = $("dimmer");
 
 // The on-screen keyboard; created further down, read by wake() early on
@@ -3377,7 +3379,6 @@ document.querySelector("[data-apps-close]").addEventListener("click", closeApps)
    тому окремий шар, а не ще один тайл: карусель має лишатись короткою,
    інакше гортати її стає гірше, ніж відкрити шухляду. */
 
-const layerApp = $("layerApp");
 const appBody = $("appBody");
 let camTimer = 0;
 
