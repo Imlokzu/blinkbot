@@ -29,7 +29,7 @@ Native GUI checks were blocked by an incomplete existing desktop JCEF cache;
 no emulator, physical-phone or iOS runtime verification is claimed.
 
 Android version code: 33. APK: 7,716,552 bytes.
-SHA-256: `874656b26b6683b789d21c18e72493c4fee679448974b22d196a17a3b17ff10b`.
+SHA-256: `8024145aa292355368332896c121e6088634b20cd2eb82b3d8edbb88ff12e1bd`.
 
 This records the prepared APK; automatic update publication is a separate step.
 
@@ -44,3 +44,7 @@ already-approved Solar icon hash metadata and Excalidraw Firebase client data.
 Astra verified the existing full fingerprints and canonical copies. No detector
 or fingerprint was added; the unchanged policy tests passed 13 cases and 25
 subtests.
+
+The final APK was rebuilt from the committed mobile sources, excluding local
+updater drafts. Its 344 shared and 78 Android unit tests passed, and the signing
+certificate again matched the published release.
