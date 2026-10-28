@@ -9,7 +9,7 @@
    What it does:
      - takes the screen's live style from the parent's "botSkin" message
        — resolved colour tokens, font, theme, interface style (material |
-       deep), language and the gesture insets — and puts them on <html>
+       deep), language, edge dimming and gesture insets — and puts them on <html>
        (CSS variables, data-theme, data-ui, lang), so the kit's parts and
        the app's own CSS match the screen exactly, skins included;
      - until that message arrives, guesses the same from the screen's
@@ -41,6 +41,7 @@
     lang: read("botScreenLang") === "en" ? "en" : "uk",
     theme: read("botScreenTheme") === "light" ? "light" : "dark",
     ui: read("botScreenUiStyle") === "deep" || read("botScreenUiStyle") === "oneui" ? "deep" : "material",
+    edgeDimming: read("botScreenEdgeDimming") !== "0",
     onChange: function (fn) {
       if (typeof fn === "function") listeners.push(fn);
     },
@@ -70,6 +71,8 @@
       var all = document.querySelectorAll('input[type="range"].kit-slider');
       for (var i = 0; i < all.length; i++) paint(all[i]);
     },
+    // Re-measure after a custom view change on browsers without ResizeObserver.
+    layout: function () { layoutEdges(); },
   };
 
   function paint(el) {
@@ -82,6 +85,7 @@
   function apply() {
     root.dataset.theme = api.theme;
     root.dataset.ui = api.ui;
+    root.dataset.edgeDimming = api.edgeDimming ? "on" : "off";
     root.lang = api.lang;
   }
 
@@ -91,7 +95,39 @@
     var el = e.target;
     if (el && el.type === "range" && el.classList && el.classList.contains("kit-slider")) paint(el);
   }, true);
-  document.addEventListener("DOMContentLoaded", function () { api.paint(); });
+  function layoutEdges() {
+    document.querySelectorAll(".kit-edge").forEach(function (page) {
+      if (!page.offsetHeight) return;
+      var top = page.querySelector(":scope > .kit-edge-top");
+      var bottom = page.querySelector(":scope > .kit-edge-bottom");
+      var inset = parseFloat(getComputedStyle(root).getPropertyValue("--kit-inset-bottom")) || 0;
+      var values = {
+        "--kit-edge-top": top && top.offsetHeight ? top.offsetHeight + 10 : 4,
+        "--kit-edge-bottom": inset + (bottom && bottom.offsetHeight ? bottom.offsetHeight + 6 : 4),
+      };
+      Object.keys(values).forEach(function (key) {
+        var value = values[key] + "px";
+        if (page.style.getPropertyValue(key) !== value) page.style.setProperty(key, value);
+      });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    api.paint();
+    layoutEdges();
+    if (window.ResizeObserver) {
+      var observer = new ResizeObserver(layoutEdges);
+      document.querySelectorAll(".kit-edge, .kit-edge-top, .kit-edge-bottom").forEach(function (el) {
+        observer.observe(el);
+      });
+      window.addEventListener("pagehide", function () { observer.disconnect(); });
+      window.addEventListener("pageshow", function () {
+        document.querySelectorAll(".kit-edge, .kit-edge-top, .kit-edge-bottom").forEach(function (el) { observer.observe(el); });
+        layoutEdges();
+      });
+    }
+    window.addEventListener("resize", layoutEdges);
+  });
 
   // Only the parent may restyle the app. The origin is not checked: a
   // sandboxed (shared) app sees "null", and nothing here is a secret.
@@ -112,12 +148,14 @@
     }
     api.theme = d.theme === "light" ? "light" : "dark";
     if (d.ui === "deep" || d.ui === "material") api.ui = d.ui;
+    if (typeof d.edgeDimming === "boolean") api.edgeDimming = d.edgeDimming;
     if (d.lang === "uk" || d.lang === "en") api.lang = d.lang;
     apply();
     api.paint();
     for (var i = 0; i < listeners.length; i++) {
-      try { listeners[i]({ lang: api.lang, theme: api.theme, ui: api.ui }); } catch (err) { /* one app bug must not stop the rest */ }
+      try { listeners[i]({ lang: api.lang, theme: api.theme, ui: api.ui, edgeDimming: api.edgeDimming }); } catch (err) { /* one app bug must not stop the rest */ }
     }
+    layoutEdges();
   });
 
   window.BotApp = api;

@@ -85,14 +85,17 @@ body.kit {
   background: radial-gradient(95% 70% at 50% -12%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 66%), var(--bg);
 }
 
-/* The whole panel, minus the gesture strips at the sides and bottom */
+/* Fixed boards and keypads keep their touch controls clear of gestures.
+   Scrolling pages opt into kit-edge below to scroll behind their controls. */
 .kit-app {
   box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
   height: 100%;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px var(--kit-inset-side) var(--kit-inset-bottom);
+  padding: 4px var(--kit-inset-side) var(--kit-inset-bottom);
   min-height: 0;
 }
 .kit-fill { flex: 1; min-height: 0; }
@@ -104,9 +107,75 @@ body.kit {
 .kit-scroll { overflow-y: auto; min-height: 0; scrollbar-width: none; touch-action: pan-y; }
 .kit-scroll::-webkit-scrollbar { display: none; }
 
-/* ---------- Top app bar: the app's name, big, and its actions ----------
-   The screen draws no title bar for a store app any more; this is it. */
+/* Shared by ordinary and floating bars, including bars nested in views. */
 .kit-bar { display: flex; align-items: center; gap: 8px; min-height: 28px; flex: none; }
+
+/* A full-height scrolling page. Explicit parts avoid guessing which sibling
+   is content when an app switches tabs, opens a sheet or shows a player.
+   app-kit.js measures controls after localization and visibility changes. */
+.kit-app.kit-edge-shell { padding: 0; gap: 0; }
+.kit.kit .kit-edge {
+  position: relative;
+  isolation: isolate;
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+  --kit-edge-top: 48px;
+  --kit-edge-bottom: var(--kit-inset-bottom);
+}
+.kit.kit .kit-edge.kit-page { position: absolute; inset: 0; }
+.kit.kit .kit-edge > .kit-edge-content {
+  box-sizing: border-box;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  min-height: 0;
+  margin: 0 !important;
+  overflow-y: auto;
+  touch-action: pan-y;
+  scrollbar-width: none;
+  padding: var(--kit-edge-top) var(--kit-inset-side) var(--kit-edge-bottom) !important;
+  scroll-padding-block: var(--kit-edge-top) var(--kit-edge-bottom);
+}
+.kit-edge-content::-webkit-scrollbar { display: none; }
+.kit.kit .kit-edge > .kit-edge-top,
+.kit.kit .kit-edge > .kit-edge-bottom {
+  position: absolute;
+  left: var(--kit-inset-side);
+  right: var(--kit-inset-side);
+  width: auto;
+  z-index: 2;
+  margin: 0;
+}
+.kit-edge > .kit-edge-top { top: 4px; }
+.kit-edge > .kit-edge-bottom { bottom: var(--kit-inset-bottom); }
+.kit-edge-stack { display: flex; flex-direction: column; gap: 6px; }
+/* Text and controls stay readable even when the optional scrim is off. */
+.kit-edge-top, .kit-edge-bottom {
+  background: var(--bg);
+  border-radius: 12px;
+}
+.kit-edge::before, .kit-edge::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.kit-edge::before {
+  top: 0;
+  height: calc(var(--kit-edge-top) + 6px);
+  background: linear-gradient(rgba(0, 0, 0, 0.28), transparent);
+}
+.kit-edge::after {
+  bottom: 0;
+  height: calc(var(--kit-edge-bottom) + 6px);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.28));
+}
+:root[data-edge-dimming="off"] .kit-edge::before,
+:root[data-edge-dimming="off"] .kit-edge::after { display: none; }
+
 .kit-title { flex: 1; min-width: 0; font: 700 18px/1.15 var(--font); letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 :root[data-ui="deep"] .kit-title { font-weight: 800; font-size: 19px; }
 .kit-sub { color: var(--muted); font-size: 11px; }

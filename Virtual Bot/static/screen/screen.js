@@ -4140,6 +4140,7 @@ function openSettings() {
     edgeDimmingRow.appendChild(setupSwitch(edgeDimmingToggle, t("set.enabled"), t("set.disabled"), () => {
       applyEdgeDimming(!edgeDimming);
       writePref(EDGE_DIMMING_KEY, edgeDimming ? "1" : "0");
+      postStoreAppSkin();
     }));
 
     /* Screens: which tiles the carousel shows and in what order. Arrows,
@@ -4994,6 +4995,7 @@ function postStoreAppSkin(frame = null) {
       tokens: resolvedTokens(),
       ui: uiStyle,
       insets: { side: GESTURE_EDGE, bottom: GESTURE_BOTTOM },
+      edgeDimming,
       theme: document.documentElement.dataset.theme === "light" ? "light" : "dark",
       // Apps localise themselves; without this they would stay in the
       // language they started in after the screen switched.

@@ -8,7 +8,7 @@
 <script src="/static/screen/app-kit.js"></script>
 <script src="model.js"></script>
 <style>
-  .converter { gap: 6px; padding-top: 6px; }
+  .converter { gap: 6px; }
   .converter .kit-title { font-size: 16px; }
   .category { max-width: 126px; padding: 0 10px; white-space: nowrap; }
   .units { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -70,12 +70,12 @@
     <button class="kit-key" data-key="decimal" data-i18n="decimal" data-i18n-aria="decimalName" data-i18n-title="decimalName"></button>
   </section>
 </main>
-<section id="picker" class="kit-app kit-page picker" role="dialog" aria-modal="true" aria-labelledby="picker-title" hidden>
-  <header class="kit-bar">
+<section id="picker" class="kit-app kit-page picker kit-edge" role="dialog" aria-modal="true" aria-labelledby="picker-title" hidden>
+  <header class="kit-bar kit-edge-top">
     <span id="picker-title" class="kit-title"></span>
     <button id="done" class="kit-chip" data-i18n="done"></button>
   </header>
-  <div id="choices" class="kit-fill kit-scroll kit-list"></div>
+  <div id="choices" class="kit-fill kit-scroll kit-list kit-edge-content"></div>
 </section>
 <script>
   "use strict";

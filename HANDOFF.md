@@ -1,5 +1,27 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-10-28 — Edge-to-edge store app pages
+
+The shared app kit now provides explicit full-height scrolling pages with
+measured floating top/bottom controls and the host's Edge dimming preference.
+Connections, Checklist, YouTube and YT Music lists/sheets, plus Clock and
+Converter pickers, use the layout. Their six package minor versions were
+bumped so installed built-in copies update. All kit apps have compact top
+spacing; fixed game boards/keypads retain side and bottom gesture clearance.
+Surface stacking is isolated, mini-player controls fit within safe edges,
+and Checklist success/storage notices remain above the gesture strip.
+
+The initialization guard in 47e509db separately moves layerApp before early
+preferences. Independent native review approved the final store diff after
+stacking, alternate-view and notice fixes; Fable was unavailable. Real-package
+browser tests cover all 18 apps, both locales and all four style/theme pairs,
+picker/player layering, tab switching, dimming messages, Checklist editing and
+YT Music mini-player hit targets. Full suite: 2,147 passed, six skipped and 489
+subtests, excluding the external Regolo ASR test (its preceding run returned
+HTTP 402). Isolated real-server smoke passed 25 checks, including byte-exact
+installed app assets and traversal HTTP 400. Test services were stopped.
+Reload /screen to receive the shared kit and refresh installed built-in apps.
+
 ## 2026-10-28 — Screen panels extend to the device edges
 
 Native scrolling panels now fill the 320x240 stage beneath a compact floating

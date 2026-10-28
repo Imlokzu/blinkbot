@@ -69,7 +69,7 @@
   .mini-np .kit-btn.icon { width: 34px; height: 34px; min-width: 34px; min-height: 34px; }
 
   /* ---- Pages over the list: an album, a song's lyrics ---- */
-  .sheet { position: absolute; inset: 0; background: var(--bg); }
+  .kit.kit .sheet { position: absolute; inset: 0; background: var(--bg); }
   :root[data-ui="deep"] .sheet {
     background: radial-gradient(95% 70% at 50% -12%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 66%), var(--bg); }
   .sheet .kit-title { font-size: 16px; }
@@ -147,7 +147,8 @@
 </style>
 </head>
 <body class="kit">
-<main class="kit-app" id="app">
+<main class="kit-app kit-edge" id="app">
+  <div class="kit-edge-top kit-edge-stack">
   <header class="kit-bar">
     <label class="search">
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
@@ -163,8 +164,9 @@
     </div>
     <div class="kit-label status" id="status"></div>
   </div>
-  <div class="kit-scroll list" id="list"></div>
-  <button class="kit-card hi mini-np" id="miniNp" type="button" hidden>
+  </div>
+  <div class="kit-scroll list kit-edge-content" id="list"></div>
+  <button class="kit-card hi mini-np kit-edge-bottom" id="miniNp" type="button" hidden>
     <img id="miniCover" alt="">
     <div class="ti"><div class="tt" id="miniTitle"></div><div class="ts" id="miniArtist"></div></div>
     <span class="kit-btn icon primary" id="miniPlay" role="button"></span>
@@ -197,12 +199,12 @@
   </div>
 </section>
 
-<section class="kit-app sheet" id="sheet" hidden>
-  <header class="kit-bar">
+<section class="kit-app sheet kit-edge" id="sheet" hidden>
+  <header class="kit-bar kit-edge-top">
     <button class="kit-btn icon" id="sheetBack" type="button" data-i18n-aria="common.back" data-icon="back"></button>
     <span class="kit-title" id="sheetTitle"></span>
   </header>
-  <div class="kit-scroll sbody" id="sheetBody"></div>
+  <div class="kit-scroll sbody kit-edge-content" id="sheetBody"></div>
 </section>
 
 <script>

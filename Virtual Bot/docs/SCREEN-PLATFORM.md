@@ -123,6 +123,15 @@ wears: Material You or Deep UI, dark or light, any skin.
   It is sent on load and again whenever the theme, style or skin
   changes. `app-kit.js` applies all of it, plus `vars`, `theme` and
   `lang` as before. Apps just use the tokens.
+- `edgeDimming` carries the persisted host preference. Scrolling pages opt
+  into `kit-edge`, with direct `kit-edge-top`, `kit-edge-content` and optional
+  `kit-edge-bottom` children. Top/bottom controls float above a full-height
+  scroll viewport. The kit measures them after localization, resizing and
+  visibility changes; content padding keeps first/last actions reachable.
+  `kit-edge-stack` groups multiple control rows. `kit-edge-shell` removes
+  outer padding around nested pages. Fixed boards/keypads keep compact safe
+  touch insets. Each page isolates its stacking context for sheets/players.
+  `BotApp.layout()` explicitly refreshes measurements for custom view changes.
 - `app-kit.css` offers the parts: `kit-bar`, `kit-title`, `kit-card`,
   `kit-display`, `kit-btn` (`primary`/`tonal`/`ghost`/`icon`/`big`),
   `kit-chip`, `kit-segment`, `kit-slider`, `kit-switch`, `kit-list` /

@@ -106,6 +106,12 @@
   the viewport itself has no top/bottom gutters. Fixed-tab store and iframe
   apps retain their own insets. Optional edge dimming defaults on, persists
   per browser, and resets with screen preferences. Scrims never capture input.
+- Store apps inherit the same contract through `app-kit.css` and `app-kit.js`:
+  scrolling pages use `kit-edge` with measured top/bottom controls over a
+  full-height viewport. Fixed boards/keypads retain compact safe touch insets.
+  Each page isolates its stacking context so players and sheets cover it.
+  The host passes dimming with resolved theme/style tokens; the host alone
+  shades the gesture pill, avoiding a second bottom scrim inside fixed apps.
 - Add guide overview/detail rows; reuse existing tokens and icon helpers.
 - App kit owns store app colours, insets, theme, language and style.
 - Screen CSS owns Guide; no parallel design system or new dependency.

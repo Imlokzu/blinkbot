@@ -208,7 +208,7 @@
   .player.full.chrome .cap { transform: translateY(-50px); }
 
   /* ---------- Sheets (settings, transcript) over the whole app ---------- */
-  .sheet { position: absolute; inset: 0; z-index: 6; }
+  .kit.kit .sheet { position: absolute; inset: 0; z-index: 6; }
   .sheet:not(.on) { display: none; }
   .sheet, .player:not(.full) { background: var(--bg); }
   :root[data-ui="deep"] .sheet {
@@ -239,7 +239,8 @@
 </style>
 </head>
 <body class="kit">
-<main class="kit-app">
+<main class="kit-app kit-edge">
+  <div class="kit-edge-top kit-edge-stack">
   <header class="kit-bar">
     <label class="search">
       <button id="go" class="fbtn" type="button" data-i18n-aria="search.go" data-icon="search"></button>
@@ -255,7 +256,8 @@
     </div>
     <div class="status" id="status"></div>
   </div>
-  <section class="kit-fill kit-scroll" id="grid"></section>
+  </div>
+  <section class="kit-fill kit-scroll kit-edge-content" id="grid"></section>
 </main>
 
 <div class="player" id="player">
@@ -294,20 +296,20 @@
   </div>
 </div>
 
-<div class="sheet kit-app" id="transcript">
-  <header class="kit-bar">
+<div class="sheet kit-app kit-edge" id="transcript">
+  <header class="kit-bar kit-edge-top">
     <button id="tback" class="kit-btn icon" type="button" data-i18n-aria="common.back" data-icon="back"></button>
     <span class="kit-title" data-i18n="transcript.head"></span>
   </header>
-  <section class="kit-fill kit-scroll" id="tbody"></section>
+  <section class="kit-fill kit-scroll kit-edge-content" id="tbody"></section>
 </div>
 
-<div class="sheet kit-app" id="sheet">
-  <header class="kit-bar">
+<div class="sheet kit-app kit-edge" id="sheet">
+  <header class="kit-bar kit-edge-top">
     <button id="sback" class="kit-btn icon" type="button" data-i18n-aria="common.back" data-icon="back"></button>
     <span class="kit-title" data-i18n="settings.head"></span>
   </header>
-  <section class="kit-fill kit-scroll sbody">
+  <section class="kit-fill kit-scroll sbody kit-edge-content">
     <div class="kit-list">
       <div class="kit-item opt">
         <div class="kit-grow">

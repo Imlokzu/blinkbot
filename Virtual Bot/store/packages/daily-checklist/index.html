@@ -34,21 +34,28 @@
   .editor-field .kit-input { flex: 1; min-width: 0; }
   .editor-hint { margin: 0; }
   .editor-actions { margin-top: auto; }
+  #editorForm .editor-content { flex: none; overflow: visible; }
+  #editorForm { gap: 8px; }
+  .checklist-app:has(> .notice:not([hidden])) { padding-bottom: 20px; }
+  .checklist-app > .notice { padding-inline: var(--kit-inset-side); }
   @media (prefers-reduced-motion: reduce) { .checklist-app .kit-btn { transition: none; } }
 </style>
 </head>
 <body class="kit">
-<main class="kit-app checklist-app">
-  <section class="view" id="listView">
+<main class="kit-app checklist-app kit-edge-shell">
+  <section class="view kit-edge" id="listView">
+    <div class="kit-edge-top kit-edge-stack">
     <header class="kit-bar">
       <span class="kit-title" data-i18n="title"></span>
       <span class="kit-sub progress-caption" id="progressText" aria-live="polite"></span>
     </header>
     <div class="kit-progress" id="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" data-i18n-aria="progress"></div>
-    <div class="kit-fill kit-scroll" id="taskScroll">
+    </div>
+    <div class="kit-fill kit-scroll kit-edge-content" id="taskScroll">
       <div class="kit-list task-list" id="tasks"></div>
       <p class="kit-sub empty" id="empty" data-i18n="empty"></p>
     </div>
+    <div class="kit-edge-bottom kit-edge-stack">
     <div class="template-row" role="group" data-i18n-aria="templates">
       <button class="kit-chip" data-template="morning" data-i18n="morning"></button>
       <button class="kit-chip" data-template="work" data-i18n="work"></button>
@@ -58,13 +65,14 @@
       <button class="kit-btn primary" id="add" data-i18n="add"></button>
       <button class="kit-btn tonal" id="reset" data-i18n="reset"></button>
     </footer>
+    </div>
   </section>
-  <section class="view" id="editorView" hidden>
-    <header class="kit-bar">
+  <section class="view kit-edge" id="editorView" hidden>
+    <header class="kit-bar kit-edge-top">
       <span class="kit-title" id="editorTitle"></span>
       <button class="kit-btn ghost" id="cancel" data-i18n="cancel"></button>
     </header>
-    <form class="view" id="editorForm">
+    <form class="view kit-edge-content" id="editorForm">
       <div class="kit-fill kit-scroll editor-content">
         <label class="kit-label" for="taskTitle" data-i18n="taskTitle"></label>
         <div class="kit-row editor-field">
