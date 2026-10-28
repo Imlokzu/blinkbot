@@ -106,10 +106,10 @@ console.log(JSON.stringify(out));
 const fs = await import('node:fs'), vm = await import('node:vm');
 const source = fs.readFileSync({json.dumps(str(SCREEN / 'screen.js'))}, 'utf8');
 const layer = source.slice(source.indexOf('function openAppLayer('), source.indexOf('function closeAppLayer('));
-const classes = {{add(){{}}, remove(){{}}}};
+const classes = {{add(){{}}, remove(){{}}, toggle(){{}}, contains(){{return false;}}}};
 const context = {{camTimer:0, clearTimeout(){{}}, openApp:null, appHistory:[], launchingFromDrawer:true,
   $:()=>({{textContent:''}}), t:k=>k, applyFrost(){{}},
-  appBody:{{className:'',innerHTML:'',scrollTop:90,removeAttribute(){{}}}},
+  appBody:{{className:'',classList:classes,innerHTML:'',scrollTop:90,removeAttribute(){{}}}},
   layerApp:{{classList:classes}}, stage:{{classList:classes,scrollTop:20,scrollLeft:10}},
   gestureNav:{{setOn(){{}}}}, renderIsland(){{}}, syncOfficeVisibility(){{}}, wake(){{}}}};
 vm.runInNewContext(layer, context);

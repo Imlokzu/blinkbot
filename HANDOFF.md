@@ -1,5 +1,22 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-10-28 — Screen panels extend to the device edges
+
+Native scrolling panels now fill the 320x240 stage beneath a compact floating
+header and the home indicator. Content padding keeps the first and last
+controls reachable. Store tabs and full-screen iframe apps retain their insets.
+Settings / Display offers a persisted Edge dimming toggle (enabled by default),
+with Ukrainian/English labels and reset support.
+
+Independent supported native review found no blocking issue; Antigravity's
+file access was denied and Fable was unavailable. Browser regressions cover
+both languages, both styles, light/dark, navigation, persistence and reset.
+The full Python run passed 2,128 tests, seven skipped and 489 subtests; an
+unnecessary repeat stalled at 87% and was stopped, not counted as a pass.
+Fourteen HTTP checks passed on isolated and existing servers, including exact
+static assets and traversal rejection (400). Temporary services were stopped;
+port 8100 already serves these static changes. Reload /screen to apply them.
+
 ## KMP phone client implementation (2026-10-03)
 
 The new `mobile-app/` Kotlin Multiplatform client now has the shared Compose

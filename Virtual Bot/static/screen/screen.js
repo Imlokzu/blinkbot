@@ -994,6 +994,13 @@ const IDLE_SLEEP_KEY = "botScreenIdleSleep";
 const CLOCK_FORMAT_KEY = "botScreenClockFormat";
 const CLOCK_DATE_KEY = "botScreenClockDate";
 const MOTION_KEY = "botScreenMotion";
+const EDGE_DIMMING_KEY = "botScreenEdgeDimming";
+let edgeDimming = true;
+
+function applyEdgeDimming(enabled) {
+  edgeDimming = enabled;
+  document.documentElement.dataset.edgeDimming = enabled ? "on" : "off";
+}
 
 /* Варіанти тримають ключ, а не готовий підпис: список перемальовується при
    зміні мови, а value лишається тим самим — його читає validOption і prefs */
@@ -1567,6 +1574,7 @@ volRange.addEventListener("input", () => {
   const theme = readPref(THEME_KEY, null);
   if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
   applyUiStyle(readPref(UI_STYLE_KEY, "material"));
+  applyEdgeDimming(readPref(EDGE_DIMMING_KEY, "1") !== "0");
 
   idleHomeMs = Number(validOption(readPref(IDLE_HOME_KEY, String(DEFAULT_IDLE_HOME_MS)), IDLE_HOME_OPTIONS, DEFAULT_IDLE_HOME_MS));
   idleSleepMs = Number(validOption(readPref(IDLE_SLEEP_KEY, String(DEFAULT_IDLE_SLEEP_MS)), IDLE_SLEEP_OPTIONS, DEFAULT_IDLE_SLEEP_MS));
@@ -3408,6 +3416,8 @@ function openAppLayer(titleKey, build, opts = {}) {
   appBody.removeAttribute("style");
   layerApp.classList.remove("full");     // full screen belongs to one app only
   build(appBody);
+  // Iframe apps and the store's fixed tabs manage their own insets.
+  layerApp.classList.toggle("edge-to-edge", !appBody.classList.contains("storeapp-body"));
   // A previously scrolled guide or a focused control can leave ancestor
   // scroll offsets behind. The device scene itself must never scroll.
   appBody.scrollTop = 0;
@@ -3880,12 +3890,13 @@ function openPanel() {
 
 function resetScreenPrefs() {
   [THEME_KEY, UI_STYLE_KEY, HOME_VIEW_KEY, BRIGHT_KEY, VOL_KEY, VOICE_KEY, ORDER_KEY, ICON_KEY, ICON_TINT_KEY, TILES_KEY, KB_MODE_KEY,
-    IDLE_HOME_KEY, IDLE_SLEEP_KEY, CLOCK_FORMAT_KEY, CLOCK_DATE_KEY, MOTION_KEY,
+    IDLE_HOME_KEY, IDLE_SLEEP_KEY, CLOCK_FORMAT_KEY, CLOCK_DATE_KEY, MOTION_KEY, EDGE_DIMMING_KEY,
     SKIN_KEY, SKIN_VARS_KEY, PROVIDER_KEY]
     .forEach(removePref);
   document.documentElement.dataset.theme = "dark";
   document.documentElement.dataset.motion = "full";
   applyUiStyle("material");
+  applyEdgeDimming(true);
   setHomeView("office", false);
   office?.setReducedMotion(false);
   iconStyle = "auto";
@@ -3940,6 +3951,7 @@ function openSettings() {
     const captionModeSelect = document.createElement("select");
     const dateToggle = document.createElement("button");
     const motionToggle = document.createElement("button");
+    const edgeDimmingToggle = document.createElement("button");
     const note = document.createElement("div");
 
     box.classList.add("settings-body");
@@ -4121,6 +4133,13 @@ function openSettings() {
     brightRow.appendChild(brightRangeSettings);
     brightValue.className = "settings-value";
     brightRow.appendChild(brightValue);
+
+    const edgeDimmingRow = row(display, t("set.edgeDimming"), t("set.edgeDimming.hint"));
+    edgeDimmingToggle.setAttribute("aria-label", t("set.edgeDimming"));
+    edgeDimmingRow.appendChild(setupSwitch(edgeDimmingToggle, t("set.enabled"), t("set.disabled"), () => {
+      applyEdgeDimming(!edgeDimming);
+      writePref(EDGE_DIMMING_KEY, edgeDimming ? "1" : "0");
+    }));
 
     /* Screens: which tiles the carousel shows and in what order. Arrows,
        not drag-and-drop — a resistive panel misreads drags. Rebuilt in
@@ -4382,6 +4401,9 @@ function openSettings() {
       motionToggle.textContent = reducedMotion ? motionToggle.dataset.offText : motionToggle.dataset.onText;
       motionToggle.classList.toggle("on", !reducedMotion);
       motionToggle.setAttribute("aria-pressed", String(!reducedMotion));
+      edgeDimmingToggle.textContent = edgeDimming ? edgeDimmingToggle.dataset.onText : edgeDimmingToggle.dataset.offText;
+      edgeDimmingToggle.classList.toggle("on", edgeDimming);
+      edgeDimmingToggle.setAttribute("aria-pressed", String(edgeDimming));
       brightRangeSettings.value = String(bright);
       brightValue.textContent = bright + "%";
       volumeRangeSettings.value = String(volume);

@@ -694,6 +694,66 @@ html, body {
 }
 .app-body::-webkit-scrollbar { display: none; }
 
+/* Scroll beneath compact floating controls, keeping the first and last
+   actions reachable through content padding rather than clipping the viewport. */
+.layer-app.edge-to-edge { padding: 0; }
+.layer-app.edge-to-edge > .app-body {
+  padding: 34px 14px 20px;
+  scroll-padding-block: 34px 20px;
+}
+:root[data-ui] .layer-app.edge-to-edge > .layer-head {
+  position: absolute;
+  inset: 4px 14px auto;
+  z-index: 3;
+  height: 24px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  align-items: center;
+  gap: 6px;
+  font: 700 13px/1.2 var(--font);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+  pointer-events: none;
+}
+.layer-app.edge-to-edge #appTitle {
+  min-width: 0;
+  padding: 3px 6px;
+  border-radius: 8px;
+  background: var(--panel);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+:root[data-ui] .layer-app.edge-to-edge .layer-back {
+  flex: none;
+  min-height: 24px;
+  margin: 0;
+  padding: 0 10px;
+  background: var(--panel);
+  color: var(--text);
+  pointer-events: auto;
+}
+/* Static scrims sit below the controls and never capture a touch. */
+:root:not([data-edge-dimming="off"]) .layer-app.edge-to-edge::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 40px;
+  z-index: 2;
+  background: linear-gradient(rgba(0, 0, 0, 0.32), transparent);
+  pointer-events: none;
+}
+:root:not([data-edge-dimming="off"]) .gnav-bottom::before {
+  content: "";
+  position: absolute;
+  inset: -8px 0 0;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.32));
+  pointer-events: none;
+}
+.gnav-pill { position: relative; }
+
 .memory-body,
 .chats-body { gap: 7px; }
 .app-toolbar { display: flex; justify-content: flex-end; min-height: 27px; }

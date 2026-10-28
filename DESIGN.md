@@ -2,7 +2,7 @@
 
 ## Source of truth
 - Status: Active
-- Last refreshed: 2026-10-22
+- Last refreshed: 2026-10-28
 - Primary product surfaces: `/screen`, its native apps and local app store.
 - The dashboard has its own contract in `Virtual Bot/dashboard/DESIGN.md`.
 - The new Kotlin Multiplatform mobile client has a separate interview-derived
@@ -101,6 +101,11 @@
 
 ## Components
 - Reuse native app layer, screen navigation, on-screen keyboard and app kit.
+- Native scrolling panels fill the stage behind a compact floating header and
+  the home indicator. Content padding keeps first/last actions reachable;
+  the viewport itself has no top/bottom gutters. Fixed-tab store and iframe
+  apps retain their own insets. Optional edge dimming defaults on, persists
+  per browser, and resets with screen preferences. Scrims never capture input.
 - Add guide overview/detail rows; reuse existing tokens and icon helpers.
 - App kit owns store app colours, insets, theme, language and style.
 - Screen CSS owns Guide; no parallel design system or new dependency.
