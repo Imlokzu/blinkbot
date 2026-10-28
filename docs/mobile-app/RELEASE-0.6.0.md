@@ -32,3 +32,15 @@ Android version code: 33. APK: 7,716,552 bytes.
 SHA-256: `874656b26b6683b789d21c18e72493c4fee679448974b22d196a17a3b17ff10b`.
 
 This records the prepared APK; automatic update publication is a separate step.
+
+The web recovery controls are live on the local dashboard from source
+`6c657976`. All 369 served release resources matched the clean build byte for
+byte, and the complete mocked recovery browser fixture passed against `/dash/`.
+The live backend advertises the renewal route. The APK signing certificate
+matches the previously published Android release.
+
+The strict generated-asset scan required five new literal bundle paths for
+already-approved Solar icon hash metadata and Excalidraw Firebase client data.
+Astra verified the existing full fingerprints and canonical copies. No detector
+or fingerprint was added; the unchanged policy tests passed 13 cases and 25
+subtests.

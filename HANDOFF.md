@@ -3941,3 +3941,18 @@ were handed to that owner; its committed fixes are included in the clean base.
 Android 0.6.0/code33 is built. See `docs/mobile-app/RELEASE-0.6.0.md` for its digest
 and validation limits. No emulator, physical-device or iOS runtime check is
 claimed; native desktop UI checks were blocked by the incomplete JCEF cache.
+
+### Phone session recovery runtime publication
+
+Published the clean dashboard built from `6c657976` to the existing local
+server. All 369 release resources matched served bytes; the complete mocked
+EN/UK recovery browser fixture passed on `/dash/`, including keyboard focus
+and rejected/malformed replies. The live backend exposes the renewal route;
+HTTP status/static checks passed and memory traversal returned 400.
+The Android 0.6.0 APK is delivered directly with the existing signing identity;
+automatic update-channel publication remains separate. Other drafts are kept
+outside the source and generated-asset commits.
+
+Strict asset scanning retains exact existing fingerprints at five newly hashed
+bundle paths, independently checked by Astra. The unchanged fail-closed policy
+tests passed 13 cases and 25 subtests; no detector or fingerprint was added.

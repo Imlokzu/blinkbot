@@ -50,7 +50,8 @@
         "Virtual Bot/static/dash/assets/ChatPanel-uEDvzOdD.js",
         "Virtual Bot/static/dash/assets/ChatPanel-xCm-RcA2.js",
         "Virtual Bot/static/dash/assets/_virtual_blink-ui-controls-Dv7UtDGE.js",
-        "Virtual Bot/static/dash/assets/compat-DmFDD_Q7.js"
+        "Virtual Bot/static/dash/assets/compat-DmFDD_Q7.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DZbg5VgL.js"
       ],
       "reason": "Numeric SVG path data in the Solar icon vendor source and generated copies; not an authentication token."
     },
@@ -104,7 +105,8 @@
         "Virtual Bot/static/dash/assets/ChatPanel-uEDvzOdD.js",
         "Virtual Bot/static/dash/assets/ChatPanel-xCm-RcA2.js",
         "Virtual Bot/static/dash/assets/_virtual_blink-ui-controls-Dv7UtDGE.js",
-        "Virtual Bot/static/dash/assets/compat-DmFDD_Q7.js"
+        "Virtual Bot/static/dash/assets/compat-DmFDD_Q7.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DZbg5VgL.js"
       ],
       "reason": "Numeric SVG path data in the Solar icon vendor source and generated copies; not an authentication token."
     },
@@ -143,7 +145,8 @@
         "Virtual Bot/static/dash/assets/ChatPanel-uEDvzOdD.js",
         "Virtual Bot/static/dash/assets/ChatPanel-xCm-RcA2.js",
         "Virtual Bot/static/dash/assets/_virtual_blink-ui-controls-Dv7UtDGE.js",
-        "Virtual Bot/static/dash/assets/compat-DmFDD_Q7.js"
+        "Virtual Bot/static/dash/assets/compat-DmFDD_Q7.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DZbg5VgL.js"
       ],
       "reason": "Numeric SVG path data in the Solar icon vendor source and generated copies; not an authentication token."
     },
@@ -179,7 +182,8 @@
         "Virtual Bot/static/dash/assets/ChatPanel-bylq0Eeo.js",
         "Virtual Bot/static/dash/assets/ChatPanel-tAm_NK1d.js",
         "Virtual Bot/static/dash/assets/ChatPanel-uEDvzOdD.js",
-        "Virtual Bot/static/dash/assets/ChatPanel-xCm-RcA2.js"
+        "Virtual Bot/static/dash/assets/ChatPanel-xCm-RcA2.js",
+        "Virtual Bot/static/dash/assets/ChatPanel-DZbg5VgL.js"
       ],
       "reason": "Numeric SVG path data in the Solar icon vendor source and generated copies; not an authentication token."
     },
@@ -245,7 +249,8 @@
         "Virtual Bot/static/dash/assets/drawing/DrawingView-rktWIgFW.js",
         "Virtual Bot/static/dash/assets/drawing/DrawingView-rl2ssGGs.js",
         "Virtual Bot/static/dash/assets/drawing/DrawingView-rwYpgK5r.js",
-        "Virtual Bot/static/dash/assets/drawing/DrawingView-sU-3GhzM.js"
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-sU-3GhzM.js",
+        "Virtual Bot/static/dash/assets/drawing/DrawingView-DfmJjk9O.js"
       ],
       "reason": "Public Excalidraw Firebase client configuration embedded in the shipped editor bundle; not a Gemini server credential."
     },
