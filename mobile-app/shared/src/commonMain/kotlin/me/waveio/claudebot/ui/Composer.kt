@@ -1,5 +1,6 @@
 package me.waveio.claudebot.ui
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.*
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -43,7 +44,10 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
     val sendLabel = tr("chat.send")
     val question = state.questions.firstOrNull { it.sessionId == state.sessionId }.takeIf { !state.dictationOpen }
     val dictating = state.dictationOpen
-    val amplitude = animateFloatAsState(if (state.recording) state.amplitude.coerceIn(0f, 1f) else 0f, tween(if (LocalReducedMotion.current) 0 else 80), label = "voiceAmplitude")
+    // Microphone levels arrive in uneven steps; a soft spring follows speech without the
+    // jitter a short tween showed on the border glow and the record dot.
+    val amplitude = animateFloatAsState(if (state.recording) state.amplitude.coerceIn(0f, 1f) else 0f,
+        if (LocalReducedMotion.current) snap() else spring(dampingRatio = .82f, stiffness = 420f), label = "voiceAmplitude")
     val corners = RoundedCornerShape(25.dp)
     val shownDraft = if (dictating) listOf(state.draft, state.transcript).filter { it.isNotBlank() }.joinToString(" ") else state.draft
     val textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.ink, fontSize = 16.sp)
@@ -136,11 +140,19 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
         val controls: @Composable RowScope.() -> Unit = {
             if (dictating) {
                 IconAction("close", tr("input.cancel"), actions::cancelDictation)
-                VoiceBars(amplitude, state.recording)
-                Text(tr(if (state.transcribing) "input.transcribing" else if (state.recording) "input.listening" else "input.review"), color = p.muted, fontSize = 11.sp, modifier = Modifier.weight(1f).padding(start = 9.dp))
-                if (state.recording) RoundComposerAction("stop", tr("chat.stop"), actions::stopDictation, true)
-                else if (!state.transcribing && state.transcript.isNotBlank()) RoundComposerAction("check", tr("input.useText"), actions::useTranscript, true)
-                else if (state.transcribing) LoadingDots(Modifier.padding(14.dp))
+                VoiceWave(amplitude, state.recording)
+                RecordingDot(amplitude, state.recording, Modifier.padding(start = 8.dp))
+                // Label and trailing action change in place: fixed slots, cross-faded, so the
+                // row never shifts when Listening turns into Transcribing or Review.
+                Crossfade(if (state.transcribing) "input.transcribing" else if (state.recording) "input.listening" else "input.review",
+                    Modifier.weight(1f).padding(start = 7.dp), tween(if (reduced) 0 else MotionTiming.Panel), label = "dictationState") { key ->
+                    Text(tr(key), color = p.muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+                    if (state.recording) RoundComposerAction("stop", tr("chat.stop"), actions::stopDictation, true)
+                    else if (!state.transcribing && state.transcript.isNotBlank()) RoundComposerAction("check", tr("input.useText"), actions::useTranscript, true)
+                    else if (state.transcribing) LoadingDots()
+                }
             } else {
                 Box {
                     IconAction("attach", tr("input.attach"), { keyboard?.hide(); actions.attachments(!state.attachmentPickerOpen) }, enabled = !state.uploading)
@@ -205,19 +217,6 @@ private fun RoundComposerAction(icon: String, label: String, onClick: () -> Unit
     }.clip(CircleShape).background(if (accent) p.accent else p.ink)
         .clickable(interactionSource = null, indication = remember(p.background, reduced) { PressIndication(p.background, reduced) }, role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
         Glyph(icon, label, Modifier.size(20.dp), if (accent) Color.White else p.background)
-    }
-}
-
-@Composable
-private fun VoiceBars(amplitude: State<Float>, active: Boolean) {
-    val color = LocalPalette.current.accent
-    Canvas(Modifier.width(43.dp).height(25.dp)) {
-        repeat(7) { index ->
-            val middle = 1f - kotlin.math.abs(index - 3) / 4f
-            val height = 3.dp.toPx() + if (active) amplitude.value * size.height * middle else 0f
-            val x = index * size.width / 7f + 2.dp.toPx()
-            drawLine(color, Offset(x, (size.height - height) / 2), Offset(x, (size.height + height) / 2), 2.4.dp.toPx(), StrokeCap.Round)
-        }
     }
 }
 
