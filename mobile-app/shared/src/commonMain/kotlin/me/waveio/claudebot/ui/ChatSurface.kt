@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -53,6 +54,8 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.semantics.*
@@ -66,7 +69,8 @@ import me.waveio.claudebot.state.*
 
 
 @Composable
-fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, headerHeight: Dp, header: @Composable () -> Unit) {
+fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, headerHeight: Dp,
+    backdrop: GraphicsLayer, backdropOrigin: Offset, header: @Composable () -> Unit) {
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val palette = LocalPalette.current
@@ -170,8 +174,10 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
     BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)).testTag("chat-surface")
         .onGloballyPositioned { surfaceOrigin = it.positionInRoot() }) {
         val questionMaxHeight = ((maxHeight - topPanel).coerceAtLeast(0.dp) * .6f).coerceAtMost(440.dp)
+        // Capture the wallpaper and body across the viewport, outside the narrow
+        // reading column. Controls are later siblings and remain sharp.
+        Box(Modifier.fillMaxSize().chatEdges(topPanel, bottomPanel, backdrop) { surfaceOrigin - backdropOrigin }) {
         Box(Modifier.align(Alignment.TopCenter).widthIn(max = ChatContentMaxWidth).fillMaxSize().testTag("chat-column")) {
-        Box(Modifier.fillMaxSize()) {
             if (state.messages.isEmpty() && !state.loading) {
                 Box(Modifier.fillMaxSize().padding(top = topPanel, bottom = bottomPanel), contentAlignment = Alignment.Center) {
                     Welcome(Modifier.padding(horizontal = 38.dp), reducedMotion)
@@ -179,7 +185,10 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
             } else {
                 LazyColumn(state = list, overscrollEffect = null, modifier = Modifier.fillMaxSize().testTag("chat-history")
                     .onGloballyPositioned { historyOrigin = it.positionInRoot() }
-                    .chatEdges(topPanel, bottomPanel, historyLayer).nestedScroll(scrollIntent).pointerInput(state.sessionId) {
+                    .drawWithContent {
+                        historyLayer.record { this@drawWithContent.drawContent() }
+                        drawLayer(historyLayer)
+                    }.nestedScroll(scrollIntent).pointerInput(state.sessionId) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                         fingerDown.value = true
@@ -233,6 +242,8 @@ fun ChatSurface(state: AppState, actions: AppActions, reducedMotion: Boolean, he
                 }
             }
         }
+        }
+        Box(Modifier.align(Alignment.TopCenter).widthIn(max = ChatContentMaxWidth).fillMaxSize()) {
         Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().testTag("chat-header").panelTouchBarrier()
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))) { header() }
         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().testTag("chat-composer")

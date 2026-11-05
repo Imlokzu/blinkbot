@@ -1,5 +1,25 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-11-05 — Full-width native chat edge blur
+
+Chat edge strips now sample the shell wallpaper together with the message
+body across the viewport, including empty chats and wide-layout margins.
+The shell retains its full-window wallpaper sizing when the IME opens.
+Header/composer controls stay outside the effect; Latest retains its raw
+history recording. Blur buffers remain limited to the two panel strips.
+
+Validation: Android release APK builds; 358 shared and 78 Android unit tests
+pass. Native pixel and history/composer-growth checks pass; additional
+contrast assertions distinguish actual smoothing from tint-only changes.
+Keyboard retention and streamed growth/Latest checks pass. All five tablet
+layout tests and the strengthened pixel check pass at 1600x2400 / mdpi. Gemini supplied
+architecture analysis; an independent native reviewer approved source and
+strengthened the pixel test. Gemini's later review timed out and Fable was
+unavailable. Isolated actual-app curl smoke passes (traversal HTTP 400 and
+static assets); its lifespan was disabled, no providers ran and it stopped.
+Physical-device and iOS runtime checks are not claimed.
+
+
 ## 2026-10-28 — Edge-to-edge store app pages
 
 The shared app kit now provides explicit full-height scrolling pages with

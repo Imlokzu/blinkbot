@@ -2,25 +2,30 @@ package me.waveio.claudebot.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.CompositingStrategy as LayerCompositingStrategy
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.ceil
 
-/** Keep messages intact; only soften the narrow strips directly beneath controls. */
+/** Soften the complete backdrop beneath controls while keeping the reading area sharp. */
 @Composable
-fun Modifier.chatEdges(topPanel: Dp, bottomPanel: Dp, content: androidx.compose.ui.graphics.layer.GraphicsLayer = rememberGraphicsLayer()): Modifier {
+fun Modifier.chatEdges(topPanel: Dp, bottomPanel: Dp, backdrop: GraphicsLayer, backdropOffset: () -> Offset): Modifier {
+    val currentOffset = rememberUpdatedState(backdropOffset)
+    val content = rememberGraphicsLayer()
     val topBlur = rememberGraphicsLayer()
     val topResult = rememberGraphicsLayer()
     val bottomBlur = rememberGraphicsLayer()
     val bottomResult = rememberGraphicsLayer()
-    return then(remember(topPanel, bottomPanel, content, topBlur, topResult, bottomBlur, bottomResult) {
+    return then(remember(topPanel, bottomPanel, backdrop, content, topBlur, topResult, bottomBlur, bottomResult) {
         Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }.drawWithCache {
             val top = topPanel.toPx().coerceAtMost(size.height * .4f)
             val bottom = bottomPanel.toPx().coerceAtMost(size.height * .5f)
@@ -48,23 +53,31 @@ fun Modifier.chatEdges(topPanel: Dp, bottomPanel: Dp, content: androidx.compose.
             bottomBlur.renderEffect = effect
             topResult.compositingStrategy = LayerCompositingStrategy.Offscreen
             bottomResult.compositingStrategy = LayerCompositingStrategy.Offscreen
-            // Blend softened colors atop the original alpha, including rounded
-            // bubble edges. Blur must not create translucent outlines or halos.
-            topResult.blendMode = BlendMode.SrcAtop
-            bottomResult.blendMode = BlendMode.SrcAtop
+            // Composite the complete strip over transparent gaps between bubbles.
+            topResult.blendMode = BlendMode.SrcOver
+            bottomResult.blendMode = BlendMode.SrcOver
             onDrawWithContent {
                 content.record { this@onDrawWithContent.drawContent() }
                 drawLayer(content)
                 if (effect.isSupported()) {
-                    // Reuse one content recording. Blur buffers cover panel strips,
-                    // not another full-screen backdrop that tracks scroll positions.
-                    topBlur.record(size = topSize) { drawLayer(content) }
+                    // Sample wallpaper only for the strips; the shell retains its
+                    // full-window sizing when the keyboard reduces chat height.
+                    val offset = currentOffset.value()
+                    topBlur.record(size = topSize) {
+                        translate(-offset.x, -offset.y) { drawLayer(backdrop) }
+                        drawLayer(content)
+                    }
                     topResult.record(size = topSize) {
                         drawLayer(topBlur)
                         drawRect(topSoft, blendMode = BlendMode.DstIn)
                     }
                     drawLayer(topResult)
-                    bottomBlur.record(size = bottomSize) { translate(top = -bottomY) { drawLayer(content) } }
+                    bottomBlur.record(size = bottomSize) {
+                        translate(top = -bottomY) {
+                            translate(-offset.x, -offset.y) { drawLayer(backdrop) }
+                            drawLayer(content)
+                        }
+                    }
                     bottomResult.record(size = bottomSize) {
                         drawLayer(bottomBlur)
                         drawRect(bottomSoft, blendMode = BlendMode.DstIn)
@@ -76,8 +89,8 @@ fun Modifier.chatEdges(topPanel: Dp, bottomPanel: Dp, content: androidx.compose.
                     drawRect(topSharp, blendMode = BlendMode.DstIn)
                     drawRect(bottomSharp, blendMode = BlendMode.DstIn)
                 }
-                drawRect(topShade, blendMode = BlendMode.SrcAtop)
-                drawRect(bottomShade, blendMode = BlendMode.SrcAtop)
+                drawRect(topShade)
+                drawRect(bottomShade)
             }
         }
     })

@@ -17,6 +17,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -41,6 +47,8 @@ import me.waveio.claudebot.state.*
 @Composable
 fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
     val palette = LocalPalette.current
+    val wallpaperLayer = rememberGraphicsLayer()
+    var wallpaperOrigin by remember { mutableStateOf(Offset.Zero) }
     val fileNavigation = rememberWorkspaceEditorNavigation(state.fileEditorGeneration.toString())
     // A persistent tablet drawer can navigate while the editor is still mounted.
     val drawerActions = remember(actions, fileNavigation) {
@@ -89,7 +97,11 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
         } else RevealDrawer(modalMenuOpen, actions::menu, state.openFile == null && !state.dictationOpen,
             menu = { ConversationDrawer(state, drawerActions) }) {
             Box(Modifier.fillMaxSize()) {
-                Wallpaper(state.preferences, state.customWallpaper, state.screen, state.connected)
+                Wallpaper(state.preferences, state.customWallpaper, state.screen, state.connected,
+                    Modifier.onGloballyPositioned { wallpaperOrigin = it.positionInRoot() }.drawWithContent {
+                        wallpaperLayer.record { this@drawWithContent.drawContent() }
+                        drawLayer(wallpaperLayer)
+                    })
                 Column(Modifier.fillMaxSize().windowInsetsPadding(
                     if (state.screen == Screen.Chat) WindowInsets.ime else WindowInsets.safeDrawing
                 ).imePadding()) {
@@ -107,7 +119,7 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
                         }, label = "screen") { screen ->
                         Box(Modifier.fillMaxSize().transitionInput(screen == state.screen)) {
                         when (screen) {
-                            Screen.Chat -> ChatSurface(state, actions, reducedMotion, topBarHeight()) { TopBar(state.copy(screen = screen), actions, fileNavigation) }
+                            Screen.Chat -> ChatSurface(state, actions, reducedMotion, topBarHeight(), wallpaperLayer, wallpaperOrigin) { TopBar(state.copy(screen = screen), actions, fileNavigation) }
                             Screen.Search -> SearchScreen(state, actions)
                             Screen.Files -> FilesScreen(state, actions, fileNavigation)
                             Screen.Skills -> SkillsScreen(state, actions)
