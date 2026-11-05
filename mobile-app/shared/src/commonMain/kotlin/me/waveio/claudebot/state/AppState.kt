@@ -62,7 +62,9 @@ data class MobileUpdate(
         private val FIXED_REGEX = Regex("""\b(fix|patch|bug)""")
     }
 }
-data class ModelRow(val id: String, val label: String, val provider: String, val brand: String, val available: Boolean = true, val efforts: List<String> = emptyList(), val vision: Boolean? = null)
+/** [context] (tokens) and [seconds] (typical reply time) come from the host catalog; null means not reported. */
+data class ModelRow(val id: String, val label: String, val provider: String, val brand: String, val available: Boolean = true, val efforts: List<String> = emptyList(), val vision: Boolean? = null,
+    val context: Int? = null, val seconds: Double? = null)
 data class IntelligenceRow(val index: Float, val coverage: Int, val total: Int, val entry: IntelligenceEntry = IntelligenceEntry())
 data class ActivityRow(val id: String, val label: String, val detail: String = "", val status: String = "running", val input: JsonElement? = null, val result: JsonElement? = null)
 data class ContentPart(val type: String, val text: String = "", val stepIds: List<String> = emptyList(), val noteId: String? = null, val note: Boolean = false)

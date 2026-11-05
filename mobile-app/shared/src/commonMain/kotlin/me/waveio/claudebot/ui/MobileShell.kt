@@ -293,7 +293,9 @@ private fun TopBar(state: AppState, actions: AppActions, fileNavigation: Workspa
                 }
             } else Text(state.openFile?.substringAfterLast('/') ?: screenTitle(state.screen), fontSize = 16.sp, fontWeight = FontWeight.Medium, color = p.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        IconAction("new", tr("nav.new"), {
+        // Profile is a settings hub; a new-chat shortcut there only competes with its rows.
+        if (state.screen == Screen.Profile && state.openFile == null) Spacer(Modifier.size(48.dp))
+        else IconAction("new", tr("nav.new"), {
             if (state.openFile != null) fileNavigation?.afterFlush(actions::newChat) ?: actions.newChat()
             else actions.newChat()
         })

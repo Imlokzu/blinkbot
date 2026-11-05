@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.datetime.*
 import me.waveio.claudebot.state.*
 import kotlin.math.PI
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 @Composable
@@ -46,18 +47,25 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
             Screen.Profile -> {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 20.dp)) {
                     BotMark(Modifier.size(52.dp)); Spacer(Modifier.width(13.dp))
-                    Column { Text(tr("app.name"), color = p.ink, fontSize = 21.sp); Text(state.baseUrl.removePrefix("https://"), color = p.muted, fontSize = 12.sp) }
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(tr("app.name"), color = p.ink, fontSize = 21.sp)
+                        // The profile header sits on the wallpaper's busiest part (the sky), so the
+                        // host name gets its own opaque backing instead of muted ink on the image.
+                        Text(state.baseUrl.removePrefix("https://"), color = p.ink.copy(alpha = .78f), fontSize = 12.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(p.surface.copy(alpha = .86f)).padding(horizontal = 7.dp, vertical = 2.dp))
+                    }
                 }
                 SettingsLink("settings", "profile.appearance") { actions.navigate(Screen.Appearance) }
                 SettingsLink("bot", "profile.models") { actions.navigate(Screen.Models) }
                 SettingsLink("edit", "profile.personalization") { actions.navigate(Screen.Personalization) }
                 SettingsLink("phone", "profile.notifications") { actions.navigate(Screen.Notifications) }
+                SettingsLink("phone", "profile.haptics") { actions.navigate(Screen.Haptics) }
                 SettingsLink("time", "queue.title") { actions.navigate(Screen.Queue) }
                 SettingsLink("download", "profile.update") { actions.navigate(Screen.Updates) }
                 Hairline()
                 Text(tr("profile.language"), color = p.muted, fontSize = 12.sp)
                 Choices(listOf("system" to "profile.system", "uk" to "profile.ukrainian", "en" to "profile.english"), preferences.language) { actions.preferences(preferences.copy(language = it)) }
-                SettingsLink("phone", "profile.haptics") { actions.navigate(Screen.Haptics) }
                 ActionButton(tr("profile.disconnect"), actions::disconnect, icon = "logout")
                 Text(tr("profile.credits"), color = p.muted, fontSize = 11.sp)
             }
@@ -76,7 +84,10 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
                 BotSlider(tr("appearance.dim"), preferences.wallpaperDim, 0f..0.65f) { actions.preferences(preferences.copy(wallpaperDim = it)) }
                 BotSlider(tr("appearance.blur"), preferences.wallpaperBlur, 0f..48f) { actions.preferences(preferences.copy(wallpaperBlur = it)) }
                 Text(tr("appearance.screens"), color = p.muted, fontSize = 12.sp)
-                BotToggle(tr("appearance.everywhere"), "all" in preferences.wallpaperScreens) { enabled -> actions.preferences(preferences.copy(wallpaperScreens = if (enabled) setOf("all") else setOf("Chat"))) }
+                val everywhere = "all" in preferences.wallpaperScreens
+                BotToggle(tr("appearance.everywhere"), everywhere) { enabled -> actions.preferences(preferences.copy(wallpaperScreens = if (enabled) setOf("all") else setOf("Chat"))) }
+                // "all" also covers the settings pages, which have no toggle of their own below.
+                Text(tr(if (everywhere) "appearance.everywhereOn" else "appearance.everywhereOff"), color = p.muted, fontSize = 12.sp)
                 if ("all" !in preferences.wallpaperScreens) listOf(Screen.Chat, Screen.Search, Screen.Files, Screen.Agents, Screen.Profile).forEach { screen ->
                     BotToggle(screenTitle(screen), screen.name in preferences.wallpaperScreens) { checked -> actions.preferences(preferences.copy(wallpaperScreens = if (checked) preferences.wallpaperScreens + screen.name else preferences.wallpaperScreens - screen.name)) }
                 }
@@ -84,19 +95,24 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
             Screen.Models -> {
                 Text(tr("defaults.help"), color = p.muted, fontSize = 13.sp)
                 Choices(listOf("last" to "defaults.last", "fixed" to "defaults.fixed"), preferences.defaultModelMode) { actions.preferences(preferences.copy(defaultModelMode = it)) }
-                Column(Modifier.selectableGroup()) {
+                // Separate cards with real gaps: back-to-back surfaces used to merge into one
+                // ragged block, and the selected card could not be told apart from its neighbours.
+                Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     state.models.forEach { model ->
                         val picked = preferences.defaultModelMode == "fixed" && preferences.defaultModel == model.id
-                        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (picked) p.secondary else p.surface)
+                        val shape = RoundedCornerShape(18.dp)
+                        Row(Modifier.fillMaxWidth().clip(shape).background(if (picked) p.secondary else p.surface)
+                            .then(if (picked) Modifier.border(1.dp, p.ink.copy(alpha = .16f), shape) else Modifier)
                             .selectable(selected = picked, enabled = model.available, role = Role.RadioButton) {
                                 actions.preferences(preferences.copy(defaultModel = model.id, defaultModelMode = "fixed"))
-                            }.padding(vertical = 8.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { if (picked) Glyph("check", modifier = Modifier.size(18.dp), tint = p.accent) }
-                            BrandMark(model.brand); Spacer(Modifier.width(8.dp))
-                            Column(Modifier.weight(1f)) {
+                            }.heightIn(min = 60.dp).padding(horizontal = 14.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                            BrandMark(model.brand); Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(model.label, color = if (model.available) p.ink else p.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                if (!model.available) Text(tr("model.unavailable"), color = p.muted, fontSize = 11.sp)
+                                val facts = if (model.available) modelFacts(model, state.intelligence[model.id]) else listOf(tr("model.unavailable"))
+                                if (facts.isNotEmpty()) Text(facts.joinToString(" · "), color = p.muted, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             }
+                            Box(Modifier.size(28.dp), contentAlignment = Alignment.CenterEnd) { if (picked) Glyph("check", modifier = Modifier.size(18.dp), tint = p.accent) }
                         }
                     }
                 }
@@ -164,8 +180,35 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
 
 @Composable
 private fun SettingsLink(icon: String, key: String, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(role = Role.Button, onClick = onClick).heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) { Glyph(icon, tint = LocalPalette.current.muted); Spacer(Modifier.width(14.dp)); Text(tr(key), color = LocalPalette.current.ink, modifier = Modifier.weight(1f)); Glyph("down", modifier = Modifier.size(14.dp).rotate(-90f)) }
+    val p = LocalPalette.current
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(role = Role.Button, onClick = onClick).heightIn(min = 52.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Thin line icons vanish on a busy wallpaper; an opaque tile keeps them as legible as the labels.
+        Box(Modifier.size(34.dp).clip(RoundedCornerShape(11.dp)).background(p.secondary), contentAlignment = Alignment.Center) {
+            Glyph(icon, modifier = Modifier.size(19.dp), tint = p.ink)
+        }
+        Spacer(Modifier.width(12.dp)); Text(tr(key), color = p.ink, modifier = Modifier.weight(1f)); Glyph("down", modifier = Modifier.size(14.dp).rotate(-90f), tint = p.muted)
+    }
 }
+
+/**
+ * Only facts the host reported: unknown capabilities, speeds or scores are left out
+ * rather than guessed, so two rows may show different amounts of detail.
+ */
+@Composable
+private fun modelFacts(model: ModelRow, intelligence: IntelligenceRow?): List<String> = buildList {
+    intelligence?.let { add(tr("model.fact.overall", "score" to it.index.roundToInt())) }
+    model.context?.takeIf { it > 0 }?.let { add(tr("model.fact.context", "size" to compactTokens(it))) }
+    model.seconds?.takeIf { it > 0 }?.let { add(tr("model.fact.seconds", "value" to formatSeconds(it))) }
+    if (model.vision == true) add(tr("model.images"))
+}
+
+internal fun compactTokens(tokens: Int): String = when {
+    tokens >= 1_000_000 -> ((tokens / 100_000) / 10.0).let { if (it % 1.0 == 0.0) "${it.toInt()}M" else "${it}M" }
+    tokens >= 1_000 -> "${(tokens + 500) / 1_000}K"
+    else -> tokens.toString()
+}
+
+private fun formatSeconds(value: Double): String = ((value * 10).roundToInt() / 10.0).let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }
 
 @Composable
 private fun ToggleRow(key: String, value: Boolean, onChange: (Boolean) -> Unit) = BotToggle(tr(key), value, onChange)

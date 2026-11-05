@@ -62,6 +62,10 @@ data class ModelOption(
     val efforts: List<String> = emptyList(),
     /** Missing capability metadata stays unknown, rather than becoming false. */
     val vision: Boolean? = null,
+    /** Context window in tokens, when OpenClaw reports one. */
+    val context: Int? = null,
+    /** Typical reply time the catalog states for this model ("~1.9 s"). */
+    val seconds: Double? = null,
 )
 
 @Serializable

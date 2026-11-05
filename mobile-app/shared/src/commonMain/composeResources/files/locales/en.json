@@ -424,5 +424,10 @@
   "files.opening": "Opening…",
   "files.waitingForWriter": "AI is updating…",
   "files.memoryDraft": "Your latest edits are still in this open app. Copy them before closing the app.",
-  "error.copyFailed": "Could not copy. Your content is still here; try again."
+  "error.copyFailed": "Could not copy. Your content is still here; try again.",
+  "appearance.everywhereOn": "On every screen, settings included. Dimming and blur apply wherever it shows.",
+  "appearance.everywhereOff": "Only on the screens switched on below. Dimming and blur apply to each of them.",
+  "model.fact.overall": "Overall {score}",
+  "model.fact.context": "{size} context",
+  "model.fact.seconds": "~{value} s reply"
 }
