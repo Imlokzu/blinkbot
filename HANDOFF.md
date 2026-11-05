@@ -1,5 +1,18 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-11-05 — Blink Android 0.7.1 stable publication
+
+Published code 35 through the official in-app stable channel. A clean
+`56a43046` worktree built the whole-zone chat blur and light-theme tint fixes,
+with 358 shared and 78 Android tests passing. The signature matches 0.7.0;
+live metadata and downloaded APK size/SHA-256 match. Code 34 receives the
+update; code 35 is current. Beta falls back to stable. Public unauthenticated
+routes return 401. The host restart used its existing shared-checkout service;
+pre-existing backend drafts remain outside this release commit. Smoke static
+assets pass and traversal returns 400. No active mobile jobs were interrupted.
+Details, digest and validation boundaries: docs/mobile-app/RELEASE-0.7.1.md.
+
+
 ## 2026-11-05 — Theme-aware native chat edge tint
 
 Light-theme chat edges use the warm background tint instead of a black
