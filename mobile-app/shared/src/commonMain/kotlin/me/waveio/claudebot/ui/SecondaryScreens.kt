@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -121,7 +122,14 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
                 Text(tr("notifications.permission"), color = p.muted)
                 ToggleRow("notifications.enable", preferences.notifications) { if (it) actions.requestNotifications() else actions.preferences(preferences.copy(notifications = false)) }
                 ToggleRow("notifications.preview", preferences.notificationPreview) { actions.preferences(preferences.copy(notificationPreview = it)) }
-                Text(tr("notifications.limited"), color = p.muted, fontSize = 12.sp)
+                // Say what will actually happen. Delivery is local: it works while Blink runs in the
+                // background; no push reaches a closed app, so that limit is stated plainly.
+                val readiness = when {
+                    preferences.notifications -> "notifications.state.ready"
+                    state.notificationsDenied -> "notifications.state.denied"
+                    else -> "notifications.state.off"
+                }
+                Text(tr(readiness), color = p.ink.copy(alpha = .78f), fontSize = 12.sp)
             }
             Screen.Haptics -> {
                 Text(tr("haptics.help"), color = p.muted, fontSize = 13.sp)
@@ -159,16 +167,29 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
             Screen.Queue -> {
                 if (state.allPending.isEmpty()) Text(tr("queue.empty"), color = p.muted)
                 state.allPending.forEach { item ->
-                    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                    val advice = queueAdvice(item)
+                    val attention = item.state in listOf("failed", "interrupted", "unsupported")
+                    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(item.text, color = p.ink, maxLines = 4)
-                        Text(tr("queue.state.${item.state}"), color = p.muted, fontSize = 12.sp)
+                        Text(tr("queue.state.${item.state}"), color = if (attention) p.accent else p.muted, fontSize = 12.sp, fontWeight = if (attention) FontWeight.SemiBold else null)
+                        advice.reason?.let { Text(tr(it), color = p.ink.copy(alpha = .78f), fontSize = 12.sp) }
                         item.scheduledAt?.let { Text(runCatching { Instant.parse(it).toLocalDateTime(TimeZone.currentSystemDefault()).toString().replace('T', ' ') }.getOrDefault(it), color = p.muted, fontSize = 12.sp) }
-                        Row {
-                            QuietAction(tr("action.open"), { actions.openChat(item.sessionId) })
-                            if (item.state in listOf("pending", "failed", "queued", "interrupted")) QuietAction(tr("action.retry"), { actions.retryPending(item.id) })
-                            QuietAction(tr("input.cancel"), { actions.cancelPending(item.id) })
+                        // The step that fixes this item's actual problem leads; the others stay quiet.
+                        val retryLabel = tr(when { advice.recommended == QueueStep.Continue -> "queue.resume"; advice.recommended == QueueStep.SendNow || item.state == "pending" -> "queue.sendNow"; else -> "action.retry" })
+                        FlowRow(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            val open = { actions.openChat(item.sessionId) }
+                            val retry = { actions.retryPending(item.id) }
+                            when (advice.recommended) {
+                                QueueStep.Open -> ActionButton(tr("action.open"), open)
+                                QueueStep.Retry, QueueStep.SendNow, QueueStep.Continue -> ActionButton(retryLabel, retry)
+                                QueueStep.None -> Unit
+                            }
+                            if (advice.recommended != QueueStep.Open) QuietAction(tr("action.open"), open)
+                            if (advice.canRetry && advice.recommended !in listOf(QueueStep.Retry, QueueStep.SendNow, QueueStep.Continue)) QuietAction(retryLabel, retry)
+                            QuietAction(tr(advice.cancelLabel), { actions.cancelPending(item.id) })
                         }
-                        Hairline()
+                        Text(tr(advice.cancelHint), color = p.muted, fontSize = 11.sp)
+                        Hairline(Modifier.padding(top = 6.dp))
                     }
                 }
             }

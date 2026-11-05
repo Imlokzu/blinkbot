@@ -36,6 +36,8 @@ data class Preferences(
     val lastModel: String = "",
     val chatModels: Map<String, String> = emptyMap(),
     val chatEfforts: Map<String, String> = emptyMap(),
+    /** Ended host jobs the owner cleared from Queue; the host cannot delete them. Bounded, newest last. */
+    val dismissedJobs: List<String> = emptyList(),
 )
 
 /** History timestamps are Unix seconds; unknown dates remain unknown. */
@@ -93,7 +95,9 @@ data class FileConflict(val localContent: String, val remoteContent: String?, va
 data class PreviewItem(val path: String, val name: String, val mimeType: String, val source: String)
 @Serializable
 data class DraftAttachment(val path: String, val name: String, val mimeType: String, val size: Long)
-data class PendingRow(val id: String, val text: String, val state: String, val scheduledAt: String? = null, val sessionId: String = "")
+/** [error] is the host job's error code or the phone outbox's refusal code; [paused] is the chat's host-side queue pause. */
+data class PendingRow(val id: String, val text: String, val state: String, val scheduledAt: String? = null, val sessionId: String = "",
+    val error: String? = null, val declined: Boolean = false, val paused: Boolean = false)
 
 @Serializable
 data class OutboxItem(
@@ -115,6 +119,8 @@ data class OutboxItem(
 data class AppState(
     val preferences: Preferences = Preferences(),
     val agentHapticsSupported: Boolean = false,
+    /** The system refused the last notification permission request in this session. */
+    val notificationsDenied: Boolean = false,
     val connected: Boolean = false,
     val connecting: Boolean = false,
     val initializing: Boolean = false,

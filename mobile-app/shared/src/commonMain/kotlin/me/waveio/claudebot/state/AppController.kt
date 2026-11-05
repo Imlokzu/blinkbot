@@ -861,8 +861,11 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val version = connectionVersion
         val jobs = requireApi().listMessages("")
         if (version != connectionVersion) return
-        val pending = jobs.filter { it.state !in setOf("completed", "stopped") }.map { job -> PendingRow(job.id, job.message.orEmpty(), job.state, job.scheduledAt?.let { Instant.fromEpochMilliseconds((it * 1000).toLong()).toString() }, job.sessionId) }
-        val local = outbox.map { PendingRow("local:${it.clientId}", it.message, if (it.lastError == null) "pending" else "failed", it.scheduledAt, it.sessionId) }
+        val dismissed = state.value.preferences.dismissedJobs.toSet()
+        val pending = jobs.filter { it.state !in setOf("completed", "stopped") && it.id !in dismissed }.map { job -> PendingRow(job.id, job.message.orEmpty(), job.state, job.scheduledAt?.let { Instant.fromEpochMilliseconds((it * 1000).toLong()).toString() }, job.sessionId,
+            error = job.error, paused = job.conversationPaused == true) }
+        val local = outbox.map { PendingRow("local:${it.clientId}", it.message, if (it.lastError == null) "pending" else "failed", it.scheduledAt, it.sessionId,
+            error = it.lastError, declined = it.deliveryDeclined) }
         update { it.copy(allPending = pending + local) }
     }
     private fun watch(job: MobileJob) {
@@ -1097,7 +1100,16 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             loadJobs(session)
         }
     }
+    /** The host keeps ended jobs forever and stop() ignores them, so clearing one is a local, persisted hide. */
+    private fun dismissEndedJob(id: String) {
+        val current = state.value.preferences
+        if (id in current.dismissedJobs) return
+        preferences(current.copy(dismissedJobs = (current.dismissedJobs + id).takeLast(200)))
+        update { it.copy(allPending = it.allPending.filterNot { row -> row.id == id }) }
+    }
     override fun cancelPending(id: String) {
+        val row = state.value.allPending.firstOrNull { it.id == id }
+        if (row != null && row.hostEnded()) { dismissEndedJob(id); return }
         if (id.startsWith("local:")) { val clientId = id.removePrefix("local:"); outbox.removeAll { it.clientId == clientId }; permitted.remove(clientId); persistOutbox(); run { loadAllJobs() } }
         else run { requireApi().stopMessage(id); loadAllJobs(); state.value.sessionId.takeIf { it.isNotBlank() }?.let { loadJobs(it) } }
     }
@@ -1124,6 +1136,8 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                 outbox.add(item); persistOutbox()
                 connection.resumeSession(job.sessionId)
                 if (epoch != connectionVersion) return@run
+                // The retry is a new job; the ended original would otherwise stay listed beside it.
+                dismissEndedJob(id)
                 submit(item, true)
             } else connection.resumeSession(pending.sessionId)
             if (epoch == connectionVersion) loadAllJobs()
@@ -2155,7 +2169,10 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         if (state.value.screen == Screen.Haptics) agentHaptics.preview(kind, state.value.preferences, platform.foreground.value)
     }
     override fun resetWallpaper() { platform.writePreference("wallpaper.v1", null); update { it.copy(customWallpaper = null) } }
-    override fun requestNotifications() { platform.requestNotifications { allowed -> preferences(state.value.preferences.copy(notifications = allowed)) } }
+    override fun requestNotifications() { platform.requestNotifications { allowed ->
+        update { it.copy(notificationsDenied = !allowed) }
+        preferences(state.value.preferences.copy(notifications = allowed))
+    } }
     override fun profileName(value: String) { profileEditVersion++; update { it.copy(profileName = value) } }
     override fun profilePersona(value: String) { profileEditVersion++; update { it.copy(profilePersona = value) } }
     override fun saveProfile() {
