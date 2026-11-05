@@ -3956,3 +3956,14 @@ outside the source and generated-asset commits.
 Strict asset scanning retains exact existing fingerprints at five newly hashed
 bundle paths, independently checked by Astra. The unchanged fail-closed policy
 tests passed 13 cases and 25 subtests; no detector or fingerprint was added.
+
+## 2026-11-05 — Blink Android 0.7.0: owner UI review
+
+Released Android 0.7.0 (code 34) to stable. It carries the unpublished 0.6.0
+session recovery and the 2026-11-05 annotated review: settings readability,
+model facts and GPT display names, real queue reasons (Cancel on ended host jobs
+now clears them), haptic strength slider with felt preview, Automatic effort as
+its own mode, benchmark bars that match their percentages, a live voice
+waveform, history dates and previews (new host `preview` field) and folder
+change dates. 358 shared, 78 Android and 87 focused backend tests pass; hardware
+haptics/voice and iOS are not verified. See docs/mobile-app/RELEASE-0.7.0.md.
