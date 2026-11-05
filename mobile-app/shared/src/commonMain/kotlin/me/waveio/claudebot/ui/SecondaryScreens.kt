@@ -137,15 +137,27 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
                 if (preferences.haptics) {
                     ToggleRow("haptics.agent", preferences.answerHaptics) { actions.preferences(preferences.copy(answerHaptics = it)) }
                     if (preferences.answerHaptics) {
-                        ToggleRow("haptics.thinking", preferences.thinkingHaptics) { actions.preferences(preferences.copy(thinkingHaptics = it)) }
-                        Text(tr("haptics.thinkingHint"), color = p.muted, fontSize = 12.sp)
-                        ToggleRow("haptics.tools", preferences.toolHaptics) { actions.preferences(preferences.copy(toolHaptics = it)) }
-                        Text(tr("haptics.toolsHint"), color = p.muted, fontSize = 12.sp)
-                        ToggleRow("haptics.streaming", preferences.streamingHaptics) { actions.preferences(preferences.copy(streamingHaptics = it)) }
-                        Text(tr("haptics.streamingHint"), color = p.muted, fontSize = 12.sp)
+                        // Agent activity really gates these three: off, none of them plays. The indent
+                        // and guide line show that; strength and frequency apply to all three.
+                        Row(Modifier.height(IntrinsicSize.Min)) {
+                            Box(Modifier.padding(start = 6.dp, end = 14.dp).width(2.dp).fillMaxHeight().clip(RoundedCornerShape(1.dp)).background(p.line))
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(tr("haptics.agentGroup"), color = p.muted, fontSize = 12.sp)
+                                ToggleRow("haptics.thinking", preferences.thinkingHaptics) { actions.preferences(preferences.copy(thinkingHaptics = it)) }
+                                Text(tr("haptics.thinkingHint"), color = p.muted, fontSize = 12.sp)
+                                ToggleRow("haptics.tools", preferences.toolHaptics) { actions.preferences(preferences.copy(toolHaptics = it)) }
+                                Text(tr("haptics.toolsHint"), color = p.muted, fontSize = 12.sp)
+                                ToggleRow("haptics.streaming", preferences.streamingHaptics) { actions.preferences(preferences.copy(streamingHaptics = it)) }
+                                Text(tr("haptics.streamingHint"), color = p.muted, fontSize = 12.sp)
+                            }
+                        }
                         Hairline()
-                        Text(tr("haptics.strength"), color = p.ink)
-                        Choices(listOf("light" to "haptics.light", "medium" to "haptics.medium", "strong" to "haptics.strong"), preferences.hapticStrength) { actions.preferences(preferences.copy(hapticStrength = it)) }
+                        HapticStrengthSlider(tr("haptics.strength"), preferences.hapticStrengthLevel,
+                            onChange = { actions.preferences(preferences.copy(hapticLevel = it)) },
+                            onPreview = actions::previewHapticStrength,
+                            lowLabel = tr("haptics.light"), highLabel = tr("haptics.strong"),
+                            previewEnabled = state.agentHapticsSupported)
+                        if (state.agentHapticsSupported) Text(tr("haptics.strengthHint"), color = p.muted, fontSize = 12.sp)
                         Text(tr("haptics.cadence"), color = p.ink)
                         Choices(listOf("calm" to "haptics.calm", "balanced" to "haptics.balanced", "lively" to "haptics.lively"), preferences.hapticCadence) { actions.preferences(preferences.copy(hapticCadence = it)) }
                         Text(tr("haptics.preview"), color = p.muted, fontSize = 12.sp)

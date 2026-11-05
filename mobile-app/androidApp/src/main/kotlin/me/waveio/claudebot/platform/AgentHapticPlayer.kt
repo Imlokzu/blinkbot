@@ -41,6 +41,15 @@ internal class AgentHapticPlayer(private val view: View, private val foreground:
                 return
             }
         }
+        // Without composition primitives, a motor with amplitude control still scales a short
+        // one-shot, so the strength slider is felt; predefined effects below ignore strength.
+        if (motor.hasAmplitudeControl()) {
+            val amplitude = (strength * 255).toInt().coerceIn(1, 255)
+            val length = if (kind == AgentHaptic.Streaming) 8L else 14L
+            vibrate(if (kind == AgentHaptic.Tool) VibrationEffect.createWaveform(longArrayOf(0, length, 45, length), intArrayOf(0, amplitude, 0, (amplitude * .7f).toInt().coerceAtLeast(1)), -1)
+                else VibrationEffect.createOneShot(length, amplitude))
+            return
+        }
         if (Build.VERSION.SDK_INT >= 29) {
             val effect = when (kind) {
                 AgentHaptic.Tool -> VibrationEffect.EFFECT_DOUBLE_CLICK

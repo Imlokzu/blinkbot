@@ -88,6 +88,13 @@ internal class AgentHaptics(
         platform.agentHaptic(kind, intensity(kind, settings))
     }
 
+    /** A single tap at exactly [level], felt while the strength slider moves; full scale, like a tool tap. */
+    fun previewStrength(level: Float, settings: Preferences, foreground: Boolean) {
+        if (!platform.supportsAgentHaptics || !foreground || !settings.haptics || !settings.answerHaptics) return
+        platform.cancelAgentHaptics()
+        platform.agentHaptic(AgentHaptic.Thinking, level.coerceIn(HapticLevelMin, 1f))
+    }
+
     private fun pulse(kind: AgentHaptic) {
         if (!enabled(kind, preferences) || !platform.foreground.value) return
         val time = now()
@@ -115,7 +122,7 @@ internal class AgentHaptics(
             else -> if (kind == AgentHaptic.Streaming) 280L else 1800L
         }
         private fun intensity(kind: AgentHaptic, p: Preferences): Float {
-            val strength = when (p.hapticStrength) { "light" -> .35f; "strong" -> 1f; else -> .65f }
+            val strength = p.hapticStrengthLevel
             return strength * when (kind) { AgentHaptic.Thinking -> .65f; AgentHaptic.Tool -> 1f; AgentHaptic.Streaming -> .45f }
         }
     }

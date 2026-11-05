@@ -447,5 +447,7 @@
   "queue.cancelHint.ended": "Clear only removes it from this list. Nothing is sent, and the chat keeps what was written.",
   "notifications.state.off": "Off. Turn it on to be notified when a reply finishes while Blink is in the background.",
   "notifications.state.denied": "Your phone blocked notifications for Blink. Allow them in the phone's settings, then turn this on again.",
-  "notifications.state.ready": "Ready. You'll be notified when a reply finishes while Blink is in the background. If Blink is closed, replies wait in the chat."
+  "notifications.state.ready": "Ready. You'll be notified when a reply finishes while Blink is in the background. If Blink is closed, replies wait in the chat.",
+  "haptics.agentGroup": "Agent activity plays these:",
+  "haptics.strengthHint": "Drag to feel each level: the phone taps at the strength under your finger."
 }

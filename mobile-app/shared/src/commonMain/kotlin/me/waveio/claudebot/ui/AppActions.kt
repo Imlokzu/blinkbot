@@ -84,6 +84,7 @@ interface AppActions {
     fun retryFileSave()
     fun preferences(value: Preferences)
     fun previewHaptic(kind: me.waveio.claudebot.state.AgentHaptic) {}
+    fun previewHapticStrength(level: Float) {}
     fun resetWallpaper()
     fun requestNotifications()
     fun profileName(value: String)

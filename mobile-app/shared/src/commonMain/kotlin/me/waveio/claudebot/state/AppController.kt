@@ -2168,6 +2168,9 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     override fun previewHaptic(kind: AgentHaptic) {
         if (state.value.screen == Screen.Haptics) agentHaptics.preview(kind, state.value.preferences, platform.foreground.value)
     }
+    override fun previewHapticStrength(level: Float) {
+        if (state.value.screen == Screen.Haptics) agentHaptics.previewStrength(level, state.value.preferences, platform.foreground.value)
+    }
     override fun resetWallpaper() { platform.writePreference("wallpaper.v1", null); update { it.copy(customWallpaper = null) } }
     override fun requestNotifications() { platform.requestNotifications { allowed ->
         update { it.copy(notificationsDenied = !allowed) }

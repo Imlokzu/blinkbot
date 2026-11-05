@@ -27,7 +27,10 @@ data class Preferences(
     val thinkingHaptics: Boolean = true,
     val toolHaptics: Boolean = true,
     val streamingHaptics: Boolean = true,
+    /** Legacy three-step strength; read only while [hapticLevel] is unset (older installs). */
     val hapticStrength: String = "medium",
+    /** Continuous agent-haptic strength, 0.05..1, set by the strength slider. */
+    val hapticLevel: Float? = null,
     val hapticCadence: String = "balanced",
     val notifications: Boolean = false,
     val notificationPreview: Boolean = false,
@@ -38,7 +41,12 @@ data class Preferences(
     val chatEfforts: Map<String, String> = emptyMap(),
     /** Ended host jobs the owner cleared from Queue; the host cannot delete them. Bounded, newest last. */
     val dismissedJobs: List<String> = emptyList(),
-)
+) {
+    /** The strength agent haptics actually use; old Light/Medium/Strong choices map onto the slider. */
+    val hapticStrengthLevel: Float get() = (hapticLevel ?: when (hapticStrength) { "light" -> .35f; "strong" -> 1f; else -> .65f }).coerceIn(HapticLevelMin, 1f)
+}
+
+const val HapticLevelMin = .05f
 
 /** History timestamps are Unix seconds; unknown dates remain unknown. */
 data class ConversationRow(val id: String, val title: String, val updatedAt: Long? = null)

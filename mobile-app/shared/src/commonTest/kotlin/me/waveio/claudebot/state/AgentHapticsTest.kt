@@ -134,4 +134,31 @@ class AgentHapticsTest {
         assertEquals("medium", old.hapticStrength)
         assertEquals("balanced", old.hapticCadence)
     }
+
+    @Test fun theStrengthSliderReplacesTheThreeStepsWithoutChangingOldChoices() = runTest {
+        // An install saved before the slider keeps exactly what Light/Medium/Strong meant.
+        assertEquals(.35f, Json.decodeFromString<Preferences>("""{"hapticStrength":"light"}""").hapticStrengthLevel)
+        assertEquals(.65f, Preferences().hapticStrengthLevel)
+        assertEquals(1f, Preferences(hapticStrength = "strong").hapticStrengthLevel)
+        assertEquals(.8f, Preferences(hapticStrength = "light", hapticLevel = .8f).hapticStrengthLevel, "The slider wins once it has been moved")
+        assertEquals(HapticLevelMin, Preferences(hapticLevel = -3f).hapticStrengthLevel)
+
+        val (platform, haptics) = fixture()
+        haptics.preview(AgentHaptic.Tool, Preferences(hapticLevel = .2f), true)
+        haptics.preview(AgentHaptic.Tool, Preferences(hapticLevel = .9f), true)
+        assertTrue(platform.agentPulses[1].second > platform.agentPulses[0].second, "A higher level must play a stronger tap")
+    }
+
+    @Test fun draggingTheSliderTapsAtExactlyTheLevelUnderTheFinger() = runTest {
+        val (platform, haptics) = fixture()
+        haptics.previewStrength(.42f, Preferences(), true)
+        assertEquals(.42f, platform.agentPulses.single().second)
+        // Same gates as the pattern previews: master switches, foreground and hardware.
+        haptics.previewStrength(.9f, Preferences(answerHaptics = false), true)
+        haptics.previewStrength(.9f, Preferences(haptics = false), true)
+        haptics.previewStrength(.9f, Preferences(), false)
+        platform.supportsAgentHaptics = false
+        haptics.previewStrength(.9f, Preferences(), true)
+        assertEquals(1, platform.agentPulses.size)
+    }
 }
