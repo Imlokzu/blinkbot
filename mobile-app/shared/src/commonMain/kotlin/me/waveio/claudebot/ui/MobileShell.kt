@@ -337,9 +337,10 @@ private fun SearchScreen(state: AppState, actions: AppActions) {
                     verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(chat.title, color = p.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                        conversationWhen(chat.updatedAt, now, zone)?.let { Text(it, color = p.muted, fontSize = 12.sp, modifier = Modifier.padding(start = 10.dp)) }
+                        // Darker than the usual muted grey: these rows often sit on the sky wallpaper.
+                        conversationWhen(chat.updatedAt, now, zone)?.let { Text(it, color = p.ink.copy(alpha = .62f), fontSize = 12.sp, modifier = Modifier.padding(start = 10.dp)) }
                     }
-                    if (chat.preview.isNotBlank()) Text(chat.preview, color = p.muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (chat.preview.isNotBlank()) Text(chat.preview, color = p.ink.copy(alpha = .62f), fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (results.isEmpty()) item { Text(tr("chat.noResults"), color = p.muted, modifier = Modifier.padding(vertical = 20.dp)) }
