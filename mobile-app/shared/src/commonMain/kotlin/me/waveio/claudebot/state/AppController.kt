@@ -459,6 +459,10 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         if (screen != Screen.Chat && state.value.dictationOpen) cancelDictation()
         if (screen != state.value.screen) closePreview()
         feedback(); update { it.copy(screen = screen, menuOpen = false) }
+        // Permission can be revoked in system settings at any time; re-read it whenever the
+        // Notifications screen opens so "Ready" is never shown for a blocked app.
+        // Only while switched on: before the first request Android 13+ also reports "not granted".
+        if (screen == Screen.Notifications && state.value.preferences.notifications) platform.notificationsAllowed()?.let { allowed -> update { it.copy(notificationsDenied = !allowed) } }
         if (screen == Screen.Files) openDirectory(state.value.directory)
         if (screen == Screen.Personalization) run { loadProfile() }
         if (screen == Screen.Queue) run { loadAllJobs() }
@@ -862,6 +866,10 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val jobs = requireApi().listMessages("")
         if (version != connectionVersion) return
         val dismissed = state.value.preferences.dismissedJobs.toSet()
+        // The host keeps ended jobs, so a cleared id stays relevant exactly as long as the host
+        // still lists it. Forget the rest instead of capping the list, which would resurface old jobs.
+        val returned = jobs.map { it.id }.toSet()
+        if (dismissed.any { it !in returned }) preferences(state.value.preferences.copy(dismissedJobs = state.value.preferences.dismissedJobs.filter { it in returned }))
         val pending = jobs.filter { it.state !in setOf("completed", "stopped") && it.id !in dismissed }.map { job -> PendingRow(job.id, job.message.orEmpty(), job.state, job.scheduledAt?.let { Instant.fromEpochMilliseconds((it * 1000).toLong()).toString() }, job.sessionId,
             error = job.error, paused = job.conversationPaused == true) }
         val local = outbox.map { PendingRow("local:${it.clientId}", it.message, if (it.lastError == null) "pending" else "failed", it.scheduledAt, it.sessionId,
@@ -1104,7 +1112,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     private fun dismissEndedJob(id: String) {
         val current = state.value.preferences
         if (id in current.dismissedJobs) return
-        preferences(current.copy(dismissedJobs = (current.dismissedJobs + id).takeLast(200)))
+        preferences(current.copy(dismissedJobs = current.dismissedJobs + id))
         update { it.copy(allPending = it.allPending.filterNot { row -> row.id == id }) }
     }
     override fun cancelPending(id: String) {

@@ -186,14 +186,14 @@ class ModelPickerTest {
         compose.onNodeWithTag("model-picker").assertDoesNotExist()
         compose.runOnIdle { state = state.copy(modelPickerOpen = true) }
         compose.onNodeWithTag("effort-slider").assertIsDisplayed()
-        compose.onNodeWithText("High").assertIsDisplayed()
+        compose.onNodeWithTag("change-model").assert(hasText("High"))
     }
 
     @Test fun dragPreviewsThenSavesOnceAndDisablingRestoresSavedEffort() {
         launch()
         val slider = compose.onNodeWithTag("effort-slider")
         slider.performTouchInput { down(Offset(20f, centerY)); moveTo(center, delayMillis = 50); moveTo(Offset(width - 20f, centerY), delayMillis = 50) }
-        compose.onNodeWithText("High").assertIsDisplayed()
+        compose.onNodeWithTag("change-model").assert(hasText("High"))
         assertTrue("Dragging must not persist intermediate stops", saved.isEmpty())
         slider.performTouchInput { up() }
         assertEquals(listOf("high"), saved)
@@ -206,7 +206,7 @@ class ModelPickerTest {
         compose.runOnIdle { state = state.copy(modelsLoading = false) }
         compose.waitForIdle()
         assertEquals(listOf("high"), saved)
-        compose.onNodeWithText("High").assertIsDisplayed()
+        compose.onNodeWithTag("change-model").assert(hasText("High"))
         // Auto and explicit off must stay distinct settings: Off is the first stop,
         // Automatic is its own switch.
         slider.performSemanticsAction(SemanticsActions.SetProgress) { it(0f) }
@@ -223,7 +223,7 @@ class ModelPickerTest {
         compose.runOnIdle { state = state.copy(selectedModel = "fixture/gpt") }
         slider.performTouchInput { up() }
         assertTrue(saved.isEmpty())
-        compose.onNodeWithText("Automatic").assertIsDisplayed()
+        compose.onNodeWithTag("change-model").assert(hasText("Automatic"))
     }
 
     @Test fun losingFocusCancelsThePreviewWithoutSaving() {
@@ -233,7 +233,7 @@ class ModelPickerTest {
         compose.onNodeWithTag("change-model").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
         slider.performTouchInput { up() }
         assertTrue(saved.isEmpty())
-        compose.onNodeWithText("Automatic").assertIsDisplayed()
+        compose.onNodeWithTag("change-model").assert(hasText("Automatic"))
     }
 
     @Test fun automaticOnlyModelHasDisabledSliderAndReachableModelButton() {

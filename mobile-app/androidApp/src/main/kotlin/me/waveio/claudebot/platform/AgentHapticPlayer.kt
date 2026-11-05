@@ -45,7 +45,8 @@ internal class AgentHapticPlayer(private val view: View, private val foreground:
         // one-shot, so the strength slider is felt; predefined effects below ignore strength.
         if (motor.hasAmplitudeControl()) {
             val amplitude = (strength * 255).toInt().coerceIn(1, 255)
-            val length = if (kind == AgentHaptic.Streaming) 8L else 14L
+            // Shorter pulses at low amplitude barely register on many motors.
+            val length = if (kind == AgentHaptic.Streaming) 12L else 18L
             vibrate(if (kind == AgentHaptic.Tool) VibrationEffect.createWaveform(longArrayOf(0, length, 45, length), intArrayOf(0, amplitude, 0, (amplitude * .7f).toInt().coerceAtLeast(1)), -1)
                 else VibrationEffect.createOneShot(length, amplitude))
             return

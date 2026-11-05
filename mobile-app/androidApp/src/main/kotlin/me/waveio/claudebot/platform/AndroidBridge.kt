@@ -500,6 +500,9 @@ class AndroidBridge(private val activity: ComponentActivity) : PlatformBridge, N
         } else onResult(NotificationManagerCompat.from(context).areNotificationsEnabled())
     }
 
+    override fun notificationsAllowed(): Boolean = NotificationManagerCompat.from(context).areNotificationsEnabled() &&
+        (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
+
     override fun notifyReply(title: String, body: String, conversationId: String) {
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return

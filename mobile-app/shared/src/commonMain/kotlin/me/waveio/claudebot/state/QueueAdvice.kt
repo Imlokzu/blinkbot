@@ -27,7 +27,11 @@ fun PendingRow.isLocal(): Boolean = id.startsWith("local:")
 /** A host job that has already ended; it stays listed until the owner retries or clears it. */
 fun PendingRow.hostEnded(): Boolean = !isLocal() && state in HostEnded
 
-fun queueAdvice(row: PendingRow): QueueAdvice {
+/**
+ * [chatActive]: another job of the same chat is still running or stopping; the host
+ * refuses to resume a chat until it ends (409 conversation_active), so Continue waits.
+ */
+fun queueAdvice(row: PendingRow, chatActive: Boolean = false): QueueAdvice {
     if (row.isLocal()) {
         return when {
             row.error != null -> QueueAdvice(localErrorReason(row.error), if (row.error == "mobile_image_model_unavailable") QueueStep.Open else QueueStep.Retry,
@@ -40,8 +44,10 @@ fun queueAdvice(row: PendingRow): QueueAdvice {
         "failed" -> QueueAdvice(hostErrorReason(row.error), if (row.error == "mobile_image_model_unavailable") QueueStep.Open else QueueStep.Retry,
             canRetry = true, cancelLabel = "queue.clear", cancelHint = "queue.cancelHint.ended")
         "interrupted" -> QueueAdvice("queue.reason.interrupted", QueueStep.Retry, canRetry = true, cancelLabel = "queue.clear", cancelHint = "queue.cancelHint.ended")
-        "unsupported" -> QueueAdvice("queue.reason.unsupported", QueueStep.Open, canRetry = true, cancelLabel = "queue.clear", cancelHint = "queue.cancelHint.ended")
-        "queued", "scheduled" -> if (row.paused) QueueAdvice("queue.reason.paused", QueueStep.Continue, canRetry = true, cancelLabel = "input.cancel", cancelHint = "queue.cancelHint.waiting")
+        // The host uses "unsupported" only for steer messages. A retry would resend it as an
+        // ordinary queued turn, which is not what was asked, so it is not offered.
+        "unsupported" -> QueueAdvice("queue.reason.unsupported", QueueStep.Open, canRetry = false, cancelLabel = "queue.clear", cancelHint = "queue.cancelHint.ended")
+        "queued", "scheduled" -> if (row.paused && !chatActive) QueueAdvice("queue.reason.paused", QueueStep.Continue, canRetry = true, cancelLabel = "input.cancel", cancelHint = "queue.cancelHint.waiting")
             else QueueAdvice(if (row.state == "queued") "queue.reason.queued" else null, QueueStep.None, canRetry = false, cancelLabel = "input.cancel", cancelHint = "queue.cancelHint.waiting")
         "running", "stopping" -> QueueAdvice(null, QueueStep.Open, canRetry = false, cancelLabel = "input.cancel", cancelHint = "queue.cancelHint.running")
         else -> QueueAdvice(null, QueueStep.Open, canRetry = false, cancelLabel = "input.cancel", cancelHint = "queue.cancelHint.waiting")

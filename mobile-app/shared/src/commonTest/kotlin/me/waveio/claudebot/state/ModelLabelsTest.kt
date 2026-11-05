@@ -11,6 +11,7 @@ class ModelLabelsTest {
         assertEquals("GPT-5.5 Pro", displayModelLabel("openai/gpt-5.5-pro", "gpt-5.5-pro"))
         assertEquals("GPT-OSS 120B", displayModelLabel("regolo/gpt-oss-120b", "gpt-oss-120b"))
         assertEquals("GPT-5.4 Mini", displayModelLabel("openai/gpt-5.4-mini", ""))
+        assertEquals("GPT-4o Mini", displayModelLabel("openai/gpt-4o-mini", null))
     }
 
     @Test

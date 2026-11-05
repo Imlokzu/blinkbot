@@ -63,6 +63,8 @@ interface PlatformBridge {
     /** Platform implementations may provide a cryptographic digest for downloads. */
     fun sha256(bytes: ByteArray): String? = null
     fun requestNotifications(onResult: (Boolean) -> Unit)
+    /** Whether the system currently lets this app post notifications; null when the platform cannot say synchronously. */
+    fun notificationsAllowed(): Boolean? = null
     fun notifyReply(title: String, body: String, conversationId: String)
     fun nowMillis(): Long
     fun newId(): String

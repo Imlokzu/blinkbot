@@ -125,8 +125,8 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
                 // Say what will actually happen. Delivery is local: it works while Blink runs in the
                 // background; no push reaches a closed app, so that limit is stated plainly.
                 val readiness = when {
-                    preferences.notifications -> "notifications.state.ready"
                     state.notificationsDenied -> "notifications.state.denied"
+                    preferences.notifications -> "notifications.state.ready"
                     else -> "notifications.state.off"
                 }
                 Text(tr(readiness), color = p.ink.copy(alpha = .78f), fontSize = 12.sp)
@@ -179,7 +179,7 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
             Screen.Queue -> {
                 if (state.allPending.isEmpty()) Text(tr("queue.empty"), color = p.muted)
                 state.allPending.forEach { item ->
-                    val advice = queueAdvice(item)
+                    val advice = queueAdvice(item, chatActive = state.allPending.any { it.sessionId == item.sessionId && it.id != item.id && it.state in listOf("running", "stopping") })
                     val attention = item.state in listOf("failed", "interrupted", "unsupported")
                     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(item.text, color = p.ink, maxLines = 4)
@@ -235,7 +235,7 @@ private fun modelFacts(model: ModelRow, intelligence: IntelligenceRow?): List<St
     if (model.vision == true) add(tr("model.images"))
 }
 
-internal fun compactTokens(tokens: Int): String = when {
+internal fun compactTokens(tokens: Long): String = when {
     tokens >= 1_000_000 -> ((tokens / 100_000) / 10.0).let { if (it % 1.0 == 0.0) "${it.toInt()}M" else "${it}M" }
     tokens >= 1_000 -> "${(tokens + 500) / 1_000}K"
     else -> tokens.toString()

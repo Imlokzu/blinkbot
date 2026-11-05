@@ -45,6 +45,10 @@ class QueueAdviceTest {
         assertEquals("queue.reason.offline", queueAdvice(PendingRow("local:a", "hi", "pending")).reason)
         assertEquals(QueueStep.SendNow, queueAdvice(PendingRow("local:a", "hi", "pending", declined = true)).recommended)
         assertEquals("queue.reason.refused", queueAdvice(PendingRow("local:a", "hi", "failed", error = "invalid_attachment")).reason)
+        // The host refuses to resume a chat while a reply in it is still stopping.
+        assertEquals(QueueStep.None, queueAdvice(PendingRow("job", "hi", "queued", paused = true), chatActive = true).recommended)
+        // A steer the host could not run would come back as an ordinary turn; no Retry.
+        assertFalse(queueAdvice(PendingRow("job", "hi", "unsupported", error = "steer_unsupported")).canRetry)
     }
 
     private val fixtures = mutableListOf<ControllerTestFixture>()
@@ -74,5 +78,10 @@ class QueueAdviceTest {
         fixture.controller.navigate(Screen.Chat); runCurrent()
         fixture.controller.navigate(Screen.Queue); runCurrent()
         assertTrue(fixture.controller.state.value.allPending.isEmpty(), "A refreshed list must keep a cleared job hidden")
+        // Once the host stops listing the job, its id is forgotten instead of piling up.
+        fixture.handler = { request -> if (request.url.encodedPath == "/api/mobile/messages" && request.method == HttpMethod.Get) jsonResponse("""{"messages":[]}""") else null }
+        fixture.controller.navigate(Screen.Chat); runCurrent()
+        fixture.controller.navigate(Screen.Queue); runCurrent()
+        assertTrue(fixture.controller.state.value.preferences.dismissedJobs.isEmpty())
     }
 }

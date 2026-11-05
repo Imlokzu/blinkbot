@@ -12,7 +12,8 @@ fun displayModelLabel(id: String, label: String?): String {
     if (raw != raw.lowercase() || !raw.startsWith("gpt-")) return raw
     val parts = raw.removePrefix("gpt-").split('-').filter { it.isNotEmpty() }
     if (parts.isEmpty()) return raw
-    val head = parts.first().uppercase()
+    // "4o" keeps OpenAI's lowercase o; "oss" and plain versions are upper-cased.
+    val head = parts.first().let { if (it.matches(Regex("""\d+(\.\d+)?o"""))) it else it.uppercase() }
     val tail = parts.drop(1).joinToString(" ") { part ->
         // Parameter counts read as "120B"; words read as "Pro", "Mini".
         if (part.matches(Regex("""\d+(\.\d+)?[bkm]"""))) part.uppercase()

@@ -65,7 +65,7 @@ data class ModelOption(
     /** Missing capability metadata stays unknown, rather than becoming false. */
     val vision: Boolean? = null,
     /** Context window in tokens, when OpenClaw reports one. */
-    val context: Int? = null,
+    val context: Long? = null,
     /** Typical reply time the catalog states for this model ("~1.9 s"). */
     val seconds: Double? = null,
 )
