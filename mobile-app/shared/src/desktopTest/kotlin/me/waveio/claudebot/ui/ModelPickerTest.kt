@@ -171,7 +171,8 @@ class ModelPickerTest {
         compose.onNodeWithContentDescription("Find a model").assertDoesNotExist()
         val panel = compose.onNodeWithTag("model-picker").getUnclippedBoundsInRoot()
         assertEquals(256f, panel.width.value, .1f)
-        assertTrue("The PC-style effort pane stays compact", panel.height <= 120.dp)
+        // Taller than the PC pane since Automatic, the level's meaning and the named ends are shown.
+        assertTrue("The effort pane stays compact", panel.height <= 200.dp)
         screenshot("effort-light")
         compose.onNodeWithTag("change-model").performClick()
         compose.onNodeWithContentDescription("Find a model").assertIsDisplayed().performTextInput("GPT")
@@ -206,11 +207,13 @@ class ModelPickerTest {
         compose.waitForIdle()
         assertEquals(listOf("high"), saved)
         compose.onNodeWithText("High").assertIsDisplayed()
-        // Auto and explicit off must stay distinct settings.
-        slider.performSemanticsAction(SemanticsActions.SetProgress) { it(1f) }
-        assertEquals("off", state.effort)
+        // Auto and explicit off must stay distinct settings: Off is the first stop,
+        // Automatic is its own switch.
         slider.performSemanticsAction(SemanticsActions.SetProgress) { it(0f) }
+        assertEquals("off", state.effort)
+        compose.onNodeWithTag("effort-automatic").performClick()
         assertEquals("none", state.effort)
+        compose.onNodeWithText("Let the model decide").assertIsDisplayed()
     }
 
     @Test fun replacingTheModelDuringDragCannotSaveTheOldPreview() {
@@ -235,12 +238,13 @@ class ModelPickerTest {
 
     @Test fun automaticOnlyModelHasDisabledSliderAndReachableModelButton() {
         launch(efforts = emptyList())
-        compose.onNodeWithTag("effort-slider").assertIsNotEnabled()
+        compose.onNodeWithTag("effort-slider").assertDoesNotExist()
+        compose.onNodeWithTag("effort-automatic").assertIsDisplayed()
         compose.onNodeWithText("This model manages its own reasoning effort.").assertIsDisplayed()
         compose.onNodeWithTag("change-model").performClick()
         compose.onNodeWithText("Unavailable model").assertIsNotEnabled()
         compose.onNodeWithContentDescription("Back").performClick()
-        compose.onNodeWithTag("effort-slider").assertIsDisplayed()
+        compose.onNodeWithTag("effort-automatic").assertIsDisplayed()
         assertTrue(saved.isEmpty())
     }
 

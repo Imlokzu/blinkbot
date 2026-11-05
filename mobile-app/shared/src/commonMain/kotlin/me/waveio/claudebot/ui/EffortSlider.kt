@@ -38,6 +38,14 @@ import androidx.compose.ui.unit.*
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+/** The slider's stops (host order, without Automatic), whether Automatic is on, and the shown stop. */
+internal data class EffortScale(val levels: List<String>, val automatic: Boolean, val current: Int)
+
+internal fun effortScale(effort: String, efforts: List<String>): EffortScale {
+    val levels = efforts.filter { it != "none" }.distinct()
+    return EffortScale(levels, effort !in levels, levels.indexOf(effort).coerceAtLeast(0))
+}
+
 /** Native counterpart of the PC effort picker, including its thumb-centred travel. */
 @Composable
 internal fun EffortSlider(
@@ -51,15 +59,21 @@ internal fun EffortSlider(
 ) {
     val palette = LocalPalette.current
     val accent = Color(0xFFE6532F)
-    // Automatic inherits configuration; explicit off remains a separate stop.
-    val levels = (listOf("none") + efforts).distinct()
-    val current = levels.indexOf(effort).coerceAtLeast(0)
+    // Automatic ("none") sends no level, so the host's own default applies. It is a mode,
+    // not the weakest stop: as the slider's first dot it read as "minimum" right beside
+    // Off and could not be told apart. It now has its own switch, and the slider holds
+    // only the levels the host declares, in its order. What is shown is always the
+    // saved [effort]; a level outside the list counts as Automatic, as the controller
+    // already normalizes it to.
+    val (levels, automatic, current) = effortScale(effort, efforts)
     val last = levels.lastIndex.coerceAtLeast(1)
-    val canSelect = enabled && levels.size > 1
+    val canSelect = enabled && levels.isNotEmpty()
     var preview by remember(effort, levels, canSelect) { mutableStateOf<Float?>(null) }
     var focused by remember { mutableStateOf(false) }
-    val index = ((preview ?: (current.toFloat() / last)) * last).roundToInt().coerceIn(levels.indices)
-    val label = tr("model.${levels[index]}")
+    val index = if (levels.isEmpty()) 0 else ((preview ?: (current.toFloat() / last)) * last).roundToInt().coerceIn(levels.indices)
+    val showsAutomatic = automatic && preview == null
+    val label = tr(if (showsAutomatic || levels.isEmpty()) "model.none" else "model.${levels[index]}")
+    val hint = tr(if (showsAutomatic || levels.isEmpty()) "model.effortHint.none" else "model.effortHint.${levels[index]}")
     val sliderLabel = tr("model.effort")
     val changeModelLabel = tr("model.change")
     val focusRequester = remember { FocusRequester() }
@@ -78,7 +92,7 @@ internal fun EffortSlider(
         Column(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(7.dp))
             .testTag("change-model").semantics { contentDescription = changeModelLabel }
             .clickable(role = Role.Button, onClick = onChangeModel).padding(horizontal = 8.dp, vertical = 7.dp)) {
-            EffortReel(levels.map { tr("model.$it") }, index)
+            EffortReel((listOf("none") + levels).map { tr("model.$it") }, if (showsAutomatic || levels.isEmpty()) 0 else index + 1)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 BrandMark(modelBrand, Modifier.size(14.dp).testTag("effort-model-brand"))
                 Text(modelLabel, color = palette.muted, fontSize = 12.sp, lineHeight = 15.sp,
@@ -90,7 +104,12 @@ internal fun EffortSlider(
                 }
             }
         }
-        BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 2.dp, bottom = 4.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            ChoicePill(tr("model.none"), automatic, { if (enabled && !automatic) onSelect("none") }, Modifier.testTag("effort-automatic"))
+            // The meaning of whatever is selected (or being dragged to), in words.
+            Text(hint, color = palette.muted, fontSize = 12.sp, lineHeight = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        }
+        if (levels.isNotEmpty()) BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 2.dp, bottom = 0.dp)) {
             val travel = (maxWidth - 44.dp).coerceAtLeast(0.dp)
             Box(Modifier.fillMaxWidth().height(48.dp).testTag("effort-slider")
                 .semantics {
@@ -107,8 +126,8 @@ internal fun EffortSlider(
                 .onKeyEvent { event ->
                     if (!canSelect || event.type != KeyEventType.KeyDown) return@onKeyEvent false
                     val next = when (event.key) {
-                        Key.DirectionRight, Key.DirectionUp -> current + 1
-                        Key.DirectionLeft, Key.DirectionDown -> current - 1
+                        Key.DirectionRight, Key.DirectionUp -> if (automatic) 0 else current + 1
+                        Key.DirectionLeft, Key.DirectionDown -> if (automatic) return@onKeyEvent false else current - 1
                         Key.MoveHome -> 0
                         Key.MoveEnd -> levels.lastIndex
                         else -> return@onKeyEvent false
@@ -125,7 +144,8 @@ internal fun EffortSlider(
                         val distance = (size.width - 2 * halfThumb).coerceAtLeast(1f)
                         val initial = current.toFloat() / last
                         val thumbCenter = halfThumb + distance * initial
-                        val fromThumb = abs(down.position.x - thumbCenter) <= halfThumb
+                        // In Automatic there is no thumb to grab: a touch picks the level under it.
+                        val fromThumb = !automatic && abs(down.position.x - thumbCenter) <= halfThumb
                         val grabOffset = if (fromThumb) down.position.x - thumbCenter else 0f
                         fun position(x: Float) = ((x - grabOffset - halfThumb) / distance).coerceIn(0f, 1f)
                         var next = if (fromThumb) initial else position(down.position.x)
@@ -158,23 +178,28 @@ internal fun EffortSlider(
                     drawRoundRect(Brush.verticalGradient(listOf(palette.ink.copy(alpha = .075f * opacity), palette.ink.copy(alpha = .04f * opacity))), Offset(0f, trackTop), rail, corner)
                     drawRoundRect(palette.ink.copy(alpha = .08f * opacity), Offset(.5.dp.toPx(), trackTop + .5.dp.toPx()), Size(rail.width - 1.dp.toPx(), rail.height - 1.dp.toPx()), corner, style = Stroke(1.dp.toPx()))
                     val fillWidth = (36.dp.toPx() + (size.width - 44.dp.toPx()) * fraction).coerceIn(0f, size.width)
-                    drawRoundRect(Brush.verticalGradient(listOf(Color(0xFFEC795D).copy(alpha = opacity), accent.copy(alpha = opacity)), startY = trackTop, endY = trackTop + rail.height), Offset(0f, trackTop), Size(fillWidth, rail.height), corner)
+                    if (!showsAutomatic) drawRoundRect(Brush.verticalGradient(listOf(Color(0xFFEC795D).copy(alpha = opacity), accent.copy(alpha = opacity)), startY = trackTop, endY = trackTop + rail.height), Offset(0f, trackTop), Size(fillWidth, rail.height), corner)
                     levels.forEachIndexed { stop, _ ->
                         val x = 22.dp.toPx() + (size.width - 44.dp.toPx()) * stop / last
-                        drawCircle(if (stop <= index) Color.White.copy(alpha = .4f * opacity) else palette.muted.copy(alpha = .28f * opacity), 2.dp.toPx(), Offset(x, size.height / 2f))
+                        drawCircle(if (!showsAutomatic && stop <= index) Color.White.copy(alpha = .4f * opacity) else palette.muted.copy(alpha = .28f * opacity), 2.dp.toPx(), Offset(x, size.height / 2f))
                     }
-                    if (focused || preview != null) {
+                    if (!showsAutomatic && (focused || preview != null)) {
                         drawRoundRect(accent.copy(alpha = if (preview != null) .3f else .8f),
                             Offset(travel.toPx() * fraction - 4.dp.toPx(), 4.dp.toPx()), Size(52.dp.toPx(), 40.dp.toPx()), CornerRadius(20.dp.toPx()), style = Stroke(1.dp.toPx()))
                     }
                 }
-                Box(Modifier.offset { IntOffset((travel.toPx() * fraction).roundToInt(), 8.dp.roundToPx()) }
+                if (!showsAutomatic) Box(Modifier.offset { IntOffset((travel.toPx() * fraction).roundToInt(), 8.dp.roundToPx()) }
                     .size(44.dp, 32.dp).shadow(2.dp, RoundedCornerShape(16.dp))
                     .background(Brush.verticalGradient(listOf(Color.White, Color(0xFFF6F6F6))), RoundedCornerShape(16.dp))
                     .border(1.dp, Color.Black.copy(alpha = .11f), RoundedCornerShape(16.dp)))
             }
         }
-        if (levels.size == 1) Text(tr("model.effortUnavailable"), color = palette.muted, fontSize = 12.sp, modifier = Modifier.padding(8.dp))
+        if (levels.size > 1) Row(Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp, bottom = 6.dp)) {
+            // The ends of the scale are named so the direction of the slider is never a guess.
+            Text(tr("model.${levels.first()}"), color = palette.muted, fontSize = 11.sp, modifier = Modifier.weight(1f))
+            Text(tr("model.${levels.last()}"), color = palette.muted, fontSize = 11.sp)
+        }
+        if (levels.isEmpty()) Text(tr("model.effortUnavailable"), color = palette.muted, fontSize = 12.sp, modifier = Modifier.padding(8.dp))
     }
 }
 
