@@ -225,3 +225,9 @@ test("id aliases are never forwarded to the owner's personal inbox", async () =>
   await worker.email(message("hello@waveio.me"), e, {});
   assert.equal(forwarded, 1, "main-domain mail still forwards");
 });
+
+test("extractOtp: code before the keyword", () => {
+  assert.equal(extractOtp("875471 is your login code", ""), "875471");
+  assert.equal(extractOtp("Welcome", "123 456 is your verification code"), "123456");
+  assert.equal(extractOtp("Since 2026 we send codes", "Hello"), null);
+});

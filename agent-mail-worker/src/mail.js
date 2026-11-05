@@ -83,6 +83,10 @@ export function extractOtp(subject, text) {
   const near = new RegExp(`(?:${CODE_KEYWORDS})[^\\n\\r0-9]{0,40}?\\b(\\d{3}[ -]?\\d{3}|\\d{4,8})\\b`, "i");
   const m = content.match(near);
   if (m && !isYear(m[1])) return m[1].replace(/[ -]/g, "");
+  // The code first, then the word: "875471 is your login code".
+  const before = new RegExp(`\\b(\\d{3}[ -]?\\d{3}|\\d{4,8})\\b[^\\n\\r0-9]{0,30}?(?:${CODE_KEYWORDS})`, "i");
+  const b = content.match(before);
+  if (b && !isYear(b[1])) return b[1].replace(/[ -]/g, "");
   for (const line of content.split(/\r?\n/)) {
     const own = line.trim().replace(/^[*_`"'«]+|[*_`"'»]+$/g, "");
     if (/^(\d{3}[ -]\d{3}|\d{4,8})$/.test(own) && !isYear(own)) return own.replace(/[ -]/g, "");
