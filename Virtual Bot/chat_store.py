@@ -555,6 +555,24 @@ def mark_titled(session_id: str) -> None:
         tmp.unlink(missing_ok=True)
 
 
+LIST_PREVIEW = 120
+
+
+def _list_preview(messages: list) -> str:
+    """
+    One line of the latest message for the chat list. Many chats share a title
+    ("Hi"), and the phone's history cannot tell them apart by name alone. The
+    file is already read in full here, so this costs no extra I/O.
+    """
+    for message in reversed(messages):
+        if not isinstance(message, dict):
+            continue
+        text = " ".join(" ".join(_bubble_texts(message)).split())
+        if text:
+            return text[:LIST_PREVIEW] + ("…" if len(text) > LIST_PREVIEW else "")
+    return ""
+
+
 def list_sessions(limit: int = 50, include_empty: bool = False) -> list[dict]:
     """
     Список чатів, найсвіжіші першими (без вмісту повідомлень).
@@ -585,6 +603,7 @@ def list_sessions(limit: int = 50, include_empty: bool = False) -> list[dict]:
             "title": data.get("title") or "Без назви",
             "updated": int(data.get("updated") or 0),
             "count": len(data.get("messages") or []),
+            "preview": _list_preview(data.get("messages") or []),
             "pinned": bool(data.get("pinned")),
             "project": data.get("project") or "",
             # "telegram" / "discord" for messenger chats, "" for local ones
