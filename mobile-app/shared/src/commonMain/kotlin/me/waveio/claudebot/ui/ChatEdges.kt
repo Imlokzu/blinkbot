@@ -19,13 +19,15 @@ import kotlin.math.ceil
 /** Soften the complete backdrop beneath controls while keeping the reading area sharp. */
 @Composable
 fun Modifier.chatEdges(topPanel: Dp, bottomPanel: Dp, backdrop: GraphicsLayer, backdropOffset: () -> Offset): Modifier {
+    val palette = LocalPalette.current
+    val edgeTint = if (palette.dark) Color.Black else palette.background
     val currentOffset = rememberUpdatedState(backdropOffset)
     val content = rememberGraphicsLayer()
     val topBlur = rememberGraphicsLayer()
     val topResult = rememberGraphicsLayer()
     val bottomBlur = rememberGraphicsLayer()
     val bottomResult = rememberGraphicsLayer()
-    return then(remember(topPanel, bottomPanel, backdrop, content, topBlur, topResult, bottomBlur, bottomResult) {
+    return then(remember(topPanel, bottomPanel, backdrop, edgeTint, content, topBlur, topResult, bottomBlur, bottomResult) {
         Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }.drawWithCache {
             val top = topPanel.toPx().coerceAtMost(size.height * .4f)
             val bottom = bottomPanel.toPx().coerceAtMost(size.height * .5f)
@@ -41,8 +43,9 @@ fun Modifier.chatEdges(topPanel: Dp, bottomPanel: Dp, backdrop: GraphicsLayer, b
             val topSharp = Brush.verticalGradient(*ramp(false), startY = topStart, endY = topEnd)
             val topSoft = Brush.verticalGradient(*ramp(true), startY = topStart, endY = topEnd)
             val bottomSharp = Brush.verticalGradient(*ramp(true), startY = bottomStart, endY = bottomEnd)
-            val topShade = Brush.verticalGradient(*ramp(true, Color.Black, .16f), startY = topStart, endY = topEnd)
-            val bottomShade = Brush.verticalGradient(*ramp(false, Color.Black, .16f), startY = bottomStart, endY = bottomEnd)
+            // Light surfaces need a warm veil rather than a black shadow.
+            val topShade = Brush.verticalGradient(*ramp(true, edgeTint, .16f), startY = topStart, endY = topEnd)
+            val bottomShade = Brush.verticalGradient(*ramp(false, edgeTint, .16f), startY = bottomStart, endY = bottomEnd)
             val radius = 8.dp.toPx()
             val effect = BlurEffect(radius, radius, TileMode.Clamp)
             val topSize = IntSize(ceil(size.width).toInt().coerceAtLeast(1), ceil((topEnd + radius * 2).coerceAtMost(size.height)).toInt().coerceAtLeast(1))

@@ -1,5 +1,20 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-11-05 — Theme-aware native chat edge tint
+
+Light-theme chat edges use the warm background tint instead of a black
+veil. Dark-theme shading and whole-zone blur remain intact. The tint is a
+cache key, so live theme changes immediately update the brushes.
+
+Android release APK builds. All four native rendering/history checks pass.
+Gemini's independent inline review approved the diff. Android unit checks
+pass (358 shared, 78 platform); native rendering verifies light/dark/light
+switching and actual full-width smoothing. Real history/composer checks
+exercise both themes. Isolated actual-app curl smoke passes, including
+traversal HTTP 400 and static assets; its lifespan was disabled and the
+server stopped without provider calls. Physical/iOS checks are not claimed.
+
+
 ## 2026-11-05 — Full-width native chat edge blur
 
 Chat edge strips now sample the shell wallpaper together with the message

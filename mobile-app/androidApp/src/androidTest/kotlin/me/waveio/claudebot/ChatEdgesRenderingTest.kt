@@ -19,6 +19,8 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
 import me.waveio.claudebot.ui.chatEdges
+import me.waveio.claudebot.ui.LocalPalette
+import me.waveio.claudebot.ui.MobileTheme
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -27,6 +29,40 @@ import kotlin.math.abs
 /** Empty space and opaque media must soften too; foreground controls stay sharp. */
 class ChatEdgesRenderingTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun edgeTintFollowsLiveThemeWithoutDarkeningLightSurfaces() {
+        val dark = mutableStateOf(false)
+        var background = Color.Unspecified
+        compose.setContent {
+            MobileTheme(dark.value) {
+                background = LocalPalette.current.background
+                val color = background
+                val wallpaper = rememberGraphicsLayer()
+                Box(Modifier.size(340.dp, 420.dp).testTag("theme-edge-fixture")) {
+                    Box(Modifier.matchParentSize().drawWithContent {
+                        wallpaper.record { drawRect(color) }
+                        drawLayer(wallpaper)
+                    })
+                    Box(Modifier.matchParentSize().chatEdges(96.dp, 96.dp, wallpaper) { Offset.Zero })
+                }
+            }
+        }
+        for (isDark in listOf(false, true, false)) {
+            compose.runOnIdle { dark.value = isDark }
+            val pixels = compose.onNodeWithTag("theme-edge-fixture").captureToImage().toPixelMap()
+            val middle = pixels[pixels.width / 2, pixels.height / 2]
+            for (fraction in listOf(.06f, .97f)) {
+                val edge = pixels[pixels.width / 2, (pixels.height * fraction).toInt()]
+                if (isDark) {
+                    assertTrue("Dark theme retains gentle shading", edge.red < middle.red)
+                } else {
+                    for ((actual, expected) in listOf(edge.red to background.red, edge.green to background.green, edge.blue to background.blue)) {
+                        assertEquals("Light theme must not acquire a black veil", expected, actual, 2f / 255f)
+                    }
+                }
+            }
+        }
+    }
 
     @Test fun wholeBackdropSoftensOnlyUnderPanels() {
         val enabled = mutableStateOf(false)

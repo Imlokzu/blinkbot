@@ -259,12 +259,20 @@ class ChatInteractionRegressionTest {
     }
 
     @Test fun historyExtendsBehindPanelsAndPadsRepliesWhenComposerGrows() {
+        assertHistoryBehindPanels("dark")
+    }
+
+    @Test fun lightHistoryExtendsBehindPanelsAndPadsRepliesWhenComposerGrows() {
+        assertHistoryBehindPanels("light")
+    }
+
+    private fun assertHistoryBehindPanels(theme: String) {
         val replies = List(24) { "History reply $it remains readable while scrolling between the header and composer." }
         fun replyId(index: Int) = "edge-reply-$index"
         server.history = JsonArray(replies.mapIndexed { index, text ->
             JsonObject(assistantMessage(text) + ("id" to JsonPrimitive(replyId(index))))
         })
-        launch(theme = "dark", wallpaper = true); openFixtureChat()
+        launch(theme = theme, wallpaper = true); openFixtureChat()
         waitForText(replies.last())
         val history = compose.onNodeWithTag("chat-history")
         val header = compose.onNodeWithTag("chat-header")
@@ -305,7 +313,7 @@ class ChatInteractionRegressionTest {
         compose.waitUntil(TIMEOUT) { kotlin.math.abs(composer.getUnclippedBoundsInRoot().height.value - initialComposerHeight) <= 2f }
         compose.waitForIdle()
         assertLastReplyClearOfComposer()
-        screenshot("chat-edges-before-scroll")
+        screenshot("chat-edges-$theme-before-scroll")
 
         val viewport = history.fetchSemanticsNode().boundsInRoot
         val exposedTop = header.fetchSemanticsNode().boundsInRoot.bottom - viewport.top
@@ -324,7 +332,7 @@ class ChatInteractionRegressionTest {
         assertPanelOverlap()
         assertFalse("A vertical body swipe must not open navigation", controller.state.value.menuOpen)
         compose.onNode(isPopup()).assertDoesNotExist()
-        screenshot("chat-edges-after-scroll")
+        screenshot("chat-edges-$theme-after-scroll")
 
         // At the start of history, content padding must clear the overlaid header.
         history.performScrollToIndex(0)
