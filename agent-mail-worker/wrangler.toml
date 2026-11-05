@@ -16,6 +16,7 @@ id = "0266ff7e479e4a1fae1e8508639e6edc"
 #   API_KEY              admin key for inbox / OTP endpoints
 #   DEFAULT_AGENT_TOKEN  agent token for inbox and /v1/send
 #   BREVO_API_KEY        outbound mail provider key
+#   ID_TOKEN             WaveID extension key; the only key that reads *@id.waveio.me
 # A value written here is published with the repo.
 [vars]
 FORWARD_MAIN_DOMAIN_TO = "lokzuhd@gmail.com"

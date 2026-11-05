@@ -326,6 +326,11 @@ the worker — agents only hold an `AGENT_TOKEN`.
 | `vault@ag.waveio.me` | Bitwarden agents' vault account |
 | `ceo@waveio.me` | owner's public contact — **forwards to `lokzuhd@gmail.com`** (Cloudflare rule, not the worker) |
 
+`*@id.waveio.me` are the owner's per-site signup aliases (WaveID extension,
+`~/projects/maintained/waveid`). They are never forwarded and are readable
+only with the worker secret `ID_TOKEN`; agent and admin keys get 403 there.
+**Agents must not read or use these mailboxes.**
+
 Any other `*@ag.waveio.me` address also receives mail; mail to any other
 non-agent `*@waveio.me` address is stored in KV **and** forwarded to
 `lokzuhd@gmail.com` by the worker.

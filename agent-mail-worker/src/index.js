@@ -37,6 +37,16 @@ async function secretEquals(provided, expected) {
   return crypto.subtle.timingSafeEqual(a, b);
 }
 
+/**
+ * The owner's per-site signup aliases (WaveID). Their mail holds password
+ * resets for real accounts, so it is readable only with ID_TOKEN, and
+ * ID_TOKEN reads nothing else.
+ */
+function isIdAddress(env, address) {
+  const domain = (env.ID_DOMAIN || "id.waveio.me").toLowerCase();
+  return address.endsWith(`@${domain}`);
+}
+
 function newMessageId() {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
 }
@@ -146,8 +156,9 @@ export default {
       await ingest(env, { raw, envelopeFrom: message.from, envelopeTo: normalizedTo });
     }
 
-    // Agent emails (*@ag.waveio.me) are strictly isolated and NEVER forwarded to personal email.
-    if (normalizedTo.endsWith("@ag.waveio.me")) {
+    // Agent emails (*@ag.waveio.me) and the owner's signup aliases (*@id.waveio.me)
+    // are strictly isolated and NEVER forwarded to personal email.
+    if (normalizedTo.endsWith("@ag.waveio.me") || isIdAddress(env, normalizedTo)) {
       // Kept exclusively in AG_MAILBOX for agents and dashboard.
       return;
     }
@@ -192,6 +203,7 @@ export default {
     // Fails closed: a Worker deployed without its secrets answers 503 instead
     // of silently letting everyone read every mailbox. The key is accepted
     // only in headers; a key in the query string ends up in access logs.
+    let isIdToken = false;
     if (!isSendEndpoint) {
       if (!env.API_KEY || !env.DEFAULT_AGENT_TOKEN) {
         return Response.json(
@@ -200,7 +212,9 @@ export default {
         );
       }
       const providedKey = bearer(request) || request.headers.get("X-API-Key") || "";
+      isIdToken = Boolean(env.ID_TOKEN) && (await secretEquals(providedKey, env.ID_TOKEN));
       const allowed =
+        isIdToken ||
         (await secretEquals(providedKey, env.API_KEY)) ||
         (await secretEquals(providedKey, env.DEFAULT_AGENT_TOKEN));
       if (!allowed) {
@@ -211,7 +225,22 @@ export default {
       }
     }
 
+    // ID_TOKEN and the id.waveio.me mailboxes belong only to each other.
+    const idScopeError = (address) =>
+      isIdToken !== isIdAddress(env, address)
+        ? Response.json(
+            { error: isIdToken ? "Forbidden: this token reads only signup aliases" : "Forbidden: signup aliases need their own token" },
+            { status: 403, headers: corsHeaders }
+          )
+        : null;
+
     const to = (url.searchParams.get("to") || "").toLowerCase().trim();
+    if (!isSendEndpoint && to) {
+      const denied = idScopeError(to);
+      if (denied) return denied;
+    } else if (isIdToken && url.pathname !== "/api/simulate-receive") {
+      return Response.json({ error: "Missing ?to= parameter" }, { status: 400, headers: corsHeaders });
+    }
     const messageId = url.searchParams.get("id") || "";
     const needsTo = ["/api/inbox", "/api/latest-otp", "/api/message", "/api/message/raw", "/api/attachment"];
     if (needsTo.includes(url.pathname) && !to) {
@@ -307,6 +336,8 @@ export default {
       try {
         const payload = await request.json();
         const target = (payload.to || "lokzu@ag.waveio.me").toLowerCase().trim();
+        const denied = idScopeError(target);
+        if (denied) return denied;
         const from = payload.from || "service@example.com";
         let raw;
         if (payload.raw_base64) raw = base64ToBytes(payload.raw_base64);

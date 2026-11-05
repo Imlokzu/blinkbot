@@ -169,3 +169,59 @@ test("htmlToText and links keep what a reader needs", () => {
   assert.equal(pickVerificationLink(links), "https://x.com/confirm?a=1&b=2");
   assert.equal(pickVerificationLink([{ url: "https://x.com/unsubscribe?token=1", text: "" }]), null);
 });
+
+// WaveID signup aliases: their mail holds password resets for the owner's
+// real accounts, so agent tokens must never read it and the ID token must
+// never read agent mailboxes.
+const ID_TOKEN = "test-id-token";
+const idEnv = () => ({ ...env(), ID_TOKEN });
+
+async function callAs(e, token, path, method = "GET", body) {
+  const req = new Request(`https://mail.waveio.me${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return worker.fetch(req, e, {});
+}
+
+test("id aliases: only ID_TOKEN reads them, and ID_TOKEN reads nothing else", async () => {
+  const e = idEnv();
+  const alias = "github.k3x9qa@id.waveio.me";
+  await ingest(e, {
+    raw: enc(`From: GitHub <noreply@github.com>\r\nTo: ${alias}\r\nSubject: Your GitHub launch code\r\n\r\nYour code is 482913.`),
+    envelopeFrom: "noreply@github.com",
+    envelopeTo: alias,
+  });
+
+  const own = await callAs(e, ID_TOKEN, `/api/latest-otp?to=${alias}`);
+  assert.equal(own.status, 200);
+  assert.equal((await own.json()).otp.code, "482913");
+
+  for (const token of [TOKEN, "admin"]) {
+    const res = await callAs(e, token, `/api/latest-otp?to=${alias}`);
+    assert.equal(res.status, 403, "agent and admin keys are refused for id aliases");
+  }
+  const cross = await callAs(e, ID_TOKEN, "/api/inbox?to=lokzu@ag.waveio.me");
+  assert.equal(cross.status, 403, "ID_TOKEN cannot read agent mailboxes");
+
+  const injectAgent = await callAs(e, ID_TOKEN, "/api/simulate-receive", "POST", { to: "lokzu@ag.waveio.me" });
+  assert.equal(injectAgent.status, 403);
+  const injectOwn = await callAs(e, ID_TOKEN, "/api/simulate-receive", "POST", { to: alias });
+  assert.equal(injectOwn.status, 200);
+});
+
+test("id aliases are never forwarded to the owner's personal inbox", async () => {
+  const e = { ...idEnv(), FORWARD_MAIN_DOMAIN_TO: "owner@example.com" };
+  let forwarded = 0;
+  const message = (to) => ({
+    to,
+    from: "noreply@example.com",
+    raw: new Response("Subject: hi\r\n\r\nYour code is 123456").body,
+    forward: async () => { forwarded++; },
+  });
+  await worker.email(message("site.abc123@id.waveio.me"), e, {});
+  assert.equal(forwarded, 0);
+  await worker.email(message("hello@waveio.me"), e, {});
+  assert.equal(forwarded, 1, "main-domain mail still forwards");
+});
