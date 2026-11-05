@@ -65,10 +65,12 @@ fun SettingsScreen(state: AppState, actions: AppActions) {
                 SettingsLink("time", "queue.title") { actions.navigate(Screen.Queue) }
                 SettingsLink("download", "profile.update") { actions.navigate(Screen.Updates) }
                 Hairline()
-                Text(tr("profile.language"), color = p.muted, fontSize = 12.sp)
-                Choices(listOf("system" to "profile.system", "uk" to "profile.ukrainian", "en" to "profile.english"), preferences.language) { actions.preferences(preferences.copy(language = it)) }
+                SettingsLink("settings", "profile.language") { actions.navigate(Screen.Language) }
                 ActionButton(tr("profile.disconnect"), actions::disconnect, icon = "logout")
                 Text(tr("profile.credits"), color = p.muted, fontSize = 11.sp)
+            }
+            Screen.Language -> {
+                Choices(listOf("system" to "profile.system", "uk" to "profile.ukrainian", "en" to "profile.english"), preferences.language) { actions.preferences(preferences.copy(language = it)) }
             }
             Screen.Appearance -> {
                 Text(tr("appearance.deviceOnly"), color = p.muted, fontSize = 13.sp)

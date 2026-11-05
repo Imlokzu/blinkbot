@@ -43,6 +43,7 @@ import me.waveio.claudebot.data.BotApi
 import me.waveio.claudebot.platform.PickedFile
 import me.waveio.claudebot.platform.PlatformBridge
 import me.waveio.claudebot.state.AppController
+import me.waveio.claudebot.state.Screen
 import me.waveio.claudebot.ui.LocaleText
 import org.junit.After
 import org.junit.Assert.*
@@ -256,6 +257,35 @@ class ChatInteractionRegressionTest {
             layout.layoutInput.text.spanStyles.any { it.item.fontStyle == FontStyle.Italic }
         })
         assertTrue("Opening fixture history must not send a message", server.submitted.isEmpty())
+    }
+
+    @Test fun profileLanguageOpensItsOwnPageAndPersistsSelection() {
+        launch()
+        compose.onNodeWithContentDescription(strings.get("nav.menu")).performClick()
+        compose.onNodeWithText(strings.get("nav.profile")).performClick()
+        val language = compose.onNodeWithText(strings.get("profile.language"))
+        language.performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(strings.get("profile.ukrainian")).assertDoesNotExist()
+        compose.onNodeWithText(strings.get("profile.english")).assertDoesNotExist()
+        screenshot("profile-language-link")
+        language.performClick()
+        compose.waitUntil(TIMEOUT) { controller.state.value.screen == Screen.Language }
+        compose.onNodeWithText(strings.get("profile.ukrainian")).performClick()
+        val uk = runBlocking { LocaleText.load("uk") }
+        waitForText(uk.get("profile.language"))
+        assertEquals("uk", controller.state.value.preferences.language)
+        assertEquals("uk", Json.parseToJsonElement(bridge.preferences.getValue("preferences.v1")).jsonObject["language"]?.jsonPrimitive?.content)
+        screenshot("language-settings-uk")
+        compose.onNodeWithContentDescription(uk.get("nav.back")).performClick()
+        compose.waitUntil(TIMEOUT) { controller.state.value.screen == Screen.Profile }
+        compose.onNodeWithText(uk.get("profile.language")).performScrollTo().performClick()
+        compose.onNodeWithText(uk.get("profile.system")).performClick()
+        compose.waitUntil(TIMEOUT) { controller.state.value.preferences.language == "system" }
+        waitForText(strings.get("profile.language"))
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
+        compose.waitUntil(TIMEOUT) { controller.state.value.screen == Screen.Profile }
+        compose.onNodeWithText(strings.get("profile.language")).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(strings.get("profile.ukrainian")).assertDoesNotExist()
     }
 
     @Test fun historyExtendsBehindPanelsAndPadsRepliesWhenComposerGrows() {

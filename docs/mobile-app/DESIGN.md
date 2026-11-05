@@ -260,6 +260,11 @@ this unsent state from a schedule already accepted by the host.
 
 ## Files, profile, and settings
 
+Profile exposes Language as a single navigation row in its lower settings
+group. System, Ukrainian and English choices live on the Language subpage;
+selection applies immediately and persists on the device. Toolbar and native
+Back return to Profile.
+
 Files use the existing agent workspace. Provide browsing/preview and an editor
 for supported text files, including Markdown. Edits **save automatically** to
 the shared backend. Distinguish saving, saved, offline/pending, and failed writes;

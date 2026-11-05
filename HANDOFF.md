@@ -1,5 +1,21 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-11-05 — Dedicated mobile language settings
+
+Profile now has one Language row in its lower settings group. System,
+Ukrainian and English choices live on their own page with immediate local
+persistence. Both toolbar and native Back return to Profile. Existing locale
+keys and preference storage are reused. Android 0.7.2 / code 36 prepares
+this change for the official stable channel.
+
+Gemini approved the source diff. All 358 shared and 78 Android unit tests
+pass. Three native tests cover persisted language switching, both Back paths,
+rapid settings navigation and reduced motion; real screenshots were inspected.
+Isolated actual-app smoke passes with traversal HTTP 400 and static assets;
+its lifespan was disabled and the temporary server stopped. Physical-device
+and iOS runtime checks are not claimed.
+
+
 ## 2026-11-05 — Blink Android 0.7.1 stable publication
 
 Published code 35 through the official in-app stable channel. A clean
