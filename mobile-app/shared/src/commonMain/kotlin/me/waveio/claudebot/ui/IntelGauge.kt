@@ -88,8 +88,12 @@ private fun IntelDial(score: Float, width: androidx.compose.ui.unit.Dp, height: 
                 center.x + (diameter / 2f - stroke.toPx() - 3.dp.toPx()) * cos(angle).toFloat(),
                 center.y - (diameter / 2f - stroke.toPx() - 3.dp.toPx()) * sin(angle).toFloat(),
             )
-            drawLine(p.ink, center, tip, strokeWidth = 2.5.dp.toPx(), cap = StrokeCap.Round)
+            // A short counterweight behind the pivot and a hollow hub read as a finished gauge
+            // rather than a line on a dot.
+            val tail = Offset(center.x - 5.dp.toPx() * cos(angle).toFloat(), center.y + 5.dp.toPx() * sin(angle).toFloat())
+            drawLine(p.ink, tail, tip, strokeWidth = 2.2.dp.toPx(), cap = StrokeCap.Round)
             drawCircle(p.ink, radius = 4.5.dp.toPx(), center = center)
+            drawCircle(p.surface, radius = 1.8.dp.toPx(), center = center)
         }
     }
 }
@@ -130,27 +134,30 @@ private fun IntelCard(state: AppState, modelId: String, row: IntelligenceRow, on
     val tier = tierOf(row.index)
     val entry = row.entry
     BotDialog(onClose) {
+        // One scroll for the whole card: a capped inner list used to end mid-row (Facts)
+        // right above the source note, which looked like the rest was missing.
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
         Text(label, color = p.ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-        Column(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            IntelDial(row.index, 140.dp, 80.dp, 10.dp, needle = true)
-            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 2.dp)) {
-                Text(row.index.toInt().toString(), color = p.ink, fontSize = 24.sp, lineHeight = 24.sp, fontWeight = FontWeight.Medium)
-                Text("/100", color = p.muted, fontSize = 12.sp, lineHeight = 18.sp)
+        // The dial is a summary; it sits beside its readout so the per-area list gets the room.
+        Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            IntelDial(row.index, 96.dp, 56.dp, 8.dp, needle = true)
+            Column {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(row.index.toInt().toString(), color = p.ink, fontSize = 24.sp, lineHeight = 24.sp, fontWeight = FontWeight.Medium)
+                    Text("/100", color = p.muted, fontSize = 12.sp, lineHeight = 18.sp)
+                }
+                Text(tr("model.intelTier$tier"), color = ZoneColors[tier], fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 2.dp))
+                Text(tr("model.intelCoverage", "count" to row.coverage, "total" to row.total), color = p.muted, fontSize = 12.sp)
             }
-            Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(tr("model.intelTier$tier"), color = ZoneColors[tier], fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                Text(" · " + tr("model.intelCoverage", "count" to row.coverage, "total" to row.total), color = p.muted, fontSize = 12.sp)
-            }
-            if (row.coverage < 4) Text(tr("model.intelPartial"), color = p.muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
         }
+        if (row.coverage < 4) Text(tr("model.intelPartial"), color = p.muted, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
         if (state.intelligenceBenchmarks.isNotEmpty()) {
-            Text(tr("model.intelByArea"), color = p.muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
-            Column(Modifier.fillMaxWidth().heightIn(max = 250.dp).verticalScroll(rememberScrollState())) {
-                state.intelligenceBenchmarks.forEach { bench -> IntelAreaRow(bench, entry.scores[bench.key]) }
-            }
+            Text(tr("model.intelByArea"), color = p.muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 14.dp, bottom = 4.dp))
+            state.intelligenceBenchmarks.forEach { bench -> IntelAreaRow(bench, entry.scores[bench.key]) }
             Text(tr("model.intelBarHint"), color = p.muted, fontSize = 10.sp, modifier = Modifier.padding(top = 6.dp))
         }
         IntelSourceLine(state.intelligenceSource, state.intelligenceBenchmarks.size) { url -> uriHandler.openUri(url) }
+        }
     }
 }
 
@@ -162,9 +169,20 @@ private fun IntelAreaRow(bench: IntelligenceBenchmark, score: Double?) {
             Text(tr(AREA_KEYS[bench.key] ?: ""), color = if (score != null) p.ink else p.muted, fontSize = 12.sp, maxLines = 1)
             Text(bench.name, color = p.muted, fontSize = 10.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         }
-        Box(Modifier.width(56.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(p.line)) {
-            val share = if (score != null && bench.top > 0) (score / bench.top).coerceIn(0.0, 1.0) else 0.0
-            if (share > 0) Box(Modifier.fillMaxHeight().fillMaxWidth(share.toFloat()).clip(RoundedCornerShape(2.dp)).background(p.muted))
+        // The bar is the same number as the label (score out of 100%), so 55% fills about half.
+        // It used to fill score ÷ best score, which made 55% look like 70–80%. The best
+        // model's score is still shown, as a tick, rather than folded into the fill.
+        val fill = benchmarkFill(score)
+        val best = benchmarkFill(bench.top.takeIf { it > 0 })
+        Canvas(Modifier.width(72.dp).height(12.dp)) {
+            val y = size.height / 2f
+            val thickness = 5.dp.toPx()
+            drawLine(p.line, Offset(thickness / 2, y), Offset(size.width - thickness / 2, y), thickness, StrokeCap.Round)
+            if (fill > 0f) drawLine(p.ink.copy(alpha = .62f), Offset(thickness / 2, y), Offset(thickness / 2 + (size.width - thickness) * fill, y), thickness, StrokeCap.Round)
+            if (best > 0f) {
+                val x = thickness / 2 + (size.width - thickness) * best
+                drawLine(p.ink, Offset(x, 0f), Offset(x, size.height), 1.5.dp.toPx(), StrokeCap.Round)
+            }
         }
         Text(
             if (score != null) "${(score * 100).toInt()}%" else tr("model.intelNotTaken"),
@@ -174,6 +192,9 @@ private fun IntelAreaRow(bench: IntelligenceBenchmark, score: Double?) {
         )
     }
 }
+
+/** Benchmark scores arrive as 0..1 fractions; the bar and the printed percent both use this. */
+internal fun benchmarkFill(score: Double?): Float = (score ?: 0.0).coerceIn(0.0, 1.0).toFloat()
 
 @Composable
 private fun IntelSourceLine(source: IntelligenceSource, benchmarkCount: Int, openUrl: (String) -> Unit) {

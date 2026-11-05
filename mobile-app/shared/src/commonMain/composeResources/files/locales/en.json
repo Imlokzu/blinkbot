@@ -293,7 +293,7 @@
   "model.intelPartial": "Few benchmarks, so the score is approximate.",
   "model.intelByArea": "By area",
   "model.intelNotTaken": "none",
-  "model.intelBarHint": "The bar is the share of the best score on that benchmark.",
+  "model.intelBarHint": "The bar is this model's score, the same as the percent. The tick marks the best score any model has reached on that benchmark.",
   "model.intelWhy": "Where the score comes from: {count} public benchmarks folded into one 0–100 index.",
   "model.intelMore": "More on",
   "model.intelAreaGpqa": "Science",
