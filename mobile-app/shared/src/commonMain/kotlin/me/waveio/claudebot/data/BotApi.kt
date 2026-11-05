@@ -103,7 +103,7 @@ class BotApi(baseUrl: String, private val token: String, client: HttpClient = pl
         get<WorkspaceListing>("workspace", "list", query = mapOf("path" to path, "session_id" to sessionId))
             .entries.map { entry ->
                 if (entry.type !in listOf("dir", "file")) throw ApiFailure(200, "invalid_response")
-                WorkspaceEntry(entry.path, entry.name, entry.type == "dir", entry.size)
+                WorkspaceEntry(entry.path, entry.name, entry.type == "dir", entry.size, entry.mtime)
             }
 
     suspend fun readWorkspace(path: String, sessionId: String = ""): WorkspaceFile =
@@ -476,7 +476,7 @@ internal fun safeFailure(failure: Throwable): Throwable = when (failure) {
     val reaction: String? = null, val reactions: Map<String, String> = emptyMap(),
 )
 @Serializable private data class WorkspaceListing(val entries: List<EntryResponse>)
-@Serializable private data class EntryResponse(val path: String, val name: String, val type: String, val size: Long? = null)
+@Serializable private data class EntryResponse(val path: String, val name: String, val type: String, val size: Long? = null, val mtime: Long? = null)
 @Serializable private data class ProfileResponse(val profile: BotProfile)
 @Serializable private data class ModelSelection(val selected: String)
 @Serializable private data class ThinkingSelection(val thinking: String)

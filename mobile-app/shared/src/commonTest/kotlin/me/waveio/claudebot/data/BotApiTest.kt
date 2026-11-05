@@ -58,7 +58,7 @@ class BotApiTest {
     @Test fun sessionsAndHistoryPreserveActualStoredContent() = runTest {
         val api = api(MockEngine { request ->
             val body = when (request.url.encodedPath) {
-                "/api/sessions" -> """{"sessions":[{"id":"chat_1","title":"Plan","updated":1791020400,"pinned":true,"new_field":9},{"id":"old"}],"kind":"chat"}"""
+                "/api/sessions" -> """{"sessions":[{"id":"chat_1","title":"Plan","updated":1791020400,"pinned":true,"new_field":9,"preview":"Ship the APK tonight"},{"id":"old"}],"kind":"chat"}"""
                 "/api/sessions/chat_1" -> """{
                     "id":"chat_1","messages":[
                     {"id":"msg1","role":"assistant","content":"Final answer","ts":1791020400,
@@ -72,6 +72,8 @@ class BotApiTest {
         })
         val sessions = api.listSessions()
         assertEquals(1791020400L, sessions.first().updatedAt)
+        assertEquals("Ship the APK tonight", sessions.first().preview)
+        assertEquals(null, sessions.last().preview, "Older hosts send no preview; nothing is made up")
         assertNull(sessions.last().updatedAt)
         assertNull(sessions.last().title)
         val messages = api.sessionHistory("chat_1")
@@ -102,7 +104,7 @@ class BotApiTest {
         var received: HttpRequestData? = null
         val client = HttpClient(MockEngine { request ->
             received = request
-            respond("""{"entries":[{"path":"notes","name":"notes","type":"dir","size":0}]}""",
+            respond("""{"entries":[{"path":"notes","name":"notes","type":"dir","size":0,"mtime":1791020400}]}""",
                 headers = headersOf(HttpHeaders.ContentType, "application/json"))
         }) {
             defaultRequest {
@@ -112,7 +114,9 @@ class BotApiTest {
         }
         clients += client
         val api = BotApi("https://bot.example:8443/api", "device-token", client).also { apis += it }
-        assertTrue(api.listWorkspace("notes/hello world & more.md", "chat_1").single().isDirectory)
+        val folder = api.listWorkspace("notes/hello world & more.md", "chat_1").single()
+        assertTrue(folder.isDirectory)
+        assertEquals(1791020400L, folder.modified, "Folders show their real change date instead of a repeated \"Folder\"")
         val request = received!!
         assertEquals("bot.example", request.url.host)
         assertEquals(8443, request.url.port)

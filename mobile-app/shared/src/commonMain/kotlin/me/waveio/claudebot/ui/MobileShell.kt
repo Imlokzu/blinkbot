@@ -327,8 +327,21 @@ private fun SearchScreen(state: AppState, actions: AppActions) {
         BotField(state.search, actions::search, modifier = Modifier.fillMaxWidth(), placeholder = tr("chat.searchPlaceholder"), icon = "search")
         Spacer(Modifier.height(12.dp))
         val results = state.conversations.filter { it.title.contains(state.search, true) }
+        val zone = remember { kotlinx.datetime.TimeZone.currentSystemDefault() }
+        val now = remember(state.conversations) { kotlinx.datetime.Instant.fromEpochMilliseconds(kotlin.time.Clock.System.now().toEpochMilliseconds()) }
         LazyColumn {
-            items(results, key = { it.id }) { chat -> Text(chat.title, color = p.ink, modifier = Modifier.fillMaxWidth().clickable { actions.openChat(chat.id) }.padding(vertical = 18.dp), maxLines = 2) }
+            // Many chats share a greeting as their title; the date and the latest line
+            // are what tell them apart, and they use the room the bare titles left empty.
+            items(results, key = { it.id }) { chat ->
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { actions.openChat(chat.id) }.padding(vertical = 10.dp, horizontal = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(chat.title, color = p.ink, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                        conversationWhen(chat.updatedAt, now, zone)?.let { Text(it, color = p.muted, fontSize = 12.sp, modifier = Modifier.padding(start = 10.dp)) }
+                    }
+                    if (chat.preview.isNotBlank()) Text(chat.preview, color = p.muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
             if (results.isEmpty()) item { Text(tr("chat.noResults"), color = p.muted, modifier = Modifier.padding(vertical = 20.dp)) }
         }
     }

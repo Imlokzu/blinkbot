@@ -49,7 +49,7 @@ data class Preferences(
 const val HapticLevelMin = .05f
 
 /** History timestamps are Unix seconds; unknown dates remain unknown. */
-data class ConversationRow(val id: String, val title: String, val updatedAt: Long? = null)
+data class ConversationRow(val id: String, val title: String, val updatedAt: Long? = null, val preview: String = "")
 data class MobileUpdate(
     val versionName: String,
     val versionCode: Int,
@@ -97,7 +97,7 @@ data class MessageRow(
     /** Ephemeral animation identity, retained when the host assigns a saved ID. */
     val presentationId: String? = null,
 )
-data class FileRow(val path: String, val name: String, val directory: Boolean, val size: Long = 0)
+data class FileRow(val path: String, val name: String, val directory: Boolean, val size: Long = 0, val modified: Long? = null)
 /** Both versions remain available until the owner explicitly resolves a conflict. */
 data class FileConflict(val localContent: String, val remoteContent: String?, val remoteRevision: String?)
 data class PreviewItem(val path: String, val name: String, val mimeType: String, val source: String)

@@ -415,7 +415,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     private suspend fun loadSessions() {
         val version = connectionVersion
         val request = ++sessionsVersion
-        val sessions = requireApi().listSessions().map { ConversationRow(it.id, it.title.orEmpty(), it.updatedAt) }
+        val sessions = requireApi().listSessions().map { ConversationRow(it.id, it.title.orEmpty(), it.updatedAt, it.preview.orEmpty()) }
         if (version != connectionVersion || request != sessionsVersion) return
         val local = outbox.map { ConversationRow(it.sessionId, it.message.take(80)) }
         update { it.copy(conversations = (sessions + local).distinctBy { row -> row.id }) }
@@ -1662,7 +1662,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         update { it.copy(directory = path, files = emptyList(), openFile = null, fileSessionId = "",
             fileEditorGeneration = ++editorGeneration, fileConflict = null, fileLoadError = null, fileStorageError = false, fileLoading = false, loading = true) }
         run(isCurrent = { version == directoryVersion }) {
-            val files = connection.listWorkspace(path).map { FileRow(it.path, it.name, it.isDirectory, it.size ?: 0) }
+            val files = connection.listWorkspace(path).map { FileRow(it.path, it.name, it.isDirectory, it.size ?: 0, it.modified) }
             if (epoch == connectionVersion && version == directoryVersion) update { it.copy(files = files, loading = false) }
         }
     }

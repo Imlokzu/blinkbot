@@ -168,6 +168,8 @@ private fun WorkspaceFileBrowser(state: AppState, actions: AppActions) {
             ActionButton(tr("files.newDrawing"), { name = ""; creating = "drawing" }, Modifier.weight(1f), icon = "edit", enabled = !state.fileCreating)
         }
         if (state.loading) LoadingDots(Modifier.padding(vertical = 8.dp))
+        val zone = remember { kotlinx.datetime.TimeZone.currentSystemDefault() }
+        val now = remember(rows) { kotlinx.datetime.Instant.fromEpochMilliseconds(kotlin.time.Clock.System.now().toEpochMilliseconds()) }
         LazyColumn(Modifier.weight(1f), state = rememberLazyListState()) {
             items(rows, key = { it.path }) { file ->
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(role = Role.Button) {
@@ -179,7 +181,10 @@ private fun WorkspaceFileBrowser(state: AppState, actions: AppActions) {
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(file.name, color = p.ink, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        Text(if (file.directory) tr("files.folder") else tr("files.type.$kind"), color = p.muted, fontSize = 11.sp)
+                        // The folder icon already says "folder"; the line under the name says when it
+                        // last changed instead. A folder the host gave no date for keeps the old label.
+                        val changed = if (file.directory) conversationWhen(file.modified, now, zone) else null
+                        Text(when { changed != null -> tr("files.folderChanged", "when" to changed); file.directory -> tr("files.folder"); else -> tr("files.type.$kind") }, color = p.muted, fontSize = 11.sp)
                     }
                     if (!file.directory) Text(fileSize(file.size), color = p.muted, fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp))
                 }

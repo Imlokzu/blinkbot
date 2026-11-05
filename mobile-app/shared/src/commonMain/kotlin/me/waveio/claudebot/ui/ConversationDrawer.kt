@@ -20,6 +20,28 @@ import androidx.compose.ui.unit.sp
 import kotlinx.datetime.*
 import me.waveio.claudebot.state.*
 
+/**
+ * When a chat was last active, short enough for a history row: the time today,
+ * "Yesterday", then the day and month (with the year once it is not this year).
+ * Null for chats the host gave no date; nothing is invented for them.
+ */
+@Composable
+fun conversationWhen(updatedAt: Long?, now: Instant, zone: TimeZone): String? =
+    formatConversationWhen(updatedAt, now, zone, tr("date.yesterday"))
+
+internal fun formatConversationWhen(updatedAt: Long?, now: Instant, zone: TimeZone, yesterday: String): String? {
+    if (updatedAt == null || updatedAt <= 0) return null
+    val moment = runCatching { Instant.fromEpochSeconds(updatedAt).toLocalDateTime(zone) }.getOrNull() ?: return null
+    val today = now.toLocalDateTime(zone).date
+    val two = { value: Int -> value.toString().padStart(2, '0') }
+    return when (moment.date.daysUntil(today)) {
+        0 -> "${two(moment.hour)}:${two(moment.minute)}"
+        1 -> yesterday
+        else -> if (moment.year == today.year) "${moment.dayOfMonth}.${two(moment.month.number)}"
+            else "${moment.dayOfMonth}.${two(moment.month.number)}.${moment.year}"
+    }
+}
+
 fun conversationDay(updatedAt: Long?, now: Instant, zone: TimeZone): String {
     if (updatedAt == null || updatedAt <= 0) return "date.unknown"
     val today = now.toLocalDateTime(zone).date

@@ -14,6 +14,8 @@ data class ChatSession(
     val pinned: Boolean? = null,
     val project: String? = null,
     val count: Int? = null,
+    /** One line of the latest message, for telling same-titled chats apart. */
+    val preview: String? = null,
 )
 
 data class ChatMessage(
@@ -97,7 +99,8 @@ data class IntelligenceCatalog(
     val models: Map<String, IntelligenceEntry> = emptyMap(),
 )
 
-data class WorkspaceEntry(val path: String, val name: String, val isDirectory: Boolean, val size: Long?)
+/** [modified] is the host's Unix-seconds mtime; for a folder it changes when entries are added or removed. */
+data class WorkspaceEntry(val path: String, val name: String, val isDirectory: Boolean, val size: Long?, val modified: Long? = null)
 
 @Serializable
 data class WorkspaceFile(
