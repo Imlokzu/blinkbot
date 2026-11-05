@@ -1,5 +1,15 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-11-05 — Blink Android 0.7.2 stable publication
+
+Published the dedicated Language subpage as Android 0.7.2 / code 36 from
+clean committed source `5623830f`. The clean release build and 436 unit
+tests pass; three native tests and 61 update-workflow checks pass. Signed
+APK and live downloaded bytes match; stable offers the update to code 35
+and code 36 is current. Zero active mobile jobs preceded the standard host
+restart. See docs/mobile-app/RELEASE-0.7.2.md for digest and validation limits.
+
+
 ## 2026-11-05 — Dedicated mobile language settings
 
 Profile now has one Language row in its lower settings group. System,
