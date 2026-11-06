@@ -31,6 +31,17 @@ def image_route(monkeypatch):
     async def reject_text_route(*args, **kwargs):
         raise AssertionError("Image dispatch must not select a text model")
 
+    async def effort_profile(model):
+        # Profiles are an independent synthetic boundary, not the image catalog.
+        profiles = {
+            SOL: ["off", "high", "xhigh"],
+            "text/only": ["adaptive"],
+            "images/configured": ["high"],
+        }
+        assert model in profiles, f"Unexpected effort-profile lookup: {model}"
+        return {"efforts": profiles[model], "effort_default": profiles[model][-1]}
+
+    monkeypatch.setattr(mobile_routing.openclaw_models, "model_effort_profile", effort_profile)
     monkeypatch.setattr(mobile_routing.openclaw_control, "_rpc", rpc)
     monkeypatch.setattr(brains.cfg, "get_openclaw_token", lambda: "synthetic-image-token")
     monkeypatch.setattr(brains.cfg, "OPENCLAW_BASE_URL", "https://image-gateway.fixture.invalid")
@@ -215,7 +226,7 @@ def test_real_brains_image_payload_matches_web(image_route, monkeypatch, image_m
             )
             # Compare the shared web route with the same explicit image model;
             # inherited mobile intent remains covered by the automatic-route tests.
-            options = mobile_api._turn_options.set({"model": image_model, "reasoning_effort": "high"})
+            options = mobile_api._turn_options.set({"model": image_model, "reasoning_effort": "high" if image_model else "none"})
             try:
                 mobile_result = await mobile_routing.chat_gateway(
                     "Describe the attachment", "Synthetic system", history,
@@ -254,7 +265,7 @@ def test_real_brains_image_payload_matches_web(image_route, monkeypatch, image_m
     ]
     image_url = payload["messages"][-1]["content"][1]["image_url"]["url"]
     assert base64.b64decode(image_url.split(",", 1)[1]) == PNG
-    expected_patch = {"key": "image-session", "thinkingLevel": "high"}
+    expected_patch = {"key": "image-session", "thinkingLevel": "high" if image_model else None}
     if image_model:
         expected_patch["model"] = image_model
     assert image_route == [("sessions.patch", expected_patch)]

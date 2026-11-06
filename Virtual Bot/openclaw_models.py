@@ -70,6 +70,72 @@ _selected: str = ""
 # test that patches the state file never sees the owner's real one.
 _auto: bool | None = None
 _lock = asyncio.Lock()
+_effort_profiles: dict[str, dict] | None = None
+_effort_profiles_at = 0.0
+_effort_lock = asyncio.Lock()
+
+
+async def effort_profiles(force: bool = False) -> dict[str, dict]:
+    """Read provider/runtime-specific choices from the gateway, never its schema enum.
+
+    CLI model names alone do not declare supported efforts. Unknown profiles
+    deliberately expose no choices, including when the gateway is unavailable.
+    """
+    global _effort_profiles, _effort_profiles_at
+    async with _effort_lock:
+        if not force and _effort_profiles is not None and time.monotonic() - _effort_profiles_at < _CATALOG_TTL_S:
+            return _effort_profiles
+        code, out, _err = await _run_cli(
+            "gateway", "call", "models.list", "--json", "--params", '{"preparedOnly":true}',
+        )
+        profiles: dict[str, dict] = {}
+        try:
+            data = json.loads(out) if code == 0 else {}
+        except ValueError:
+            data = {}
+        rows = data.get("models", []) if isinstance(data, dict) else []
+        for row in rows if isinstance(rows, list) else []:
+            if not isinstance(row, dict):
+                continue
+            provider, model = row.get("provider"), row.get("id")
+            if not isinstance(provider, str) or not isinstance(model, str):
+                continue
+            raw_levels = row.get("thinkingLevels")
+            levels = []
+            for raw in raw_levels if isinstance(raw_levels, list) else []:
+                level = raw.get("id") if isinstance(raw, dict) else raw
+                if isinstance(level, str) and level in THINKING_LEVELS and level not in levels:
+                    levels.append(level)
+            # An off-only profile means reasoning cannot be adjusted. It is
+            # not an effort slider with a working "Off" setting.
+            if levels == ["off"]:
+                levels = []
+            default = row.get("thinkingDefault")
+            profiles[f"{provider}/{model}"] = {
+                "efforts": levels,
+                "effort_default": default if default in levels else "",
+            }
+        _effort_profiles = profiles
+        _effort_profiles_at = time.monotonic()
+        return profiles
+
+
+async def with_effort_profiles(models: list[dict], force: bool = False) -> list[dict]:
+    profiles = await effort_profiles(force)
+    result = []
+    for model in models:
+        profile = profiles.get(str(model.get("id")), {})
+        levels = profile.get("efforts", [])
+        # Gateway metadata already resolves model/agent defaults and the global
+        # override in their actual precedence order.
+        default = profile.get("effort_default", "")
+        result.append({**model, "efforts": levels, "effort_default": default})
+    return result
+
+
+async def model_effort_profile(model: str) -> dict:
+    models = await with_effort_profiles(await catalog())
+    return next((entry for entry in models if entry.get("id") == model), {})
 
 
 def cli_path() -> str | None:
@@ -370,6 +436,7 @@ async def set_thinking(level: str) -> bool:
     Ставить рівень думання. Порожній рядок ПРИБИРАЄ налаштування — тоді знову
     діє типове значення OpenClaw, а не наше уявлення про нього.
     """
+    global _effort_profiles
     level = (level or "").strip().casefold()
     if level and level not in THINKING_LEVELS:
         return False
@@ -381,6 +448,8 @@ async def set_thinking(level: str) -> bool:
     code, _out, err = await _run_cli(*args)
     if code != 0:
         log.warning("openclaw config %s: код %d (%s)", args[1], code, err.strip()[:120])
+    else:
+        _effort_profiles = None
     return code == 0
 
 

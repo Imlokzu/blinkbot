@@ -171,7 +171,7 @@ class ModelPickerTest {
         compose.onNodeWithContentDescription("Find a model").assertDoesNotExist()
         val panel = compose.onNodeWithTag("model-picker").getUnclippedBoundsInRoot()
         assertEquals(256f, panel.width.value, .1f)
-        // Taller than the PC pane since Automatic, the level's meaning and the named ends are shown.
+        // The level meaning and named endpoints stay within the compact pane.
         assertTrue("The effort pane stays compact", panel.height <= 200.dp)
         screenshot("effort-light")
         compose.onNodeWithTag("change-model").performClick()
@@ -207,13 +207,11 @@ class ModelPickerTest {
         compose.waitForIdle()
         assertEquals(listOf("high"), saved)
         compose.onNodeWithTag("change-model").assert(hasText("High"))
-        // Auto and explicit off must stay distinct settings: Off is the first stop,
-        // Automatic is its own switch.
+        // Only the exact model-scoped stops are actionable; there is no
+        // injected Automatic mode beside the host's first level.
         slider.performSemanticsAction(SemanticsActions.SetProgress) { it(0f) }
         assertEquals("off", state.effort)
-        compose.onNodeWithTag("effort-automatic").performClick()
-        assertEquals("none", state.effort)
-        compose.onNodeWithText("Let the model decide").assertIsDisplayed()
+        compose.onNodeWithTag("effort-automatic").assertDoesNotExist()
     }
 
     @Test fun replacingTheModelDuringDragCannotSaveTheOldPreview() {
@@ -223,7 +221,7 @@ class ModelPickerTest {
         compose.runOnIdle { state = state.copy(selectedModel = "fixture/gpt") }
         slider.performTouchInput { up() }
         assertTrue(saved.isEmpty())
-        compose.onNodeWithTag("change-model").assert(hasText("Automatic"))
+        compose.onNodeWithText("Supported effort levels are unavailable for this model.").assertIsDisplayed()
     }
 
     @Test fun losingFocusCancelsThePreviewWithoutSaving() {
@@ -233,18 +231,18 @@ class ModelPickerTest {
         compose.onNodeWithTag("change-model").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
         slider.performTouchInput { up() }
         assertTrue(saved.isEmpty())
-        compose.onNodeWithTag("change-model").assert(hasText("Automatic"))
+        compose.onNodeWithText("Supported effort levels are unavailable for this model.").assertIsDisplayed()
     }
 
-    @Test fun automaticOnlyModelHasDisabledSliderAndReachableModelButton() {
+    @Test fun unknownCapabilitiesHaveNoSliderAndKeepModelButtonReachable() {
         launch(efforts = emptyList())
         compose.onNodeWithTag("effort-slider").assertDoesNotExist()
-        compose.onNodeWithTag("effort-automatic").assertIsDisplayed()
-        compose.onNodeWithText("This model manages its own reasoning effort.").assertIsDisplayed()
+        compose.onNodeWithTag("effort-automatic").assertDoesNotExist()
+        compose.onNodeWithText("Supported effort levels are unavailable for this model.").assertIsDisplayed()
         compose.onNodeWithTag("change-model").performClick()
         compose.onNodeWithText("Unavailable model").assertIsNotEnabled()
         compose.onNodeWithContentDescription("Back").performClick()
-        compose.onNodeWithTag("effort-automatic").assertIsDisplayed()
+        compose.onNodeWithTag("effort-automatic").assertDoesNotExist()
         assertTrue(saved.isEmpty())
     }
 

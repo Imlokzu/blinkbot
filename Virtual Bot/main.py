@@ -818,6 +818,9 @@ async def api_models(request: Request) -> dict:
     }
 
 
+_brain_choice_lock = asyncio.Lock()
+
+
 class BrainModelRequest(BaseModel):
     model: str = Field(min_length=1, max_length=120)
 
@@ -825,6 +828,7 @@ class BrainModelRequest(BaseModel):
 class BrainThinkingRequest(BaseModel):
     # Порожній рядок — «прибрати налаштування», тоді діє типове OpenClaw.
     level: str = Field(default="", max_length=20)
+    model: str = Field(default="", max_length=120)
 
 
 @app.get("/api/brain/models")
@@ -842,10 +846,12 @@ async def api_brain_models(request: Request, refresh: bool = Query(default=False
     if not openclaw_models.reachable():
         return {
             "models": [], "selected": "", "default": "",
-            "thinking": "", "thinking_levels": list(openclaw_models.THINKING_LEVELS),
+            "thinking": "", "thinking_levels": [],
             "available": False,
         }
-    models = await openclaw_models.catalog(force=refresh)
+    models = await openclaw_models.with_effort_profiles(await openclaw_models.catalog(force=refresh), force=refresh)
+    selected = openclaw_models.get_selected() or openclaw_models.default_model(models)
+    profile = next((entry for entry in models if entry.get("id") == selected), {})
     return JSONResponse(
         content={
         # Jev leads the list: it is a way of choosing, not one more model.
@@ -853,8 +859,8 @@ async def api_brain_models(request: Request, refresh: bool = Query(default=False
         "selected": openclaw_models.get_selected(),
         "default": openclaw_models.default_model(models),
         "image_model": openclaw_config.image_model(),
-        "thinking": await openclaw_models.get_thinking(),
-        "thinking_levels": list(openclaw_models.THINKING_LEVELS),
+        "thinking": profile.get("effort_default", ""),
+        "thinking_levels": profile.get("efforts", []),
         "available": True,
         },
         headers={"Cache-Control": "private, max-age=30, stale-while-revalidate=120"},
@@ -886,6 +892,11 @@ async def api_brain_model_select(req: BrainModelRequest, request: Request) -> di
     before the CLI runs: a bad header would fail every reply inside the gateway.
     """
     await _require_user(request)
+    async with _brain_choice_lock:
+        return await _select_brain_model(req)
+
+
+async def _select_brain_model(req: BrainModelRequest) -> dict:
     if req.model == jev_router.JEV_ID:
         # Jev lives in this process; OpenClaw's own default model stays as is.
         openclaw_models.set_selected(req.model)
@@ -913,9 +924,23 @@ async def api_brain_thinking(req: BrainThinkingRequest, request: Request) -> dic
     конфіг. CLI застосовує його без перезапуску шлюзу.
     """
     await _require_user(request)
+    async with _brain_choice_lock:
+        return await _set_brain_thinking(req)
+
+
+async def _set_brain_thinking(req: BrainThinkingRequest) -> dict:
     level = req.level.strip().casefold()
     if level and level not in openclaw_models.THINKING_LEVELS:
         raise HTTPException(status_code=400, detail="Невідомий рівень думання")
+    if level:
+        models = await openclaw_models.catalog()
+        selected = openclaw_models.get_selected() or openclaw_models.default_model(models)
+        # An old popup must not change another model's effort after navigation.
+        if req.model and req.model != selected:
+            raise HTTPException(status_code=409, detail="model_changed")
+        profile = await openclaw_models.model_effort_profile(selected)
+        if level not in profile.get("efforts", []):
+            raise HTTPException(status_code=400, detail="unsupported_model_effort")
     if not await openclaw_models.set_thinking(level):
         raise HTTPException(status_code=502, detail="OpenClaw не прийняв рівень думання")
     return {"ok": True, "thinking": await openclaw_models.get_thinking()}

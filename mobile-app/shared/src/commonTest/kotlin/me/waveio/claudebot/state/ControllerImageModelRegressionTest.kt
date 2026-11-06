@@ -34,9 +34,9 @@ class ControllerImageModelRegressionTest {
         try { block() } finally { fixtures.forEach { it.close() }; fixtures.clear(); runCurrent() }
     }
 
-    private fun configureSend(fixture: ControllerTestFixture) {
+    private fun configureSend(fixture: ControllerTestFixture, models: String = catalog) {
         fixture.handler = { request -> when {
-            request.url.encodedPath == "/api/brain/models" -> jsonResponse(catalog)
+            request.url.encodedPath == "/api/brain/models" -> jsonResponse(models)
             request.url.encodedPath == "/api/chat/upload" -> jsonResponse("""{"url":"/uploads/image.png","name":"image.png","type":"image/png","size":3}""")
             request.url.encodedPath == "/api/mobile/messages" && request.method == HttpMethod.Post ->
                 jsonResponse("""{"id":"submitted_job","session_id":"chat_1","state":"queued"}""")
@@ -64,6 +64,16 @@ class ControllerImageModelRegressionTest {
         assertEquals("", submitted(fixture).body?.get("model")?.jsonPrimitive?.content)
         assertEquals("", fixture.controller.state.value.preferences.chatModels["chat_1"])
         assertEquals("regolo/text", fixture.controller.state.value.selectedModel, "Sending must not silently rewrite the user's visible selection")
+    }
+
+    @Test fun inheritedImageSendDoesNotReuseTheTextModelsResolvedEffort() = controllerTest {
+        val fixture = fixture()
+        val models = """{"models":[{"id":"regolo/text","efforts":["low","medium","high"],"effort_default":"medium"}],"selected":"regolo/text","image_model":"regolo/vision"}"""
+        configureSend(fixture, models); open(fixture); pickImage(fixture)
+        assertEquals("medium", fixture.controller.state.value.effort)
+        fixture.controller.send(); runCurrent()
+        assertEquals("", submitted(fixture).body?.get("model")?.jsonPrimitive?.content)
+        assertEquals("none", submitted(fixture).body?.get("reasoning_effort")?.jsonPrimitive?.content)
     }
 
     @Test fun anExplicitImageSelectionIsSentUnchangedEvenWhenItIsNotVisionCapable() = controllerTest {

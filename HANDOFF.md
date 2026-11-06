@@ -1,5 +1,22 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-11-06 — Model-specific effort choices
+
+The shared catalog now reads thinkingLevels/thinkingDefault from the gateway
+for each provider/model/runtime. Both clients use only that model's verified
+efforts and resolved default; they no longer inject Automatic or borrow a
+universal enum. Missing or off-only profiles expose no adjustable slider.
+The gateway still lacks usable profiles for several configured models; those
+remain unavailable instead of receiving guessed options.
+
+Backend writes reject unsupported efforts and stale model choices; model and
+effort mutations are serialized. Mobile legacy selections migrate to a
+verified default, and inherited image sends omit the text model's effort.
+Independent Gemini and native source reviews informed the fix. Simulator and
+browser runtime QA were stopped at the owner's request; final delivery uses
+build/type/unit checks and HTTP smoke only. Android release is 0.7.3/code 37.
+
+
 ## 2026-11-05 — Blink Android 0.7.2 stable publication
 
 Published the dedicated Language subpage as Android 0.7.2 / code 36 from

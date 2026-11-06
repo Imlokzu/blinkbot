@@ -11,6 +11,10 @@ function validModel(value: unknown): value is BrainModel {
   for (const key of ['context', 'seconds']) {
     if (value[key] !== undefined && (typeof value[key] !== 'number' || !Number.isFinite(value[key]) || value[key] < 0)) return false;
   }
+  if (value.efforts !== undefined && (!Array.isArray(value.efforts)
+    || !value.efforts.every(level => typeof level === 'string' && level.length > 0))) return false;
+  if (value.effort_default !== undefined && (typeof value.effort_default !== 'string'
+    || (value.effort_default !== '' && (!Array.isArray(value.efforts) || !value.efforts.includes(value.effort_default))))) return false;
   return true;
 }
 

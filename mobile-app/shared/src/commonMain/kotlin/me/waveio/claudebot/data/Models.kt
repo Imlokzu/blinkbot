@@ -68,6 +68,7 @@ data class ModelOption(
     val context: Long? = null,
     /** Typical reply time the catalog states for this model ("~1.9 s"). */
     val seconds: Double? = null,
+    @SerialName("effort_default") val effortDefault: String? = null,
 )
 
 @Serializable

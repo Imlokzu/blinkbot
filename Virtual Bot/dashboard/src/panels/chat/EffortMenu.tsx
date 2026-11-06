@@ -25,15 +25,14 @@ export function EffortOptions({ brain, modelLabel, modelButtonRef, onChangeModel
     target: Element; pointerId: number; identity: string;
     grabOffset: number; next: number; start: number; fromThumb: boolean; trusted: boolean;
   } | null>(null);
-  // Automatic clears the setting; explicit off remains a different stop.
-  const levels = ['', ...new Set(brain.levels.filter(Boolean))];
+  const levels = [...new Set(brain.levels.filter(Boolean))];
   const levelKey = JSON.stringify(levels);
   const identity = JSON.stringify([brain.current, brain.thinking, levelKey]);
   const current = levels.indexOf(brain.thinking);
   const supported = current !== -1;
-  const index = Math.min(preview ?? Math.max(0, current), levels.length - 1);
+  const index = Math.max(0, Math.min(preview ?? Math.max(0, current), levels.length - 1));
   const disabled = brain.loading || brain.saving || brain.unavailable;
-  const labelFor = (level: string) => level ? thinkingLabel(level) : t('composer.asConfigured');
+  const labelFor = (level: string) => level ? thinkingLabel(level) : t('composer.effortUnknown');
   const label = labelFor(preview === null ? brain.thinking : levels[index]);
 
   useEffect(() => {
@@ -110,7 +109,7 @@ export function EffortOptions({ brain, modelLabel, modelButtonRef, onChangeModel
       </div>
       <p id={hintId} className="sr-only">{t('composer.effortHintShort')}</p>
       <div className="effort-slider-body">
-        <Slider.Root key={epoch} className="effort-slider" min={0} max={Math.max(1, levels.length - 1)} step={1}
+        {levels.length ? <Slider.Root key={epoch} className="effort-slider" min={0} max={Math.max(1, levels.length - 1)} step={1}
           value={[index]} disabled={disabled || levels.length < 2}
           onKeyDownCapture={event => {
             trustedKey.current = event.isTrusted && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key);
@@ -170,12 +169,9 @@ export function EffortOptions({ brain, modelLabel, modelButtonRef, onChangeModel
             data-level={preview === null ? brain.thinking : levels[index]}>
             <span className="effort-slider-thumb-surface" aria-hidden="true" />
           </Slider.Thumb>
-        </Slider.Root>
-        {!supported ? <div className="effort-slider-feedback" role="status">
+        </Slider.Root> : null}
+        {levels.length && !supported ? <div className="effort-slider-feedback" role="status">
           <p>{t('composer.effortUnsupported')}</p>
-          <button type="button" disabled={disabled} onClick={() => { void brain.pickThinking(''); }}>
-            {t('composer.asConfigured')}
-          </button>
         </div> : null}
         {!brain.loading && !brain.levels.length ? <p className="brain-picker-note">{t('composer.effortUnavailable')}</p> : null}
       </div>

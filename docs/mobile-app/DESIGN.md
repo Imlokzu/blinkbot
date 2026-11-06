@@ -391,3 +391,12 @@ Remove stock snackbars and reply-time banners. Model fallback remains disclosed
 inline with the actual answering model. Typing uses a compact white dot bubble
 without a repeated writing label. Replies must stream as backend events arrive;
 an animation of a fully completed response does not count as streaming.
+
+
+## Verified effort profiles (2026-11-06)
+
+Show only the selected model/runtime's host-declared effort levels and resolved
+default. No Automatic action or global-level fallback. Unknown or off-only
+profiles have no slider. Legacy saved values migrate only to a supported host
+default; do not guess the first slider stop. Inherited image routing omits the
+text model's resolved effort instead of applying it to another image model.

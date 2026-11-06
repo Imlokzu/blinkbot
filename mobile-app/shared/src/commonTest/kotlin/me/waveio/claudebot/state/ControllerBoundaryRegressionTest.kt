@@ -585,14 +585,14 @@ class ControllerBoundaryRegressionTest {
         fixture.controller.selectModel("regolo/deep")
         fixture.controller.selectEffort("high")
         fixture.controller.selectModel("regolo/fast")
-        assertEquals("none", fixture.controller.state.value.effort)
-        assertEquals("none", fixture.controller.state.value.preferences.chatEfforts["chat_1"], "Resetting the visible effort must reset the conversation's saved effort too")
+        assertEquals("low", fixture.controller.state.value.effort)
+        assertEquals("low", fixture.controller.state.value.preferences.chatEfforts["chat_1"], "Resetting the visible effort must reset the conversation's saved effort too")
         fixture.controller.openChat("chat_2")
         runCurrent()
         fixture.controller.openChat("chat_1")
         runCurrent()
         assertEquals("regolo/fast", fixture.controller.state.value.selectedModel)
-        assertEquals("none", fixture.controller.state.value.effort)
+        assertEquals("low", fixture.controller.state.value.effort)
     }
 
     @Test fun anUnsetPcPickerUsesTheAdvertisedDefaultInsteadOfABlankPhoneHeader() = controllerTest {
@@ -606,14 +606,28 @@ class ControllerBoundaryRegressionTest {
         assertEquals("regolo/default", fixture.controller.state.value.selectedModel)
     }
 
-    @Test fun explicitOffRemainsDistinctFromInheritingTheGatewayDefault() = controllerTest {
+    @Test fun globalThinkingLevelsNeverBecomeUnverifiedModelCapabilities() = controllerTest {
         val fixture = fixture()
         runCurrent()
-        assertEquals(listOf("none", "off", "low"), fixture.controller.state.value.models.single().efforts)
+        assertTrue(fixture.controller.state.value.models.single().efforts.isEmpty())
         fixture.controller.selectEffort("off")
-        assertEquals("off", fixture.controller.state.value.effort)
-        fixture.controller.selectEffort("none")
         assertEquals("none", fixture.controller.state.value.effort)
+        fixture.controller.selectEffort("low")
+        assertEquals("none", fixture.controller.state.value.effort)
+    }
+
+    @Test fun legacyAutomaticResolvesToTheModelsDeclaredDefault() = controllerTest {
+        val fixture = fixture()
+        fixture.handler = { request -> if (request.url.encodedPath == "/api/brain/models")
+            jsonResponse("""{"models":[{"id":"regolo/model","efforts":["low","medium","high"],"effort_default":"medium"}],"selected":"regolo/model","thinking_levels":["off","minimal","adaptive"]}""") else null }
+        runCurrent()
+        assertEquals(listOf("low", "medium", "high"), fixture.controller.state.value.models.single().efforts)
+        assertEquals("medium", fixture.controller.state.value.effort)
+        fixture.controller.selectEffort("none")
+        assertEquals("medium", fixture.controller.state.value.effort)
+        fixture.controller.selectEffort("high")
+        fixture.controller.newChat()
+        assertEquals("medium", fixture.controller.state.value.effort)
     }
 
     @Test fun reopeningAChatNormalizesItsPreviouslySavedUnsupportedEffort() = controllerTest {
@@ -625,8 +639,8 @@ class ControllerBoundaryRegressionTest {
         fixture.controller.openChat("chat_1")
         runCurrent()
         assertEquals("regolo/fast", fixture.controller.state.value.selectedModel)
-        assertEquals("none", fixture.controller.state.value.effort)
-        assertEquals("none", fixture.controller.state.value.preferences.chatEfforts["chat_1"])
+        assertEquals("low", fixture.controller.state.value.effort)
+        assertEquals("low", fixture.controller.state.value.preferences.chatEfforts["chat_1"])
     }
 
     @Test fun aLateStopAcknowledgementCannotPauseTheConversationOpenedAfterIt() = controllerTest {
@@ -705,12 +719,12 @@ class ControllerBoundaryRegressionTest {
         runCurrent()
         fixture.controller.selectModel("regolo/fast")
         fixture.controller.selectEffort("high")
-        assertEquals("none", fixture.controller.state.value.effort)
+        assertEquals("low", fixture.controller.state.value.effort)
         fixture.controller.draft("Use a supported effort")
         fixture.controller.send()
         runCurrent()
         val submitted = fixture.requests.single { it.path == "/api/mobile/messages" && it.method == HttpMethod.Post }.body!!
-        assertEquals("none", submitted.getValue("reasoning_effort").jsonPrimitive.content)
+        assertEquals("low", submitted.getValue("reasoning_effort").jsonPrimitive.content)
     }
 
     @Test fun oldHistoryFailureCannotReportAnAuthErrorOnANewConnection() = controllerTest {
@@ -817,6 +831,6 @@ class ControllerBoundaryRegressionTest {
     private companion object {
         const val editableHistory = """{"messages":[{"id":"user_1","role":"user","content":"Historical user message"}]}"""
         const val attachmentHistory = """{"messages":[{"id":"user_1","role":"user","content":"Attached files","attachments":[{"url":"/uploads/old.txt","name":"old.txt","type":"text/plain","size":3},{"url":"/uploads/current.txt","name":"current.txt","type":"text/plain","size":3}]}]}"""
-        const val modelCatalog = """{"models":[{"id":"regolo/deep","available":true,"efforts":["none","high"]},{"id":"regolo/fast","available":true,"efforts":["none","low"]}],"selected":"regolo/deep","thinking_levels":[]}"""
+        const val modelCatalog = """{"models":[{"id":"regolo/deep","available":true,"efforts":["high"],"effort_default":"high"},{"id":"regolo/fast","available":true,"efforts":["low"],"effort_default":"low"}],"selected":"regolo/deep","thinking_levels":[]}"""
     }
 }

@@ -311,7 +311,7 @@ class MobileMotionTest {
         compose.onNodeWithText(strings.get("model.high")).assertIsDisplayed()
         compose.onNodeWithTag("effort-slider").performTouchInput { cancel() }
         compose.mainClock.advanceTimeBy(800)
-        compose.onNodeWithText(strings.get("model.none")).assertIsDisplayed()
+        compose.onNodeWithText(strings.get("model.effortUnavailable")).assertIsDisplayed()
         assertEquals("none", state.effort)
     }
 
@@ -327,7 +327,7 @@ class MobileMotionTest {
         compose.onNodeWithText(strings.get("model.high")).assertIsDisplayed()
         assertEquals("A drag only previews effort", "none", state.effort)
         slider.performTouchInput { cancel() }
-        compose.onNodeWithText(strings.get("model.none")).assertIsDisplayed()
+        compose.onNodeWithText(strings.get("model.effortUnavailable")).assertIsDisplayed()
         assertEquals("Cancelling must not save effort", "none", state.effort)
     }
 

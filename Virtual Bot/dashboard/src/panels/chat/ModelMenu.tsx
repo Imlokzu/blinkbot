@@ -219,7 +219,7 @@ export function ModelMenu({ variant = 'header' }: { variant?: 'header' | 'bar' }
   // phone, where the side has no room.
   const narrow = typeof window !== 'undefined' && window.matchMedia?.('(max-width: 759px)').matches;
   const label = brain.currentModel?.label || brain.current || (brain.loading ? t('composer.loading') : 'OpenClaw');
-  const effort = brain.thinking ? thinkingLabel(brain.thinking) : t('composer.asConfigured');
+  const effort = brain.thinking ? thinkingLabel(brain.thinking) : t('composer.effortUnknown');
   const accessibleLabel = t('composer.chooseModelEffort', { model: label, level: effort });
   let row = -1;
 

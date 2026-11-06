@@ -3,6 +3,7 @@ import { useMutationState, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/Toaster';
 import { useBrainModels, useSelectBrainModel, useSetThinking } from '@/lib/queries';
 import { t } from '@/locales/chat';
+import { effortProfile } from './effortProfile';
 
 /*
  * Which model answers, and how hard it thinks.
@@ -29,7 +30,11 @@ export function useBrainChoice() {
   // Composer and both menus observe the same writes, including while remounting.
   const pending = useMutationState({
     filters: { mutationKey: ['brain-choice'], status: 'pending' },
-    select: (mutation) => ({ kind: mutation.options.mutationKey?.[1], value: mutation.state.variables as string }),
+    select: (mutation) => ({
+      kind: mutation.options.mutationKey?.[1],
+      value: typeof mutation.state.variables === 'string' ? mutation.state.variables
+        : (mutation.state.variables as { level?: string } | undefined)?.level ?? '',
+    }),
   });
 
   const models = brain.data?.models ?? [];
@@ -58,29 +63,24 @@ export function useBrainChoice() {
     [current, selectModel, toast, client],
   );
 
-  /*
-   * The thinking level is an OpenClaw SETTING, not a property of one reply:
-   * its HTTP endpoint has no reasoning field, so the level goes into the
-   * config and applies to every conversation from then on. The toast says
-   * so out loud. An empty level clears the setting, which is a different
-   * state from "off" — the built-in default applies, and the CLI does not
-   * name it.
-   */
-  const thinking = pending.find((write) => write.kind === 'thinking')?.value ?? brain.data?.thinking ?? '';
+  // A global saved alias may not exist for the selected model. Show the
+  // model's resolved default rather than inventing another selectable mode.
+  const { levels, thinking } = effortProfile(currentModel,
+    pending.find((write) => write.kind === 'thinking')?.value ?? brain.data?.thinking ?? '');
   const pickThinking = useCallback(
     async (level: string) => {
-      if (level === thinking || client.isMutating({ mutationKey: ['brain-choice'] })) return;
-      const label = level ? thinkingLabel(level) : t('composer.asConfigured');
+      if (!current || !levels.includes(level) || level === thinking || client.isMutating({ mutationKey: ['brain-choice'] })) return;
+      const label = thinkingLabel(level);
       try {
-        await setThinking.mutateAsync(level);
+        await setThinking.mutateAsync({ level, model: current });
         toast.toast(t('composer.effortToast', { level: label }), {
-          description: level ? t('composer.effortSaved') : t('composer.effortCleared'),
+          description: t('composer.effortSaved'),
         });
       } catch (error) {
         toast.error(t('composer.effortFailed'), (error as Error).message);
       }
     },
-    [thinking, setThinking, toast, client],
+    [current, levels, thinking, setThinking, toast, client],
   );
 
   return {
@@ -95,7 +95,7 @@ export function useBrainChoice() {
     currentModel,
     contextSize: currentModel?.context ?? 0,
     pickModel,
-    levels: brain.data?.thinking_levels ?? [],
+    levels,
     thinking,
     pickThinking,
   };

@@ -15,10 +15,11 @@ const effort = `${menu} .effort-picker-pane [role=slider]`;
 const modelRow = id => `${models} [data-model=${JSON.stringify(id)}]`;
 const firstModel = 'openai/gpt-6-astra';
 const nextModel = 'regolo/claude-sonnet-5';
+const supportedLevels = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra', 'gateway-next'];
 const catalog = {
   models: [
-    { id: firstModel, label: 'GPT-6 Astra', context: 200000, vision: true, fast: true, is_default: true },
-    { id: nextModel, label: 'Claude Sonnet 5', vision: true, fallback: true },
+    { id: firstModel, label: 'GPT-6 Astra', efforts: supportedLevels, effort_default: 'medium', context: 200000, vision: true, fast: true, is_default: true },
+    { id: nextModel, label: 'Claude Sonnet 5', efforts: supportedLevels, effort_default: 'medium', vision: true, fallback: true },
     ...Array.from({ length: 72 }, (_, index) => ({
       id: `${index % 2 ? 'regolo/claude' : 'openai/gpt'}-fixture-${index}`,
       label: `${index % 2 ? 'Claude' : 'GPT'} fixture ${index}`, context: 32000 + index,
@@ -27,9 +28,10 @@ const catalog = {
     { id: 'regolo/future', label: 'Future fixture' },
   ],
   selected: firstModel, default: firstModel, thinking: 'high', available: true,
-  thinking_levels: ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'adaptive', 'max', 'ultra', 'gateway-next'],
+  // Deliberately stale global metadata must not create model-level choices.
+  thinking_levels: ['off', 'minimal', 'adaptive'],
 };
-const levels = ['', ...new Set(catalog.thinking_levels.filter(Boolean))];
+const levels = [...supportedLevels];
 const labelsFor = lang => {
   const previous = globalThis.document;
   globalThis.document = { documentElement: { lang } };
@@ -37,8 +39,8 @@ const labelsFor = lang => {
     const trigger = t('composer.chooseModelEffort');
     return {
       models: t('composer.models'), effort: t('composer.effort'), search: t('models.openSearch'),
-      levels: Object.fromEntries(['', ...catalog.thinking_levels].map(level => [level,
-        !level ? t('composer.asConfigured') : level === 'gateway-next' ? level : t(`effort.${level}`),
+      levels: Object.fromEntries(supportedLevels.map(level => [level,
+        level === 'gateway-next' ? level : t(`effort.${level}`),
       ])),
       trigger: (model, level) => trigger.replace('{model}', model).replace('{level}', level),
       modelFailure: t('composer.modelFailed'), effortFailure: t('composer.effortFailed'),
@@ -408,7 +410,7 @@ try {
   route('**/api/local/haptics/tick', { accepted: true });
   browser('open', `${origin}/docs`);
   evaluate(`localStorage.setItem('claudeBotLang', 'en'); localStorage.removeItem('claudeBotRecentModels'); localStorage.setItem('claudeBotModelIntel', '0');
-    localStorage.removeItem('claude-bot:brain-models:v6');`);
+    localStorage.removeItem('claude-bot:brain-models:v7');`);
   browser('open', `${origin}${path}#/chat`);
   browser('wait', '[data-brain-choice-trigger]');
   evaluate(`window.__pickerCatalog = ${JSON.stringify(catalog)}; window.__pickerWrites = [];
@@ -539,17 +541,17 @@ try {
   assertEffortGeometry();
   browser('set', 'viewport', '1440', '900');
   effortKey('Home');
-  waitChoice(nextModel, '');
+  waitChoice(nextModel, 'low');
   assertEffortGeometry();
   clickEffortEndpoint('max');
   waitChoice(nextModel, 'gateway-next');
   assertEffortGeometry();
   clickEffortEndpoint('min');
-  waitChoice(nextModel, '');
+  waitChoice(nextModel, 'low');
   assertEffortGeometry();
   effortKey('ArrowRight');
-  waitChoice(nextModel, 'off');
-  assert.deepEqual(evaluate('window.__pickerWrites.slice(-2).map(write => write.body)'), [{ level: '' }, { level: 'off' }], 'reset and explicit off stay distinct');
+  waitChoice(nextModel, 'medium');
+  assert.deepEqual(evaluate('window.__pickerWrites.slice(-2).map(write => write.body)'), [{ level: 'low', model: nextModel }, { level: 'medium', model: nextModel }], 'effort writes carry only real model-specific levels and the selected model');
   const writeCount = evaluate('window.__pickerWrites.length');
   const unchangedTicks = hapticCount();
   browser('click', effort);
@@ -559,29 +561,29 @@ try {
   evaluate('window.__pickerWriteFails = true');
   effortKey('End');
   browser('wait', '--text', labels.en.effortFailure);
-  waitChoice(nextModel, 'off');
+  waitChoice(nextModel, 'medium');
   openModels();
   browser('click', modelRow(firstModel));
   browser('wait', '--text', labels.en.modelFailure);
-  waitChoice(nextModel, 'off');
+  waitChoice(nextModel, 'medium');
   assert.equal(evaluate(`document.querySelector('${menu}').dataset.pickerStep`), 'models', 'a rejected model leaves the catalog available for retry');
-  assertTrigger('en', 'Claude Sonnet 5', 'off');
+  assertTrigger('en', 'Claude Sonnet 5', 'medium');
   assert.deepEqual(evaluate('JSON.parse(localStorage.getItem("claudeBotRecentModels"))'), [nextModel], 'rejected models do not enter recents');
   evaluate('window.__pickerWriteFails = false');
   backToEffort();
   effortKey('Home');
-  waitChoice(nextModel, '');
+  waitChoice(nextModel, 'low');
   browser('press', 'End');
   waitChoice(nextModel, 'gateway-next');
   assert.equal(evaluate('document.activeElement.dataset.level'), 'gateway-next', 'effort keyboard selection moves focus and uses reported future levels');
   browser('press', 'Home');
-  waitChoice(nextModel, '');
+  waitChoice(nextModel, 'low');
   const untrustedTicks = hapticCount();
   evaluate(`document.querySelector('${effort}').dispatchEvent(new KeyboardEvent('keydown', { key:'ArrowRight', bubbles:true }))`);
-  waitChoice(nextModel, 'off');
+  waitChoice(nextModel, 'medium');
   assert.equal(hapticCount(), untrustedTicks, 'scripted keyboard events cannot pulse native hardware');
   effortKey('Home');
-  waitChoice(nextModel, '');
+  waitChoice(nextModel, 'low');
   browser('wait', '--fn', 'performance.now() - (window.__lastHapticAt ?? -Infinity) >= 100');
   const failedTickCount = hapticCount();
   evaluate('window.__hapticFails = true');
@@ -591,13 +593,13 @@ try {
   assert.equal(evaluate('document.body.textContent.includes("Fixture haptic bridge unavailable")'), false, 'haptic failures remain quiet');
   evaluate('window.__hapticFails = false');
   effortKey('Home');
-  waitChoice(nextModel, '');
+  waitChoice(nextModel, 'low');
   evaluate(`Object.defineProperty(navigator, 'platform', { configurable:true, value:'Win32' })`);
   const nonMacTicks = hapticCount();
   effortKey('End');
   waitChoice(nextModel, 'gateway-next');
   effortKey('Home');
-  waitChoice(nextModel, '');
+  waitChoice(nextModel, 'low');
   assert.equal(hapticCount(), nonMacTicks, 'non-Mac clients never call the native tick bridge');
   evaluate(`Object.defineProperty(navigator, 'platform', { configurable:true, value:'MacIntel' })`);
   closeMenu();
@@ -607,7 +609,7 @@ try {
   assertMotion({ dragging: true, reduced: true });
   assertEffortGeometry();
   evaluate(`document.querySelector('${effort}').dispatchEvent(new PointerEvent('pointercancel', { bubbles:true, pointerId:1, pointerType:'mouse' }))`);
-  waitChoice(nextModel, '');
+  waitChoice(nextModel, 'low');
   browser('mouse', 'up');
   assertMotion({ reduced: true });
   closeMenu();
@@ -623,13 +625,13 @@ try {
       openMenu();
       assertEffortStructure(lang);
       assertEffortGeometry();
-      assertTrigger(lang, 'Claude Sonnet 5', '');
+      assertTrigger(lang, 'Claude Sonnet 5', 'low');
       if (lang === 'en' && width === 320) {
         const phoneTicks = hapticCount();
         effortKey('End');
         waitChoice(nextModel, 'gateway-next');
         effortKey('Home');
-        waitChoice(nextModel, '');
+        waitChoice(nextModel, 'low');
         assert.equal(hapticCount(), phoneTicks, 'touch-phone clients never use the local Mac bridge');
       }
       for (const step of ['effort', 'models']) {
@@ -679,14 +681,14 @@ try {
   openMenu();
   openModels();
   evaluate('window.__pickerDelay = false; window.__pickerRelease(); delete window.__pickerRelease');
-  waitChoice(firstModel, '');
+  waitChoice(firstModel, 'low');
   assert.equal(evaluate(`document.querySelector('${menu}').dataset.pickerStep`), 'models', 'an old acknowledgement preserves the newly opened model step');
   assert.deepEqual(evaluate('JSON.parse(localStorage.getItem("claudeBotRecentModels"))'), [firstModel, nextModel]);
   assert.equal(evaluate(`document.querySelectorAll('${models} [aria-checked=true]').length`), 1);
   backToEffort();
   closeMenu();
   openMenu();
-  assert.equal(evaluate('document.activeElement.dataset.level'), '', 'reopening always starts at the selected effort');
+  assert.equal(evaluate('document.activeElement.dataset.level'), 'low', 'reopening always starts at the selected effort');
   closeMenu();
   assert.deepEqual(evaluate('window.__pickerWrites[0]'), { address: '/api/brain/model', body: { model: nextModel } });
   assert.ok(evaluate('window.__pickerWrites.slice(1).some(write => write.address === "/api/brain/thinking")'));
@@ -703,7 +705,18 @@ try {
   waitChoice(firstModel, 'gateway-next');
   assert.equal(hapticCount(), unavailableTicks, 'an unavailable local bridge stays silent while the slider works');
   closeMenu();
-  console.log('PASS: reference geometry, active/idle/reduced-motion animation, safely mocked trusted native haptics and silent fallbacks, endpoint clicks, rounded composer, neutral controls, release-only writes, cancellation, search/back, serialized writes, late acknowledgements, recents, rollback, reset/off, keyboard focus, touch bounds and both locales');
+  openMenu();
+  openModels();
+  browser('click', modelRow('regolo/future'));
+  browser('wait', `${menu}[data-picker-step="effort"]`);
+  browser('wait', '--fn', 'window.__pickerCatalog.selected === "regolo/future"');
+  assert.equal(evaluate(`document.querySelectorAll('${effort}').length`), 0,
+    'a model with no effort profile must not inherit the global list');
+  assert.equal(evaluate('document.querySelector(".effort-slider-value").textContent'), 'Unavailable');
+  assert.equal(evaluate('document.querySelector(".effort-picker-pane").textContent.includes("Automatic")'), false,
+    'missing effort metadata never invents an Automatic mode');
+  closeMenu();
+  console.log('PASS: reference geometry, active/idle/reduced-motion animation, safely mocked trusted native haptics and silent fallbacks, endpoint clicks, rounded composer, neutral controls, release-only writes, cancellation, search/back, serialized writes, late acknowledgements, recents, rollback, model-specific levels, keyboard focus, touch bounds and both locales');
 } catch (error) {
   console.error('Picker failure state:', evaluate(`({step: document.querySelector('${menu}')?.dataset.pickerStep,
     focus: {tag: document.activeElement?.tagName, className: document.activeElement?.className,

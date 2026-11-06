@@ -109,6 +109,9 @@ export interface BrainModel {
   /** Jev: not a model but a per-message pick among the tiers below. */
   auto?: boolean;
   tiers?: Record<string, string>;
+  /** Verified levels/default for this provider, model and gateway runtime. */
+  efforts?: string[];
+  effort_default?: string;
 }
 
 export interface BrainModelsResponse {
@@ -120,7 +123,7 @@ export interface BrainModelsResponse {
   available: boolean;
 }
 
-const BRAIN_MODELS_CACHE_KEY = 'claude-bot:brain-models:v6';
+const BRAIN_MODELS_CACHE_KEY = 'claude-bot:brain-models:v7';
 
 function keptModel(model: BrainModel): boolean {
   const provider = model.id.split('/')[0] ?? '';
@@ -203,7 +206,7 @@ export function useSetThinking() {
   const client = useQueryClient();
   return useMutation({
     mutationKey: ['brain-choice', 'thinking'],
-    mutationFn: (level: string) => post<{ ok: boolean; thinking: string }>('/api/brain/thinking', { level }),
+    mutationFn: (choice: { level: string; model: string }) => post<{ ok: boolean; thinking: string }>('/api/brain/thinking', choice),
     onSuccess: async (result) => {
       await client.cancelQueries({ queryKey: ['brain-models'] });
       const confirmed = client.setQueryData<BrainModelsResponse>(['brain-models'], (data) => data ? { ...data, thinking: result.thinking } : data);

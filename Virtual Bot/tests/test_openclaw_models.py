@@ -40,6 +40,8 @@ def _reset_cache() -> None:
     openclaw_models._catalog = None
     openclaw_models._catalog_at = 0.0
     openclaw_models._refreshing = False
+    openclaw_models._effort_profiles = None
+    openclaw_models._effort_profiles_at = 0.0
     openclaw_models.set_selected("")
 
 
@@ -229,13 +231,17 @@ class BrainEndpointTests(unittest.TestCase):
             patch.object(openclaw_models, "reachable", return_value=True),
             patch.object(openclaw_models, "_thinking_from_config", return_value="low"),
             patch.object(openclaw_models, "_run_cli", AsyncMock(return_value=(0, CATALOG, ""))),
+            patch.object(openclaw_models, "effort_profiles", AsyncMock(return_value={
+                "regolo/gpt-oss-120b": {"efforts": ["low", "medium", "high"], "effort_default": "low"},
+            })),
         ):
             body = self.client.get("/api/brain/models").json()
 
         self.assertTrue(body["available"])
         self.assertEqual(body["default"], "regolo/gpt-oss-120b")
         self.assertEqual(body["thinking"], "low")
-        self.assertIn("ultra", body["thinking_levels"])
+        self.assertEqual(body["thinking_levels"], ["low", "medium", "high"])
+        self.assertEqual(body["models"][1]["efforts"], ["low", "medium", "high"])
 
     def test_refuses_a_model_openclaw_does_not_have(self) -> None:
         """Невідомий рядок поїхав би заголовком і впав уже в шлюзі."""

@@ -36,6 +36,15 @@ async def chat_gateway(message: str, system_prompt: str, history: list,
     import brains
 
     options = mobile_api.current_turn_options() or {}
+    effort = str(options.get("reasoning_effort") or "none")
+
+    async def checked_effort(model: str | None) -> str | None:
+        if effort == "none":
+            return None
+        profile = await openclaw_models.model_effort_profile(model or "")
+        if effort not in profile.get("efforts", []):
+            raise RoutingError("mobile_effort_unavailable")
+        return effort
     if images:
         # An empty model is the inherited/default intent: let the gateway use
         # its configured image route. An explicit picker choice is authoritative
@@ -47,9 +56,9 @@ async def chat_gateway(message: str, system_prompt: str, history: list,
         handle = _model.set(explicit_model)
         try:
             if session_key:
-                effort = str(options.get("reasoning_effort") or "none")
+                image_model = explicit_model or (openclaw_models.openclaw_config.image_model() if effort != "none" else None)
                 patch = {
-                    "key": session_key, "thinkingLevel": None if effort == "none" else effort,
+                    "key": session_key, "thinkingLevel": await checked_effort(image_model),
                 }
                 if explicit_model:
                     patch["model"] = explicit_model
@@ -114,10 +123,9 @@ async def chat_gateway(message: str, system_prompt: str, history: list,
             # Session-scoped preferences are read by the HTTP agent-command
             # path. Never rewrite agents.defaults or the PC's global picker.
             if session_key:
-                effort = str(options.get("reasoning_effort") or "none")
                 await openclaw_control._rpc("sessions.patch", {
                     "key": session_key, "model": model,
-                    "thinkingLevel": None if effort == "none" else effort,
+                    "thinkingLevel": await checked_effort(model),
                 })
             if emit is not None:
                 await emit({"type": "model", "provider": provider,

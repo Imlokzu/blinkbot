@@ -376,7 +376,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         val catalog = try { requireApi().models() }
         finally { if (version == connectionVersion) update { it.copy(modelsLoading = false) } }
         if (version != connectionVersion) return
-        val models = catalog.models.map { model -> ModelRow(model.id, displayModelLabel(model.id, model.label), model.provider.orEmpty(), model.brand ?: brand(model.id), model.available != false, (listOf("none") + model.efforts.ifEmpty { catalog.efforts }).distinct(), model.vision, model.context, model.seconds) }.sortedWith(modelComparator)
+        val models = catalog.models.map { model -> ModelRow(model.id, displayModelLabel(model.id, model.label), model.provider.orEmpty(), model.brand ?: brand(model.id), model.available != false, model.efforts.filter { it.isNotBlank() && it != "none" }.distinct(), model.vision, model.context, model.seconds, model.effortDefault.orEmpty()) }.sortedWith(modelComparator)
         val initial = catalog.selected?.takeIf { it.isNotBlank() }
             ?: catalog.defaultModel?.takeIf { it.isNotBlank() }
             ?: models.firstOrNull { it.available }?.id.orEmpty()
@@ -498,7 +498,8 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         navigationVersion++; draftVersion++; activeUploadVersion = null
         val current = state.value
         writeScoped("draft.${current.sessionId.ifBlank { "new" }}", current.draft)
-        update { it.copy(screen = Screen.Chat, menuOpen = false, sessionId = "", messages = emptyList(), draft = readScoped("draft.new").orEmpty(), editingMessageId = null, attachments = emptyList(), uploading = false, selectedModel = initialModel(it.preferences).ifBlank { catalogDefaultModel.ifBlank { it.selectedModel } }, effort = "none", busy = false, activeJobId = null, pending = emptyList(), queuePaused = false, loading = false) }
+        val model = initialModel(current.preferences).ifBlank { catalogDefaultModel.ifBlank { current.selectedModel } }
+        update { it.copy(screen = Screen.Chat, menuOpen = false, sessionId = "", messages = emptyList(), draft = readScoped("draft.new").orEmpty(), editingMessageId = null, attachments = emptyList(), uploading = false, selectedModel = model, effort = supportedEffort(model, "none"), busy = false, activeJobId = null, pending = emptyList(), queuePaused = false, loading = false) }
         feedback()
     }
     override fun openChat(id: String) {
@@ -601,7 +602,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
     override fun modelPicker(open: Boolean) { update { it.copy(modelPickerOpen = open) } }
     override fun selectModel(id: String) {
         val current = state.value
-        val effort = current.effort.takeIf { it in current.models.firstOrNull { model -> model.id == id }?.efforts.orEmpty() } ?: "none"
+        val effort = supportedEffort(id, current.effort)
         val p = current.preferences.copy(lastModel = id, chatModels = if (current.sessionId.isBlank()) current.preferences.chatModels else current.preferences.chatModels + (current.sessionId to id), chatEfforts = if (current.sessionId.isBlank()) current.preferences.chatEfforts else current.preferences.chatEfforts + (current.sessionId to effort))
         preferences(p); update { it.copy(selectedModel = id, effort = effort) }; feedback()
     }
@@ -612,9 +613,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         update { it.copy(effort = effort) }; feedback()
     }
     private fun supportedEffort(model: String, value: String): String {
-        val normalized = value
-        val supported = state.value.models.firstOrNull { it.id == model }?.efforts.orEmpty()
-        return normalized.takeIf { it == "none" || it in supported } ?: "none"
+        return state.value.models.firstOrNull { it.id == model }?.resolveEffort(value) ?: "none"
     }
     override fun draft(value: String) { draftVersion++; update { it.copy(draft = value) }; writeScoped("draft.${state.value.sessionId.ifBlank { "new" }}", value) }
 
@@ -651,7 +650,10 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
         // The displayed default is resolved for text, but image routing belongs
         // to the host unless the user explicitly picked a model for this chat.
         val model = submissionModel(current, inputAttachments)
-        val item = OutboxItem(platform.newId(), session, current.draft, model, current.effort, delivery, scheduledAt, current.attachments, current.editingMessageId, if (current.editingMessageId != null) "edit" else null)
+        // The text model's resolved default is not an explicit effort choice
+        // for a different, inherited image model.
+        val effort = if (model.isBlank() && inputAttachments.any { it.mimeType.startsWith("image/") }) "none" else current.effort
+        val item = OutboxItem(platform.newId(), session, current.draft, model, effort, delivery, scheduledAt, current.attachments, current.editingMessageId, if (current.editingMessageId != null) "edit" else null)
         outbox.add(item)
         try { persistOutbox() } catch (_: Exception) { outbox.remove(item); update { it.copy(error = "error.storage") }; return }
         val p = current.preferences.copy(chatModels = current.preferences.chatModels + (session to if (inherited) "" else current.selectedModel), chatEfforts = current.preferences.chatEfforts + (session to current.effort))
@@ -1127,7 +1129,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
             val clientId = id.removePrefix("local:")
             outbox.firstOrNull { it.clientId == clientId }?.let { original ->
                 val model = if (original.lastError == "mobile_image_model_unavailable") state.value.preferences.chatModels[original.sessionId]?.takeIf { it.isNotBlank() } ?: original.model else original.model
-                val item = original.copy(model = model, effort = if (model != original.model) supportedEffort(model, original.effort) else original.effort, lastError = null, deliveryDeclined = false)
+                val item = original.copy(model = model, effort = supportedEffort(model, original.effort), lastError = null, deliveryDeclined = false)
                 outbox.replaceAllInPlace { if (it.clientId == clientId) item else it }
                 permitted.add(clientId); persistOutbox(); run { submit(item, true); loadAllJobs() }
             }
@@ -1140,7 +1142,7 @@ class AppController(private val platform: PlatformBridge, private val makeApi: (
                 if (epoch != connectionVersion) return@run
                 val model = if (job.error == "mobile_image_model_unavailable") state.value.preferences.chatModels[job.sessionId]?.takeIf { it.isNotBlank() } ?: job.model.orEmpty() else job.model.orEmpty()
                 val effort = job.reasoningEffort ?: "none"
-                val item = OutboxItem(platform.newId(), job.sessionId, job.message.orEmpty(), model, if (model != job.model.orEmpty()) supportedEffort(model, effort) else effort, attachments = job.attachments.map { DraftAttachment(it.path, it.name.orEmpty(), it.mimeType.orEmpty(), it.size ?: 0) })
+                val item = OutboxItem(platform.newId(), job.sessionId, job.message.orEmpty(), model, supportedEffort(model, effort), attachments = job.attachments.map { DraftAttachment(it.path, it.name.orEmpty(), it.mimeType.orEmpty(), it.size ?: 0) })
                 outbox.add(item); persistOutbox()
                 connection.resumeSession(job.sessionId)
                 if (epoch != connectionVersion) return@run

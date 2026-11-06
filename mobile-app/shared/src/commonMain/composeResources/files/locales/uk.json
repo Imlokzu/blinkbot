@@ -76,7 +76,7 @@
   "model.search": "Знайти модель",
   "model.effort": "Міркування",
   "model.change": "Змінити модель",
-  "model.effortUnavailable": "Ця модель сама визначає глибину міркувань.",
+  "model.effortUnavailable": "Підтримувані рівні зусилля для цієї моделі недоступні.",
   "model.none": "Автоматично",
   "model.low": "Низький",
   "model.medium": "Середній",

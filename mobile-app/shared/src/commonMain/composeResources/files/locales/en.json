@@ -76,7 +76,7 @@
   "model.search": "Find a model",
   "model.effort": "Effort",
   "model.change": "Change model",
-  "model.effortUnavailable": "This model manages its own reasoning effort.",
+  "model.effortUnavailable": "Supported effort levels are unavailable for this model.",
   "model.none": "Automatic",
   "model.low": "Low",
   "model.medium": "Medium",

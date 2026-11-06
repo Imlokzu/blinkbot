@@ -6,22 +6,18 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class EffortScaleTest {
-    @Test fun automaticIsItsOwnModeNotTheFirstStop() {
-        val scale = effortScale("none", listOf("none", "off", "low", "high"))
-        // Automatic used to be the leftmost dot next to Off and read as "minimum".
-        assertEquals(listOf("off", "low", "high"), scale.levels)
-        assertTrue(scale.automatic)
-        val off = effortScale("off", listOf("none", "off", "low", "high"))
-        assertFalse(off.automatic)
-        assertEquals(0, off.current)
+    @Test fun onlyRealHostStopsAreSelectable() {
+        val scale = effortScale("low", listOf("none", "", "low", "high", "high"))
+        assertEquals(listOf("low", "high"), scale.levels)
+        assertTrue(scale.supported)
+        assertEquals(0, scale.current)
     }
 
-    @Test fun theShownStopIsAlwaysTheSavedEffort() {
-        assertEquals(2, effortScale("high", listOf("none", "off", "low", "high")).current)
-        // A level this model does not list is shown as Automatic, which is what the
-        // controller normalizes it to before sending; nothing claims an unsent level.
-        val unsupported = effortScale("xhigh", listOf("none", "low"))
-        assertTrue(unsupported.automatic)
+    @Test fun unknownSelectionIsNotPresentedAsAutomaticOrARealLevel() {
+        assertEquals(1, effortScale("high", listOf("low", "high")).current)
+        val unsupported = effortScale("xhigh", listOf("low"))
+        assertFalse(unsupported.supported)
+        assertFalse(effortScale("none", listOf("low", "high")).supported)
         assertTrue(effortScale("none", emptyList()).levels.isEmpty())
     }
 }

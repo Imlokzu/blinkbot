@@ -121,6 +121,9 @@ def test_same_provider_fallback_is_request_local(monkeypatch):
                {"id": "a/two", "provider": "a", "available": True}]
 
     async def models(): return catalog
+    async def effort_profile(model):
+        assert model in {"a/one", "a/two"}
+        return {"efforts": ["high"], "effort_default": "high"}
     async def patch(method, params): patches.append((method, params)); return {}
     async def emit(event): emitted.append(event)
     async def gateway(*args, **kwargs):
@@ -130,6 +133,7 @@ def test_same_provider_fallback_is_request_local(monkeypatch):
         return "Answer", [], "a/two"
 
     monkeypatch.setattr(mobile_routing.openclaw_models, "catalog", models)
+    monkeypatch.setattr(mobile_routing.openclaw_models, "model_effort_profile", effort_profile)
     monkeypatch.setattr(mobile_routing.openclaw_control, "_rpc", patch)
     monkeypatch.setattr(brains, "chat_openclaw", gateway)
     handle = mobile_api._turn_options.set({"model": "a/one", "reasoning_effort": "high"})
@@ -257,6 +261,10 @@ def test_session_patch_distinguishes_clearing_effort_from_explicit_off(monkeypat
     async def models():
         return [{"id": "a/one", "provider": "a"}]
 
+    async def effort_profile(model):
+        assert model == "a/one"
+        return {"efforts": ["off"], "effort_default": "off"}
+
     async def patch(method, params):
         patches.append((method, params))
 
@@ -264,6 +272,7 @@ def test_session_patch_distinguishes_clearing_effort_from_explicit_off(monkeypat
         return "Answer", [], "a/one"
 
     monkeypatch.setattr(mobile_routing.openclaw_models, "catalog", models)
+    monkeypatch.setattr(mobile_routing.openclaw_models, "model_effort_profile", effort_profile)
     monkeypatch.setattr(mobile_routing.openclaw_control, "_rpc", patch)
     monkeypatch.setattr(brains, "chat_openclaw", gateway)
     handle = mobile_api._turn_options.set({"model": "a/one", "reasoning_effort": effort})

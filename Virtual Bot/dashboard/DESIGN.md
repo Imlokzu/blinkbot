@@ -1015,3 +1015,13 @@ the owner's clarified request is to remove the oversized footer.
   disables travel interpolation and enlargement. Idle controls stay still.
 - Preserve release-only pointer saves, direct keyboard saves, cancellation,
   rollback, unknown levels, and the distinction between Automatic and Off.
+
+
+## Verified effort profiles (2026-11-06)
+
+Chat effort choices come only from the selected provider/model/runtime's
+`efforts` and `effort_default` metadata. Do not prepend Automatic or fall back
+to a global list. Unknown and off-only profiles show unavailable without a
+slider. Switching models cancels gestures; writes name the model so an old
+popup cannot change another model's setting. A resolved default is displayed
+as its real level, with no invented extra mode.

@@ -43,6 +43,11 @@ JPEG = base64.b64decode(
 @pytest.fixture
 def phone_transport(isolated_turn, tmp_path, monkeypatch):
     store = isolated_turn
+    async def effort_profiles(force=False):
+        # Transport fixtures do not query the operator's gateway for metadata.
+        return {}
+
+    monkeypatch.setattr(main.openclaw_models, "effort_profiles", effort_profiles)
     monkeypatch.setattr(mobile_api, "_default_store", store)
     monkeypatch.setattr(main.cfg, "UPLOADS_DIR", tmp_path / "uploads")
     monkeypatch.setenv("MOBILE_API_ORIGIN", "https://phone.fixture.example")
@@ -267,6 +272,10 @@ def test_image_fallback_belongs_to_the_shared_gateway_not_the_phone_catalog(monk
         async def catalog():
             raise AssertionError("Images must not be gated by the phone catalog")
 
+        async def effort_profile(model):
+            assert model == "openai/sol"
+            return {"efforts": ["high"], "effort_default": "high"}
+
         async def rpc(method, params):
             patches.append(params)
             return {}
@@ -279,6 +288,7 @@ def test_image_fallback_belongs_to_the_shared_gateway_not_the_phone_catalog(monk
             events.append(event)
 
         monkeypatch.setattr(mobile_routing.openclaw_models, "catalog", catalog)
+        monkeypatch.setattr(mobile_routing.openclaw_models, "model_effort_profile", effort_profile)
         monkeypatch.setattr(mobile_routing.openclaw_control, "_rpc", rpc)
         monkeypatch.setattr(brains, "chat_openclaw", gateway)
         context = mobile_api._turn_options.set({"model": "openai/sol", "reasoning_effort": "high"})
