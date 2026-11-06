@@ -43,6 +43,30 @@ def test_failed_profile_refresh_removes_stale_selectable_options(monkeypatch):
     assert asyncio.run(openclaw_models.effort_profiles(force=True)) == {}
 
 
+def test_effort_write_invalidates_an_older_inflight_profile_read(monkeypatch):
+    async def check():
+        started, release = asyncio.Event(), asyncio.Event()
+        monkeypatch.setattr(openclaw_models, "_effort_lock", asyncio.Lock())
+
+        async def run(*args):
+            if args[0] == "gateway":
+                started.set()
+                await release.wait()
+                return 0, json.dumps({"models": [{"provider": "openai", "id": "one", "thinkingLevels": [{"id": "medium"}, {"id": "high"}], "thinkingDefault": "medium"}]}), ""
+            return 0, "", ""
+
+        monkeypatch.setattr(openclaw_models, "_run_cli", run)
+        read = asyncio.create_task(openclaw_models.effort_profiles())
+        await started.wait()
+        write = asyncio.create_task(openclaw_models.set_thinking("high"))
+        await asyncio.sleep(0)
+        assert not write.done()
+        release.set()
+        await asyncio.gather(read, write)
+        assert openclaw_models._effort_profiles is None
+    asyncio.run(check())
+
+
 def test_web_rejects_unsupported_or_stale_model_effort_before_writing(monkeypatch):
     monkeypatch.setattr(openclaw_models, "catalog", AsyncMock(return_value=[{"id": "openai/one", "is_default": True}]))
     monkeypatch.setattr(openclaw_models, "get_selected", lambda: "")

@@ -449,7 +449,10 @@ async def set_thinking(level: str) -> bool:
     if code != 0:
         log.warning("openclaw config %s: код %d (%s)", args[1], code, err.strip()[:120])
     else:
-        _effort_profiles = None
+        # A read started before the write must not republish the old default
+        # after invalidation. Wait for that reader, then clear its snapshot.
+        async with _effort_lock:
+            _effort_profiles = None
     return code == 0
 
 
