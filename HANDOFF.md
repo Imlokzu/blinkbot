@@ -1,5 +1,20 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-11-06 — Verified effort release: Blink 0.7.3 and dashboard
+
+Published Android 0.7.3/code 37 and the dashboard from clean `17a35cb1`
+client sources, with backend cache ordering fixed in `8a8bc910`. Only verified
+per-model efforts/defaults are exposed; unsupported or absent gateway profiles
+show unavailable. The gateway currently supplies an adjustable profile only
+for GPT-6.1 Sol. This does not assert other models cannot reason.
+
+Clean release, 440 Android/shared unit checks, 249 web checks, TypeScript and
+selected Python/race checks pass. Live APK and dashboard assets match their
+artifacts; update availability, static routes and traversal HTTP 400 pass.
+No simulator/browser runtime QA was completed, per owner instruction; Gradle
+was stopped. See docs/mobile-app/RELEASE-0.7.3.md for digest and limits.
+
+
 ## 2026-11-06 — Model-specific effort choices
 
 The shared catalog now reads thinkingLevels/thinkingDefault from the gateway
