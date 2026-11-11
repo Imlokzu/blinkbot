@@ -36,6 +36,7 @@ import me.waveio.claudebot.state.*
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.dp) {
+    val features = LocalChatFeatures.current
     val p = LocalPalette.current
     val reduced = LocalReducedMotion.current
     val landscape = LocalAdaptiveLayout.current.compactHeight
@@ -159,7 +160,7 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
                 }
                 if (state.uploading) LoadingDots(Modifier.padding(horizontal = 6.dp))
                 if (!landscape) Spacer(Modifier.weight(1f))
-                IconAction("mic", tr("input.microphone"), { keyboard?.hide(); actions.startDictation() })
+                if (features.dictation) IconAction("mic", tr("input.microphone"), { keyboard?.hide(); actions.startDictation() })
                 if (state.draft.isNotBlank() || state.attachments.isNotEmpty() || !state.busy) Box {
                     val enabled = !state.uploading && (state.draft.isNotBlank() || state.attachments.isNotEmpty())
                     val ready by animateFloatAsState(if (enabled) 1f else 0f, if (reduced) snap() else spring(dampingRatio = .45f, stiffness = 420f), label = "sendReady")
@@ -179,7 +180,7 @@ fun Composer(state: AppState, actions: AppActions, questionMaxHeight: Dp = 440.d
                         .graphicsLayer { scaleX = .86f + .14f * ready; scaleY = scaleX; if (flight?.active == true) alpha = 0f }.clip(CircleShape).background(fill)
                         .semantics { contentDescription = sendLabel; if (!enabled) disabled() }
                         .combinedClickable(interactionSource = null, indication = remember(p.background, reduced) { PressIndication(p.background, reduced) },
-                            enabled = enabled, role = Role.Button, onClick = { fire("queue") }, onLongClick = { actions.sendModes(true) }), contentAlignment = Alignment.Center) {
+                            enabled = enabled, role = Role.Button, onClick = { fire("queue") }, onLongClick = if (features.scheduling) ({ actions.sendModes(true) }) else null), contentAlignment = Alignment.Center) {
                         Glyph("send", modifier = Modifier.size(20.dp), tint = arrowTint)
                     }
                     MotionPopup(state.sendModeOpen, { actions.sendModes(false) }, Modifier.width(260.dp), Alignment.BottomEnd, IntOffset(0, popupRise), focusable = false) {
@@ -273,7 +274,7 @@ fun AttachmentMenu(state: AppState, actions: AppActions) {
             Hairline(Modifier.padding(vertical = 10.dp))
             MenuRow("skills", tr("input.skills"), { actions.attachments(false); actions.navigate(Screen.Skills) })
             MenuRow("folder", tr("files.root"), { actions.attachments(false); actions.navigate(Screen.Files) })
-            MenuRow("calendar", tr("queue.later"), { actions.attachments(false); actions.schedule(true) }, enabled = state.draft.isNotBlank() || state.attachments.isNotEmpty())
+            if (LocalChatFeatures.current.scheduling) MenuRow("calendar", tr("queue.later"), { actions.attachments(false); actions.schedule(true) }, enabled = state.draft.isNotBlank() || state.attachments.isNotEmpty())
         }
     }
 }

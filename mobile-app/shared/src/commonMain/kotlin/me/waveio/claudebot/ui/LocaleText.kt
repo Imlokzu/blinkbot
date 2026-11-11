@@ -8,6 +8,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import me.waveio.claudebot.resources.Res
 
 class LocaleText(private val values: Map<String, String>) {
+    /** A separate app can reuse the UI while supplying its own localized vocabulary. */
+    fun withOverrides(overrides: Map<String, String>): LocaleText = LocaleText(values + overrides)
     fun get(key: String, vararg arguments: Pair<String, Any>): String {
         var result = values[key] ?: key
         arguments.forEach { (name, value) -> result = result.replace("{$name}", value.toString()) }

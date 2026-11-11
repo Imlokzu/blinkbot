@@ -45,7 +45,12 @@ import androidx.compose.ui.layout.ContentScale
 import me.waveio.claudebot.state.*
 
 @Composable
-fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
+fun MobileShell(
+    state: AppState,
+    actions: AppActions,
+    reducedMotion: Boolean,
+    screenContent: (@Composable (Screen) -> Boolean)? = null,
+) {
     val palette = LocalPalette.current
     val wallpaperLayer = rememberGraphicsLayer()
     var wallpaperOrigin by remember { mutableStateOf(Offset.Zero) }
@@ -118,7 +123,7 @@ fun MobileShell(state: AppState, actions: AppActions, reducedMotion: Boolean) {
                             }
                         }, label = "screen") { screen ->
                         Box(Modifier.fillMaxSize().transitionInput(screen == state.screen)) {
-                        when (screen) {
+                        if (screenContent?.invoke(screen) != true) when (screen) {
                             Screen.Chat -> ChatSurface(state, actions, reducedMotion, topBarHeight(), wallpaperLayer, wallpaperOrigin) { TopBar(state.copy(screen = screen), actions, fileNavigation) }
                             Screen.Search -> SearchScreen(state, actions)
                             Screen.Files -> FilesScreen(state, actions, fileNavigation)
