@@ -1,5 +1,9 @@
 # Blink Mobile
 
+For direct API chat without a paired host, see the separate
+[Blink Chat Android app](standaloneApp/README.md). It installs alongside Blink
+and reuses this app's UI, with its own API key, model settings and local data.
+
 Kotlin Multiplatform / Compose client for the existing Blink host. Android
 builds and native UI flows are verified. Blink 0.4.16 also builds and launches in
 the iOS simulator, with 26 native tests passing. See the

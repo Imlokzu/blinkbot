@@ -1,5 +1,17 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-11-11 — Blink Chat standalone Android 0.1.0
+
+Added `mobile-app/standaloneApp` (`me.waveio.blinkchat`), installed beside the
+existing paired Blink app. It reuses the shared UI and calls a user-configured
+HTTPS provider directly: streaming text, photo understanding, image generation,
+model settings, private chat history and bounded workspace/image/clock tools.
+The key is encrypted with Android Keystore; endpoint/key updates commit together.
+Speech, video, downloadable skills and host scheduling are deferred.
+
+Build/setup: `mobile-app/standaloneApp/README.md`. Validation and current limits:
+`docs/mobile-app/BLINK-CHAT-0.1.0.md`. Existing Blink defaults remain enabled.
+
 ## 2026-11-06 — Verified effort release: Blink 0.7.3 and dashboard
 
 Published Android 0.7.3/code 37 and the dashboard from clean `17a35cb1`

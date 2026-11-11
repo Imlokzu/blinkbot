@@ -6,3 +6,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "ClaudeBotMobile"
 include(":shared", ":androidApp", ":desktopApp")
+include(":standaloneApp")
