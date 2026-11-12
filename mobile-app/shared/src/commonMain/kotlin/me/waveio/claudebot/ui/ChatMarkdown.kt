@@ -23,6 +23,9 @@ import com.mikepenz.markdown.compose.LocalMarkdownColors
 import com.mikepenz.markdown.compose.elements.MarkdownText
 import com.mikepenz.markdown.utils.getUnescapedTextInNode
 import com.mikepenz.markdown.m3.Markdown
+import com.mikepenz.markdown.m3.markdownTypography
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.unit.sp
 import com.mikepenz.markdown.model.rememberMarkdownState
 import com.mikepenz.markdown.model.markdownAnimations
 import org.intellij.markdown.flavours.gfm.GFMElementTypes
@@ -65,11 +68,28 @@ fun ChatMarkdown(text: String, streaming: Boolean = false, flowFromStart: Boolea
     }
     CompositionLocalProvider(LocalStreamTail provides renderedText.animateTail, LocalMathSpans provides formulas) {
         // The reveal window is bounded; only its fresh suffix drawing is softened.
-        Markdown(state, modifier = Modifier.wrapContentWidth(), components = components,
+        Markdown(state, typography = chatTypography(), modifier = Modifier.wrapContentWidth(), components = components,
             animations = markdownAnimations(animateTextSize = { this }),
             loading = { Text(renderedText.text, color = LocalPalette.current.ink) },
             error = { Text(renderedText.text, color = LocalPalette.current.ink) })
     }
+}
+
+/**
+ * Heading sizes for chat bubbles. The renderer's defaults map `#` to Material display styles
+ * (about 57sp), which turned an ordinary model heading into a poster inside a reply.
+ */
+@Composable
+private fun chatTypography() = MaterialTheme.typography.let { type ->
+    val heading = type.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+    markdownTypography(
+        h1 = heading.copy(fontSize = 22.sp, lineHeight = 28.sp),
+        h2 = heading.copy(fontSize = 20.sp, lineHeight = 26.sp),
+        h3 = heading.copy(fontSize = 18.sp, lineHeight = 24.sp),
+        h4 = heading.copy(fontSize = 16.sp, lineHeight = 22.sp),
+        h5 = heading.copy(fontSize = 15.sp, lineHeight = 21.sp),
+        h6 = heading.copy(fontSize = 14.sp, lineHeight = 20.sp),
+    )
 }
 
 /** Keep the renderer's annotated links/styles and layout; animate only drawing. */
