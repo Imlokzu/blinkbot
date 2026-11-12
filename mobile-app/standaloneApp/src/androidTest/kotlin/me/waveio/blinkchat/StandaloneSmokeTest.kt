@@ -198,7 +198,7 @@ class StandaloneSmokeTest {
             awaitCondition { !controller.state.value.loading }
             withContext(Dispatchers.Main) { controller.openChat("original"); controller.draft("Unsent original draft"); controller.newChat(); controller.draft("Unsent new draft"); controller.openChat("original") }
             assertEquals("Unsent original draft",controller.state.value.draft)
-            assertTrue("The old chat model disappeared from the picker",controller.state.value.models.any { it.id=="qwen4-max-preview" })
+            assertTrue("The old chat model disappeared from the picker",controller.state.value.models.any { it.id==ModelSelection(LEGACY_PROVIDER_ID,"qwen4-max-preview").pickerId() })
             withContext(Dispatchers.Main) { controller.newChat() }
             assertEquals("Unsent new draft",controller.state.value.draft)
             withContext(Dispatchers.Main) { controller.openChat("original"); controller.editMessage("u1"); controller.draft("Edited question"); controller.send() }

@@ -33,6 +33,7 @@ internal object ChatLimits {
     const val WORKSPACE_ENTRIES = 500
     const val PATH_LENGTH = 512
     const val SEGMENT_LENGTH = 255
+    const val API_KEY_CHARS = 512
 }
 
 private val TEXT_EXTENSIONS = setOf("md", "txt", "json", "csv", "html", "js", "css", "kt", "py")
@@ -125,43 +126,101 @@ class ChatStorage(context: Context) {
     private val secrets = settings
     private val lock = Any()
 
+    /**
+     * The provider book is the source of truth once it exists. A stored document that cannot be
+     * decoded or validated surfaces as a storage failure instead of being replaced by defaults,
+     * which would silently discard accounts together with their credentials.
+     */
+    fun loadProviderBook(): ProviderBook = synchronized(keystoreLock) {
+        synchronized(lock) { readBook() }
+    }
+
+    /**
+     * Config and credentials commit as one transaction. In [newKeys] an omitted account keeps its
+     * stored ciphertext, a present null or blank value removes it, and anything else is trimmed
+     * and re-encrypted under that account's own entry name.
+     */
+    fun saveProviderBook(book: ProviderBook, newKeys: Map<String, String?> = emptyMap()): Unit = synchronized(keystoreLock) {
+        synchronized(lock) {
+            validateProviderBook(book)
+            settings.getString(KEY_BOOK,null)?.let(::decodeBook)
+            val ids = book.providers.map { it.id }.toSet()
+            if (newKeys.keys.any { it !in ids }) throw ProviderFailure(ChatErrors.STORAGE)
+            val changes = mutableMapOf<String, String?>(KEY_BOOK to json.encodeToString(book))
+            // Accounts dropped from the book lose their ciphertext in the same transaction.
+            for (key in settings.all.keys) {
+                if (key.startsWith(PROVIDER_KEY_PREFIX) && key.removePrefix(PROVIDER_KEY_PREFIX) !in ids) changes[key] = null
+            }
+            for ((id, value) in newKeys) changes[providerKeyName(id)] = value?.let { credential(id, it) }
+            commitPreferences(changes)
+        }
+    }
+
+    /** Only the named account's credential is readable; a missing account never falls back to another one. */
+    fun readProviderApiKey(providerId: String): String? = synchronized(keystoreLock) {
+        synchronized(lock) {
+            if (readBook().providers.none { it.id == providerId }) null else readSecret(providerKeyName(providerId))
+        }
+    }
+
     fun loadSettings(): ProviderSettings = synchronized(lock) {
-        val raw = settings.getString(KEY_SETTINGS, null) ?: return@synchronized ProviderSettings()
-        decode(raw) { json.decodeFromString<ProviderSettings>(it) }
+        val stored = settings.getString(KEY_BOOK, null)
+        if (stored == null) {
+            val raw = settings.getString(KEY_SETTINGS, null) ?: return@synchronized ProviderSettings()
+            return@synchronized decode(raw) { json.decodeFromString<ProviderSettings>(it) }
+        }
+        val book = decodeBook(stored)
+        defaultAccount(book).settings.copy(chatModel = book.defaultChat.modelId, systemPrompt = book.systemPrompt, toolsEnabled = book.toolsEnabled)
     }
 
     /** The settings document never carries the API key; that lives only in [writeApiKey]. */
-    fun saveSettings(value: ProviderSettings) = synchronized(lock) {
-        val committed = settings.edit().putString(KEY_SETTINGS, json.encodeToString(value)).commit()
-        if (!committed) throw ProviderFailure(ChatErrors.STORAGE)
+    fun saveSettings(value: ProviderSettings): Unit = synchronized(lock) {
+        val stored = settings.getString(KEY_BOOK, null)
+        if (stored == null) {
+            commitPreferences(mapOf(KEY_SETTINGS to json.encodeToString(value)))
+        } else {
+            val book = withDefaultAccount(decodeBook(stored), value)
+            validateProviderBook(book)
+            commitPreferences(mapOf(KEY_BOOK to json.encodeToString(book)))
+        }
     }
 
     /** Endpoint changes and their encrypted credential commit as one preference transaction. */
-    fun saveConnection(value: ProviderSettings, newKey: String?) = synchronized(keystoreLock) {
+    fun saveConnection(value: ProviderSettings, newKey: String?): Unit = synchronized(keystoreLock) {
         synchronized(lock) {
-            val previousSettings = settings.getString(KEY_SETTINGS, null)
-            val previousCiphertext = settings.getString(API_KEY, null)
-            val edit = settings.edit().putString(KEY_SETTINGS, json.encodeToString(value))
-            if (newKey != null) {
-                if (newKey.isBlank()) edit.remove(API_KEY)
-                else edit.putString(API_KEY, encryptSecret(API_KEY, newKey))
-            }
-            if (!edit.commit()) {
-                // SharedPreferences changes its memory cache even when the disk commit fails.
-                // Restore the matching old pair before the controller can make another request.
-                settings.edit().apply {
-                    if (previousSettings == null) remove(KEY_SETTINGS) else putString(KEY_SETTINGS, previousSettings)
-                    if (previousCiphertext == null) remove(API_KEY) else putString(API_KEY, previousCiphertext)
-                }.commit()
-                throw ProviderFailure(ChatErrors.STORAGE)
+            val stored = settings.getString(KEY_BOOK, null)
+            if (stored == null) {
+                val changes = mutableMapOf<String, String?>(KEY_SETTINGS to json.encodeToString(value))
+                if (newKey != null) changes[API_KEY] = if (newKey.isBlank()) null else encryptSecret(API_KEY, newKey)
+                commitPreferences(changes)
+            } else {
+                val book = withDefaultAccount(decodeBook(stored), value)
+                validateProviderBook(book)
+                val id = book.defaultChat.providerId
+                val changes = mutableMapOf<String, String?>(KEY_BOOK to json.encodeToString(book))
+                if (newKey != null) changes[providerKeyName(id)] = credential(id, newKey)
+                commitPreferences(changes)
             }
         }
     }
 
-    fun readApiKey(): String? = synchronized(keystoreLock) { readSecret(API_KEY) }
+    fun readApiKey(): String? = synchronized(keystoreLock) {
+        synchronized(lock) {
+            val stored = settings.getString(KEY_BOOK, null)
+            if (stored == null) readSecret(API_KEY) else readSecret(providerKeyName(decodeBook(stored).defaultChat.providerId))
+        }
+    }
 
-    fun writeApiKey(value: String?) = synchronized(keystoreLock) {
-        try { writeSecret(API_KEY, value) } catch (_: Exception) { throw ProviderFailure(ChatErrors.STORAGE) }
+    fun writeApiKey(value: String?): Unit = synchronized(keystoreLock) {
+        synchronized(lock) {
+            val stored = settings.getString(KEY_BOOK, null)
+            if (stored == null) {
+                try { writeSecret(API_KEY, value) } catch (_: Exception) { throw ProviderFailure(ChatErrors.STORAGE) }
+            } else {
+                val id = decodeBook(stored).defaultChat.providerId
+                commitPreferences(mapOf(providerKeyName(id) to value?.let { credential(id, it) }))
+            }
+        }
     }
 
     fun loadChats(): List<StoredChat> = synchronized(lock) {
@@ -340,10 +399,63 @@ class ChatStorage(context: Context) {
 
     private fun keyStore(): KeyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
 
+    /** Called with both locks held: migration never leaves a new book paired with an old key. */
+    private fun readBook(): ProviderBook {
+        settings.getString(KEY_BOOK,null)?.let { return decodeBook(it) }
+        val legacy = loadSettings()
+        val book = ProviderBook.legacy(legacy)
+        validateProviderBook(book)
+        val key = readSecret(API_KEY)
+        val changes = mutableMapOf<String,String?>(KEY_BOOK to json.encodeToString(book),KEY_SETTINGS to null)
+        // An unreadable legacy key must not make all readable chats/settings unusable.
+        // Retain its ciphertext while allowing the owner to paste a replacement key.
+        if (!settings.contains(API_KEY) || key != null) changes[API_KEY] = null
+        if (key != null) changes[providerKeyName(LEGACY_PROVIDER_ID)] = credential(LEGACY_PROVIDER_ID,key)
+        commitPreferences(changes)
+        return book
+    }
+
+    private fun decodeBook(raw: String): ProviderBook = try {
+        json.decodeFromString<ProviderBook>(raw).also(::validateProviderBook)
+    } catch (_: Exception) { throw ProviderFailure(ChatErrors.STORAGE) }
+
+    private fun defaultAccount(book: ProviderBook): ProviderAccount =
+        book.account(book.defaultChat.providerId) ?: throw ProviderFailure(ChatErrors.STORAGE)
+
+    private fun withDefaultAccount(book: ProviderBook, value: ProviderSettings): ProviderBook {
+        val account = defaultAccount(book)
+        val updated = account.copy(settings=value,chatModels=(account.chatModels+value.chatModel).distinct(),imageModels=(account.imageModels+value.imageModel).distinct())
+        return book.copy(providers=book.providers.map { if (it.id==account.id) updated else it },
+            defaultChat=ModelSelection(account.id,value.chatModel),
+            defaultImage=if (book.defaultImage.providerId==account.id && value.imageModel!=account.settings.imageModel) ModelSelection(account.id,value.imageModel) else book.defaultImage,
+            systemPrompt=value.systemPrompt,toolsEnabled=value.toolsEnabled)
+    }
+
+    private fun providerKeyName(id: String) = "$PROVIDER_KEY_PREFIX$id"
+
+    private fun credential(id: String, value: String): String? {
+        if (value.length>8192 || value.any(Char::isISOControl)) throw ProviderFailure("standalone.error.settings")
+        return value.trim().takeIf(String::isNotEmpty)?.let { encryptSecret(providerKeyName(id),it) }
+    }
+
+    private fun commitPreferences(changes: Map<String,String?>) {
+        val before=changes.keys.associateWith { settings.getString(it,null) }
+        fun write(values: Map<String,String?>): Boolean = settings.edit().apply {
+            values.forEach { (key,value) -> if (value==null) remove(key) else putString(key,value) }
+        }.commit()
+        if (!write(changes)) {
+            // A failed commit already updated SharedPreferences' memory cache.
+            write(before)
+            throw ProviderFailure(ChatErrors.STORAGE)
+        }
+    }
+
     companion object {
         const val API_KEY = "api_key"
         private const val SETTINGS_FILE = "chat-settings"
         private const val KEY_SETTINGS = "provider.settings.v1"
+        private const val KEY_BOOK = "provider.book.v2"
+        private const val PROVIDER_KEY_PREFIX = "api.provider."
         private const val CHATS_FILE = "chats.json"
         private const val MEDIA_DIR = "media"
         private const val WORKSPACE_DIR = "workspace"

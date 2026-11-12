@@ -33,6 +33,14 @@ class ChatController(
     val state = mutable.asStateFlow()
     private val config = MutableStateFlow(ProviderSettings())
     val settings = config.asStateFlow()
+    private val books = MutableStateFlow(ProviderBook.legacy(ProviderSettings()))
+    val providerBook = books.asStateFlow()
+    private val keyedProviders = MutableStateFlow<Set<String>>(emptySet())
+    val providerKeys = keyedProviders.asStateFlow()
+    private val savingProvider = MutableStateFlow(false)
+    val providerSaving = savingProvider.asStateFlow()
+    private var newChatModel = books.value.defaultChat
+    private var newImageModel = books.value.defaultImage
     private val keyPresent = MutableStateFlow(false)
     val hasApiKey = keyPresent.asStateFlow()
     private val generating = MutableStateFlow(false)
@@ -46,7 +54,6 @@ class ChatController(
     private val dirtyNote = MutableStateFlow(false)
     val workspaceDirty = dirtyNote.asStateFlow()
     private var chats = emptyList<StoredChat>()
-    private var catalog = emptyList<String>()
     private var request: Job? = null
     private var modelRequest: Job? = null
     private var activeSession: String? = null
@@ -56,6 +63,9 @@ class ChatController(
     private var noteDebounce: Job? = null
     private var workspaceRecoveryReadable = true
     private val settingsLock = Mutex()
+    private var providerEditorOwner: String? = null
+    private var providerEditorBack: (() -> Unit)? = null
+    private var providerEditorLeave: ((() -> Unit) -> Unit)? = null
     private val writes = Channel<List<StoredChat>>(Channel.CONFLATED)
     private val writer: Job
 
@@ -70,13 +80,19 @@ class ChatController(
         scope.launch {
             try {
                 val restored = withContext(Dispatchers.IO) {
-                    Triple(storage.loadSettings(), storage.loadChats(), storage.readApiKey())
+                    val book = storage.loadProviderBook()
+                    Triple(book, storage.loadChats(), book.providers.filter { !storage.readProviderApiKey(it.id).isNullOrBlank() }.map { it.id }.toSet())
                 }
-                config.value = restored.first
-                chats = restored.second.map { c -> c.copy(messages = c.messages
+                books.value = restored.first
+                newChatModel = restored.first.defaultChat
+                newImageModel = restored.first.defaultImage
+                keyedProviders.value = restored.third
+                syncProviderSettings()
+                chats = restored.second.map { c -> c.copy(imageModel = c.imageModel.ifBlank {
+                    restored.first.account(c.imageProviderId)?.settings?.imageModel.orEmpty()
+                }, messages = c.messages
                     .filterNot { it.role == "assistant" && it.text.isBlank() && it.attachments.isEmpty() && it.steps.isEmpty() }
                     .map { m -> m.copy(steps = m.steps.map { if (it.status == "running") it.copy(status = "interrupted") else it }) }) }
-                keyPresent.value = !restored.third.isNullOrBlank()
                 var recoveredPreference = false
                 val prefs = runCatching { platform.readPreference("preferences.v1")?.let { json.decodeFromString<Preferences>(it) } ?: Preferences() }
                     .onFailure { recoveredPreference = true }.getOrDefault(Preferences())
@@ -92,7 +108,7 @@ class ChatController(
                 storageReady = true
                 update { it.copy(preferences = prefs, draft = draft.text, attachments = draft.attachments.map { m -> DraftAttachment(m.path,m.name,m.mimeType,m.size) }, loading = false, screen = if (keyPresent.value) Screen.Chat else Screen.Profile,
                     selectedModel = config.value.chatModel, baseUrl = config.value.baseUrl, customWallpaper = wallpaper,
-                    installedVersion = "0.1.0", error = if (recoveredPreference) "standalone.error.storage" else null) }
+                    installedVersion = platform.appVersionName, error = if (recoveredPreference) "standalone.error.storage" else null) }
                 publish()
                 refreshWorkspace()
             } catch (cancelled: CancellationException) { throw cancelled }
@@ -114,12 +130,29 @@ class ChatController(
             .onFailure { fail("standalone.error.storage") }
     }
     private fun current() = chats.firstOrNull { it.id == state.value.sessionId }
+    private fun chatSelection(chat: StoredChat? = current()) = chat?.let { ModelSelection(it.providerId,it.model) } ?: newChatModel
+    private fun imageSelection(chat: StoredChat? = current()) = chat?.let { ModelSelection(it.imageProviderId,it.imageModel) } ?: newImageModel
+    private fun syncProviderSettings() {
+        val book = books.value
+        val account = book.account(book.defaultChat.providerId) ?: return
+        config.value = account.settings.copy(chatModel = book.defaultChat.modelId, systemPrompt = book.systemPrompt, toolsEnabled = book.toolsEnabled)
+        keyPresent.value = book.defaultChat.providerId in keyedProviders.value
+    }
     private fun publish() {
         val chat = current()
-        val providerName = runCatching { java.net.URI(config.value.baseUrl).host }.getOrNull().orEmpty()
-        val models = (catalog + config.value.chatModel + listOfNotNull(chat?.model)).filter(String::isNotBlank).distinct().map {
-            ModelRow(it, it, providerName, if (it.startsWith("qwen")) "qwen" else "", vision = null)
-        } + ModelRow("image:${config.value.imageModel}", config.value.imageModel, providerName, if (config.value.imageModel.startsWith("qwen") || config.value.imageModel.startsWith("wan")) "qwen" else "")
+        val book = books.value
+        val selectedChat = chatSelection(chat)
+        val selectedImage = imageSelection(chat)
+        val models = book.providers.flatMap { account ->
+            val chatIds = account.chatModels + listOfNotNull(selectedChat.modelId.takeIf { selectedChat.providerId == account.id })
+            val imageIds = account.imageModels + listOfNotNull(selectedImage.modelId.takeIf { selectedImage.providerId == account.id })
+            chatIds.distinct().map { model -> ModelRow(ModelSelection(account.id,model).pickerId(), model, account.name,
+                if (model.startsWith("qwen")) "qwen" else "", vision = null) } +
+                imageIds.distinct().map { model -> ModelRow(ModelSelection(account.id,model).pickerId(true), model, account.name,
+                    if (model.startsWith("qwen") || model.startsWith("wan")) "qwen" else "") }
+        } + listOf(selectedChat to false, selectedImage to true).filter { book.account(it.first.providerId) == null }.map { (selection,image) ->
+            ModelRow(selection.pickerId(image), selection.modelId, selection.providerId, "", available = false)
+        }
         update { it.copy(
             conversations = chats.sortedByDescending(StoredChat::updatedAt).map { c -> ConversationRow(c.id, c.title, c.updatedAt, c.messages.lastOrNull()?.text.orEmpty().take(160)) },
             messages = chat?.messages.orEmpty().map { m -> MessageRow(m.id, m.role, m.text, model = m.model, timestamp = m.timestamp,
@@ -127,7 +160,7 @@ class ChatController(
                 reactions = m.reactions, steps = m.steps.map { step -> ActivityRow(step.id, step.name, status = step.status) },
                 attachments = m.attachments.map { media -> DraftAttachment(media.path, media.name, media.mimeType, media.size) }) },
             models = models,
-            selectedModel = if (generating.value) "image:${config.value.imageModel}" else chat?.model ?: config.value.chatModel,
+            selectedModel = if (generating.value) selectedImage.pickerId(true) else selectedChat.pickerId(),
             busy = request?.isActive == true && activeSession == it.sessionId,
         ) }
     }
@@ -143,49 +176,132 @@ class ChatController(
         changeChat(session) { c -> c.copy(messages = c.messages.map { if (it.id == messageId) transform(it) else it }) }
     }
 
-    fun saveProvider(value: ProviderSettings, newKey: String?, onSaved: () -> Unit = {}) {
+    /** All book edits and key updates share one lock and one persistent transaction. */
+    private fun changeProviders(newKeys: Map<String, String?> = emptyMap(), onSaved: () -> Unit = {}, transform: (ProviderBook) -> ProviderBook) {
         if (!storageReady) { fail("standalone.error.storage"); return }
         if (request?.isActive == true) { fail("standalone.error.busy"); return }
-        try { ProviderClient.validateSettings(value) } catch (_: Exception) { fail("standalone.error.settings"); return }
-        if (newKey != null && (newKey.contains('\n') || newKey.contains('\r'))) { fail("standalone.error.settings"); return }
         scope.launch {
             try {
                 settingsLock.withLock {
-                if (request?.isActive == true) { fail("standalone.error.busy"); return@withLock }
-                modelRequest?.cancel()
-                withContext(Dispatchers.IO) {
-                    storage.saveConnection(value, newKey?.trim())
-                }
-                if (value.baseUrl != config.value.baseUrl) { catalog = emptyList(); modelRequest?.cancel() }
-                config.value = value
-                keyPresent.value = withContext(Dispatchers.IO) { !storage.readApiKey().isNullOrBlank() }
-                update { it.copy(baseUrl = value.baseUrl, error = null, notice = "standalone.saved") }
-                publish()
-                onSaved()
+                    savingProvider.value = true
+                    try {
+                        if (request?.isActive == true) throw ProviderFailure("standalone.error.busy")
+                        val previous = books.value
+                        val updated = transform(previous)
+                        validateProviderBook(updated)
+                        modelRequest?.cancel()
+                        val keys = withContext(Dispatchers.IO) {
+                            storage.saveProviderBook(updated,newKeys)
+                            updated.providers.filter { !storage.readProviderApiKey(it.id).isNullOrBlank() }.map { it.id }.toSet()
+                        }
+                        books.value = updated
+                        keyedProviders.value = keys
+                        if (newChatModel == previous.defaultChat || updated.account(newChatModel.providerId) == null) newChatModel = updated.defaultChat
+                        if (newImageModel == previous.defaultImage || updated.account(newImageModel.providerId) == null) newImageModel = updated.defaultImage
+                        syncProviderSettings()
+                        update { it.copy(baseUrl = config.value.baseUrl, error = null, notice = "standalone.saved") }
+                        publish()
+                        onSaved()
+                    } finally { savingProvider.value = false }
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { fail("standalone.error.storage") }
+            catch (error: Exception) { fail((error as? ProviderFailure)?.key ?: "standalone.error.storage") }
         }
     }
 
-    fun refreshModels() {
+    fun saveAccount(account: ProviderAccount, newKey: String?, onSaved: () -> Unit = {}) {
+        if (newKey != null && (newKey.length > 8192 || newKey.any(Char::isISOControl))) { fail("standalone.error.settings"); return }
+        val normalized = account.copy(name = account.name.trim(),
+            chatModels = (listOf(account.settings.chatModel) + account.chatModels).map(String::trim).filter(String::isNotEmpty).distinct(),
+            imageModels = (listOf(account.settings.imageModel) + account.imageModels).map(String::trim).filter(String::isNotEmpty).distinct())
+        changeProviders(if (newKey == null) emptyMap() else mapOf(account.id to newKey.trim()), onSaved) { book ->
+            val profiles = if (book.account(account.id) == null) book.providers + normalized else book.providers.map { if (it.id == account.id) normalized else it }
+            book.copy(providers = profiles,
+                defaultChat = if (book.defaultChat.providerId == account.id && book.defaultChat.modelId !in normalized.chatModels) ModelSelection(account.id,normalized.settings.chatModel) else book.defaultChat,
+                defaultImage = if (book.defaultImage.providerId == account.id && book.defaultImage.modelId !in normalized.imageModels) ModelSelection(account.id,normalized.settings.imageModel) else book.defaultImage)
+        }
+    }
+
+    fun deleteProvider(id: String, onDeleted: () -> Unit = {}) = changeProviders(onSaved = onDeleted) { book ->
+        if (book.account(id) == null) throw ProviderFailure("standalone.providers.missing")
+        val remaining = book.providers.filterNot { it.id == id }
+        if (remaining.isEmpty()) throw ProviderFailure("standalone.providers.last")
+        val fallback = remaining.first()
+        book.copy(providers = remaining,
+            defaultChat = if (book.defaultChat.providerId == id) ModelSelection(fallback.id,fallback.settings.chatModel) else book.defaultChat,
+            defaultImage = if (book.defaultImage.providerId == id) ModelSelection(fallback.id,fallback.settings.imageModel) else book.defaultImage)
+    }
+
+    fun setDefaultModel(selection: ModelSelection, image: Boolean) = changeProviders { book ->
+        if (image) book.copy(defaultImage = selection) else book.copy(defaultChat = selection)
+    }
+
+    fun savePersonalization(prompt: String) = changeProviders { it.copy(systemPrompt = prompt) }
+    fun setToolsEnabled(enabled: Boolean) = changeProviders { it.copy(toolsEnabled = enabled) }
+
+    /** Personalization remains global; this also preserves the original single-provider API. */
+    fun saveProvider(value: ProviderSettings, newKey: String?, onSaved: () -> Unit = {}) {
+        val targetId = books.value.defaultChat.providerId
+        if (newKey != null && (newKey.length > 8192 || newKey.any(Char::isISOControl))) { fail("standalone.error.settings"); return }
+        changeProviders(if (newKey == null) emptyMap() else mapOf(targetId to newKey.trim()),onSaved) { book ->
+            val account = book.account(targetId) ?: throw ProviderFailure("standalone.providers.missing")
+            val updated = account.copy(settings = value,chatModels = (account.chatModels + value.chatModel).distinct(),imageModels = (account.imageModels + value.imageModel).distinct())
+            book.copy(providers = book.providers.map { if (it.id == targetId) updated else it },
+                defaultChat = ModelSelection(targetId,value.chatModel),
+                defaultImage = if (book.defaultImage.providerId == targetId && value.imageModel != account.settings.imageModel) ModelSelection(targetId,value.imageModel) else book.defaultImage,
+                systemPrompt = value.systemPrompt,toolsEnabled = value.toolsEnabled)
+        }
+    }
+
+    fun refreshModels() = refreshProviderModels(books.value.defaultChat.providerId)
+
+    fun refreshProviderModels(providerId: String) {
         if (settingsLock.isLocked) { fail("standalone.error.busy"); return }
         modelRequest?.cancel()
-        val saved = config.value
+        val account = books.value.account(providerId) ?: run { fail("standalone.providers.missing"); return }
         modelRequest = scope.launch {
             update { it.copy(modelsLoading = true, error = null) }
             try {
-                val key = withContext(Dispatchers.IO) { storage.readApiKey() }.orEmpty()
+                val key = withContext(Dispatchers.IO) { storage.readProviderApiKey(providerId) }.orEmpty()
                 if (key.isBlank()) throw ProviderFailure("standalone.error.key")
-                val result = provider.models(saved, key)
-                if (saved == config.value) { catalog = result; publish() }
+                val result = provider.models(account.settings, key)
+                settingsLock.withLock {
+                    // Ignore a catalog whose account changed or was removed while it loaded.
+                    if (books.value.account(providerId) != account) return@withLock
+                    val next = books.value.copy(providers = books.value.providers.map {
+                        if (it.id == providerId) it.copy(chatModels = (it.chatModels + result).distinct().take(512)) else it
+                    })
+                    withContext(Dispatchers.IO) { storage.saveProviderBook(next) }
+                    books.value = next
+                    publish()
+                }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) { fail((error as? ProviderFailure)?.key ?: "standalone.error.network") }
             finally { if (modelRequest === currentCoroutineContext()[Job]) update { it.copy(modelsLoading = false) } }
         }
     }
 
-    override fun navigate(screen: Screen) { update { it.copy(screen = screen, menuOpen = false, modelPickerOpen = false, attachmentPickerOpen = false, error = null) } }
+    fun providerEditorNavigation(owner: String, back: () -> Unit, leave: (() -> Unit) -> Unit) {
+        providerEditorOwner = owner; providerEditorBack = back; providerEditorLeave = leave
+    }
+    fun clearProviderEditorNavigation(owner: String) {
+        if (providerEditorOwner == owner) { providerEditorOwner = null; providerEditorBack = null; providerEditorLeave = null }
+    }
+    private fun guardProviderExit(action: () -> Unit): Boolean {
+        val guard = providerEditorLeave?.takeIf { state.value.screen == Screen.Models } ?: return false
+        guard {
+            providerEditorOwner?.let(::clearProviderEditorNavigation)
+            action()
+        }
+        return true
+    }
+    override fun navigate(screen: Screen) {
+        if (screen != Screen.Models && state.value.screen == Screen.Models) {
+            if (screen == Screen.Profile && providerEditorBack != null) { providerEditorBack?.invoke(); return }
+            if (guardProviderExit { navigate(screen) }) return
+        }
+        update { it.copy(screen = screen, menuOpen = false, modelPickerOpen = false, attachmentPickerOpen = false, error = null) }
+    }
     override fun menu(open: Boolean) { update { it.copy(menuOpen = open) } }
     override fun modelPicker(open: Boolean) { update { it.copy(modelPickerOpen = open) } }
     override fun attachments(open: Boolean) { update { it.copy(attachmentPickerOpen = open) } }
@@ -195,14 +311,18 @@ class ChatController(
         saveDraft()
     }
     override fun newChat() {
+        if (guardProviderExit(::newChat)) return
         saveDraft(); ++draftEpoch
         val restored = runCatching { loadDraft("") }.getOrDefault(StoredDraft())
         generating.value = false
+        newChatModel = books.value.defaultChat
+        newImageModel = books.value.defaultImage
         update { it.copy(sessionId = "", messages = emptyList(), draft = restored.text, attachments = restored.attachments.map { m -> DraftAttachment(m.path,m.name,m.mimeType,m.size) }, editingMessageId = restored.editingMessageId,
             screen = Screen.Chat, menuOpen = false, modelPickerOpen = false, busy = false) }
         publish()
     }
     override fun openChat(id: String) {
+        if (guardProviderExit { openChat(id) }) return
         val target = chats.firstOrNull { it.id == id } ?: return
         saveDraft(); ++draftEpoch
         val restored = runCatching { loadDraft(id) }.getOrDefault(StoredDraft())
@@ -219,12 +339,18 @@ class ChatController(
     }
     override fun search(value: String) { update { it.copy(search = value) } }
     override fun selectModel(id: String) {
-        if (id.startsWith("image:")) setImageMode(true)
-        else {
-            generating.value = false
-            if (current() != null) { changeChat(state.value.sessionId) { it.copy(model = id, imageMode = false) }; persist() }
-            else saveProvider(config.value.copy(chatModel = id), null)
-        }
+        val parsed = parseModelSelection(id) ?: run { fail("standalone.error.settings"); return }
+        val (selection,image) = parsed
+        val account = books.value.account(selection.providerId) ?: run { fail("standalone.providers.missing"); return }
+        if (selection.modelId !in (if (image) account.imageModels else account.chatModels) &&
+            selection != (if (image) imageSelection() else chatSelection())) { fail("standalone.error.settings"); return }
+        generating.value = image
+        val chat = current()
+        if (chat != null) {
+            changeChat(chat.id) { if (image) it.copy(imageProviderId = selection.providerId,imageModel = selection.modelId,imageMode = true)
+                else it.copy(providerId = selection.providerId,model = selection.modelId,imageMode = false) }
+            persist()
+        } else if (image) newImageModel = selection else newChatModel = selection
         update { it.copy(modelPickerOpen = false) }; publish()
     }
     override fun selectEffort(value: String) { update { it.copy(effort = "none", modelPickerOpen = false) } }
@@ -241,13 +367,16 @@ class ChatController(
         if (request?.isActive == true || settingsLock.isLocked) { fail("standalone.error.busy"); return }
         val snapshot = state.value
         if (snapshot.draft.isBlank() && snapshot.attachments.isEmpty()) return
-        if (!keyPresent.value) { navigate(Screen.Models); fail("standalone.error.key"); return }
+        val target = if (generating.value) imageSelection() else chatSelection()
+        if (books.value.account(target.providerId) == null) { fail("standalone.providers.missing"); return }
+        if (target.providerId !in keyedProviders.value) { navigate(Screen.Models); fail("standalone.error.key"); return }
         if (generating.value && (snapshot.draft.isBlank() || snapshot.attachments.isNotEmpty())) { fail("standalone.image.prompt"); return }
         ++draftEpoch
         val existing = current()
         // Editing creates a branch, retaining the original turn and every later reply.
         val chat = when {
-            existing == null -> StoredChat(id(), snapshot.draft.trim().take(70).ifBlank { snapshot.attachments.first().name }, config.value.chatModel, platform.nowMillis()/1000, imageMode = generating.value)
+            existing == null -> StoredChat(id(), snapshot.draft.trim().take(70).ifBlank { snapshot.attachments.first().name }, newChatModel.modelId, platform.nowMillis()/1000,
+                imageMode = generating.value, providerId = newChatModel.providerId, imageProviderId = newImageModel.providerId, imageModel = newImageModel.modelId)
             snapshot.editingMessageId != null -> existing.copy(id = id(), updatedAt = platform.nowMillis()/1000,
                 messages = existing.messages.takeWhile { it.id != snapshot.editingMessageId })
             else -> existing
@@ -255,29 +384,33 @@ class ChatController(
         if (chat !== existing) chats = chats + chat
         update { it.copy(sessionId = chat.id) }
         val session = chat.id
-        val model = chat.model
         val imageRequest = generating.value
-        val saved = config.value.copy(chatModel = model)
-        val user = StoredMessage(id(), "user", snapshot.draft, attachments = snapshot.attachments.map { StoredMedia(it.path, it.name, it.mimeType, it.size) }, timestamp = platform.nowMillis()/1000)
+        val user = StoredMessage(id(), "user", snapshot.draft, attachments = snapshot.attachments.map { StoredMedia(it.path, it.name, it.mimeType, it.size) }, timestamp = platform.nowMillis()/1000, providerId = target.providerId)
         saveDraft(snapshot.sessionId, StoredDraft())
         append(session, user)
         update { it.copy(attachments = emptyList(), editingMessageId = null, sendModeOpen = false, error = null) }
         draft("")
-        launchReply(session, saved, imageRequest, user.text)
+        launchReply(session, chatSelection(chat), imageSelection(chat), imageRequest, user.text)
     }
 
-    private fun launchReply(session: String, saved: ProviderSettings, imageRequest: Boolean, prompt: String) {
+    private fun launchReply(session: String, textModel: ModelSelection, imageModel: ModelSelection, imageRequest: Boolean, prompt: String) {
+        val book = books.value
+        val target = if (imageRequest) imageModel else textModel
+        val account = book.account(target.providerId) ?: run { fail("standalone.providers.missing"); return }
+        val saved = account.settings.copy(chatModel = textModel.modelId, imageModel = imageModel.modelId, systemPrompt = book.systemPrompt, toolsEnabled = book.toolsEnabled)
+        val imageAccount = book.account(imageModel.providerId)
+        val imageSettings = imageAccount?.settings?.copy(imageModel = imageModel.modelId)
         activeSession = session
         val replyId = id()
-        append(session, StoredMessage(replyId, "assistant", "", timestamp = platform.nowMillis()/1000, kind = if (imageRequest) "image" else "text"))
+        append(session, StoredMessage(replyId, "assistant", "", timestamp = platform.nowMillis()/1000, kind = if (imageRequest) "image" else "text", providerId = target.providerId))
         request = scope.launch(start = CoroutineStart.LAZY) {
             try {
-                val key = withContext(Dispatchers.IO) { storage.readApiKey() }.orEmpty()
+                val key = withContext(Dispatchers.IO) { storage.readProviderApiKey(target.providerId) }.orEmpty()
                 if (key.isBlank()) throw ProviderFailure("standalone.error.key")
                 if (imageRequest) {
-                    val image = provider.generateImage(saved, key, prompt)
+                    val image = provider.generateImage(imageSettings ?: throw ProviderFailure("standalone.providers.missing"), key, prompt)
                     val media = withContext(Dispatchers.IO) { storage.saveMedia(image.bytes, "image.png", image.mimeType) }
-                    updateReply(session, replyId) { it.copy(model = saved.imageModel, attachments = listOf(media)) }
+                    updateReply(session, replyId) { it.copy(model = imageModel.modelId, attachments = listOf(media)) }
                 } else {
                     val history = withContext(Dispatchers.IO) {
                         chats.first { it.id == session }.messages.filter { it.id != replyId && !(it.role == "assistant" && it.text.isBlank() && it.attachments.isEmpty()) }.map { m ->
@@ -302,7 +435,7 @@ class ChatController(
                         for (call in reply.toolCalls) {
                             if (++count > 12 || !seenCalls.add(call.id)) throw ProviderFailure("standalone.tool.limit")
                             updateReply(session, replyId) { it.copy(steps = it.steps + StoredStep(call.id, call.name, "running")) }
-                            val result = executeTool(call, saved, key, resultMedia)
+                            val result = executeTool(call, imageAccount?.id, imageSettings, resultMedia)
                             updateReply(session, replyId) { it.copy(steps = it.steps.map { step -> if (step.id == call.id) step.copy(status = if (result.startsWith("{\"error\":")) "error" else "done") else step }) }
                             if (resultMedia.isNotEmpty()) updateReply(session, replyId) { it.copy(attachments = resultMedia.toList()) }
                             history += ApiMessage("tool", result, toolCallId = call.id)
@@ -329,7 +462,7 @@ class ChatController(
         request?.start(); publish()
     }
 
-    private suspend fun executeTool(call: ApiToolCall, saved: ProviderSettings, key: String, images: MutableList<StoredMedia>): String {
+    private suspend fun executeTool(call: ApiToolCall, imageProviderId: String?, imageSettings: ProviderSettings?, images: MutableList<StoredMedia>): String {
         try {
             if (call.arguments.length > 600_000) throw ProviderFailure("standalone.error.limit")
             validateJsonNesting(call.arguments)
@@ -342,7 +475,10 @@ class ChatController(
                 "write_file" -> withContext(Dispatchers.IO) { storage.writeWorkspace(arg("path"), arg("content")); "{\"saved\":true}" }.also { refreshWorkspace() }
                 "generate_image" -> {
                     if (images.size >= 4) throw ProviderFailure("standalone.error.limit")
-                    val image = provider.generateImage(saved, key, arg("prompt"))
+                    if (imageProviderId == null || imageSettings == null) throw ProviderFailure("standalone.providers.missing")
+                    val imageKey = withContext(Dispatchers.IO) { storage.readProviderApiKey(imageProviderId) }.orEmpty()
+                    if (imageKey.isBlank()) throw ProviderFailure("standalone.error.key")
+                    val image = provider.generateImage(imageSettings, imageKey, arg("prompt"))
                     val media = withContext(Dispatchers.IO) { storage.saveMedia(image.bytes, "image.png", image.mimeType) }
                     images += media
                     "{\"created\":true,\"displayed_in_chat\":true}"
@@ -364,14 +500,18 @@ class ChatController(
         val index = chat.messages.indexOfFirst { it.id == id && it.role == "assistant" }
         if (index < 0) return
         val original = chat.messages[index]
-        val branch = chat.copy(id = id(), updatedAt = platform.nowMillis()/1000, messages = chat.messages.take(index), imageMode = original.kind == "image")
+        val image = original.kind == "image"
+        val selected = if (image) ModelSelection(original.providerId,original.model.ifBlank { chat.imageModel }) else chatSelection(chat)
+        if (books.value.account(selected.providerId) == null) { fail("standalone.providers.missing"); return }
+        if (selected.providerId !in keyedProviders.value) { fail("standalone.error.key"); return }
+        val branch = chat.copy(id = id(), updatedAt = platform.nowMillis()/1000, messages = chat.messages.take(index), imageMode = image,
+            imageProviderId = if (image) selected.providerId else chat.imageProviderId, imageModel = if (image) selected.modelId else chat.imageModel)
         saveDraft(); ++draftEpoch
         chats = chats + branch
         update { it.copy(sessionId = branch.id, draft = "", attachments = emptyList(), editingMessageId = null) }
-        val image = original.kind == "image"
         generating.value = image
         persist()
-        launchReply(branch.id, config.value.copy(chatModel = chat.model, imageModel = if (image && original.model.isNotBlank()) original.model else config.value.imageModel), image,
+        launchReply(branch.id, chatSelection(branch), imageSelection(branch), image,
             branch.messages.lastOrNull { it.role == "user" }?.text.orEmpty())
     }
     override fun editMessage(id: String) {
@@ -502,6 +642,7 @@ class ChatController(
         }
     }
     override fun close() {
+        providerEditorOwner?.let(::clearProviderEditorNavigation)
         scope.cancel(); writes.close(); provider.close()
         // onDestroy must not discard a queued final snapshot (for example after Stop).
         val snapshot = chats.toList()

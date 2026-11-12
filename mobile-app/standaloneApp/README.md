@@ -12,13 +12,18 @@ original behavior and enabled features.
 
 ## Configure
 
-1. Open Profile, then **API & models**.
-2. Select the QwenCloud Token Plan preset or enter custom HTTPS endpoints.
-3. Paste an API key and choose the text/vision and image-generation model IDs.
-4. Save. The saved key is encrypted with Android Keystore and is never shown
-   again in settings. An empty key field retains the saved key; Remove key
-   explicitly deletes it.
-5. Start a chat. Attach a photo for visual understanding. Select the image
+1. Open Profile, then **Providers & models**.
+2. Edit the existing provider or choose **Add provider**. Give each provider a
+   name, select its preset, and enter its HTTPS endpoints and API key.
+3. Enter the provider's chat and image model IDs. Additional IDs go one per line;
+   after saving, **Refresh model list** imports that provider's available models.
+4. Save. Each provider's key is encrypted separately with Android Keystore and
+   is never shown again. An empty key field retains its saved key; Remove key
+   deletes only that provider's key.
+5. Choose **Default chat** and **Default image** independently from the combined
+   provider/model lists. Defaults apply to new conversations. Existing chats
+   keep their provider and model, and the chat picker can explicitly change them.
+6. Start a chat. Attach a photo for visual understanding. Select the image
    model from the chat model picker, or choose Create image in Tools, to use
    the composer as an image prompt.
 
@@ -26,6 +31,19 @@ Model discovery uses the provider's `/models` endpoint. Manual model IDs are
 supported when the provider does not publish a catalog. The selected model
 must support the requested capability; the app does not silently substitute
 another provider or model.
+
+Providers may use identical model IDs: every picker entry retains its provider
+identity and sends the raw model ID only to that provider's endpoint with its
+own key. Image tools use the conversation's image provider, which may differ
+from its text provider. Global instructions and the tools toggle apply across
+providers.
+
+The original single-provider setup migrates automatically, preserving its
+encrypted key, settings, defaults and chat history. Removing a provider removes
+its credential while retaining conversations; those conversations require an
+explicit new model choice before they can send again. At least one provider
+must remain. Deleting a default provider assigns new-chat defaults to a remaining
+provider only after confirmation.
 
 The QwenCloud preset uses these documented protocols:
 
@@ -36,7 +54,7 @@ The QwenCloud preset uses these documented protocols:
 - Custom image providers: OpenAI Images JSON, accepting a generated HTTPS URL
   or `b64_json` in `data`.
 
-Both API endpoints use the saved key. Generated images download separately
+Each provider's API endpoints use its saved key. Generated images download separately
 without an Authorization header, and requests do not follow redirects.
 The model ID fields remain editable, including after preview models retire.
 
@@ -74,9 +92,10 @@ The debug APK is
 `standaloneApp/build/outputs/apk/debug/standaloneApp-debug.apk`.
 Install with `adb install -r` to update Blink Chat alongside Blink.
 
-Unit tests cover provider payloads, SSE parsing, provider errors, image
-protocols and workspace paths. Android tests exercise the actual controller,
-Keystore/storage, image normalization, tool round trips and local history.
+Unit tests cover provider identities/defaults, payloads, SSE parsing, provider
+errors, image protocols and workspace paths. Android tests exercise migration,
+separate keys, cross-provider routing, default retention, provider removal,
+the actual settings UI, image normalization, tools and local history.
 The provider responses in those tests are fixtures; they do not prove that
 every configured provider supports every optional capability.
 

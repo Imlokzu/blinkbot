@@ -39,6 +39,7 @@ data class StoredMessage(
     val reactions: Map<String, String> = emptyMap(),
     val steps: List<StoredStep> = emptyList(),
     val kind: String = "text",
+    val providerId: String = LEGACY_PROVIDER_ID,
 )
 @Serializable
 data class StoredStep(val id: String, val name: String, val status: String)
@@ -56,4 +57,7 @@ data class StoredChat(
     val updatedAt: Long,
     val messages: List<StoredMessage> = emptyList(),
     val imageMode: Boolean = false,
+    val providerId: String = LEGACY_PROVIDER_ID,
+    val imageProviderId: String = LEGACY_PROVIDER_ID,
+    val imageModel: String = "",
 )

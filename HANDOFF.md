@@ -1,5 +1,17 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-11-12 — Blink Chat 0.2.0: multiple providers and default models
+
+Blink Chat now saves named providers with independent encrypted keys, endpoints
+and model lists. The combined model picker keeps identical model IDs distinct
+by provider; default chat and image models can be chosen independently.
+Existing chats retain their provider/model. The original single-provider setup
+migrates without losing history or the saved key. Removing a provider removes
+its credential and keeps its chats, requiring an explicit new model choice.
+
+Setup: `mobile-app/standaloneApp/README.md`. Validation and APK details:
+`docs/mobile-app/BLINK-CHAT-0.2.0.md`. The paired Blink app is unchanged.
+
 ## 2026-11-11 — Blink Chat standalone Android 0.1.0
 
 Added `mobile-app/standaloneApp` (`me.waveio.blinkchat`), installed beside the
