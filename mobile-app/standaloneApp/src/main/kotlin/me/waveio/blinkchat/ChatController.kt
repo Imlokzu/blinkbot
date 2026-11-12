@@ -39,8 +39,12 @@ class ChatController(
     val providerKeys = keyedProviders.asStateFlow()
     private val savingProvider = MutableStateFlow(false)
     val providerSaving = savingProvider.asStateFlow()
+    private val discoveringProvider = MutableStateFlow(false)
+    val providerDiscovering = discoveringProvider.asStateFlow()
+    private var discoveryRequest: Job? = null
     private var newChatModel = books.value.defaultChat
-    private var newImageModel = books.value.defaultImage
+    private var newImageModel: ModelSelection? = books.value.defaultImage
+    private var newChatEffort = ""
     private val keyPresent = MutableStateFlow(false)
     val hasApiKey = keyPresent.asStateFlow()
     private val generating = MutableStateFlow(false)
@@ -89,7 +93,7 @@ class ChatController(
                 keyedProviders.value = restored.third
                 syncProviderSettings()
                 chats = restored.second.map { c -> c.copy(imageModel = c.imageModel.ifBlank {
-                    restored.first.account(c.imageProviderId)?.settings?.imageModel.orEmpty()
+                    restored.first.account(c.imageProviderId)?.takeIf { it.images }?.settings?.imageModel.orEmpty()
                 }, messages = c.messages
                     .filterNot { it.role == "assistant" && it.text.isBlank() && it.attachments.isEmpty() && it.steps.isEmpty() }
                     .map { m -> m.copy(steps = m.steps.map { if (it.status == "running") it.copy(status = "interrupted") else it }) }) }
@@ -131,7 +135,22 @@ class ChatController(
     }
     private fun current() = chats.firstOrNull { it.id == state.value.sessionId }
     private fun chatSelection(chat: StoredChat? = current()) = chat?.let { ModelSelection(it.providerId,it.model) } ?: newChatModel
-    private fun imageSelection(chat: StoredChat? = current()) = chat?.let { ModelSelection(it.imageProviderId,it.imageModel) } ?: newImageModel
+    /** Null when neither the chat nor the saved defaults name an image model. */
+    private fun imageSelection(chat: StoredChat? = current()): ModelSelection? =
+        chat?.takeIf { it.imageModel.isNotBlank() }?.let { ModelSelection(it.imageProviderId,it.imageModel) } ?: newImageModel
+    private fun info(selection: ModelSelection?): ModelInfo? = selection?.let { books.value.account(it.providerId)?.info(it.modelId) }
+    /** The stop the picker shows: the chat's explicit choice, else the model's published default. */
+    private fun effortFor(chat: StoredChat?): Pair<String, ModelInfo?> {
+        val model = info(chatSelection(chat))
+        val chosen = chat?.effort ?: newChatEffort
+        val levels = model?.efforts.orEmpty()
+        return (chosen.takeIf { it in levels } ?: model?.effortDefault?.takeIf { it in levels } ?: "none") to model
+    }
+    /** Only an explicit, still-published choice is sent; otherwise the provider default applies. */
+    private fun requestEffort(chat: StoredChat?): String? {
+        val levels = info(chatSelection(chat))?.efforts.orEmpty()
+        return (chat?.effort ?: newChatEffort).takeIf { it.isNotBlank() && it in levels }
+    }
     private fun syncProviderSettings() {
         val book = books.value
         val account = book.account(book.defaultChat.providerId) ?: return
@@ -143,16 +162,24 @@ class ChatController(
         val book = books.value
         val selectedChat = chatSelection(chat)
         val selectedImage = imageSelection(chat)
+        fun row(account: ProviderAccount, model: String, image: Boolean): ModelRow {
+            val meta = account.info(model)
+            val host = runCatching { java.net.URI(account.settings.baseUrl).host }.getOrNull().orEmpty()
+            return ModelRow(ModelSelection(account.id,model).pickerId(image), meta?.label?.ifBlank { null } ?: model, account.name,
+                ModelCatalog.brand(model, host),
+                efforts = if (image) emptyList() else meta?.efforts.orEmpty(),
+                vision = if (image) null else meta?.vision,
+                context = if (image) null else meta?.context,
+                effortDefault = if (image) "" else meta?.effortDefault.orEmpty())
+        }
         val models = book.providers.flatMap { account ->
             val chatIds = account.chatModels + listOfNotNull(selectedChat.modelId.takeIf { selectedChat.providerId == account.id })
-            val imageIds = account.imageModels + listOfNotNull(selectedImage.modelId.takeIf { selectedImage.providerId == account.id })
-            chatIds.distinct().map { model -> ModelRow(ModelSelection(account.id,model).pickerId(), model, account.name,
-                if (model.startsWith("qwen")) "qwen" else "", vision = null) } +
-                imageIds.distinct().map { model -> ModelRow(ModelSelection(account.id,model).pickerId(true), model, account.name,
-                    if (model.startsWith("qwen") || model.startsWith("wan")) "qwen" else "") }
-        } + listOf(selectedChat to false, selectedImage to true).filter { book.account(it.first.providerId) == null }.map { (selection,image) ->
+            val imageIds = account.imageModels + listOfNotNull(selectedImage?.modelId?.takeIf { selectedImage.providerId == account.id })
+            chatIds.distinct().map { row(account, it, false) } + imageIds.distinct().map { row(account, it, true) }
+        } + listOfNotNull(selectedChat to false, selectedImage?.let { it to true }).filter { book.account(it.first.providerId) == null }.map { (selection,image) ->
             ModelRow(selection.pickerId(image), selection.modelId, selection.providerId, "", available = false)
         }
+        val (effort, _) = effortFor(chat)
         update { it.copy(
             conversations = chats.sortedByDescending(StoredChat::updatedAt).map { c -> ConversationRow(c.id, c.title, c.updatedAt, c.messages.lastOrNull()?.text.orEmpty().take(160)) },
             messages = chat?.messages.orEmpty().map { m -> MessageRow(m.id, m.role, m.text, model = m.model, timestamp = m.timestamp,
@@ -160,7 +187,8 @@ class ChatController(
                 reactions = m.reactions, steps = m.steps.map { step -> ActivityRow(step.id, step.name, status = step.status) },
                 attachments = m.attachments.map { media -> DraftAttachment(media.path, media.name, media.mimeType, media.size) }) },
             models = models,
-            selectedModel = if (generating.value) selectedImage.pickerId(true) else selectedChat.pickerId(),
+            selectedModel = if (generating.value && selectedImage != null) selectedImage.pickerId(true) else selectedChat.pickerId(),
+            effort = if (generating.value) "none" else effort,
             busy = request?.isActive == true && activeSession == it.sessionId,
         ) }
     }
@@ -196,8 +224,9 @@ class ChatController(
                         }
                         books.value = updated
                         keyedProviders.value = keys
-                        if (newChatModel == previous.defaultChat || updated.account(newChatModel.providerId) == null) newChatModel = updated.defaultChat
-                        if (newImageModel == previous.defaultImage || updated.account(newImageModel.providerId) == null) newImageModel = updated.defaultImage
+                        if (newChatModel == previous.defaultChat || updated.account(newChatModel.providerId)?.chatModels?.contains(newChatModel.modelId) != true) newChatModel = updated.defaultChat
+                        val image = newImageModel
+                        if (image == previous.defaultImage || image == null || updated.account(image.providerId)?.imageModels?.contains(image.modelId) != true) newImageModel = updated.defaultImage
                         syncProviderSettings()
                         update { it.copy(baseUrl = config.value.baseUrl, error = null, notice = "standalone.saved") }
                         publish()
@@ -211,14 +240,18 @@ class ChatController(
 
     fun saveAccount(account: ProviderAccount, newKey: String?, onSaved: () -> Unit = {}) {
         if (newKey != null && (newKey.length > 8192 || newKey.any(Char::isISOControl))) { fail("standalone.error.settings"); return }
-        val normalized = account.copy(name = account.name.trim(),
-            chatModels = (listOf(account.settings.chatModel) + account.chatModels).map(String::trim).filter(String::isNotEmpty).distinct(),
-            imageModels = (listOf(account.settings.imageModel) + account.imageModels).map(String::trim).filter(String::isNotEmpty).distinct())
+        val settings = account.settings
+        val chatIds = (listOf(settings.chatModel) + account.chatModels).map(String::trim).filter(String::isNotEmpty).distinct()
+        val imageIds = if (settings.imageProtocol == ImageLayer.NONE) emptyList()
+            else (listOf(settings.imageModel) + account.imageModels).map(String::trim).filter(String::isNotEmpty).distinct()
+        val normalized = account.copy(name = account.name.trim(), chatModels = chatIds, imageModels = imageIds,
+            settings = settings.copy(imageModel = if (imageIds.isEmpty()) "" else settings.imageModel.trim(),
+                imageEndpoint = if (imageIds.isEmpty()) "" else settings.imageEndpoint.trim(),
+                imageProtocol = if (imageIds.isEmpty()) ImageLayer.NONE else settings.imageProtocol),
+            models = account.models.filter { it.id in chatIds || it.id in imageIds }.take(1024))
         changeProviders(if (newKey == null) emptyMap() else mapOf(account.id to newKey.trim()), onSaved) { book ->
             val profiles = if (book.account(account.id) == null) book.providers + normalized else book.providers.map { if (it.id == account.id) normalized else it }
-            book.copy(providers = profiles,
-                defaultChat = if (book.defaultChat.providerId == account.id && book.defaultChat.modelId !in normalized.chatModels) ModelSelection(account.id,normalized.settings.chatModel) else book.defaultChat,
-                defaultImage = if (book.defaultImage.providerId == account.id && book.defaultImage.modelId !in normalized.imageModels) ModelSelection(account.id,normalized.settings.imageModel) else book.defaultImage)
+            withValidDefaults(book.copy(providers = profiles), preferred = normalized)
         }
     }
 
@@ -226,15 +259,55 @@ class ChatController(
         if (book.account(id) == null) throw ProviderFailure("standalone.providers.missing")
         val remaining = book.providers.filterNot { it.id == id }
         if (remaining.isEmpty()) throw ProviderFailure("standalone.providers.last")
-        val fallback = remaining.first()
-        book.copy(providers = remaining,
-            defaultChat = if (book.defaultChat.providerId == id) ModelSelection(fallback.id,fallback.settings.chatModel) else book.defaultChat,
-            defaultImage = if (book.defaultImage.providerId == id) ModelSelection(fallback.id,fallback.settings.imageModel) else book.defaultImage)
+        withValidDefaults(book.copy(providers = remaining))
     }
+
+    /**
+     * Keeps defaults that still resolve. A broken chat default moves to [preferred] (the provider
+     * just saved) or the first provider that chats; a broken or missing image default moves to the
+     * first provider that generates images, or becomes null when none does.
+     */
+    private fun withValidDefaults(book: ProviderBook, preferred: ProviderAccount? = null): ProviderBook {
+        fun chatOk(selection: ModelSelection) = book.account(selection.providerId)?.chatModels?.contains(selection.modelId) == true
+        fun imageOk(selection: ModelSelection) = book.account(selection.providerId)?.imageModels?.contains(selection.modelId) == true
+        val chat = book.defaultChat.takeIf(::chatOk)
+            ?: (listOfNotNull(preferred) + book.providers).firstOrNull { it.chats }?.let { ModelSelection(it.id, it.settings.chatModel) }
+            ?: throw ProviderFailure("standalone.providers.noChat")
+        val image = book.defaultImage?.takeIf(::imageOk)
+            ?: (listOfNotNull(preferred) + book.providers).firstOrNull { it.images }?.let { ModelSelection(it.id, it.settings.imageModel) }
+        return book.copy(defaultChat = chat, defaultImage = image)
+    }
+
+    /**
+     * Probes a typed endpoint for the setup screen. A saved key is reused only for the same
+     * origin it was saved for, so editing the URL can never send it to a different host.
+     */
+    fun discoverProvider(providerId: String, url: String, typedKey: String, onFound: (Discovery) -> Unit) {
+        discoveryRequest?.cancel()
+        discoveryRequest = scope.launch {
+            discoveringProvider.value = true
+            update { it.copy(error = null, notice = null) }
+            try {
+                val key = typedKey.trim().ifBlank {
+                    val saved = books.value.account(providerId)
+                    val sameOrigin = saved != null && origin(saved.settings.baseUrl) != null &&
+                        ModelCatalog.candidateBases(url).any { origin(it) == origin(saved.settings.baseUrl) }
+                    if (sameOrigin) withContext(Dispatchers.IO) { storage.readProviderApiKey(providerId) }.orEmpty() else ""
+                }
+                if (key.isBlank()) throw ProviderFailure("standalone.error.key")
+                onFound(provider.discover(url, key))
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { fail((error as? ProviderFailure)?.key ?: "standalone.error.network") }
+            finally { if (discoveryRequest === currentCoroutineContext()[Job]) discoveringProvider.value = false }
+        }
+    }
+    fun cancelDiscovery() { discoveryRequest?.cancel(); discoveringProvider.value = false }
+    private fun origin(url: String): String? = runCatching { java.net.URI(url).let { "${it.scheme}://${it.host}:${it.port}" } }.getOrNull()
 
     fun setDefaultModel(selection: ModelSelection, image: Boolean) = changeProviders { book ->
         if (image) book.copy(defaultImage = selection) else book.copy(defaultChat = selection)
     }
+    fun clearDefaultImage() = changeProviders { it.copy(defaultImage = null) }
 
     fun savePersonalization(prompt: String) = changeProviders { it.copy(systemPrompt = prompt) }
     fun setToolsEnabled(enabled: Boolean) = changeProviders { it.copy(toolsEnabled = enabled) }
@@ -245,11 +318,13 @@ class ChatController(
         if (newKey != null && (newKey.length > 8192 || newKey.any(Char::isISOControl))) { fail("standalone.error.settings"); return }
         changeProviders(if (newKey == null) emptyMap() else mapOf(targetId to newKey.trim()),onSaved) { book ->
             val account = book.account(targetId) ?: throw ProviderFailure("standalone.providers.missing")
-            val updated = account.copy(settings = value,chatModels = (account.chatModels + value.chatModel).distinct(),imageModels = (account.imageModels + value.imageModel).distinct())
-            book.copy(providers = book.providers.map { if (it.id == targetId) updated else it },
+            val images = value.imageProtocol != ImageLayer.NONE && value.imageModel.isNotBlank()
+            val updated = account.copy(settings = value,chatModels = (account.chatModels + value.chatModel).filter(String::isNotBlank).distinct(),
+                imageModels = if (images) (account.imageModels + value.imageModel).distinct() else emptyList())
+            withValidDefaults(book.copy(providers = book.providers.map { if (it.id == targetId) updated else it },
                 defaultChat = ModelSelection(targetId,value.chatModel),
-                defaultImage = if (book.defaultImage.providerId == targetId && value.imageModel != account.settings.imageModel) ModelSelection(targetId,value.imageModel) else book.defaultImage,
-                systemPrompt = value.systemPrompt,toolsEnabled = value.toolsEnabled)
+                defaultImage = if (book.defaultImage?.providerId == targetId && images && value.imageModel != account.settings.imageModel) ModelSelection(targetId,value.imageModel) else book.defaultImage,
+                systemPrompt = value.systemPrompt,toolsEnabled = value.toolsEnabled))
         }
     }
 
@@ -264,12 +339,17 @@ class ChatController(
             try {
                 val key = withContext(Dispatchers.IO) { storage.readProviderApiKey(providerId) }.orEmpty()
                 if (key.isBlank()) throw ProviderFailure("standalone.error.key")
-                val result = provider.models(account.settings, key)
+                val result = provider.catalog(account.settings, key)
                 settingsLock.withLock {
                     // Ignore a catalog whose account changed or was removed while it loaded.
                     if (books.value.account(providerId) != account) return@withLock
                     val next = books.value.copy(providers = books.value.providers.map {
-                        if (it.id == providerId) it.copy(chatModels = (it.chatModels + result).distinct().take(512)) else it
+                        if (it.id != providerId) it else {
+                            val chatIds = if (it.chats) (it.chatModels + result.filter(ModelInfo::text).map(ModelInfo::id)).distinct().take(512) else it.chatModels
+                            val imageIds = if (it.images) (it.imageModels + result.filter(ModelInfo::image).map(ModelInfo::id)).distinct().take(512) else it.imageModels
+                            it.copy(chatModels = chatIds, imageModels = imageIds,
+                                models = ModelCatalog.merge(result, it.models).filter { m -> m.id in chatIds || m.id in imageIds }.take(1024))
+                        }
                     })
                     withContext(Dispatchers.IO) { storage.saveProviderBook(next) }
                     books.value = next
@@ -317,6 +397,7 @@ class ChatController(
         generating.value = false
         newChatModel = books.value.defaultChat
         newImageModel = books.value.defaultImage
+        newChatEffort = ""
         update { it.copy(sessionId = "", messages = emptyList(), draft = restored.text, attachments = restored.attachments.map { m -> DraftAttachment(m.path,m.name,m.mimeType,m.size) }, editingMessageId = restored.editingMessageId,
             screen = Screen.Chat, menuOpen = false, modelPickerOpen = false, busy = false) }
         publish()
@@ -348,13 +429,23 @@ class ChatController(
         val chat = current()
         if (chat != null) {
             changeChat(chat.id) { if (image) it.copy(imageProviderId = selection.providerId,imageModel = selection.modelId,imageMode = true)
-                else it.copy(providerId = selection.providerId,model = selection.modelId,imageMode = false) }
+                else it.copy(providerId = selection.providerId,model = selection.modelId,imageMode = false,
+                    // A different model may publish different stops; its default applies until one is chosen.
+                    effort = if (it.providerId == selection.providerId && it.model == selection.modelId) it.effort else "") }
             persist()
-        } else if (image) newImageModel = selection else newChatModel = selection
-        update { it.copy(modelPickerOpen = false) }; publish()
+        } else if (image) newImageModel = selection else { if (selection != newChatModel) newChatEffort = ""; newChatModel = selection }
+        // A model with effort stops stays open on the effort page; otherwise there is nothing left to tune.
+        if (image || info(selection)?.efforts.isNullOrEmpty()) update { it.copy(modelPickerOpen = false) }
+        publish()
     }
-    override fun selectEffort(value: String) { update { it.copy(effort = "none", modelPickerOpen = false) } }
+    override fun selectEffort(value: String) {
+        val chat = current()
+        if (value !in info(chatSelection(chat))?.efforts.orEmpty()) return
+        if (chat != null) { changeChat(chat.id) { it.copy(effort = value) }; persist() } else newChatEffort = value
+        publish()
+    }
     fun setImageMode(enabled: Boolean) {
+        if (enabled && imageSelection() == null) { navigate(Screen.Models); fail("standalone.image.none"); return }
         generating.value = enabled
         current()?.let { chat -> changeChat(chat.id) { it.copy(imageMode = enabled) }; persist() }
         publish()
@@ -367,7 +458,8 @@ class ChatController(
         if (request?.isActive == true || settingsLock.isLocked) { fail("standalone.error.busy"); return }
         val snapshot = state.value
         if (snapshot.draft.isBlank() && snapshot.attachments.isEmpty()) return
-        val target = if (generating.value) imageSelection() else chatSelection()
+        val target = (if (generating.value) imageSelection() else chatSelection())
+            ?: run { navigate(Screen.Models); fail("standalone.image.none"); return }
         if (books.value.account(target.providerId) == null) { fail("standalone.providers.missing"); return }
         if (target.providerId !in keyedProviders.value) { navigate(Screen.Models); fail("standalone.error.key"); return }
         if (generating.value && (snapshot.draft.isBlank() || snapshot.attachments.isNotEmpty())) { fail("standalone.image.prompt"); return }
@@ -376,7 +468,8 @@ class ChatController(
         // Editing creates a branch, retaining the original turn and every later reply.
         val chat = when {
             existing == null -> StoredChat(id(), snapshot.draft.trim().take(70).ifBlank { snapshot.attachments.first().name }, newChatModel.modelId, platform.nowMillis()/1000,
-                imageMode = generating.value, providerId = newChatModel.providerId, imageProviderId = newImageModel.providerId, imageModel = newImageModel.modelId)
+                imageMode = generating.value, providerId = newChatModel.providerId, imageProviderId = newImageModel?.providerId.orEmpty(),
+                imageModel = newImageModel?.modelId.orEmpty(), effort = newChatEffort)
             snapshot.editingMessageId != null -> existing.copy(id = id(), updatedAt = platform.nowMillis()/1000,
                 messages = existing.messages.takeWhile { it.id != snapshot.editingMessageId })
             else -> existing
@@ -390,16 +483,20 @@ class ChatController(
         append(session, user)
         update { it.copy(attachments = emptyList(), editingMessageId = null, sendModeOpen = false, error = null) }
         draft("")
-        launchReply(session, chatSelection(chat), imageSelection(chat), imageRequest, user.text)
+        launchReply(session, chatSelection(chat), imageSelection(chat), imageRequest, user.text, requestEffort(chat))
     }
 
-    private fun launchReply(session: String, textModel: ModelSelection, imageModel: ModelSelection, imageRequest: Boolean, prompt: String) {
+    private fun launchReply(session: String, textModel: ModelSelection, imageModel: ModelSelection?, imageRequest: Boolean, prompt: String, effort: String? = null) {
         val book = books.value
-        val target = if (imageRequest) imageModel else textModel
+        val target = (if (imageRequest) imageModel else textModel) ?: run { fail("standalone.image.none"); return }
         val account = book.account(target.providerId) ?: run { fail("standalone.providers.missing"); return }
-        val saved = account.settings.copy(chatModel = textModel.modelId, imageModel = imageModel.modelId, systemPrompt = book.systemPrompt, toolsEnabled = book.toolsEnabled)
-        val imageAccount = book.account(imageModel.providerId)
+        val saved = account.settings.copy(chatModel = textModel.modelId, systemPrompt = book.systemPrompt, toolsEnabled = book.toolsEnabled)
+        val maxOutput = account.info(textModel.modelId)?.maxOutput
+        val imageAccount = imageModel?.let { book.account(it.providerId) }?.takeIf { it.images }
         val imageSettings = imageAccount?.settings?.copy(imageModel = imageModel.modelId)
+        // The image tool is offered only when this chat can actually reach an image model.
+        val tools = if (!saved.toolsEnabled) emptyList()
+            else ChatTools.definitions.filter { imageSettings != null || (it["function"] as? JsonObject)?.get("name")?.jsonPrimitive?.content != "generate_image" }
         activeSession = session
         val replyId = id()
         append(session, StoredMessage(replyId, "assistant", "", timestamp = platform.nowMillis()/1000, kind = if (imageRequest) "image" else "text", providerId = target.providerId))
@@ -410,7 +507,7 @@ class ChatController(
                 if (imageRequest) {
                     val image = provider.generateImage(imageSettings ?: throw ProviderFailure("standalone.providers.missing"), key, prompt)
                     val media = withContext(Dispatchers.IO) { storage.saveMedia(image.bytes, "image.png", image.mimeType) }
-                    updateReply(session, replyId) { it.copy(model = imageModel.modelId, attachments = listOf(media)) }
+                    updateReply(session, replyId) { it.copy(model = target.modelId, attachments = listOf(media)) }
                 } else {
                     val history = withContext(Dispatchers.IO) {
                         chats.first { it.id == session }.messages.filter { it.id != replyId && !(it.role == "assistant" && it.text.isBlank() && it.attachments.isEmpty()) }.map { m ->
@@ -425,13 +522,13 @@ class ChatController(
                     val resultMedia = mutableListOf<StoredMedia>()
                     val seenCalls = mutableSetOf<String>()
                     for (round in 0 until 6) {
-                        val reply = provider.chat(saved, key, history, if (saved.toolsEnabled) ChatTools.definitions else emptyList()) { text ->
+                        val reply = provider.chat(saved, key, history, tools, effort, maxOutput) { text ->
                             updateReply(session, replyId) { it.copy(text = text) }
                         }
                         updateReply(session, replyId) { it.copy(text = reply.text, model = reply.model.ifBlank { saved.chatModel }) }
                         if (reply.toolCalls.isEmpty()) { complete = true; break }
                         if (!saved.toolsEnabled) throw ProviderFailure("standalone.tools.disabled")
-                        history += ApiMessage("assistant", reply.text, toolCalls = reply.toolCalls)
+                        history += ApiMessage("assistant", reply.text, toolCalls = reply.toolCalls, native = reply.native)
                         for (call in reply.toolCalls) {
                             if (++count > 12 || !seenCalls.add(call.id)) throw ProviderFailure("standalone.tool.limit")
                             updateReply(session, replyId) { it.copy(steps = it.steps + StoredStep(call.id, call.name, "running")) }
@@ -502,6 +599,7 @@ class ChatController(
         val original = chat.messages[index]
         val image = original.kind == "image"
         val selected = if (image) ModelSelection(original.providerId,original.model.ifBlank { chat.imageModel }) else chatSelection(chat)
+        if (image && books.value.account(selected.providerId)?.images != true) { fail("standalone.image.none"); return }
         if (books.value.account(selected.providerId) == null) { fail("standalone.providers.missing"); return }
         if (selected.providerId !in keyedProviders.value) { fail("standalone.error.key"); return }
         val branch = chat.copy(id = id(), updatedAt = platform.nowMillis()/1000, messages = chat.messages.take(index), imageMode = image,
@@ -512,7 +610,7 @@ class ChatController(
         generating.value = image
         persist()
         launchReply(branch.id, chatSelection(branch), imageSelection(branch), image,
-            branch.messages.lastOrNull { it.role == "user" }?.text.orEmpty())
+            branch.messages.lastOrNull { it.role == "user" }?.text.orEmpty(), requestEffort(branch))
     }
     override fun editMessage(id: String) {
         if (request?.isActive == true) return

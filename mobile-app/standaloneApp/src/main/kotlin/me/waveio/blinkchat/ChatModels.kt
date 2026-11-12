@@ -1,6 +1,7 @@
 package me.waveio.blinkchat
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
 
 @Serializable
 data class ProviderSettings(
@@ -8,9 +9,12 @@ data class ProviderSettings(
     val chatModel: String = "qwen4-max-preview",
     val imageModel: String = "qwen-image-3.0-pro",
     val imageEndpoint: String = "https://token-plan.maas.qwencloudapi.com/api/v1/services/aigc/multimodal-generation/generation",
+    /** [ImageLayer]; `none` makes a text-only provider with blank image model and endpoint. */
     val imageProtocol: String = "qwen",
     val systemPrompt: String = "",
     val toolsEnabled: Boolean = true,
+    /** [ApiLayer]. Settings saved before 0.3.0 have no field and were Chat Completions. */
+    val api: String = ApiLayer.OPENAI_CHAT,
 )
 
 /** Provider messages are independent of the host protocol and carry tool round trips. */
@@ -20,9 +24,14 @@ data class ApiMessage(
     val images: List<String> = emptyList(),
     val toolCalls: List<ApiToolCall> = emptyList(),
     val toolCallId: String? = null,
+    /**
+     * The provider's own content blocks for an assistant tool turn. Anthropic requires the
+     * thinking blocks (with signatures) of a tool turn to be sent back unchanged.
+     */
+    val native: JsonArray? = null,
 )
 data class ApiToolCall(val id: String, val name: String, val arguments: String)
-data class ApiReply(val text: String, val model: String, val toolCalls: List<ApiToolCall> = emptyList())
+data class ApiReply(val text: String, val model: String, val toolCalls: List<ApiToolCall> = emptyList(), val native: JsonArray? = null)
 data class GeneratedImage(val bytes: ByteArray, val mimeType: String)
 
 /** Only a localization key and HTTP status can reach the UI; raw provider errors stay private. */
@@ -60,4 +69,6 @@ data class StoredChat(
     val providerId: String = LEGACY_PROVIDER_ID,
     val imageProviderId: String = LEGACY_PROVIDER_ID,
     val imageModel: String = "",
+    /** The chosen effort stop; blank leaves the provider's default in place. */
+    val effort: String = "",
 )

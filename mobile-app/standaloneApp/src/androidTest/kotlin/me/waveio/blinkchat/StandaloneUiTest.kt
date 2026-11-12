@@ -91,8 +91,20 @@ class StandaloneUiTest {
         }
         val storage=ChatStorage(context)
         storage.writeApiKey("original-key")
+        val hosts=java.util.Collections.synchronizedSet(mutableSetOf<String>())
         lateinit var controller:ChatController
-        compose.runOnIdle { controller=ChatController(TestPlatform(),storage,ProviderClient(HttpClient(MockEngine { error("UI configuration must not make an API call") }))) }
+        compose.runOnIdle { controller=ChatController(TestPlatform(),storage,ProviderClient(HttpClient(MockEngine { request ->
+            // Connect may only probe the typed endpoint; nothing here generates a reply.
+            hosts+=request.url.host
+            val path=request.url.encodedPath
+            when {
+                request.method==HttpMethod.Get && path=="/v1/models" && request.headers[HttpHeaders.Authorization]=="Bearer other-key" ->
+                    respond(DISCOVERY_CATALOG,headers=headersOf(HttpHeaders.ContentType,"application/json"))
+                request.method==HttpMethod.Post && (path=="/v1/chat/completions" || path=="/v1/images/generations") ->
+                    respond("{\"error\":{\"message\":\"model is required\"}}",HttpStatusCode.BadRequest,headersOf(HttpHeaders.ContentType,"application/json"))
+                else -> respond("",HttpStatusCode.NotFound)
+            }
+        }))) }
         val overrides=app.assets.open("locales/en.json").use { Json.parseToJsonElement(it.readBytes().decodeToString()).jsonObject.mapValues { entry -> entry.value.jsonPrimitive.content } }
         val text=runBlocking { LocaleText.load("en") }.withOverrides(overrides)
         try {
@@ -109,24 +121,31 @@ class StandaloneUiTest {
                 compose.onNodeWithTag(tag).performScrollTo()
                 compose.onNode(hasSetTextAction() and (hasTestTag(tag) or hasAnyAncestor(hasTestTag(tag)))).performTextReplacement(value)
             }
-            edit("provider-name","Another API")
-            compose.onNodeWithText(text.get("standalone.models.provider.custom")).performScrollTo().performClick()
             edit("provider-base-url","https://other.example.test/v1")
             edit("provider-api-key","other-key")
-            edit("provider-chat-model","custom-chat")
-            edit("provider-extra-chat","custom-fast")
-            edit("provider-image-model","custom-image")
-            edit("provider-image-endpoint","https://other.example.test/v1/images/generations")
+            compose.onNodeWithTag("provider-connect").performScrollTo().performClick()
+            compose.waitUntil(15000) { compose.onAllNodesWithTag("provider-found").fetchSemanticsNodes().isNotEmpty() }
+            assertEquals(setOf("other.example.test"),hosts.toSet())
+            // Chat Completions answered the probe; Anthropic and Responses did not.
+            compose.onNodeWithTag("provider-api-openai").performScrollTo().assertIsSelected()
+            edit("provider-name","Another API")
             compose.onNodeWithTag("provider-save").performScrollTo().performClick()
             compose.waitUntil(15000) { controller.providerBook.value.providers.size==2 }
             compose.onNodeWithText("Another API").assertExists()
             val other=controller.providerBook.value.providers.single { it.name=="Another API" }
+            assertEquals(ApiLayer.OPENAI_CHAT,other.settings.api)
+            assertEquals(listOf("custom-chat","custom-fast"),other.chatModels)
+            assertEquals(listOf("custom-image"),other.imageModels)
+            assertEquals(ImageLayer.OPENAI,other.settings.imageProtocol)
+            assertEquals("https://other.example.test/v1/images/generations",other.settings.imageEndpoint)
+            assertEquals(listOf("low","medium","high"),other.info("custom-fast")!!.efforts)
+            assertEquals(200_000L,other.info("custom-chat")!!.context)
             assertEquals("other-key",storage.readProviderApiKey(other.id))
             assertEquals("original-key",storage.readProviderApiKey(LEGACY_PROVIDER_ID))
             compose.onNodeWithText(text.get("standalone.models.defaultChat")).performScrollTo().performClick()
-            compose.onNodeWithText("custom-fast").performClick()
+            compose.onNodeWithText("Custom Fast").performClick()
             compose.waitUntil(15000) { controller.providerBook.value.defaultChat==ModelSelection(other.id,"custom-fast") }
-            assertEquals(LEGACY_PROVIDER_ID,controller.providerBook.value.defaultImage.providerId)
+            assertEquals(LEGACY_PROVIDER_ID,controller.providerBook.value.defaultImage?.providerId)
             compose.onNodeWithText(text.get("standalone.models.defaultImage")).performScrollTo().performClick()
             compose.onNodeWithText("custom-image").performClick()
             compose.waitUntil(15000) { controller.providerBook.value.defaultImage==ModelSelection(other.id,"custom-image") }
@@ -169,7 +188,7 @@ class StandaloneUiTest {
         lateinit var controller:ChatController
         compose.runOnIdle { controller=ChatController(TestPlatform(),storage,ProviderClient(HttpClient(MockEngine {
             release.await()
-            respond("{\"data\":[{\"id\":\"discovered-model\"}]}",headers=headersOf(HttpHeaders.ContentType,"application/json"))
+            respond("{\"data\":[{\"id\":\"discovered-model\",\"context_length\":32000}]}",headers=headersOf(HttpHeaders.ContentType,"application/json"))
         }))) }
         val overrides=app.assets.open("locales/en.json").use { Json.parseToJsonElement(it.readBytes().decodeToString()).jsonObject.mapValues { entry -> entry.value.jsonPrimitive.content } }
         val text=runBlocking { LocaleText.load("en") }.withOverrides(overrides)
@@ -184,16 +203,28 @@ class StandaloneUiTest {
             compose.runOnIdle { controller.navigate(Screen.Models) }
             val account=controller.providerBook.value.providers.single()
             compose.onNodeWithText(account.name).performScrollTo().performClick()
+            // A background catalog refresh (for example from the chat screen) lands mid-edit.
             compose.runOnIdle { controller.refreshProviderModels(account.id) }
             compose.waitUntil(15000) { controller.state.value.modelsLoading }
             compose.onNodeWithTag("provider-name").performScrollTo()
             compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("provider-name"))).performTextReplacement("Edited while loading")
             release.complete(Unit)
             compose.waitUntil(15000) { !controller.state.value.modelsLoading }
-            compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("provider-extra-chat"))).assertTextContains("discovered-model")
+            compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("provider-name"))).assertTextEquals("Edited while loading")
             compose.onNodeWithTag("provider-save").performScrollTo().performClick()
             compose.waitUntil(15000) { controller.providerBook.value.account(account.id)?.name=="Edited while loading" }
-            assertTrue(controller.providerBook.value.account(account.id)!!.chatModels.contains("discovered-model"))
+            val saved=controller.providerBook.value.account(account.id)!!
+            assertTrue(saved.chatModels.contains("discovered-model"))
+            assertEquals(32_000L,saved.info("discovered-model")?.context)
         } finally { release.complete(Unit);compose.runOnIdle { controller.close() } }
+    }
+
+    private companion object {
+        /** An OpenRouter-shaped catalog: one reasoning model, one plain chat model, one image model. */
+        const val DISCOVERY_CATALOG = """{"data":[
+            {"id":"custom-chat","name":"custom-chat","context_length":200000,"architecture":{"input_modalities":["text","image"],"output_modalities":["text"]}},
+            {"id":"custom-fast","name":"Custom Fast","context_length":64000,"supported_parameters":["reasoning","tools"]},
+            {"id":"custom-image","architecture":{"output_modalities":["image"]}}
+        ]}"""
     }
 }

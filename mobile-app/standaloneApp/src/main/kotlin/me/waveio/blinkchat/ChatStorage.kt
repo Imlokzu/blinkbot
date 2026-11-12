@@ -424,10 +424,16 @@ class ChatStorage(context: Context) {
 
     private fun withDefaultAccount(book: ProviderBook, value: ProviderSettings): ProviderBook {
         val account = defaultAccount(book)
-        val updated = account.copy(settings=value,chatModels=(account.chatModels+value.chatModel).distinct(),imageModels=(account.imageModels+value.imageModel).distinct())
+        val images = value.imageProtocol != ImageLayer.NONE && value.imageModel.isNotBlank()
+        val updated = account.copy(settings=value,chatModels=(account.chatModels+value.chatModel).filter(String::isNotBlank).distinct(),
+            imageModels=if (images) (account.imageModels+value.imageModel).distinct() else emptyList())
         return book.copy(providers=book.providers.map { if (it.id==account.id) updated else it },
             defaultChat=ModelSelection(account.id,value.chatModel),
-            defaultImage=if (book.defaultImage.providerId==account.id && value.imageModel!=account.settings.imageModel) ModelSelection(account.id,value.imageModel) else book.defaultImage,
+            defaultImage=when {
+                book.defaultImage?.providerId==account.id && !images -> null
+                book.defaultImage?.providerId==account.id && value.imageModel!=account.settings.imageModel -> ModelSelection(account.id,value.imageModel)
+                else -> book.defaultImage
+            },
             systemPrompt=value.systemPrompt,toolsEnabled=value.toolsEnabled)
     }
 

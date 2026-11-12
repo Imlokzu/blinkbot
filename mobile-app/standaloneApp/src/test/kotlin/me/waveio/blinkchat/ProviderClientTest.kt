@@ -509,7 +509,6 @@ class ProviderClientTest {
             settings.copy(baseUrl = "https://api.example.com/v1\n"),
             settings.copy(imageEndpoint = "http://api.example.com/image"),
             settings.copy(imageEndpoint = "https://api.example.com/image?sig=1"),
-            settings.copy(chatModel = ""),
             settings.copy(chatModel = "qwen\n4"),
             settings.copy(imageModel = " "),
             settings.copy(imageProtocol = "anthropic"),
@@ -531,6 +530,9 @@ class ProviderClientTest {
             client.chat(settings.copy(baseUrl = "http://api.example.com/v1"), apiKey, listOf(ApiMessage("user", "hi")))
         }
         assertEquals("standalone.error.settings", failure.key)
+        // An image-only provider has no chat model; it is valid to save but can never chat.
+        val imageOnly = expectFailure { client.chat(settings.copy(chatModel = ""), apiKey, listOf(ApiMessage("user", "hi"))) }
+        assertEquals("standalone.error.settings", imageOnly.key)
         assertEquals(0, requests)
     }
 

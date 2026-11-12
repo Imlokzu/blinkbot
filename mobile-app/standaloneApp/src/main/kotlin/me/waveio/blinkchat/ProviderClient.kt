@@ -21,6 +21,8 @@ import io.ktor.util.AttributeKey
 import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -33,6 +35,7 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
 import java.io.Closeable
 import java.io.IOException
 import java.io.ByteArrayOutputStream
@@ -86,51 +89,192 @@ class ProviderClient(
         // Authorization headers are dropped before the key is re-added per call.
         transport.plugin(HttpSend).intercept { request ->
             request.headers.remove(HttpHeaders.Authorization)
+            request.headers.remove(ANTHROPIC_KEY_HEADER)
+            request.headers.remove(ANTHROPIC_VERSION_HEADER)
             request.attributes.getOrNull(Bearer)?.let { key ->
                 request.headers.append(HttpHeaders.Authorization, "Bearer $key")
+            }
+            request.attributes.getOrNull(AnthropicKey)?.let { key ->
+                request.headers.append(ANTHROPIC_KEY_HEADER, key)
+                request.headers.append(ANTHROPIC_VERSION_HEADER, ANTHROPIC_VERSION)
             }
             execute(request)
         }
     }
 
-    suspend fun models(settings: ProviderSettings, apiKey: String): List<String> = guarded {
+    /** Model IDs only; kept for callers that need no metadata. */
+    suspend fun models(settings: ProviderSettings, apiKey: String): List<String> = catalog(settings, apiKey).map { it.id }
+
+    /** The provider's model list with whatever metadata it publishes, read with the layer's own auth. */
+    suspend fun catalog(settings: ProviderSettings, apiKey: String): List<ModelInfo> = guarded {
         validateSettings(settings)
         val key = checkedKey(apiKey)
-        transport.prepareRequest {
-            apiCall(HttpMethod.Get, endpoint(settings.baseUrl, "models"), key)
-        }.execute { response ->
-            checkStatus(response)
-            val status = response.status.value
-            val root = parseObject(boundedBytes(response, MAX_JSON_BYTES).decodeToString(), status)
-            val items = root["data"] as? JsonArray ?: throw ProviderFailure(KEY_RESPONSE, status)
-            val ids = LinkedHashSet<String>()
-            for (item in items) {
-                val id = (item as? JsonObject)?.get("id").stringOrNull() ?: continue
-                if (id.isBlank() || id.length > MAX_ID_CHARS || id.any(Char::isISOControl)) continue
-                ids += id
-                if (ids.size >= MAX_MODELS) break
-            }
-            ids.toList()
-        }
+        listModels(settings.baseUrl, key, settings.api == ApiLayer.ANTHROPIC)
+            ?: throw ProviderFailure(KEY_RESPONSE)
     }
 
+    /**
+     * Finds which API layers an endpoint serves and reads its catalog. Route probes are POSTs
+     * with an empty JSON body: an existing route rejects them as invalid (400/422) before any
+     * model runs, so nothing is billed, while a missing route answers 404/405. The key is only
+     * sent to the typed origin, and redirects are never followed.
+     */
+    suspend fun discover(input: String, apiKey: String): Discovery = guarded {
+        val key = checkedKey(apiKey.trim())
+        if (key.isBlank()) throw ProviderFailure("standalone.error.key")
+        val candidates = ModelCatalog.candidateBases(input)
+        if (candidates.isEmpty()) throw ProviderFailure(KEY_SETTINGS)
+        candidates.forEach(::validateEndpoint)
+        var authRejected = false
+        for (base in candidates) {
+            val probe = probe(base, key)
+            if (probe.authRejected) authRejected = true
+            if (probe.apis.isEmpty() && probe.openAiModels == null && probe.anthropicModels == null) continue
+            val host = Url(base).host.lowercase()
+            val apis = probe.apis.toMutableList()
+            if (apis.isEmpty()) {
+                // Only the catalog answered; its shape still tells which protocol family this is.
+                if (probe.anthropicModels != null) apis += ApiLayer.ANTHROPIC
+                if (probe.openAiModels != null) apis += ApiLayer.OPENAI_CHAT
+            }
+            val recommended = when {
+                host == "api.anthropic.com" && ApiLayer.ANTHROPIC in apis -> ApiLayer.ANTHROPIC
+                host == "api.openai.com" && ApiLayer.RESPONSES in apis -> ApiLayer.RESPONSES
+                ApiLayer.OPENAI_CHAT in apis -> ApiLayer.OPENAI_CHAT
+                else -> apis.first()
+            }
+            val primary = if (recommended == ApiLayer.ANTHROPIC) probe.anthropicModels else probe.openAiModels
+            val secondary = if (recommended == ApiLayer.ANTHROPIC) probe.openAiModels else probe.anthropicModels
+            val models = ModelCatalog.merge(primary.orEmpty(), secondary.orEmpty())
+            val qwen = host.endsWith("qwencloudapi.com") || host.startsWith("dashscope")
+            val imageProtocol = when {
+                qwen -> ImageLayer.QWEN
+                probe.images -> ImageLayer.OPENAI
+                else -> ImageLayer.NONE
+            }
+            val imageEndpoint = when (imageProtocol) {
+                ImageLayer.QWEN -> "https://$host/api/v1/services/aigc/multimodal-generation/generation"
+                ImageLayer.OPENAI -> endpoint(base, "images/generations")
+                else -> ""
+            }
+            return@guarded Discovery(base, apis.distinct().sortedBy { ApiLayer.all.indexOf(it) }, recommended, models,
+                imageProtocol, imageEndpoint, ModelCatalog.suggestName(base))
+        }
+        throw ProviderFailure(if (authRejected) KEY_AUTH else "standalone.setup.notFound")
+    }
+
+    private class Probe(
+        val apis: List<String>,
+        val openAiModels: List<ModelInfo>?,
+        val anthropicModels: List<ModelInfo>?,
+        val images: Boolean,
+        val authRejected: Boolean,
+    )
+
+    private suspend fun probe(base: String, key: String): Probe = coroutineScope {
+        val openAiModels = async { runCatching { listModels(base, key, anthropic = false) } }
+        val anthropicModels = async { runCatching { listModels(base, key, anthropic = true) } }
+        val chat = async { routeStatus(base, "chat/completions", key, anthropic = false) }
+        val responses = async { routeStatus(base, "responses", key, anthropic = false) }
+        val messages = async { routeStatus(base, "messages", key, anthropic = true) }
+        val images = async { routeStatus(base, "images/generations", key, anthropic = false) }
+        val statuses = listOf(chat.await(), responses.await(), messages.await(), images.await())
+        val failures = listOf(openAiModels.await(), anthropicModels.await()).mapNotNull { it.exceptionOrNull() as? ProviderFailure }
+        val apis = buildList {
+            if (routeExists(statuses[2])) add(ApiLayer.ANTHROPIC)
+            if (routeExists(statuses[0])) add(ApiLayer.OPENAI_CHAT)
+            if (routeExists(statuses[1])) add(ApiLayer.RESPONSES)
+        }
+        Probe(apis, openAiModels.await().getOrNull(), anthropicModels.await().getOrNull(), routeExists(statuses[3]),
+            statuses.any { it == 401 || it == 403 } || failures.any { it.key == KEY_AUTH })
+    }
+
+    /**
+     * 400/415/422 mean "route exists, body invalid". 401/403 prove nothing: many gateways
+     * authenticate before routing, and the Anthropic-style probe carries no Bearer header.
+     */
+    private fun routeExists(status: Int?): Boolean = status != null && status in setOf(400, 415, 422)
+
+    private suspend fun routeStatus(base: String, path: String, key: String, anthropic: Boolean): Int? = try {
+        transport.prepareRequest {
+            apiCall(HttpMethod.Post, endpoint(base, path), key, anthropic)
+            contentType(ContentType.Application.Json)
+            setBody("{}")
+        }.execute { response ->
+            // Only the status matters; the body is drained within a small bound.
+            runCatching { boundedBytes(response, 64 * 1024) }
+            response.status.value
+        }
+    } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null }
+
+    /**
+     * Reads a model list. Null means the endpoint answered with something that is not a list in
+     * this auth style's shape (for example an Anthropic listing requested as OpenAI).
+     */
+    private suspend fun listModels(base: String, key: String, anthropic: Boolean): List<ModelInfo>? {
+        val host = Url(base).host.lowercase()
+        val models = LinkedHashMap<String, ModelInfo>()
+        var after: String? = null
+        // Anthropic pages with after_id; other catalogs answer in one page.
+        for (page in 0 until 8) {
+            val address = endpoint(base, "models") + if (anthropic) "?limit=1000" + (after?.let { "&after_id=" + java.net.URLEncoder.encode(it, "UTF-8") } ?: "") else ""
+            val root = transport.prepareRequest {
+                method = HttpMethod.Get
+                url.takeFrom(address)
+                if (anthropic) attributes.put(AnthropicKey, key) else attributes.put(Bearer, key)
+            }.execute { response ->
+                checkStatus(response)
+                if (response.contentType()?.withoutParameters() != ContentType.Application.Json &&
+                    response.contentType()?.contentSubtype?.endsWith("json") != true) throw ProviderFailure(KEY_RESPONSE, response.status.value)
+                parseObject(boundedBytes(response, MAX_JSON_BYTES).decodeToString(), response.status.value)
+            }
+            val items = (root["data"] ?: root["models"]) as? JsonArray ?: return null
+            val anthropicShape = root.containsKey("has_more") || items.any { (it as? JsonObject)?.get("type").stringOrNull() == "model" }
+            if (anthropic && !anthropicShape) return null
+            for (item in items) {
+                val info = (item as? JsonObject)?.let { ModelCatalog.parse(it, host) } ?: continue
+                models.putIfAbsent(info.id, info)
+                if (models.size >= MAX_MODELS) return models.values.toList()
+            }
+            val more = (root["has_more"] as? JsonPrimitive)?.contentOrNull == "true"
+            after = root["last_id"].stringOrNull()
+            if (!anthropic || !more || after == null) break
+        }
+        return models.values.toList()
+    }
+
+    /**
+     * One streamed model round in the account's [ProviderSettings.api] protocol. [effort] is a
+     * published stop for this model, or null to keep the provider's default; [maxOutput] is the
+     * catalog's output cap, used where the protocol requires one.
+     */
     suspend fun chat(
         settings: ProviderSettings,
         apiKey: String,
         messages: List<ApiMessage>,
         tools: List<JsonObject> = emptyList(),
+        effort: String? = null,
+        maxOutput: Long? = null,
         onDelta: (String) -> Unit = {},
     ): ApiReply = guarded {
         validateSettings(settings)
+        if (settings.chatModel.isBlank()) throw ProviderFailure(KEY_SETTINGS)
         val key = checkedKey(apiKey)
-        val payload = buildJsonObject {
-            put("model", settings.chatModel)
-            put("stream", true)
-            put("messages", buildJsonArray { messages.forEach { add(encodeMessage(it)) } })
-            if (tools.isNotEmpty()) put("tools", JsonArray(tools))
+        val level = effort?.takeIf { it in KNOWN_EFFORTS }
+        val anthropic = settings.api == ApiLayer.ANTHROPIC
+        val (path, payload) = when (settings.api) {
+            ApiLayer.ANTHROPIC -> "messages" to anthropicPayload(settings, messages, tools, level, maxOutput)
+            ApiLayer.RESPONSES -> "responses" to responsesPayload(settings, messages, tools, level)
+            else -> "chat/completions" to buildJsonObject {
+                put("model", settings.chatModel)
+                put("stream", true)
+                put("messages", buildJsonArray { messages.forEach { add(encodeMessage(it)) } })
+                if (tools.isNotEmpty()) put("tools", JsonArray(tools))
+                if (level != null) put("reasoning_effort", level)
+            }
         }
         transport.prepareRequest {
-            apiCall(HttpMethod.Post, endpoint(settings.baseUrl, "chat/completions"), key)
+            apiCall(HttpMethod.Post, endpoint(settings.baseUrl, path), key, anthropic)
             contentType(ContentType.Application.Json)
             headers.append(HttpHeaders.Accept, ContentType.Text.EventStream.toString())
             // Small SSE frames must not wait for a proxy's compression buffer.
@@ -139,16 +283,234 @@ class ProviderClient(
         }.execute { response ->
             checkStatus(response)
             val status = response.status.value
-            if (response.contentType()?.withoutParameters() == ContentType.Application.Json) {
-                nonStreamReply(boundedBytes(response, MAX_JSON_BYTES).decodeToString(), settings, status)
-            } else {
-                streamReply(response, settings, onDelta)
+            val jsonBody = response.contentType()?.withoutParameters() == ContentType.Application.Json
+            when (settings.api) {
+                ApiLayer.ANTHROPIC -> if (jsonBody) throw ProviderFailure(KEY_RESPONSE, status) else anthropicStream(response, settings, onDelta)
+                ApiLayer.RESPONSES -> if (jsonBody) throw ProviderFailure(KEY_RESPONSE, status) else responsesStream(response, settings, onDelta)
+                else -> if (jsonBody) nonStreamReply(boundedBytes(response, MAX_JSON_BYTES).decodeToString(), settings, status)
+                    else streamReply(response, settings, onDelta)
             }
         }
     }
 
+    /** Tool definitions are kept in Chat Completions form and translated per protocol. */
+    private fun functionOf(tool: JsonObject): JsonObject? = tool["function"] as? JsonObject
+
+    private fun anthropicPayload(settings: ProviderSettings, messages: List<ApiMessage>, tools: List<JsonObject>, effort: String?, maxOutput: Long?) = buildJsonObject {
+        put("model", settings.chatModel)
+        put("max_tokens", (maxOutput ?: 16_000L).coerceIn(1_024L, 64_000L))
+        put("stream", true)
+        val system = messages.filter { it.role == "system" }.joinToString("\n\n") { it.text }
+        if (system.isNotBlank()) put("system", system)
+        put("messages", buildJsonArray {
+            var pendingResults = mutableListOf<JsonObject>()
+            fun flushResults() {
+                if (pendingResults.isEmpty()) return
+                // Every result of one tool turn goes back in a single user message.
+                add(buildJsonObject { put("role", "user"); put("content", JsonArray(pendingResults)) })
+                pendingResults = mutableListOf()
+            }
+            for (message in messages) {
+                when (message.role) {
+                    "system" -> Unit
+                    "tool" -> pendingResults += buildJsonObject {
+                        put("type", "tool_result")
+                        put("tool_use_id", message.toolCallId.orEmpty())
+                        put("content", message.text)
+                        if (message.text.startsWith("{\"error\":")) put("is_error", true)
+                    }
+                    else -> {
+                        val content = message.native ?: buildJsonArray {
+                            message.images.forEach { image -> anthropicImage(image)?.let(::add) }
+                            if (message.text.isNotEmpty()) add(buildJsonObject { put("type", "text"); put("text", message.text) })
+                            message.toolCalls.forEach { call ->
+                                add(buildJsonObject {
+                                    put("type", "tool_use"); put("id", call.id); put("name", call.name)
+                                    put("input", runCatching { json.parseToJsonElement(call.arguments) as? JsonObject }.getOrNull() ?: JsonObject(emptyMap()))
+                                })
+                            }
+                        }
+                        // An image-only assistant turn has no text for the model; the Messages API
+                        // rejects empty content, so such a turn is left out.
+                        if (content.isNotEmpty()) {
+                            flushResults()
+                            add(buildJsonObject {
+                                put("role", if (message.role == "assistant") "assistant" else "user")
+                                put("content", content)
+                            })
+                        }
+                    }
+                }
+            }
+            flushResults()
+        })
+        if (tools.isNotEmpty()) put("tools", buildJsonArray {
+            tools.mapNotNull(::functionOf).forEach { function ->
+                add(buildJsonObject {
+                    put("name", function["name"] ?: JsonNull)
+                    function["description"]?.let { put("description", it) }
+                    put("input_schema", function["parameters"] ?: buildJsonObject { put("type", "object") })
+                })
+            }
+        })
+        if (effort != null) putJsonObject("output_config") { put("effort", effort) }
+    }
+
+    /** `data:<mime>;base64,<data>` becomes an Anthropic base64 image block. */
+    private fun anthropicImage(dataUrl: String): JsonObject? {
+        val match = Regex("^data:([^;,]+);base64,(.*)$", RegexOption.DOT_MATCHES_ALL).find(dataUrl) ?: return null
+        return buildJsonObject {
+            put("type", "image")
+            putJsonObject("source") {
+                put("type", "base64"); put("media_type", match.groupValues[1]); put("data", match.groupValues[2])
+            }
+        }
+    }
+
+    private suspend fun anthropicStream(response: HttpResponse, settings: ProviderSettings, onDelta: (String) -> Unit): ApiReply {
+        val status = response.status.value
+        val reader = SseReader(response.bodyAsChannel(), status)
+        val blocks = sortedMapOf<Int, AnthropicBlock>()
+        val text = StringBuilder()
+        var model: String? = null
+        var stop: String? = null
+        var done = false
+        while (true) {
+            val data = reader.next() ?: break
+            val event = parseObject(data, status)
+            when (event["type"].stringOrNull()) {
+                "message_start" -> model = ((event["message"] as? JsonObject)?.get("model")).stringOrNull()
+                "content_block_start" -> {
+                    val index = indexOf(event, status)
+                    val block = event["content_block"] as? JsonObject ?: throw ProviderFailure(KEY_RESPONSE, status)
+                    if (blocks.size >= MAX_TOOL_CALLS * 2 && index !in blocks) throw ProviderFailure(KEY_RESPONSE, status)
+                    blocks[index] = AnthropicBlock(block)
+                }
+                "content_block_delta" -> {
+                    val block = blocks[indexOf(event, status)] ?: throw ProviderFailure(KEY_RESPONSE, status)
+                    val delta = event["delta"] as? JsonObject ?: continue
+                    val piece = when (delta["type"].stringOrNull()) {
+                        "text_delta" -> delta["text"].stringOrNull()?.also { fragment ->
+                            if (text.length + fragment.length > MAX_REPLY_CHARS) throw ProviderFailure(KEY_RESPONSE, status)
+                            text.append(fragment); onDelta(text.toString())
+                        }
+                        "input_json_delta" -> delta["partial_json"].stringOrNull()
+                        "thinking_delta" -> delta["thinking"].stringOrNull()
+                        "signature_delta" -> { block.signature.append(delta["signature"].stringOrNull().orEmpty()); null }
+                        else -> null
+                    }
+                    if (piece != null) {
+                        if (block.body.length + piece.length > MAX_TOOL_CHARS) throw ProviderFailure(KEY_RESPONSE, status)
+                        block.body.append(piece)
+                    }
+                }
+                "message_delta" -> stop = ((event["delta"] as? JsonObject)?.get("stop_reason")).stringOrNull() ?: stop
+                "message_stop" -> { done = true; break }
+                "error" -> throw ProviderFailure(KEY_PROVIDER, status)
+            }
+        }
+        if (!done) throw ProviderFailure(KEY_RESPONSE, status)
+        if (stop == "refusal" && text.isEmpty()) throw ProviderFailure("standalone.error.refusal", status)
+        val native = JsonArray(blocks.values.mapNotNull { it.build(json) })
+        val calls = blocks.values.filter { it.type == "tool_use" }.map { block ->
+            val id = block.start["id"].stringOrNull()?.takeIf { it.isNotBlank() } ?: throw ProviderFailure(KEY_RESPONSE, status)
+            val name = block.start["name"].stringOrNull()?.takeIf { it.isNotBlank() } ?: throw ProviderFailure(KEY_RESPONSE, status)
+            if (id.length > MAX_ID_CHARS || name.length > MAX_ID_CHARS) throw ProviderFailure(KEY_RESPONSE, status)
+            ApiToolCall(id, name, block.body.toString().ifBlank { "{}" })
+        }
+        if (text.isEmpty() && calls.isEmpty()) throw ProviderFailure(KEY_RESPONSE, status)
+        return ApiReply(text.toString(), model?.takeIf { it.isNotBlank() } ?: settings.chatModel, calls, native)
+    }
+
+    private fun indexOf(event: JsonObject, status: Int): Int =
+        (event["index"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull()?.takeIf { it in 0 until 1024 }
+            ?: throw ProviderFailure(KEY_RESPONSE, status)
+
+    private fun responsesPayload(settings: ProviderSettings, messages: List<ApiMessage>, tools: List<JsonObject>, effort: String?) = buildJsonObject {
+        put("model", settings.chatModel)
+        put("stream", true)
+        // Nothing is kept server-side; every request carries the whole visible history.
+        put("store", false)
+        val system = messages.filter { it.role == "system" }.joinToString("\n\n") { it.text }
+        if (system.isNotBlank()) put("instructions", system)
+        put("input", buildJsonArray {
+            for (message in messages) when (message.role) {
+                "system" -> Unit
+                "tool" -> add(buildJsonObject {
+                    put("type", "function_call_output"); put("call_id", message.toolCallId.orEmpty()); put("output", message.text)
+                })
+                "assistant" -> {
+                    if (message.text.isNotEmpty()) add(buildJsonObject { put("role", "assistant"); put("content", message.text) })
+                    message.toolCalls.forEach { call ->
+                        add(buildJsonObject {
+                            put("type", "function_call"); put("call_id", call.id); put("name", call.name); put("arguments", call.arguments)
+                        })
+                    }
+                }
+                else -> add(buildJsonObject {
+                    put("role", "user")
+                    put("content", buildJsonArray {
+                        if (message.text.isNotEmpty()) add(buildJsonObject { put("type", "input_text"); put("text", message.text) })
+                        message.images.forEach { image -> add(buildJsonObject { put("type", "input_image"); put("image_url", image) }) }
+                    })
+                })
+            }
+        })
+        if (tools.isNotEmpty()) put("tools", buildJsonArray {
+            tools.mapNotNull(::functionOf).forEach { function ->
+                add(buildJsonObject {
+                    put("type", "function")
+                    put("name", function["name"] ?: JsonNull)
+                    function["description"]?.let { put("description", it) }
+                    put("parameters", function["parameters"] ?: buildJsonObject { put("type", "object") })
+                })
+            }
+        })
+        if (effort != null) putJsonObject("reasoning") { put("effort", effort) }
+    }
+
+    private suspend fun responsesStream(response: HttpResponse, settings: ProviderSettings, onDelta: (String) -> Unit): ApiReply {
+        val status = response.status.value
+        val reader = SseReader(response.bodyAsChannel(), status)
+        val text = StringBuilder()
+        val calls = mutableListOf<ApiToolCall>()
+        var model: String? = null
+        var done = false
+        while (true) {
+            val data = reader.next() ?: break
+            if (data.trim() == DONE) break
+            val event = parseObject(data, status)
+            when (event["type"].stringOrNull()) {
+                "response.created" -> model = ((event["response"] as? JsonObject)?.get("model")).stringOrNull()
+                "response.output_text.delta" -> event["delta"].stringOrNull()?.let { fragment ->
+                    if (text.length + fragment.length > MAX_REPLY_CHARS) throw ProviderFailure(KEY_RESPONSE, status)
+                    text.append(fragment); onDelta(text.toString())
+                }
+                // The finished item carries the complete arguments; deltas are not needed.
+                "response.output_item.done" -> (event["item"] as? JsonObject)?.takeIf { it["type"].stringOrNull() == "function_call" }?.let { item ->
+                    val id = item["call_id"].stringOrNull()?.takeIf { it.isNotBlank() } ?: throw ProviderFailure(KEY_RESPONSE, status)
+                    val name = item["name"].stringOrNull()?.takeIf { it.isNotBlank() } ?: throw ProviderFailure(KEY_RESPONSE, status)
+                    val arguments = item["arguments"].stringOrNull().orEmpty()
+                    if (calls.size >= MAX_TOOL_CALLS || id.length > MAX_ID_CHARS || name.length > MAX_ID_CHARS || arguments.length > MAX_TOOL_CHARS)
+                        throw ProviderFailure(KEY_RESPONSE, status)
+                    calls += ApiToolCall(id, name, arguments.ifBlank { "{}" })
+                }
+                "response.completed", "response.incomplete" -> {
+                    model = ((event["response"] as? JsonObject)?.get("model")).stringOrNull() ?: model
+                    done = true; break
+                }
+                "response.failed", "error" -> throw ProviderFailure(KEY_PROVIDER, status)
+                "response.refusal.done" -> if (text.isEmpty()) throw ProviderFailure("standalone.error.refusal", status)
+            }
+        }
+        if (!done) throw ProviderFailure(KEY_RESPONSE, status)
+        if (text.isEmpty() && calls.isEmpty()) throw ProviderFailure(KEY_RESPONSE, status)
+        return ApiReply(text.toString(), model?.takeIf { it.isNotBlank() } ?: settings.chatModel, calls)
+    }
+
     suspend fun generateImage(settings: ProviderSettings, apiKey: String, prompt: String): GeneratedImage = guarded {
         validateSettings(settings)
+        if (settings.imageProtocol == ImageLayer.NONE) throw ProviderFailure(KEY_SETTINGS)
         val key = checkedKey(apiKey)
         val qwen = settings.imageProtocol == "qwen"
         val payload = if (qwen) {
@@ -386,10 +748,10 @@ class ProviderClient(
         else -> null
     }
 
-    private fun HttpRequestBuilder.apiCall(verb: HttpMethod, endpoint: String, apiKey: String) {
+    private fun HttpRequestBuilder.apiCall(verb: HttpMethod, endpoint: String, apiKey: String, anthropic: Boolean = false) {
         method = verb
         url.takeFrom(endpoint)
-        attributes.put(Bearer, apiKey)
+        if (anthropic) attributes.put(AnthropicKey, apiKey) else attributes.put(Bearer, apiKey)
     }
 
     private fun checkStatus(response: HttpResponse) {
@@ -451,16 +813,23 @@ class ProviderClient(
 
     companion object {
         private val Bearer = AttributeKey<String>("ProviderClient.Bearer")
+        private val AnthropicKey = AttributeKey<String>("ProviderClient.AnthropicKey")
+        private const val ANTHROPIC_KEY_HEADER = "x-api-key"
+        private const val ANTHROPIC_VERSION_HEADER = "anthropic-version"
+        private const val ANTHROPIC_VERSION = "2023-06-01"
 
         /** Called before settings are saved and before every request. */
         fun validateSettings(settings: ProviderSettings) {
-            validateModel(settings.chatModel)
-            validateModel(settings.imageModel)
-            if (settings.imageProtocol != "qwen" && settings.imageProtocol != "openai") {
-                throw ProviderFailure(KEY_SETTINGS)
-            }
+            if (settings.api !in ApiLayer.all || settings.imageProtocol !in ImageLayer.all) throw ProviderFailure(KEY_SETTINGS)
+            if (settings.chatModel.isNotBlank()) validateModel(settings.chatModel)
             validateEndpoint(settings.baseUrl)
-            validateEndpoint(settings.imageEndpoint)
+            // A text-only provider carries neither an image model nor an image endpoint.
+            if (settings.imageProtocol == ImageLayer.NONE) {
+                if (settings.imageModel.isNotBlank()) throw ProviderFailure(KEY_SETTINGS)
+            } else {
+                validateModel(settings.imageModel)
+                validateEndpoint(settings.imageEndpoint)
+            }
         }
 
         private fun validateModel(model: String) {
@@ -469,7 +838,7 @@ class ProviderClient(
             }
         }
 
-        private fun validateEndpoint(endpoint: String) {
+        internal fun validateEndpoint(endpoint: String) {
             if (endpoint.isBlank() || endpoint.length > MAX_URL_CHARS || endpoint.any(Char::isISOControl) ||
                 '?' in endpoint || '#' in endpoint
             ) {
@@ -490,6 +859,27 @@ class ProviderClient(
             if (size < offset + signature.size) return false
             return signature.indices.all { this[offset + it] == signature[it].toByte() }
         }
+    }
+}
+
+/** One Anthropic content block: its start object plus the streamed text, JSON or signature. */
+private class AnthropicBlock(val start: JsonObject) {
+    val type: String? = (start["type"] as? JsonPrimitive)?.contentOrNull
+    val body = StringBuilder()
+    val signature = StringBuilder()
+
+    /** The block exactly as the API must receive it back in the next tool round. */
+    fun build(json: Json): JsonObject? = when (type) {
+        "text" -> buildJsonObject { put("type", "text"); put("text", body.toString()) }
+        "tool_use" -> buildJsonObject {
+            put("type", "tool_use"); put("id", start["id"] ?: JsonNull); put("name", start["name"] ?: JsonNull)
+            put("input", runCatching { json.parseToJsonElement(body.toString().ifBlank { "{}" }) as? JsonObject }.getOrNull() ?: JsonObject(emptyMap()))
+        }
+        "thinking" -> buildJsonObject {
+            put("type", "thinking"); put("thinking", body.toString()); put("signature", signature.toString())
+        }
+        "redacted_thinking" -> start
+        else -> null
     }
 }
 

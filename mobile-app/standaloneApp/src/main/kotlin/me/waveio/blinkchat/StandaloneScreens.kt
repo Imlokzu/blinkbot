@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -34,12 +35,6 @@ import me.waveio.claudebot.ui.*
 // and stay on the same centered column as SettingsScreen.
 private val StandaloneFormMaxWidth = 640.dp
 
-private val QwenPreset = ProviderSettings()
-private val CustomPreset = ProviderSettings(
-    baseUrl = "https://api.example.com/v1",
-    imageEndpoint = "https://api.example.com/v1/images/generations",
-    imageProtocol = "openai",
-)
 
 /**
  * Settings and secondary screens of the standalone app, drawn with the shared components.
@@ -99,36 +94,98 @@ private fun ProfileSettings(state: AppState, controller: ChatController) {
 }
 
 /** One selectable model row; the provider ID keeps duplicate raw IDs apart. */
-private data class ModelChoice(val providerId: String, val providerName: String, val modelId: String, val selected: Boolean)
+private data class ModelChoice(val providerId: String, val providerName: String, val modelId: String, val selected: Boolean, val info: ModelInfo? = null)
 
 private fun hostOf(url: String): String = runCatching { URI(url).host }.getOrNull().orEmpty().ifBlank { url }
 
-/** Primary first, then the manual lines, deduplicated without dropping unknown IDs. */
-private fun mergeModels(primary: String, extra: String): List<String> =
-    (listOf(primary) + extra.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }).distinct()
+/** Manual lines, trimmed and deduplicated without dropping unknown IDs. */
+private fun lines(text: String): List<String> = text.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList()
 
-private fun ProviderAccount.toDraft(): ProviderDraft = ProviderDraft(
-    name = name,
-    baseUrl = settings.baseUrl,
-    chatModel = settings.chatModel,
-    extraChat = chatModels.filterNot { it == settings.chatModel }.joinToString("\n"),
-    imageModel = settings.imageModel,
-    extraImage = imageModels.filterNot { it == settings.imageModel }.joinToString("\n"),
-    imageEndpoint = settings.imageEndpoint,
-    imageProtocol = settings.imageProtocol,
+private fun tokens(value: Long): String = when {
+    value >= 1_000_000 && value % 1_000_000 == 0L -> "${value / 1_000_000}M"
+    value >= 1_000_000 -> "${"%.1f".format(value / 1_000_000.0)}M"
+    value >= 1_000 -> "${value / 1_000}K"
+    else -> value.toString()
+}
+
+/** Facts the endpoint published for one model; nothing is shown for what it did not say. */
+@Composable
+private fun modelFacts(info: ModelInfo?): String = listOfNotNull(
+    info?.context?.let { tr("standalone.models.fact.context", "tokens" to tokens(it)) },
+    info?.maxOutput?.let { tr("standalone.models.fact.output", "tokens" to tokens(it)) },
+    if (info?.vision == true) tr("standalone.models.fact.vision") else null,
+    info?.efforts?.takeIf { it.isNotEmpty() }?.let { levels -> tr("standalone.models.fact.effort", "levels" to levels.map { tr("model.$it") }.joinToString(" · ")) },
+).joinToString("  ·  ")
+
+@Composable
+private fun layerName(api: String): String = tr("standalone.setup.api.$api")
+
+/** Well-known endpoints; Connect still detects the protocol and reads the live catalog. */
+private val SetupPresets = listOf(
+    "anthropic" to "https://api.anthropic.com/v1",
+    "openai" to "https://api.openai.com/v1",
+    "openrouter" to "https://openrouter.ai/api/v1",
+    "qwen" to "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1",
 )
 
-/** The editable form; the saved key never lives here, only a freshly typed one. */
+/**
+ * The editable form; the saved key never lives here, only a freshly typed one. Catalog
+ * [models] come from Connect; [extraChat]/[extraImage] hold IDs typed by hand.
+ */
 private data class ProviderDraft(
     val name: String = "",
-    val baseUrl: String = QwenPreset.baseUrl,
-    val chatModel: String = QwenPreset.chatModel,
+    val baseUrl: String = "",
+    val api: String = ApiLayer.OPENAI_CHAT,
+    val models: List<ModelInfo> = emptyList(),
+    val chatEnabled: Boolean = true,
+    val chatModel: String = "",
     val extraChat: String = "",
-    val imageModel: String = QwenPreset.imageModel,
+    val imageEnabled: Boolean = false,
+    val imageProtocol: String = ImageLayer.OPENAI,
+    val imageEndpoint: String = "",
+    val imageModel: String = "",
     val extraImage: String = "",
-    val imageEndpoint: String = QwenPreset.imageEndpoint,
-    val imageProtocol: String = QwenPreset.imageProtocol,
-)
+) {
+    val chatIds: List<String> get() = (listOf(chatModel.trim()) + models.filter { it.text }.map { it.id } + lines(extraChat)).filter(String::isNotBlank).distinct()
+    val imageIds: List<String> get() = (listOf(imageModel.trim()) + models.filter { it.image }.map { it.id } + lines(extraImage)).filter(String::isNotBlank).distinct()
+}
+
+private fun ProviderAccount.toDraft(): ProviderDraft {
+    val catalog = models.map { it.id }.toSet()
+    return ProviderDraft(
+        name = name,
+        baseUrl = settings.baseUrl,
+        api = settings.api,
+        models = models,
+        chatEnabled = chats,
+        chatModel = settings.chatModel,
+        extraChat = chatModels.filterNot { it == settings.chatModel || it in catalog }.joinToString("\n"),
+        imageEnabled = images,
+        imageProtocol = if (images) settings.imageProtocol else ImageLayer.OPENAI,
+        imageEndpoint = settings.imageEndpoint,
+        imageModel = settings.imageModel,
+        extraImage = imageModels.filterNot { it == settings.imageModel || it in catalog }.joinToString("\n"),
+    )
+}
+
+/** Applies a fresh probe without discarding the owner's own choices where they still exist. */
+private fun ProviderDraft.withDiscovery(found: Discovery): ProviderDraft {
+    val textIds = found.models.filter { it.text }.map { it.id }
+    val imageIds = found.models.filter { it.image }.map { it.id }
+    val images = found.imageProtocol != ImageLayer.NONE && (imageIds.isNotEmpty() || lines(extraImage).isNotEmpty())
+    return copy(
+        name = name.ifBlank { found.name },
+        baseUrl = found.baseUrl,
+        api = found.recommended,
+        models = found.models,
+        chatEnabled = textIds.isNotEmpty() || lines(extraChat).isNotEmpty(),
+        chatModel = chatModel.takeIf { it in textIds || it in lines(extraChat) } ?: textIds.firstOrNull().orEmpty(),
+        imageEnabled = images,
+        imageProtocol = if (found.imageProtocol == ImageLayer.NONE) imageProtocol else found.imageProtocol,
+        imageEndpoint = found.imageEndpoint.ifBlank { imageEndpoint },
+        imageModel = imageModel.takeIf { it in imageIds || it in lines(extraImage) } ?: imageIds.firstOrNull().orEmpty(),
+    )
+}
 
 @Composable
 private fun ModelSettings(state: AppState, controller: ChatController) {
@@ -148,20 +205,29 @@ private fun ModelSettings(state: AppState, controller: ChatController) {
 
     val p = LocalPalette.current
     val chatName = book.account(book.defaultChat.providerId)?.name ?: book.defaultChat.providerId
-    val imageName = book.account(book.defaultImage.providerId)?.name ?: book.defaultImage.providerId
+    val defaultImage = book.defaultImage
+    val imageProviders = book.providers.any { it.images }
     FormColumn {
         Text(tr("standalone.models.defaultsHelp"), color = p.muted, fontSize = 13.sp)
         MenuRow("chat", tr("standalone.models.defaultChat"), { pickDefault = false },
             subtitle = "$chatName · ${book.defaultChat.modelId}")
         MenuRow("photo", tr("standalone.models.defaultImage"), { pickDefault = true },
-            subtitle = "$imageName · ${book.defaultImage.modelId}")
+            subtitle = when {
+                defaultImage != null -> "${book.account(defaultImage.providerId)?.name ?: defaultImage.providerId} · ${defaultImage.modelId}"
+                imageProviders -> tr("standalone.models.imageOff")
+                else -> tr("standalone.models.imageNone")
+            }, enabled = imageProviders)
         Hairline()
         Text(tr("standalone.models.providers"), color = p.ink)
         Text(tr("standalone.models.providerCount", "count" to book.providers.size), color = p.muted, fontSize = 12.sp)
         book.providers.forEach { account ->
             val keyLabel = tr(if (account.id in keys) "standalone.models.keyPresent" else "standalone.models.keyAbsent")
+            val roles = listOfNotNull(
+                if (account.chats) tr("standalone.models.role.chat") else null,
+                if (account.images) tr("standalone.models.role.image") else null,
+            ).joinToString(" + ")
             MenuRow("bot", account.name, { editingId = account.id; creating = false },
-                subtitle = "${hostOf(account.settings.baseUrl)} · $keyLabel", enabled = !saving)
+                subtitle = "${hostOf(account.settings.baseUrl)} · ${layerName(account.settings.api)} · $roles · $keyLabel", enabled = !saving)
         }
         ActionButton(tr("standalone.models.addProvider"), { editingId = UUID.randomUUID().toString(); creating = true },
             Modifier.fillMaxWidth().testTag("provider-add"), icon = "new", enabled = !saving)
@@ -172,7 +238,7 @@ private fun ModelSettings(state: AppState, controller: ChatController) {
         val current = if (image) book.defaultImage else book.defaultChat
         val entries = book.providers.flatMap { account ->
             (if (image) account.imageModels else account.chatModels).map { model ->
-                ModelChoice(account.id, account.name, model, current.providerId == account.id && current.modelId == model)
+                ModelChoice(account.id, account.name, model, current?.providerId == account.id && current.modelId == model, account.info(model))
             }
         }
         ModelSearchDialog(
@@ -180,7 +246,21 @@ private fun ModelSettings(state: AppState, controller: ChatController) {
             image = image, entries = entries,
             onPick = { controller.setDefaultModel(ModelSelection(it.providerId, it.modelId), image); pickDefault = null },
             onDismiss = { pickDefault = null },
+            noneLabel = if (image) tr("standalone.models.imageOffChoice") else null,
+            onNone = { controller.clearDefaultImage(); pickDefault = null },
         )
+    }
+}
+
+/** A labelled group inside the setup form. */
+@Composable
+private fun SetupSection(title: String, help: String? = null, content: @Composable ColumnScope.() -> Unit) {
+    val p = LocalPalette.current
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).border(1.dp, p.line, RoundedCornerShape(18.dp)).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(title, color = p.ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        if (help != null) Text(help, color = p.muted, fontSize = 12.sp)
+        content()
     }
 }
 
@@ -202,31 +282,36 @@ private fun ProviderEditor(
     // Only the freshly typed key lives here: the saved one never enters the composition,
     // and plain remember keeps it out of the saved instance state.
     var key by remember(editingId) { mutableStateOf("") }
-    var nameError by remember(editingId) { mutableStateOf(false) }
+    // Layers the last Connect proved; null until Connect runs in this editor.
+    var detected by remember(editingId) { mutableStateOf<List<String>?>(null) }
+    var formError by remember(editingId) { mutableStateOf<String?>(null) }
     var pickChat by remember(editingId) { mutableStateOf(false) }
     var pickImage by remember(editingId) { mutableStateOf(false) }
+    var manual by remember(editingId) { mutableStateOf(saved != null && saved.models.isEmpty()) }
     var confirmDelete by remember(editingId) { mutableStateOf(false) }
     var confirmDiscard by remember(editingId) { mutableStateOf(false) }
     var pendingExit by remember(editingId) { mutableStateOf<(() -> Unit)?>(null) }
+    val discovering by controller.providerDiscovering.collectAsState()
 
-    // A refresh imports the catalog into the saved account; follow it only while the
-    // form is clean so unrelated unsaved edits are never wiped.
+    // Follow the saved account (for example after Remove key) while the form is clean. A
+    // background catalog refresh can also land during an edit: rebase only its new models so
+    // the unsaved field values survive and saving does not drop what the refresh imported.
     LaunchedEffect(book, editingId) {
         val current = book.account(editingId)
         if (current != null) {
             if (key.isBlank() && draft == baseline?.toDraft()) draft = current.toDraft()
             else baseline?.let { previous ->
-                // Discovery can complete while a name/endpoint field is being edited.
-                // Rebase its new IDs without replacing those unsaved field values.
-                val addedChat = current.chatModels - previous.chatModels.toSet()
-                val addedImage = current.imageModels - previous.imageModels.toSet()
-                draft = draft.copy(
-                    extraChat = (mergeModels(draft.chatModel,draft.extraChat) + addedChat).distinct().filterNot { it == draft.chatModel }.joinToString("\n"),
-                    extraImage = (mergeModels(draft.imageModel,draft.extraImage) + addedImage).distinct().filterNot { it == draft.imageModel }.joinToString("\n"))
+                val known = previous.models.map { it.id }.toSet()
+                val added = current.models.filter { it.id !in known }
+                val addedManual = (current.chatModels - previous.chatModels.toSet()).filter { id -> current.info(id) == null }
+                if (added.isNotEmpty() || addedManual.isNotEmpty())
+                    draft = draft.copy(models = ModelCatalog.merge(draft.models, added),
+                        extraChat = (lines(draft.extraChat) + addedManual).distinct().joinToString("\n"))
             }
         }
         baseline = current
     }
+    DisposableEffect(editingId) { onDispose { controller.cancelDiscovery() } }
 
     val cleanDraft = baseline?.toDraft() ?: ProviderDraft()
     val dirty = key.isNotBlank() || draft != cleanDraft
@@ -240,90 +325,135 @@ private fun ProviderEditor(
         onDispose { controller.clearProviderEditorNavigation(editingId) }
     }
     val hasSavedKey = editingId in keys
-    val busy = saving || state.busy || state.modelsLoading
-    val refreshEnabled = !creating && saved != null && !dirty && !saving && !state.modelsLoading
-    val mergedChat = mergeModels(draft.chatModel.trim(), draft.extraChat).filter { it.isNotBlank() }
-    val mergedImage = mergeModels(draft.imageModel.trim(), draft.extraImage).filter { it.isNotBlank() }
-    val providerLabel = draft.name.ifBlank { saved?.name.orEmpty() }
+    val busy = saving || state.busy || discovering
+    val providerLabel = draft.name.ifBlank { ModelCatalog.suggestName(draft.baseUrl) }
+    val connected = draft.models.isNotEmpty() || detected != null
+    val connect = {
+        formError = null
+        controller.discoverProvider(editingId, draft.baseUrl, key) { found ->
+            draft = draft.withDiscovery(found)
+            detected = found.apis
+            manual = manual || found.models.isEmpty()
+        }
+    }
 
     FormColumn {
         Text(tr(if (creating) "standalone.models.editorNew" else "standalone.models.editorEdit"),
             color = p.ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-        Text(tr("standalone.models.help"), color = p.muted, fontSize = 13.sp)
 
-        BotField(draft.name, { draft = draft.copy(name = it); if (it.isNotBlank()) nameError = false }, Modifier.fillMaxWidth().testTag("provider-name"),
-            label = tr("standalone.models.name"), placeholder = tr("standalone.models.namePlaceholder"),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next))
-        if (nameError) Text(tr("standalone.models.nameRequired"), color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-
-        Text(tr("standalone.models.preset"), color = p.ink)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            // A preset swaps the known endpoints only; the owner's name, model IDs and the global prompt survive.
-            ChoicePill(tr("standalone.models.provider.qwen"), draft.imageProtocol == "qwen", {
-                draft = draft.copy(baseUrl = QwenPreset.baseUrl, imageEndpoint = QwenPreset.imageEndpoint, imageProtocol = "qwen")
-            })
-            ChoicePill(tr("standalone.models.provider.custom"), draft.imageProtocol == "openai", {
-                draft = draft.copy(baseUrl = CustomPreset.baseUrl, imageEndpoint = CustomPreset.imageEndpoint, imageProtocol = "openai")
-            })
+        SetupSection(tr("standalone.setup.connect"), tr("standalone.setup.connectHelp")) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                SetupPresets.forEach { (id, url) ->
+                    ChoicePill(tr("standalone.setup.preset.$id"), draft.baseUrl.trimEnd('/') == url, {
+                        draft = draft.copy(baseUrl = url); detected = null
+                    })
+                }
+            }
+            BotField(draft.baseUrl, { draft = draft.copy(baseUrl = it); detected = null }, Modifier.fillMaxWidth().testTag("provider-base-url"),
+                label = tr("standalone.setup.url"), placeholder = "https://api.example.com/v1",
+                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next))
+            ApiKeyField(key, { key = it }, hasSavedKey)
+            BotField(draft.name, { draft = draft.copy(name = it) }, Modifier.fillMaxWidth().testTag("provider-name"),
+                label = tr("standalone.models.name"), placeholder = providerLabel.ifBlank { tr("standalone.models.namePlaceholder") },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ActionButton(tr(if (connected) "standalone.setup.reconnect" else "standalone.setup.detect"), connect,
+                    Modifier.weight(1f).testTag("provider-connect"), primary = !connected, icon = "retry",
+                    enabled = !busy && draft.baseUrl.isNotBlank() && (key.isNotBlank() || hasSavedKey))
+                if (discovering) LoadingDots(Modifier.padding(start = 12.dp))
+            }
+            detected?.let { apis ->
+                val textCount = draft.models.count { it.text }
+                val imageCount = draft.models.count { it.image }
+                Text(tr("standalone.setup.found", "count" to textCount, "images" to imageCount,
+                    "layers" to (apis.map { layerName(it) }.joinToString(", ").ifBlank { tr("standalone.setup.layersUnknown") })),
+                    color = p.ink, fontSize = 13.sp, modifier = Modifier.testTag("provider-found").semantics { liveRegion = LiveRegionMode.Polite })
+            }
+            if (hasSavedKey) QuietAction(tr("standalone.models.keyRemove"), { saved?.let { controller.saveAccount(it, "") { key = "" } } },
+                Modifier.fillMaxWidth(), enabled = !busy)
         }
 
-        BotField(draft.baseUrl, { draft = draft.copy(baseUrl = it) }, Modifier.fillMaxWidth().testTag("provider-base-url"),
-            label = tr("standalone.models.baseUrl"),
-            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next))
-        ApiKeyField(key, { key = it }, hasSavedKey)
-        // Removing the key acts on the saved account, never on the unsaved endpoint form.
-        QuietAction(tr("standalone.models.keyRemove"), { saved?.let { controller.saveAccount(it, "") { key = "" } } },
-            Modifier.fillMaxWidth(), enabled = hasSavedKey && !busy)
+        if (connected || saved != null) {
+            SetupSection(tr("standalone.setup.layer"), tr("standalone.setup.layerHelp")) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    ApiLayer.all.forEach { api ->
+                        val proven = detected?.contains(api) == true
+                        ChoicePill(layerName(api) + if (proven) " ✓" else "", draft.api == api, { draft = draft.copy(api = api) },
+                            Modifier.testTag("provider-api-$api"))
+                    }
+                }
+                if (detected != null && draft.api !in detected.orEmpty()) Text(tr("standalone.setup.layerUnproven"), color = p.accent, fontSize = 12.sp)
+            }
 
-        BotField(draft.chatModel, { draft = draft.copy(chatModel = it) }, Modifier.fillMaxWidth().testTag("provider-chat-model"),
-            label = tr("standalone.models.chatModel"),
-            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Next))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ActionButton(tr("standalone.models.chooseDiscovered"), { pickChat = true }, icon = "search", enabled = mergedChat.isNotEmpty())
-            ActionButton(tr("standalone.models.refresh"), { controller.refreshProviderModels(editingId) }, icon = "retry", enabled = refreshEnabled)
-            if (state.modelsLoading) LoadingDots(Modifier.padding(8.dp))
+            SetupSection(tr("standalone.setup.chat")) {
+                BotToggle(tr("standalone.setup.chatToggle"), draft.chatEnabled) { draft = draft.copy(chatEnabled = it) }
+                if (draft.chatEnabled) {
+                    val info = draft.models.firstOrNull { it.id == draft.chatModel }
+                    MenuRow("chat", info?.label?.ifBlank { null } ?: draft.chatModel.ifBlank { tr("standalone.setup.chooseModel") },
+                        { pickChat = true }, subtitle = listOf(draft.chatModel.takeIf { info?.label?.isNotBlank() == true }.orEmpty(), modelFacts(info))
+                            .filter(String::isNotBlank).joinToString("  ·  ").ifBlank { null },
+                        enabled = draft.chatIds.isNotEmpty())
+                    Text(tr("standalone.setup.chatCount", "count" to draft.chatIds.size), color = p.muted, fontSize = 12.sp)
+                }
+            }
+
+            SetupSection(tr("standalone.setup.images"), tr("standalone.setup.imagesHelp")) {
+                BotToggle(tr("standalone.setup.imageToggle"), draft.imageEnabled) { draft = draft.copy(imageEnabled = it) }
+                if (draft.imageEnabled) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        ChoicePill(tr("standalone.models.protocol.openai"), draft.imageProtocol == ImageLayer.OPENAI, {
+                            draft = draft.copy(imageProtocol = ImageLayer.OPENAI, imageEndpoint = draft.imageEndpoint.ifBlank { draft.baseUrl.trimEnd('/') + "/images/generations" })
+                        })
+                        ChoicePill(tr("standalone.models.protocol.qwen"), draft.imageProtocol == ImageLayer.QWEN, { draft = draft.copy(imageProtocol = ImageLayer.QWEN) })
+                    }
+                    BotField(draft.imageEndpoint, { draft = draft.copy(imageEndpoint = it) }, Modifier.fillMaxWidth().testTag("provider-image-endpoint"),
+                        label = tr("standalone.models.imageEndpoint"),
+                        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next))
+                    MenuRow("photo", draft.imageModel.ifBlank { tr("standalone.setup.chooseModel") }, { pickImage = true },
+                        subtitle = tr("standalone.setup.imageCount", "count" to draft.imageIds.size), enabled = draft.imageIds.isNotEmpty())
+                } else {
+                    Text(tr("standalone.setup.textOnly"), color = p.muted, fontSize = 12.sp)
+                }
+            }
         }
-        Text(tr("standalone.models.refreshHint"), color = p.muted, fontSize = 12.sp)
-        BotField(draft.extraChat, { draft = draft.copy(extraChat = it) }, Modifier.fillMaxWidth().heightIn(min = 90.dp).testTag("provider-extra-chat"),
-            label = tr("standalone.models.extraChat"), singleLine = false)
 
-        BotField(draft.imageModel, { draft = draft.copy(imageModel = it) }, Modifier.fillMaxWidth().testTag("provider-image-model"),
-            label = tr("standalone.models.imageModel"),
-            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Next))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ActionButton(tr("standalone.models.chooseDiscovered"), { pickImage = true }, icon = "search", enabled = mergedImage.isNotEmpty())
-        }
-        BotField(draft.extraImage, { draft = draft.copy(extraImage = it) }, Modifier.fillMaxWidth().heightIn(min = 90.dp),
-            label = tr("standalone.models.extraImage"), singleLine = false)
+        if (manual) SetupSection(tr("standalone.setup.manual"), tr("standalone.setup.manualHelp")) {
+            BotField(draft.extraChat, { draft = draft.copy(extraChat = it) }, Modifier.fillMaxWidth().heightIn(min = 90.dp).testTag("provider-extra-chat"),
+                label = tr("standalone.models.extraChat"), singleLine = false)
+            if (draft.imageEnabled) BotField(draft.extraImage, { draft = draft.copy(extraImage = it) }, Modifier.fillMaxWidth().heightIn(min = 90.dp),
+                label = tr("standalone.models.extraImage"), singleLine = false)
+        } else QuietAction(tr("standalone.setup.manualOpen"), { manual = true }, Modifier.fillMaxWidth())
 
-        BotField(draft.imageEndpoint, { draft = draft.copy(imageEndpoint = it) }, Modifier.fillMaxWidth().testTag("provider-image-endpoint"),
-            label = tr("standalone.models.imageEndpoint"),
-            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next))
-        Text(tr("standalone.models.endpointHint"), color = p.muted, fontSize = 12.sp)
-        Text(tr("standalone.models.protocol"), color = p.ink)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            ChoicePill(tr("standalone.models.protocol.qwen"), draft.imageProtocol == "qwen", { draft = draft.copy(imageProtocol = "qwen") })
-            ChoicePill(tr("standalone.models.protocol.openai"), draft.imageProtocol == "openai", { draft = draft.copy(imageProtocol = "openai") })
-        }
-
+        formError?.let { Text(tr(it), color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
         SettingsError(state)
         ActionButton(tr("standalone.models.save"), {
-            if (draft.name.isBlank()) nameError = true
-            else {
+            val chatModel = draft.chatModel.trim().ifBlank { if (draft.chatEnabled) draft.chatIds.firstOrNull().orEmpty() else "" }
+            val imageModel = draft.imageModel.trim().ifBlank { if (draft.imageEnabled) draft.imageIds.firstOrNull().orEmpty() else "" }
+            formError = when {
+                draft.baseUrl.isBlank() -> "standalone.setup.needUrl"
+                !draft.chatEnabled && !draft.imageEnabled -> "standalone.setup.needRole"
+                draft.chatEnabled && chatModel.isBlank() -> "standalone.setup.needChatModel"
+                draft.imageEnabled && (imageModel.isBlank() || draft.imageEndpoint.isBlank()) -> "standalone.setup.needImageModel"
+                else -> null
+            }
+            if (formError == null) {
+                val ready = draft.copy(chatModel = chatModel, imageModel = imageModel)
                 val account = ProviderAccount(
                     id = editingId,
-                    name = draft.name.trim(),
+                    name = ready.name.trim().ifBlank { providerLabel },
                     settings = ProviderSettings(
-                        baseUrl = draft.baseUrl.trim(),
-                        chatModel = draft.chatModel.trim(),
-                        imageModel = draft.imageModel.trim(),
-                        imageEndpoint = draft.imageEndpoint.trim(),
-                        imageProtocol = draft.imageProtocol,
+                        baseUrl = ready.baseUrl.trim().trimEnd('/'),
+                        chatModel = if (ready.chatEnabled) chatModel else "",
+                        imageModel = if (ready.imageEnabled) imageModel else "",
+                        imageEndpoint = if (ready.imageEnabled) ready.imageEndpoint.trim() else "",
+                        imageProtocol = if (ready.imageEnabled) ready.imageProtocol else ImageLayer.NONE,
                         systemPrompt = saved?.settings?.systemPrompt ?: book.systemPrompt,
                         toolsEnabled = saved?.settings?.toolsEnabled ?: book.toolsEnabled,
+                        api = ready.api,
                     ),
-                    chatModels = mergeModels(draft.chatModel.trim(), draft.extraChat),
-                    imageModels = mergeModels(draft.imageModel.trim(), draft.extraImage),
+                    chatModels = if (ready.chatEnabled) ready.chatIds else emptyList(),
+                    imageModels = if (ready.imageEnabled) ready.imageIds else emptyList(),
+                    models = ready.models,
                 )
                 controller.saveAccount(account, key.takeIf { it.isNotEmpty() }) { key = ""; onExit() }
             }
@@ -338,10 +468,10 @@ private fun ProviderEditor(
     }
 
     if (pickChat) ModelSearchDialog(tr("standalone.models.chooseChatModel"), false,
-        mergedChat.map { ModelChoice(editingId, providerLabel, it, it == draft.chatModel.trim()) },
+        draft.chatIds.map { id -> ModelChoice(editingId, providerLabel, id, id == draft.chatModel.trim(), draft.models.firstOrNull { it.id == id }) },
         { draft = draft.copy(chatModel = it.modelId); pickChat = false }, { pickChat = false })
     if (pickImage) ModelSearchDialog(tr("standalone.models.chooseImageModel"), true,
-        mergedImage.map { ModelChoice(editingId, providerLabel, it, it == draft.imageModel.trim()) },
+        draft.imageIds.map { id -> ModelChoice(editingId, providerLabel, id, id == draft.imageModel.trim(), draft.models.firstOrNull { it.id == id }) },
         { draft = draft.copy(imageModel = it.modelId); pickImage = false }, { pickImage = false })
 
     if (confirmDelete) BotDialog({ confirmDelete = false }) {
@@ -364,7 +494,10 @@ private fun ProviderEditor(
     }
 }
 
-/** Searchable, bounded picker so a large catalog never becomes hundreds of chips in the form. */
+/**
+ * Searchable, bounded picker shared by the provider form and the defaults page, so every
+ * place that picks a model shows the same rows and the same published facts.
+ */
 @Composable
 private fun ModelSearchDialog(
     title: String,
@@ -372,23 +505,29 @@ private fun ModelSearchDialog(
     entries: List<ModelChoice>,
     onPick: (ModelChoice) -> Unit,
     onDismiss: () -> Unit,
+    noneLabel: String? = null,
+    onNone: () -> Unit = {},
 ) {
     val p = LocalPalette.current
     var query by remember { mutableStateOf("") }
     val filtered = remember(entries, query) {
         if (query.isBlank()) entries
-        else entries.filter { it.modelId.contains(query, true) || it.providerName.contains(query, true) }
+        else entries.filter { it.modelId.contains(query, true) || it.providerName.contains(query, true) || it.info?.label?.contains(query, true) == true }
     }
     BotDialog(onDismiss) {
         Text(title, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = p.ink)
         BotField(query, { query = it }, Modifier.fillMaxWidth().padding(top = 12.dp),
             placeholder = tr("standalone.models.searchModels"), icon = "search",
             keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Search))
+        if (noneLabel != null) MenuRow("close", noneLabel, onNone)
         if (filtered.isEmpty()) Text(tr("standalone.models.noModels"), color = p.muted, fontSize = 13.sp,
             modifier = Modifier.padding(vertical = 16.dp))
         else LazyColumn(Modifier.fillMaxWidth().heightIn(max = 380.dp).padding(top = 8.dp)) {
             itemsIndexed(filtered, key = { index, _ -> index }) { _, entry ->
-                MenuRow(if (image) "photo" else "chat", entry.modelId, { onPick(entry) }, subtitle = entry.providerName,
+                val label = entry.info?.label?.ifBlank { null } ?: entry.modelId
+                val subtitle = listOf(entry.providerName, entry.modelId.takeIf { it != label }.orEmpty(), modelFacts(entry.info))
+                    .filter(String::isNotBlank).joinToString("  ·  ")
+                MenuRow(if (image) "photo" else "chat", label, { onPick(entry) }, subtitle = subtitle,
                     trailing = { if (entry.selected) Glyph("check", modifier = Modifier.size(18.dp), tint = p.accent) })
             }
         }
