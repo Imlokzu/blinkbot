@@ -63,6 +63,16 @@ own key. Image tools use the conversation's image provider, which may differ
 from its text provider; the image tool is not offered when no image model is
 set. Global instructions and the tools toggle apply across providers.
 
+While a reply is on its way, the chat says what is happening: "Sending to the
+model…" until the provider starts its stream, "Thinking…" while the model
+reasons, and "Working with a tool…" during tool calls. Reasoning the provider
+streams (Chat Completions `reasoning_content` or `reasoning`, Anthropic thinking
+summaries for adaptive-thinking models, Responses reasoning summaries) appears
+in a collapsed block above the reply ("Thought for N s") and opens on tap. It
+is stored with the conversation but never resent or copied with the reply.
+Responses requests do not ask for summaries, so they appear only when the
+endpoint sends them anyway.
+
 Anthropic tool rounds send the assistant's content blocks back unchanged,
 including thinking blocks and their signatures. Responses requests use
 `store: false` and resend the visible history each time.

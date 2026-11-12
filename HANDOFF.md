@@ -1,5 +1,12 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-11-12 — Blink Chat 0.3.2: reply phase, reasoning, headings
+
+Replies show their phase (sending, thinking, tool) and an expandable
+reasoning block from provider reasoning streams. Markdown headings in chat
+are chat-sized in both Blink apps (shared renderer fix). Details:
+`docs/mobile-app/BLINK-CHAT-0.3.2.md`.
+
 ## 2026-11-12 — Blink Chat 0.3.1: effort levels for every endpoint
 
 Effort levels are now learned from the endpoint when the catalog publishes
