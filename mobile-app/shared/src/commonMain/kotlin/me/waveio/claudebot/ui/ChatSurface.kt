@@ -66,6 +66,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.yield
 import kotlinx.coroutines.flow.first
 import me.waveio.claudebot.state.*
+import androidx.compose.ui.draw.drawBehind
 
 
 @Composable
@@ -315,6 +316,9 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
     // making a second entrance.
     MessageArrival(animate && !riding && !(replacesTyping && !user), user) { motion ->
     Column(motion.graphicsLayer { if (hidden) alpha = 0f }.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        val answering = parts.any { it.type != "steps" && it.text.isNotBlank() }
+        if (!user && (message.reasoning.isNotBlank() || (message.live && message.status == "thinking")))
+            ReasoningBlock(message.id, message.reasoning, message.live && !answering, message.reasoningSeconds)
         for ((partIndex, part) in parts.withIndex()) {
             if (part.type == "steps") {
                 ActivityTree(message.steps.filter { it.id in part.stepIds }, message.live)
@@ -359,6 +363,10 @@ private fun MessageContent(message: MessageRow, actions: AppActions, reducedMoti
             }
         }
         if (typing && parts.none { it.type != "steps" && it.text.isNotBlank() }) TypingBubble()
+        // Says whether the request is still on its way or the model is already working.
+        if (!user && message.live && !answering && message.status in setOf("sending", "tool"))
+            Text(tr("chat.status.${message.status}"), color = palette.muted, fontSize = 12.sp,
+                modifier = Modifier.padding(start = 6.dp).testTag("reply-status").semantics { liveRegion = LiveRegionMode.Polite })
         if (message.steps.isNotEmpty() && parts.none { it.type == "steps" }) ActivityTree(message.steps, message.live)
         val media = message.attachments.map { PreviewItem(it.path, it.name, it.mimeType, "upload") } +
             message.workFiles.filterNot { it.active }.map { PreviewItem(it.path, it.name, it.mimeType, "workspace") }
@@ -452,6 +460,39 @@ private val TypingPillHeight = 42.dp
 
 /** Show the dots this long after a send at the earliest, and only once its flight has landed. */
 private const val TypingDelayMillis = 300L
+
+/**
+ * The model's reasoning, collapsed to one line: "Thinking…" while it works, then "Thought for
+ * N s". Tapping opens the text; nothing of it is part of the copyable reply.
+ */
+@Composable
+private fun ReasoningBlock(id: String, text: String, thinking: Boolean, seconds: Int?) {
+    val palette = LocalPalette.current
+    var open by remember(id) { mutableStateOf(false) }
+    val label = when {
+        thinking -> tr("chat.reasoning.live")
+        seconds != null && seconds > 0 -> tr("chat.reasoning.done", "seconds" to seconds)
+        else -> tr("chat.reasoning.title")
+    }
+    val rotation by animateFloatAsState(if (open) 180f else 0f, tween(if (LocalReducedMotion.current) 0 else 160), label = "reasoningChevron")
+    // A surface of its own keeps the muted text readable over chat wallpapers.
+    Column(Modifier.widthIn(max = 600.dp).clip(RoundedCornerShape(16.dp)).background(palette.botBubble.copy(alpha = .9f)).testTag("reasoning:$id")) {
+        Row(Modifier.clip(RoundedCornerShape(16.dp)).clickable(enabled = text.isNotBlank(), role = Role.Button) { open = !open }
+            .padding(horizontal = 12.dp, vertical = 8.dp).semantics { liveRegion = LiveRegionMode.Polite; stateDescription = if (open) "open" else "closed" },
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (thinking) LoadingDots() else Glyph("effort", modifier = Modifier.size(16.dp), tint = palette.muted)
+            Text(label, color = palette.muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            if (text.isNotBlank()) Glyph("down", modifier = Modifier.size(14.dp).graphicsLayer { rotationZ = rotation }, tint = palette.muted)
+        }
+        AnimatedVisibility(open && text.isNotBlank()) {
+            Box(Modifier.padding(start = 18.dp, end = 14.dp, bottom = 12.dp).drawBehind {
+                drawRect(palette.line, size = androidx.compose.ui.geometry.Size(2.dp.toPx(), size.height))
+            }.padding(start = 12.dp)) {
+                Text(text.trim(), color = palette.ink.copy(alpha = .72f), fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.testTag("reasoning-text:$id"))
+            }
+        }
+    }
+}
 
 /** The pill buds from its tail corner, just below the message it answers. */
 @Composable

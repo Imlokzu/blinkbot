@@ -348,6 +348,12 @@ class ProviderClient(
         tools: List<JsonObject> = emptyList(),
         effort: String? = null,
         maxOutput: Long? = null,
+        /** Anthropic only: ask an adaptive-thinking model for readable thinking summaries. */
+        thinkingSummaries: Boolean = false,
+        /** The provider accepted the request and started its stream. */
+        onOpen: () -> Unit = {},
+        /** The visible reasoning so far (thinking text or a summary of it). */
+        onReasoning: (String) -> Unit = {},
         onDelta: (String) -> Unit = {},
     ): ApiReply = guarded {
         validateSettings(settings)
@@ -356,7 +362,7 @@ class ProviderClient(
         val level = effort?.takeIf { it in KNOWN_EFFORTS }
         val anthropic = settings.api == ApiLayer.ANTHROPIC
         val (path, payload) = when (settings.api) {
-            ApiLayer.ANTHROPIC -> "messages" to anthropicPayload(settings, messages, tools, level, maxOutput)
+            ApiLayer.ANTHROPIC -> "messages" to anthropicPayload(settings, messages, tools, level, maxOutput, thinkingSummaries)
             ApiLayer.RESPONSES -> "responses" to responsesPayload(settings, messages, tools, level)
             else -> "chat/completions" to buildJsonObject {
                 put("model", settings.chatModel)
@@ -375,13 +381,15 @@ class ProviderClient(
             setBody(json.encodeToString(payload))
         }.execute { response ->
             checkStatus(response)
+            onOpen()
             val status = response.status.value
             val jsonBody = response.contentType()?.withoutParameters() == ContentType.Application.Json
+            val reasoning = ReasoningSink(onReasoning, status)
             when (settings.api) {
-                ApiLayer.ANTHROPIC -> if (jsonBody) throw ProviderFailure(KEY_RESPONSE, status) else anthropicStream(response, settings, onDelta)
-                ApiLayer.RESPONSES -> if (jsonBody) throw ProviderFailure(KEY_RESPONSE, status) else responsesStream(response, settings, onDelta)
-                else -> if (jsonBody) nonStreamReply(boundedBytes(response, MAX_JSON_BYTES).decodeToString(), settings, status)
-                    else streamReply(response, settings, onDelta)
+                ApiLayer.ANTHROPIC -> if (jsonBody) throw ProviderFailure(KEY_RESPONSE, status) else anthropicStream(response, settings, reasoning, onDelta)
+                ApiLayer.RESPONSES -> if (jsonBody) throw ProviderFailure(KEY_RESPONSE, status) else responsesStream(response, settings, reasoning, onDelta)
+                else -> if (jsonBody) nonStreamReply(boundedBytes(response, MAX_JSON_BYTES).decodeToString(), settings, status, reasoning)
+                    else streamReply(response, settings, reasoning, onDelta)
             }
         }
     }
@@ -389,7 +397,7 @@ class ProviderClient(
     /** Tool definitions are kept in Chat Completions form and translated per protocol. */
     private fun functionOf(tool: JsonObject): JsonObject? = tool["function"] as? JsonObject
 
-    private fun anthropicPayload(settings: ProviderSettings, messages: List<ApiMessage>, tools: List<JsonObject>, effort: String?, maxOutput: Long?) = buildJsonObject {
+    private fun anthropicPayload(settings: ProviderSettings, messages: List<ApiMessage>, tools: List<JsonObject>, effort: String?, maxOutput: Long?, thinkingSummaries: Boolean) = buildJsonObject {
         put("model", settings.chatModel)
         put("max_tokens", (maxOutput ?: 16_000L).coerceIn(1_024L, 64_000L))
         put("stream", true)
@@ -447,6 +455,8 @@ class ProviderClient(
             }
         })
         if (effort != null) putJsonObject("output_config") { put("effort", effortWire(effort)) }
+        // Current models think adaptively but return empty thinking text unless asked for a summary.
+        if (thinkingSummaries) putJsonObject("thinking") { put("type", "adaptive"); put("display", "summarized") }
     }
 
     /** `data:<mime>;base64,<data>` becomes an Anthropic base64 image block. */
@@ -460,7 +470,7 @@ class ProviderClient(
         }
     }
 
-    private suspend fun anthropicStream(response: HttpResponse, settings: ProviderSettings, onDelta: (String) -> Unit): ApiReply {
+    private suspend fun anthropicStream(response: HttpResponse, settings: ProviderSettings, reasoning: ReasoningSink, onDelta: (String) -> Unit): ApiReply {
         val status = response.status.value
         val reader = SseReader(response.bodyAsChannel(), status)
         val blocks = sortedMapOf<Int, AnthropicBlock>()
@@ -483,6 +493,7 @@ class ProviderClient(
                     val initial = when (started.type) { "text" -> block["text"]; "thinking" -> block["thinking"]; else -> null }.stringOrNull().orEmpty()
                     if (initial.length > MAX_TOOL_CHARS) throw ProviderFailure(KEY_RESPONSE, status)
                     started.body.append(initial)
+                    if (started.type == "thinking") { reasoning.paragraph(); reasoning.append(initial) }
                     if (started.type == "text" && initial.isNotEmpty()) { text.append(initial); onDelta(text.toString()) }
                 }
                 "content_block_delta" -> {
@@ -494,7 +505,7 @@ class ProviderClient(
                             text.append(fragment); onDelta(text.toString())
                         }
                         "input_json_delta" -> delta["partial_json"].stringOrNull()
-                        "thinking_delta" -> delta["thinking"].stringOrNull()
+                        "thinking_delta" -> delta["thinking"].stringOrNull()?.also(reasoning::append)
                         "signature_delta" -> { block.signature.append(delta["signature"].stringOrNull().orEmpty()); null }
                         else -> null
                     }
@@ -568,7 +579,7 @@ class ProviderClient(
         if (effort != null) putJsonObject("reasoning") { put("effort", effortWire(effort)) }
     }
 
-    private suspend fun responsesStream(response: HttpResponse, settings: ProviderSettings, onDelta: (String) -> Unit): ApiReply {
+    private suspend fun responsesStream(response: HttpResponse, settings: ProviderSettings, reasoning: ReasoningSink, onDelta: (String) -> Unit): ApiReply {
         val status = response.status.value
         val reader = SseReader(response.bodyAsChannel(), status)
         val text = StringBuilder()
@@ -581,6 +592,8 @@ class ProviderClient(
             val event = parseObject(data, status)
             when (event["type"].stringOrNull()) {
                 "response.created" -> model = ((event["response"] as? JsonObject)?.get("model")).stringOrNull()
+                "response.reasoning_summary_text.delta", "response.reasoning_text.delta" -> event["delta"].stringOrNull()?.let(reasoning::append)
+                "response.reasoning_summary_part.added" -> reasoning.paragraph()
                 "response.output_text.delta" -> event["delta"].stringOrNull()?.let { fragment ->
                     if (text.length + fragment.length > MAX_REPLY_CHARS) throw ProviderFailure(KEY_RESPONSE, status)
                     text.append(fragment); onDelta(text.toString())
@@ -686,7 +699,7 @@ class ProviderClient(
     }
 
     private suspend fun streamReply(
-        response: HttpResponse, settings: ProviderSettings, onDelta: (String) -> Unit,
+        response: HttpResponse, settings: ProviderSettings, reasoning: ReasoningSink, onDelta: (String) -> Unit,
     ): ApiReply {
         val status = response.status.value
         val reader = SseReader(response.bodyAsChannel(), status)
@@ -706,7 +719,9 @@ class ProviderClient(
                 val obj = choice as? JsonObject ?: continue
                 if (!obj["finish_reason"].stringOrNull().isNullOrBlank()) finished = true
                 val delta = obj["delta"] as? JsonObject ?: continue
-                // reasoning_content is deliberately not part of the visible reply.
+                // Reasoning (Qwen/DeepSeek `reasoning_content`, OpenRouter `reasoning`) is shown
+                // separately and never becomes part of the reply text.
+                (delta["reasoning_content"].stringOrNull() ?: delta["reasoning"].stringOrNull())?.let(reasoning::append)
                 val content = delta["content"].stringOrNull()
                 if (!content.isNullOrEmpty()) {
                     if (text.length + content.length > MAX_REPLY_CHARS) throw ProviderFailure(KEY_RESPONSE, status)
@@ -746,12 +761,13 @@ class ProviderClient(
         }
     }
 
-    private fun nonStreamReply(body: String, settings: ProviderSettings, status: Int): ApiReply {
+    private fun nonStreamReply(body: String, settings: ProviderSettings, status: Int, reasoning: ReasoningSink): ApiReply {
         val root = parseObject(body, status)
         if (root.containsKey("error")) throw ProviderFailure(KEY_PROVIDER, status)
         val choice = (root["choices"] as? JsonArray)?.firstOrNull() as? JsonObject
             ?: throw ProviderFailure(KEY_RESPONSE, status)
         val message = choice["message"] as? JsonObject ?: throw ProviderFailure(KEY_RESPONSE, status)
+        (message["reasoning_content"].stringOrNull() ?: message["reasoning"].stringOrNull())?.let(reasoning::append)
         val text = contentText(message["content"])
         if (text.length > MAX_REPLY_CHARS) throw ProviderFailure(KEY_RESPONSE, status)
         val callData = message["tool_calls"] as? JsonArray
@@ -962,6 +978,21 @@ class ProviderClient(
             return signature.indices.all { this[offset + it] == signature[it].toByte() }
         }
     }
+}
+
+/** Accumulates visible reasoning across a stream and reports the whole text so far. */
+private class ReasoningSink(private val onReasoning: (String) -> Unit, private val status: Int) {
+    private val text = StringBuilder()
+
+    fun append(fragment: String) {
+        if (fragment.isEmpty()) return
+        if (text.length + fragment.length > MAX_REPLY_CHARS) throw ProviderFailure(KEY_RESPONSE, status)
+        text.append(fragment)
+        onReasoning(text.toString())
+    }
+
+    /** Separate thinking blocks or summary parts the way the provider separated them. */
+    fun paragraph() { if (text.isNotEmpty() && !text.endsWith("\n\n")) text.append("\n\n") }
 }
 
 /** One Anthropic content block: its start object plus the streamed text, JSON or signature. */

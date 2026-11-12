@@ -276,6 +276,56 @@ class StandaloneUiTest {
         } finally { compose.runOnIdle { controller.close() } }
     }
 
+    @Test fun replyShowsItsPhaseAndAnExpandableReasoningBlock() {
+        val app=ApplicationProvider.getApplicationContext<Context>()
+        val name="ui-reasoning-${UUID.randomUUID()}"
+        val context=object:ContextWrapper(app) {
+            override fun getApplicationContext():Context=this
+            override fun getFilesDir()=File(app.cacheDir,name).apply { mkdirs() }
+            override fun getSharedPreferences(key:String,mode:Int)=app.getSharedPreferences("$name-$key",mode)
+        }
+        val storage=ChatStorage(context)
+        storage.writeApiKey("reasoning-key")
+        val respondNow=CompletableDeferred<Unit>()
+        lateinit var controller:ChatController
+        compose.runOnIdle { controller=ChatController(TestPlatform(),storage,ProviderClient(HttpClient(MockEngine { request ->
+            if ((request.body as? io.ktor.http.content.TextContent)?.text?.contains(ProviderClient.EFFORT_PROBE)==true)
+                return@MockEngine respond("{\"error\":{\"message\":\"'reasoning_effort' must be one of: 'low', 'medium', 'high'\"}}",HttpStatusCode.BadRequest,headersOf(HttpHeaders.ContentType,"application/json"))
+            respondNow.await()
+            val frames=listOf("{\"choices\":[{\"delta\":{\"reasoning_content\":\"Seventeen times twenty-three: 17*20=340, 17*3=51.\"}}]}",
+                "{\"choices\":[{\"delta\":{\"content\":\"## Result\\n391\"},\"finish_reason\":\"stop\"}]}")
+            respond(frames.joinToString("") { "data: $it\n\n" }+"data: [DONE]\n\n",headers=headersOf(HttpHeaders.ContentType,"text/event-stream"))
+        }))) }
+        val text=runBlocking { LocaleText.load("en") }
+        try {
+            compose.setContent {
+                val state by controller.state.collectAsState()
+                MobileTheme(false) { CompositionLocalProvider(LocalText provides text,LocalChatFeatures provides ChatFeatures(false,false)) {
+                    MobileShell(state,controller,true) { screen -> StandaloneScreen(screen,state,controller) }
+                } }
+            }
+            compose.waitUntil(15000) { !controller.state.value.loading }
+            compose.runOnIdle { controller.navigate(Screen.Chat) }
+            compose.onNodeWithTag("composer-input").performTextInput("17*23")
+            compose.onNodeWithContentDescription(text.get("chat.send")).performClick()
+            // Before the provider answers, the reply says the request is still on its way.
+            compose.waitUntil(15000) { compose.onAllNodesWithText(text.get("chat.status.sending")).fetchSemanticsNodes().isNotEmpty() }
+            respondNow.complete(Unit)
+            compose.waitUntil(15000) { controller.state.value.messages.lastOrNull()?.let { it.text.contains("391") && !it.live }==true }
+            val reply=controller.state.value.messages.last()
+            assertEquals("Seventeen times twenty-three: 17*20=340, 17*3=51.",reply.reasoning)
+            assertTrue((reply.reasoningSeconds ?: 0)>=1)
+            assertFalse(reply.text.contains("Seventeen"))
+            compose.onNodeWithText(text.get("chat.status.sending")).assertDoesNotExist()
+            compose.onNodeWithText(text.get("chat.reasoning.done").replace("{seconds}",reply.reasoningSeconds.toString())).assertExists().performClick()
+            compose.onNodeWithTag("reasoning-text:${reply.id}").assertExists()
+            val shot=compose.onRoot().captureToImage().asAndroidBitmap()
+            File(app.cacheDir,"reasoning-open.png").outputStream().use { shot.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it) }
+            // Reasoning survives a restart with the conversation.
+            compose.waitUntil(15000) { storage.loadChats().singleOrNull()?.messages?.lastOrNull()?.reasoning==reply.reasoning }
+        } finally { respondNow.complete(Unit);compose.runOnIdle { controller.close() } }
+    }
+
     private companion object {
         /** An OpenRouter-shaped catalog: one reasoning model, one plain chat model, one image model. */
         const val DISCOVERY_CATALOG = """{"data":[

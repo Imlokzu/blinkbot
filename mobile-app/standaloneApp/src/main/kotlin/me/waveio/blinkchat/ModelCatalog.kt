@@ -68,6 +68,8 @@ data class ModelInfo(
     val effortDefault: String = "",
     /** [EffortSource]; a model that was never probed or published may still reason. */
     val effortSource: String = EffortSource.NONE,
+    /** Anthropic `capabilities.thinking.types.adaptive`; enables readable thinking summaries. */
+    val adaptiveThinking: Boolean? = null,
 )
 
 /** What a connection probe found at one endpoint. */
@@ -131,8 +133,9 @@ internal object ModelCatalog {
             efforts.isNotEmpty() -> EffortSource.FAMILY
             else -> EffortSource.NONE
         }
+        val adaptive = ((capabilities?.get("thinking") as? JsonObject)?.get("types") as? JsonObject)?.get("adaptive")?.let(::supported)
         return ModelInfo(id, label, context, maxOutput, vision, text, image, efforts,
-            default.takeIf { it in efforts }.orEmpty(), source)
+            default.takeIf { it in efforts }.orEmpty(), source, adaptive)
     }
 
     /** Explicit per-model levels, when the catalog publishes them. Null means "not published". */

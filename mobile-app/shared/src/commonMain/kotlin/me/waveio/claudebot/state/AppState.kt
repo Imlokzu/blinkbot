@@ -104,6 +104,12 @@ data class MessageRow(
     val workFiles: List<WorkFile> = emptyList(),
     /** Ephemeral animation identity, retained when the host assigns a saved ID. */
     val presentationId: String? = null,
+    /** The model's visible reasoning (thinking text or summary), shown collapsed above the reply. */
+    val reasoning: String = "",
+    /** How long the model thought; null while thinking or when the provider did not say. */
+    val reasoningSeconds: Int? = null,
+    /** Live phase of a reply without text yet: `sending`, `thinking` or `tool`; blank otherwise. */
+    val status: String = "",
 )
 data class FileRow(val path: String, val name: String, val directory: Boolean, val size: Long = 0, val modified: Long? = null)
 /** Both versions remain available until the owner explicitly resolves a conflict. */

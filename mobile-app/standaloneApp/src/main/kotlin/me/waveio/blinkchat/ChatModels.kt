@@ -49,6 +49,10 @@ data class StoredMessage(
     val steps: List<StoredStep> = emptyList(),
     val kind: String = "text",
     val providerId: String = LEGACY_PROVIDER_ID,
+    /** Visible reasoning the provider streamed, kept with the reply but never resent. */
+    val reasoning: String = "",
+    /** Time spent thinking before the answer started, summed over tool rounds. */
+    val reasoningMillis: Long? = null,
 )
 @Serializable
 data class StoredStep(val id: String, val name: String, val status: String)

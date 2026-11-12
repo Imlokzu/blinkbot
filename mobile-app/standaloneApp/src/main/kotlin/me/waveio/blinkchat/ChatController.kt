@@ -46,6 +46,13 @@ class ChatController(
     private var newImageModel: ModelSelection? = books.value.defaultImage
     private var newChatEffort = ""
     private val effortProbes = mutableSetOf<String>()
+    /** Live phase per reply ID: `sending`, `thinking` or `tool`; absent once text streams. */
+    private val replyStatus = mutableMapOf<String, String>()
+    private fun setStatus(replyId: String, status: String?) {
+        if (replyStatus[replyId] == status) return
+        if (status == null) replyStatus.remove(replyId) else replyStatus[replyId] = status
+        publish()
+    }
     private val keyPresent = MutableStateFlow(false)
     val hasApiKey = keyPresent.asStateFlow()
     private val generating = MutableStateFlow(false)
@@ -186,7 +193,9 @@ class ChatController(
             messages = chat?.messages.orEmpty().map { m -> MessageRow(m.id, m.role, m.text, model = m.model, timestamp = m.timestamp,
                 live = request?.isActive == true && activeSession == chat?.id && m == chat?.messages?.lastOrNull() && m.role == "assistant",
                 reactions = m.reactions, steps = m.steps.map { step -> ActivityRow(step.id, step.name, status = step.status) },
-                attachments = m.attachments.map { media -> DraftAttachment(media.path, media.name, media.mimeType, media.size) }) },
+                attachments = m.attachments.map { media -> DraftAttachment(media.path, media.name, media.mimeType, media.size) },
+                reasoning = m.reasoning, reasoningSeconds = m.reasoningMillis?.let { ((it + 500) / 1000).toInt().coerceAtLeast(1) },
+                status = replyStatus[m.id].orEmpty()) },
             models = models,
             selectedModel = if (generating.value && selectedImage != null) selectedImage.pickerId(true) else selectedChat.pickerId(),
             effort = if (generating.value) "none" else effort,
@@ -531,6 +540,7 @@ class ChatController(
         val account = book.account(target.providerId) ?: run { fail("standalone.providers.missing"); return }
         val saved = account.settings.copy(chatModel = textModel.modelId, systemPrompt = book.systemPrompt, toolsEnabled = book.toolsEnabled)
         val maxOutput = account.info(textModel.modelId)?.maxOutput
+        val summaries = saved.api == ApiLayer.ANTHROPIC && account.info(textModel.modelId)?.adaptiveThinking == true
         val imageAccount = imageModel?.let { book.account(it.providerId) }?.takeIf { it.images }
         val imageSettings = imageAccount?.settings?.copy(imageModel = imageModel.modelId)
         // The image tool is offered only when this chat can actually reach an image model.
@@ -539,6 +549,7 @@ class ChatController(
         activeSession = session
         val replyId = id()
         append(session, StoredMessage(replyId, "assistant", "", timestamp = platform.nowMillis()/1000, kind = if (imageRequest) "image" else "text", providerId = target.providerId))
+        replyStatus[replyId] = "sending"
         request = scope.launch(start = CoroutineStart.LAZY) {
             try {
                 val key = withContext(Dispatchers.IO) { storage.readProviderApiKey(target.providerId) }.orEmpty()
@@ -560,14 +571,34 @@ class ChatController(
                     var count = 0
                     val resultMedia = mutableListOf<StoredMedia>()
                     val seenCalls = mutableSetOf<String>()
+                    // Reasoning from earlier tool rounds stays above the new round's thinking.
+                    var priorReasoning = ""
+                    var thinkingMillis = 0L
                     for (round in 0 until 6) {
-                        val reply = provider.chat(saved, key, history, tools, effort, maxOutput) { text ->
+                        var thinkingSince: Long? = null
+                        fun stopThinking() {
+                            thinkingSince?.let { started -> thinkingMillis += platform.nowMillis() - started }
+                            thinkingSince = null
+                        }
+                        val reply = provider.chat(saved, key, history, tools, effort, maxOutput, summaries,
+                            onOpen = { setStatus(replyId, "thinking") },
+                            onReasoning = { thinking ->
+                                if (thinkingSince == null) thinkingSince = platform.nowMillis()
+                                val combined = listOf(priorReasoning, thinking).filter(String::isNotBlank).joinToString("\n\n")
+                                updateReply(session, replyId) { it.copy(reasoning = combined) }
+                            }) { text ->
+                            stopThinking()
+                            if (replyStatus.containsKey(replyId)) setStatus(replyId, null)
                             updateReply(session, replyId) { it.copy(text = text) }
                         }
+                        stopThinking()
+                        priorReasoning = chats.firstOrNull { it.id == session }?.messages?.firstOrNull { it.id == replyId }?.reasoning.orEmpty()
+                        if (priorReasoning.isNotBlank()) updateReply(session, replyId) { it.copy(reasoningMillis = thinkingMillis) }
                         updateReply(session, replyId) { it.copy(text = reply.text, model = reply.model.ifBlank { saved.chatModel }) }
                         if (reply.toolCalls.isEmpty()) { complete = true; break }
                         if (!saved.toolsEnabled) throw ProviderFailure("standalone.tools.disabled")
                         history += ApiMessage("assistant", reply.text, toolCalls = reply.toolCalls, native = reply.native)
+                        setStatus(replyId, "tool")
                         for (call in reply.toolCalls) {
                             if (++count > 12 || !seenCalls.add(call.id)) throw ProviderFailure("standalone.tool.limit")
                             updateReply(session, replyId) { it.copy(steps = it.steps + StoredStep(call.id, call.name, "running")) }
@@ -576,6 +607,8 @@ class ChatController(
                             if (resultMedia.isNotEmpty()) updateReply(session, replyId) { it.copy(attachments = resultMedia.toList()) }
                             history += ApiMessage("tool", result, toolCallId = call.id)
                         }
+                        // The next round is a new request; its phase starts over.
+                        setStatus(replyId, "sending")
                     }
                     if (!complete) throw ProviderFailure("standalone.tool.limit")
                 }
@@ -585,6 +618,7 @@ class ChatController(
             } catch (error: Exception) {
                 fail((error as? ProviderFailure)?.key ?: "standalone.error.network")
             } finally {
+                replyStatus.remove(replyId)
                 if (request === currentCoroutineContext()[Job]) {
                     activeSession = null
                     request = null

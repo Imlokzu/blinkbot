@@ -450,5 +450,10 @@
   "notifications.state.ready": "Ready. You'll be notified when a reply finishes while Blink is in the background. If Blink is closed, replies wait in the chat.",
   "haptics.agentGroup": "Agent activity plays these:",
   "haptics.strengthHint": "Drag to feel each level: the phone taps at the strength under your finger.",
-  "files.folderChanged": "Changed: {when}"
+  "files.folderChanged": "Changed: {when}",
+  "chat.status.sending": "Sending to the model…",
+  "chat.status.tool": "Working with a tool…",
+  "chat.reasoning.live": "Thinking…",
+  "chat.reasoning.done": "Thought for {seconds} s",
+  "chat.reasoning.title": "Reasoning"
 }

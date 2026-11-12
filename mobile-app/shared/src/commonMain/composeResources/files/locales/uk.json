@@ -450,5 +450,10 @@
   "notifications.state.ready": "Готово. Ви отримаєте сповіщення, коли відповідь завершиться, поки Blink у фоні. Якщо Blink закрито, відповіді чекатимуть у чаті.",
   "haptics.agentGroup": "Активність агента відтворює:",
   "haptics.strengthHint": "Потягніть, щоб відчути кожен рівень: телефон торкається з силою під пальцем.",
-  "files.folderChanged": "Змінено: {when}"
+  "files.folderChanged": "Змінено: {when}",
+  "chat.status.sending": "Надсилаю моделі…",
+  "chat.status.tool": "Працює з інструментом…",
+  "chat.reasoning.live": "Думає…",
+  "chat.reasoning.done": "Думала {seconds} с",
+  "chat.reasoning.title": "Роздуми"
 }
