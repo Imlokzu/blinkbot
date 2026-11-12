@@ -384,7 +384,13 @@ class ProviderClient(
                     val index = indexOf(event, status)
                     val block = event["content_block"] as? JsonObject ?: throw ProviderFailure(KEY_RESPONSE, status)
                     if (blocks.size >= MAX_TOOL_CALLS * 2 && index !in blocks) throw ProviderFailure(KEY_RESPONSE, status)
-                    blocks[index] = AnthropicBlock(block)
+                    val started = AnthropicBlock(block)
+                    blocks[index] = started
+                    // The API starts blocks empty, but compatible gateways may put content here.
+                    val initial = when (started.type) { "text" -> block["text"]; "thinking" -> block["thinking"]; else -> null }.stringOrNull().orEmpty()
+                    if (initial.length > MAX_TOOL_CHARS) throw ProviderFailure(KEY_RESPONSE, status)
+                    started.body.append(initial)
+                    if (started.type == "text" && initial.isNotEmpty()) { text.append(initial); onDelta(text.toString()) }
                 }
                 "content_block_delta" -> {
                     val block = blocks[indexOf(event, status)] ?: throw ProviderFailure(KEY_RESPONSE, status)
