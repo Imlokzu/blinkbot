@@ -26,8 +26,29 @@ object ImageLayer {
     val all = listOf(OPENAI, QWEN, NONE)
 }
 
-/** Effort stops the shared picker can label; anything else a catalog reports is ignored. */
-val KNOWN_EFFORTS = listOf("minimal", "low", "medium", "high", "xhigh", "max")
+/**
+ * Effort stops the shared picker can label, lowest first; anything else is ignored. `off` is
+ * the OpenAI-style `none` (thinking disabled) and is sent as `none` on the wire.
+ */
+val KNOWN_EFFORTS = listOf("off", "minimal", "low", "medium", "high", "xhigh", "max")
+
+/** Where a model's effort list came from; probing never overrides a published list. */
+object EffortSource {
+    const val NONE = ""
+    const val CATALOG = "catalog"
+    const val FAMILY = "family"
+    const val PROBE = "probe"
+}
+
+/** Normalizes a provider's level name to the app's stop name. */
+fun effortStop(value: String): String? = when (val v = value.trim().lowercase()) {
+    "none", "off", "disabled" -> "off"
+    in KNOWN_EFFORTS -> v
+    else -> null
+}
+
+/** The value a request carries for a stop. */
+fun effortWire(stop: String): String = if (stop == "off") "none" else stop
 
 /**
  * What the endpoint told us about one model. Every field except [id] is optional: null means
@@ -45,6 +66,8 @@ data class ModelInfo(
     val image: Boolean = false,
     val efforts: List<String> = emptyList(),
     val effortDefault: String = "",
+    /** [EffortSource]; a model that was never probed or published may still reason. */
+    val effortSource: String = EffortSource.NONE,
 )
 
 /** What a connection probe found at one endpoint. */
@@ -60,7 +83,7 @@ data class Discovery(
 )
 
 private const val MAX_LABEL = 120
-private val NON_CHAT = Regex("(^|[-_/:.])(embed|embedding|embeddings|tts|whisper|transcribe|transcription|moderation|rerank|reranker|audio|realtime|speech|search-preview)([-_/:.]|$)|text-embedding")
+private val NON_CHAT = Regex("(^|[-_/:.])(embed|embedding|embeddings|tts|whisper|transcribe|transcription|moderation|rerank|reranker|audio|realtime|speech|search-preview|video|t2v|i2v|sora|veo)([-_/:.]|$)|text-embedding")
 private val IMAGE_ONLY = Regex("(^|/)(gpt-image|dall-e|chatgpt-image|qwen-image|wanx?[0-9.]*-(t2i|i2i|image)|flux|imagen|stable-diffusion|sdxl|sd3|seedream|recraft|ideogram|kolors|cogview|hidream|playground-v)", RegexOption.IGNORE_CASE)
 
 internal object ModelCatalog {
@@ -100,11 +123,16 @@ internal object ModelCatalog {
 
         val published = publishedEfforts(item, capabilities)
         val efforts = published ?: knownEfforts(id, host, item)
-        val default = item.string("default_reasoning_effort")
-            ?: (item["reasoning"] as? JsonObject)?.string("default_effort")
+        val default = (item.string("default_reasoning_effort")
+            ?: (item["reasoning"] as? JsonObject)?.string("default_effort"))?.let(::effortStop)
             ?: defaultEffort(id, efforts)
+        val source = when {
+            published != null -> EffortSource.CATALOG
+            efforts.isNotEmpty() -> EffortSource.FAMILY
+            else -> EffortSource.NONE
+        }
         return ModelInfo(id, label, context, maxOutput, vision, text, image, efforts,
-            default.takeIf { it in efforts }.orEmpty())
+            default.takeIf { it in efforts }.orEmpty(), source)
     }
 
     /** Explicit per-model levels, when the catalog publishes them. Null means "not published". */
@@ -118,11 +146,11 @@ internal object ModelCatalog {
             val values = item[key] as? JsonArray ?: (capabilities?.get(key) as? JsonArray) ?: continue
             val levels = values.mapNotNull { value ->
                 (value as? JsonPrimitive)?.contentOrNull ?: (value as? JsonObject)?.let { it.string("effort") ?: it.string("id") ?: it.string("name") }
-            }.map { it.lowercase() }
+            }.mapNotNull(::effortStop)
             return KNOWN_EFFORTS.filter { it in levels }
         }
         ((item["reasoning"] as? JsonObject)?.get("efforts") as? JsonArray)?.let { values ->
-            val levels = strings(values)
+            val levels = strings(values).mapNotNull(::effortStop)
             return KNOWN_EFFORTS.filter { it in levels }
         }
         return null
@@ -145,13 +173,54 @@ internal object ModelCatalog {
     }
 
     /** The level a provider applies when the request names none, so the picker shows the real state. */
-    private fun defaultEffort(id: String, efforts: List<String>): String {
+    fun defaultEffort(id: String, efforts: List<String>): String {
         if (efforts.isEmpty()) return ""
         val bare = id.lowercase()
         if (bare.startsWith("claude-")) {
             return if (bare.startsWith("claude-opus-5-5") || bare.startsWith("claude-haiku-5-5")) "medium" else "high"
         }
-        return if ("medium" in efforts) "medium" else ""
+        // OpenAI-compatible APIs document `medium` as the default; without it `high` is the
+        // usual provider default, and only then the highest stop.
+        return listOf("medium", "high").firstOrNull { it in efforts } ?: efforts.lastOrNull { it != "off" }.orEmpty()
+    }
+
+    /**
+     * Reads the allowed levels from a provider's rejection of an invalid effort value, e.g.
+     * QwenCloud's `'reasoning_effort' must be one of: 'none', 'low', ...`, OpenAI's
+     * `Supported values are: 'low', 'medium', and 'high'` or Anthropic's
+     * `Input should be 'low', 'medium', 'high' or 'max'`. Null means the error was about
+     * something else; an empty list means the provider said the model takes no effort.
+     */
+    fun effortsFromError(body: String, probe: String): List<String>? {
+        val lower = body.lowercase()
+        if ("effort" !in lower && "reasoning" !in lower && probe.lowercase() !in lower) return null
+        val quoted = Regex("""['"`\\\u2018\u2019\u201c\u201d]+([a-z]+)['"`\\\u2018\u2019\u201c\u201d]""")
+            .findAll(lower).mapNotNull { effortStop(it.groupValues[1]) }.toSet()
+        return KNOWN_EFFORTS.filter { it in quoted }
+    }
+
+    /**
+     * LiteLLM's `/model/info`: context, output cap, vision and the model's mode, keyed by the
+     * public model name. Other proxies answer 404 and contribute nothing.
+     */
+    fun liteLlmInfo(root: JsonObject, host: String): List<ModelInfo> {
+        val items = root["data"] as? JsonArray ?: return emptyList()
+        return items.mapNotNull { element ->
+            val item = element as? JsonObject ?: return@mapNotNull null
+            val id = item.string("model_name")?.trim()?.takeIf { it.isNotBlank() && it.length <= 256 && it.none(Char::isISOControl) } ?: return@mapNotNull null
+            val info = item["model_info"] as? JsonObject ?: return@mapNotNull ModelInfo(id)
+            val mode = info.string("mode")?.lowercase()
+            val image = mode == "image_generation" || IMAGE_ONLY.containsMatchIn(id)
+            val text = when (mode) {
+                null, "chat", "completion", "responses" -> !image && !NON_CHAT.containsMatchIn(id.lowercase())
+                else -> false
+            }
+            ModelInfo(id,
+                context = positive(info, "max_input_tokens"),
+                maxOutput = positive(info, "max_output_tokens", "max_tokens"),
+                vision = (info["supports_vision"] as? JsonPrimitive)?.booleanOrNull,
+                text = text, image = image)
+        }
     }
 
     /** Text models first, then image models; within each the provider's order is kept. */
@@ -167,6 +236,7 @@ internal object ModelCatalog {
                 vision = existing.vision ?: model.vision,
                 efforts = existing.efforts.ifEmpty { model.efforts },
                 effortDefault = existing.effortDefault.ifBlank { model.effortDefault },
+                effortSource = if (existing.efforts.isEmpty() && model.efforts.isNotEmpty()) model.effortSource else existing.effortSource.ifBlank { model.effortSource },
             )
         }
         return byId.values.toList()

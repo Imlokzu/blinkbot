@@ -20,13 +20,18 @@ original behavior and enabled features.
      OpenAI Responses answer. Each probe is a POST with an empty JSON body; an
      existing route rejects it as invalid before any model runs, so nothing is
      billed. Answered layers are marked ✓, and the best one is preselected.
-   - **Models**: the catalog with each model's context window, output cap,
-     image input and published effort levels, read from Anthropic
-     `capabilities`, OpenRouter-style `context_length`, `architecture` and
-     `supported_parameters`, or explicit effort lists. Embedding, speech and
-     moderation models are left out of chat. Nothing a catalog does not publish
-     is guessed, except that reasoning model families on api.openai.com get the
-     `low`/`medium`/`high` levels they all accept.
+   - **Models**: the catalog with each model's context window, output cap and
+     image input, read from Anthropic `capabilities`, OpenRouter-style
+     `context_length` and `architecture`, and LiteLLM's `/model/info`.
+     Embedding, speech, video and moderation models are left out of chat.
+   - **Effort levels** per model: a published list (Anthropic `capabilities`,
+     explicit effort lists) is used as is. Otherwise Blink Chat sends the model
+     an effort value no provider accepts; validation rejects it before any
+     model runs, and the rejection lists the allowed levels (QwenCloud:
+     `'reasoning_effort' must be one of: 'none', 'minimal', ...`). Endpoints
+     that ignore unknown values get `low`/`medium`/`high`. Up to 48 models are
+     checked during Connect; any other model is checked the first time it is
+     opened in the chat model picker, including providers saved before 0.3.1.
    - **Images**: an OpenAI Images route or the QwenCloud host enables image
      generation with a prefilled endpoint.
 3. Choose the provider's roles. **Chat** and **Images** are separate switches:
@@ -41,9 +46,12 @@ original behavior and enabled features.
    conversations; existing chats keep their provider and model.
 6. In a chat, the model picker is Blink's shared picker: models from every
    provider in one list, with the effort slider showing only the levels that
-   model published. The chosen effort is stored per chat and sent only after
-   it was explicitly picked (`output_config.effort`, `reasoning_effort` or
-   `reasoning.effort`, depending on the layer).
+   model accepts, including **Off** where the provider allows disabling
+   thinking (sent as `none`). Until a level is picked the slider shows the
+   provider's default (`medium` for OpenAI-compatible APIs). The chosen effort
+   is stored per chat and sent only after it was explicitly picked
+   (`output_config.effort`, `reasoning_effort` or `reasoning.effort`,
+   depending on the layer).
 
 Model discovery uses the provider's `/models` endpoint. The selected model
 must support the requested capability; the app does not silently substitute

@@ -45,6 +45,7 @@ class ChatController(
     private var newChatModel = books.value.defaultChat
     private var newImageModel: ModelSelection? = books.value.defaultImage
     private var newChatEffort = ""
+    private val effortProbes = mutableSetOf<String>()
     private val keyPresent = MutableStateFlow(false)
     val hasApiKey = keyPresent.asStateFlow()
     private val generating = MutableStateFlow(false)
@@ -383,7 +384,45 @@ class ChatController(
         update { it.copy(screen = screen, menuOpen = false, modelPickerOpen = false, attachmentPickerOpen = false, error = null) }
     }
     override fun menu(open: Boolean) { update { it.copy(menuOpen = open) } }
-    override fun modelPicker(open: Boolean) { update { it.copy(modelPickerOpen = open) } }
+    override fun modelPicker(open: Boolean) {
+        update { it.copy(modelPickerOpen = open) }
+        if (open && !generating.value) ensureEfforts(chatSelection())
+    }
+
+    /**
+     * Learns a model's effort levels from its endpoint when no catalog published them, so
+     * providers such as QwenCloud or LiteLLM still get a working effort slider. One probe per
+     * model; the result is saved with the provider and never replaces a published list.
+     */
+    private fun ensureEfforts(selection: ModelSelection) {
+        val account = books.value.account(selection.providerId) ?: return
+        if (selection.modelId !in account.chatModels) return
+        val source = account.info(selection.modelId)?.effortSource
+        if (source == EffortSource.CATALOG || source == EffortSource.PROBE) return
+        val tag = account.id + "\u0000" + selection.modelId
+        if (!effortProbes.add(tag)) return
+        scope.launch {
+            try {
+                val key = withContext(Dispatchers.IO) { storage.readProviderApiKey(account.id) }.orEmpty()
+                if (key.isBlank()) return@launch
+                val levels = provider.probeEfforts(account.settings, key, selection.modelId) ?: return@launch
+                settingsLock.withLock {
+                    val current = books.value.account(account.id) ?: return@withLock
+                    // A provider edited meanwhile may point at another endpoint.
+                    if (current.settings.baseUrl != account.settings.baseUrl || current.settings.api != account.settings.api) return@withLock
+                    val base = current.info(selection.modelId) ?: ModelInfo(selection.modelId)
+                    val probed = base.copy(efforts = levels, effortDefault = ModelCatalog.defaultEffort(selection.modelId, levels), effortSource = EffortSource.PROBE)
+                    val models = (current.models.filterNot { it.id == selection.modelId } + probed).takeLast(1024)
+                    val next = books.value.copy(providers = books.value.providers.map { if (it.id == current.id) it.copy(models = models) else it })
+                    withContext(Dispatchers.IO) { storage.saveProviderBook(next) }
+                    books.value = next
+                    publish()
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* The slider keeps its previous state; the next open retries. */ }
+            finally { effortProbes.remove(tag) }
+        }
+    }
     override fun attachments(open: Boolean) { update { it.copy(attachmentPickerOpen = open) } }
     override fun sendModes(open: Boolean) { update { it.copy(sendModeOpen = open) } }
     override fun draft(value: String) {
@@ -434,8 +473,8 @@ class ChatController(
                     effort = if (it.providerId == selection.providerId && it.model == selection.modelId) it.effort else "") }
             persist()
         } else if (image) newImageModel = selection else { if (selection != newChatModel) newChatEffort = ""; newChatModel = selection }
-        // A model with effort stops stays open on the effort page; otherwise there is nothing left to tune.
-        if (image || info(selection)?.efforts.isNullOrEmpty()) update { it.copy(modelPickerOpen = false) }
+        // The picker stays on the effort page for chat models; levels may still be arriving.
+        if (image) update { it.copy(modelPickerOpen = false) } else ensureEfforts(selection)
         publish()
     }
     override fun selectEffort(value: String) {

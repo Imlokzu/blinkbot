@@ -303,7 +303,8 @@ class ProviderClientTest {
     @Test fun modelsIgnoreBadNullAndDuplicateIds() = runTest {
         var received: HttpRequestData? = null
         val client = provider(MockEngine { request ->
-            received = request
+            // The catalog also asks for LiteLLM's /model/info afterwards; keep the listing request.
+            if (received == null) received = request
             respond(
                 """{"data":[{"id":"qwen4-max"},{"id":"qwen4-max"},{"id":null},{"id":""},{"id":42},"junk",{},{"id":"qwen-image"},{"id":"bad\nid"}]}""",
                 headers = jsonHeaders,
@@ -539,7 +540,7 @@ class ProviderClientTest {
     @Test fun trailingSlashIsNormalizedWithoutChangingThePath() = runTest {
         var path = ""
         val client = provider(MockEngine { request ->
-            path = request.url.encodedPath
+            if (path.isEmpty()) path = request.url.encodedPath
             respond("""{"data":[]}""", headers = jsonHeaders)
         })
         assertEquals(emptyList<String>(), client.models(settings.copy(baseUrl = "https://api.example.com/v1/"), apiKey))

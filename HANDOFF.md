@@ -1,5 +1,12 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-11-12 — Blink Chat 0.3.1: effort levels for every endpoint
+
+Effort levels are now learned from the endpoint when the catalog publishes
+none (QwenCloud, LiteLLM): an invalid effort value is rejected unbilled with
+the allowed list. Adds an Off stop and shows the provider default instead of
+"unavailable". Details: `docs/mobile-app/BLINK-CHAT-0.3.1.md`.
+
 ## 2026-11-12 — Blink Chat 0.3.0: endpoint detection and effort
 
 Provider setup now detects the API layer (Anthropic Messages, OpenAI Chat

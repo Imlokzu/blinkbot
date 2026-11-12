@@ -226,6 +226,56 @@ class StandaloneUiTest {
         } finally { release.complete(Unit);compose.runOnIdle { controller.close() } }
     }
 
+    @Test fun chatPickerLearnsEffortLevelsFromAnEndpointWithoutACatalogList() {
+        val app=ApplicationProvider.getApplicationContext<Context>()
+        val name="ui-effort-${UUID.randomUUID()}"
+        val context=object:ContextWrapper(app) {
+            override fun getApplicationContext():Context=this
+            override fun getFilesDir()=File(app.cacheDir,name).apply { mkdirs() }
+            override fun getSharedPreferences(key:String,mode:Int)=app.getSharedPreferences("$name-$key",mode)
+        }
+        val storage=ChatStorage(context)
+        storage.writeApiKey("effort-key")
+        val sentEfforts=java.util.Collections.synchronizedList(mutableListOf<String>())
+        lateinit var controller:ChatController
+        compose.runOnIdle { controller=ChatController(TestPlatform(),storage,ProviderClient(HttpClient(MockEngine { request ->
+            val body=Json.parseToJsonElement((request.body as io.ktor.http.content.TextContent).text).jsonObject
+            val effort=body["reasoning_effort"]?.jsonPrimitive?.content
+            if (effort==ProviderClient.EFFORT_PROBE)
+                // QwenCloud's real rejection; its catalog publishes no effort levels at all.
+                respond("{\"error\":{\"message\":\"'reasoning_effort' must be one of: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh'\"}}",HttpStatusCode.BadRequest,headersOf(HttpHeaders.ContentType,"application/json"))
+            else {
+                sentEfforts+=effort.orEmpty()
+                respond("data: {\"choices\":[{\"delta\":{\"content\":\"391\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n",headers=headersOf(HttpHeaders.ContentType,"text/event-stream"))
+            }
+        }))) }
+        val text=runBlocking { LocaleText.load("en") }
+        try {
+            compose.setContent {
+                val state by controller.state.collectAsState()
+                MobileTheme(false) { CompositionLocalProvider(LocalText provides text,LocalChatFeatures provides ChatFeatures(false,false)) {
+                    MobileShell(state,controller,true) { screen -> StandaloneScreen(screen,state,controller) }
+                } }
+            }
+            compose.waitUntil(15000) { !controller.state.value.loading }
+            compose.runOnIdle { controller.navigate(Screen.Chat); controller.modelPicker(true) }
+            compose.waitUntil(15000) { controller.state.value.models.firstOrNull { it.id==controller.state.value.selectedModel }?.efforts?.isNotEmpty()==true }
+            val row=controller.state.value.models.single { it.id==controller.state.value.selectedModel }
+            assertEquals(listOf("off","minimal","low","medium","high","xhigh"),row.efforts)
+            // The slider shows the provider default instead of "unavailable".
+            compose.onNodeWithText(text.get("model.medium")).assertExists()
+            assertTrue(compose.onAllNodesWithText(text.get("model.effortUnavailable")).fetchSemanticsNodes().isEmpty())
+            val saved=storage.loadProviderBook().providers.single()
+            assertEquals(EffortSource.PROBE,saved.info(saved.settings.chatModel)!!.effortSource)
+            compose.runOnIdle { controller.selectEffort("off"); controller.modelPicker(false) }
+            assertEquals("off",controller.state.value.effort)
+            compose.onNodeWithTag("composer-input").performTextInput("17*23")
+            compose.onNodeWithContentDescription(text.get("chat.send")).performClick()
+            compose.waitUntil(15000) { controller.state.value.messages.lastOrNull()?.text=="391" }
+            assertEquals(listOf("none"),sentEfforts.toList())
+        } finally { compose.runOnIdle { controller.close() } }
+    }
+
     private companion object {
         /** An OpenRouter-shaped catalog: one reasoning model, one plain chat model, one image model. */
         const val DISCOVERY_CATALOG = """{"data":[

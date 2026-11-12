@@ -39,6 +39,11 @@ class MultiProviderTest {
     private suspend fun awaitCondition(condition:()->Boolean) { withTimeout(15000) { while (!condition()) delay(20) } }
     private fun answer(text:String)="data: {\"model\":\"shared-model\",\"choices\":[{\"delta\":{\"content\":\"$text\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
     private val sse=headersOf(HttpHeaders.ContentType,"text/event-stream")
+    /** Picking a chat model probes its effort levels; those unbilled checks are not chat turns. */
+    private fun isEffortProbe(request:io.ktor.client.request.HttpRequestData)=
+        (request.body as? TextContent)?.text?.contains(ProviderClient.EFFORT_PROBE)==true
+    private val probeRejection="{\"error\":{\"message\":\"'reasoning_effort' must be one of: 'low', 'medium', 'high'\"}}"
+    private val probeHeaders=headersOf(HttpHeaders.ContentType,"application/json")
 
     @Test fun duplicateModelNamesRouteToTheirOwnKeysAndExistingChatsIgnoreNewDefaults() = runBlocking {
         val storage=storage()
@@ -82,7 +87,12 @@ class MultiProviderTest {
         val bytes=ByteArrayOutputStream().also { Bitmap.createBitmap(8,8,Bitmap.Config.ARGB_8888).apply { compress(Bitmap.CompressFormat.PNG,100,it); recycle() } }.toByteArray()
         val encoded=android.util.Base64.encodeToString(bytes,android.util.Base64.NO_WRAP)
         var textRound=0
+        val probes=mutableListOf<Pair<String,String?>>()
         val controller=withContext(Dispatchers.Main) { ChatController(TestPlatform(),storage,ProviderClient(HttpClient(MockEngine { request ->
+            if (isEffortProbe(request)) {
+                probes += request.url.host to request.headers[HttpHeaders.Authorization]
+                return@MockEngine respond(probeRejection,HttpStatusCode.BadRequest,probeHeaders)
+            }
             calls += request.url.host to request.headers[HttpHeaders.Authorization]
             if (request.url.encodedPath.endsWith("images/generations")) {
                 val body=Json.parseToJsonElement((request.body as TextContent).text).jsonObject
@@ -102,13 +112,18 @@ class MultiProviderTest {
             withContext(Dispatchers.Main) { controller.selectModel(ModelSelection(second.id,"shared-model").pickerId()); controller.draft("Now second"); controller.send() }
             awaitCondition { !controller.state.value.busy && calls.size==4 }
             assertEquals("second.example.test" to "Bearer second-key",calls.last())
+            // The probe for the newly picked model went only to that model's own provider.
+            assertEquals(listOf("second.example.test" to "Bearer second-key"),probes)
         } finally { withContext(Dispatchers.Main) { controller.close() } }
     }
 
     @Test fun deletingProviderRetainsHistoryWithoutSendingItsKeyToAnotherService() = runBlocking {
         val storage=storage()
         var requests=0
-        val controller=withContext(Dispatchers.Main) { ChatController(TestPlatform(),storage,ProviderClient(HttpClient(MockEngine { requests++;respond(answer("Saved reply"),headers=sse) }))) }
+        val controller=withContext(Dispatchers.Main) { ChatController(TestPlatform(),storage,ProviderClient(HttpClient(MockEngine { request ->
+            if (isEffortProbe(request)) return@MockEngine respond(probeRejection,HttpStatusCode.BadRequest,probeHeaders)
+            requests++;respond(answer("Saved reply"),headers=sse)
+        }))) }
         try {
             awaitCondition { !controller.state.value.loading }
             withContext(Dispatchers.Main) { controller.selectModel(ModelSelection(second.id,"shared-model").pickerId());controller.draft("Keep this history");controller.send() }

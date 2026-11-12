@@ -23,6 +23,8 @@ import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -109,8 +111,98 @@ class ProviderClient(
     suspend fun catalog(settings: ProviderSettings, apiKey: String): List<ModelInfo> = guarded {
         validateSettings(settings)
         val key = checkedKey(apiKey)
-        listModels(settings.baseUrl, key, settings.api == ApiLayer.ANTHROPIC)
+        val listed = listModels(settings.baseUrl, key, settings.api == ApiLayer.ANTHROPIC)
             ?: throw ProviderFailure(KEY_RESPONSE)
+        withLiteLlmInfo(settings.baseUrl, key, listed)
+    }
+
+    /**
+     * Asks the endpoint which effort levels [model] accepts by sending a value no provider
+     * accepts. Validation rejects it before any model runs, and the rejection lists the
+     * allowed values. A 2xx means the endpoint ignores unknown values, so the common
+     * low/medium/high set is offered. Null means the answer said nothing about effort.
+     */
+    suspend fun probeEfforts(settings: ProviderSettings, apiKey: String, model: String): List<String>? = guarded {
+        validateSettings(settings)
+        probeEffortsAt(settings.baseUrl, settings.api, checkedKey(apiKey), model)
+    }
+
+    private suspend fun probeEffortsAt(base: String, api: String, key: String, model: String): List<String>? {
+        val payload = buildJsonObject {
+            put("model", model)
+            when (api) {
+                ApiLayer.ANTHROPIC -> {
+                    put("max_tokens", 1)
+                    put("messages", buildJsonArray { add(buildJsonObject { put("role", "user"); put("content", "hi") }) })
+                    putJsonObject("output_config") { put("effort", EFFORT_PROBE) }
+                }
+                ApiLayer.RESPONSES -> {
+                    put("input", "hi"); put("max_output_tokens", 16); put("store", false)
+                    putJsonObject("reasoning") { put("effort", EFFORT_PROBE) }
+                }
+                else -> {
+                    put("max_tokens", 1)
+                    put("messages", buildJsonArray { add(buildJsonObject { put("role", "user"); put("content", "hi") }) })
+                    put("reasoning_effort", EFFORT_PROBE)
+                }
+            }
+        }
+        val path = when (api) { ApiLayer.ANTHROPIC -> "messages"; ApiLayer.RESPONSES -> "responses"; else -> "chat/completions" }
+        return transport.prepareRequest {
+            apiCall(HttpMethod.Post, endpoint(base, path), key, api == ApiLayer.ANTHROPIC)
+            contentType(ContentType.Application.Json)
+            setBody(json.encodeToString(payload))
+        }.execute { response ->
+            val status = response.status.value
+            val body = runCatching { boundedBytes(response, 64 * 1024).decodeToString() }.getOrDefault("")
+            when (status) {
+                in 200..299 -> listOf("low", "medium", "high")
+                400, 422 -> ModelCatalog.effortsFromError(body, EFFORT_PROBE)
+                401, 403 -> throw ProviderFailure(KEY_AUTH, status)
+                else -> null
+            }
+        }
+    }
+
+    /** Fills in effort levels for text models whose catalog did not publish them. */
+    private suspend fun withProbedEfforts(base: String, api: String, key: String, models: List<ModelInfo>): List<ModelInfo> = coroutineScope {
+        val gate = Semaphore(6)
+        val targets = models.filter { it.text && it.effortSource != EffortSource.CATALOG }.take(MAX_EFFORT_PROBES).map { it.id }.toSet()
+        models.map { model ->
+            async {
+                if (model.id !in targets) return@async model
+                val levels = gate.withPermit {
+                    try { probeEffortsAt(base, api, key, model.id) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null }
+                } ?: return@async model
+                model.copy(efforts = levels, effortDefault = ModelCatalog.defaultEffort(model.id, levels), effortSource = EffortSource.PROBE)
+            }
+        }.map { it.await() }
+    }
+
+    /** LiteLLM proxies describe their models at `/model/info`, both under and beside `/v1`. */
+    private suspend fun withLiteLlmInfo(base: String, key: String, models: List<ModelInfo>): List<ModelInfo> {
+        val host = Url(base).host.lowercase()
+        val roots = listOf(base.trimEnd('/'), base.trimEnd('/').removeSuffix("/v1")).distinct()
+        for (root in roots) {
+            val info = try {
+                transport.prepareRequest {
+                    method = HttpMethod.Get
+                    url.takeFrom(endpoint(root, "model/info"))
+                    attributes.put(Bearer, key)
+                }.execute { response ->
+                    if (response.status.value !in 200..299) return@execute null
+                    runCatching { ModelCatalog.liteLlmInfo(parseObject(boundedBytes(response, MAX_JSON_BYTES).decodeToString(), response.status.value), host) }.getOrNull()
+                }
+            } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { null }
+            if (!info.isNullOrEmpty()) {
+                // The /models list stays authoritative for which models exist.
+                val known = models.map { it.id }.toSet()
+                return ModelCatalog.merge(models.map { model -> info.firstOrNull { it.id == model.id }?.let { extra ->
+                    model.copy(text = extra.text || (model.text && !extra.image), image = model.image || extra.image)
+                } ?: model }, info.filter { it.id in known })
+            }
+        }
+        return models
     }
 
     /**
@@ -145,7 +237,8 @@ class ProviderClient(
             }
             val primary = if (recommended == ApiLayer.ANTHROPIC) probe.anthropicModels else probe.openAiModels
             val secondary = if (recommended == ApiLayer.ANTHROPIC) probe.openAiModels else probe.anthropicModels
-            val models = ModelCatalog.merge(primary.orEmpty(), secondary.orEmpty())
+            val listed = withLiteLlmInfo(base, key, ModelCatalog.merge(primary.orEmpty(), secondary.orEmpty()))
+            val models = withProbedEfforts(base, recommended, key, listed)
             val qwen = host.endsWith("qwencloudapi.com") || host.startsWith("dashscope")
             val imageProtocol = when {
                 qwen -> ImageLayer.QWEN
@@ -270,7 +363,7 @@ class ProviderClient(
                 put("stream", true)
                 put("messages", buildJsonArray { messages.forEach { add(encodeMessage(it)) } })
                 if (tools.isNotEmpty()) put("tools", JsonArray(tools))
-                if (level != null) put("reasoning_effort", level)
+                if (level != null) put("reasoning_effort", effortWire(level))
             }
         }
         transport.prepareRequest {
@@ -353,7 +446,7 @@ class ProviderClient(
                 })
             }
         })
-        if (effort != null) putJsonObject("output_config") { put("effort", effort) }
+        if (effort != null) putJsonObject("output_config") { put("effort", effortWire(effort)) }
     }
 
     /** `data:<mime>;base64,<data>` becomes an Anthropic base64 image block. */
@@ -472,7 +565,7 @@ class ProviderClient(
                 })
             }
         })
-        if (effort != null) putJsonObject("reasoning") { put("effort", effort) }
+        if (effort != null) putJsonObject("reasoning") { put("effort", effortWire(effort)) }
     }
 
     private suspend fun responsesStream(response: HttpResponse, settings: ProviderSettings, onDelta: (String) -> Unit): ApiReply {
@@ -823,6 +916,9 @@ class ProviderClient(
         private const val ANTHROPIC_KEY_HEADER = "x-api-key"
         private const val ANTHROPIC_VERSION_HEADER = "anthropic-version"
         private const val ANTHROPIC_VERSION = "2023-06-01"
+        /** No provider accepts this value, so validation answers with the allowed ones. */
+        const val EFFORT_PROBE = "blink_probe"
+        private const val MAX_EFFORT_PROBES = 48
 
         /** Called before settings are saved and before every request. */
         fun validateSettings(settings: ProviderSettings) {
