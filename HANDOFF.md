@@ -1,5 +1,17 @@
 # HANDOFF — Blink (сесія 2026-07-26, Claude Code / Fable 5)
 
+## 2026-11-12 — Blink Chat 0.3.0: endpoint detection and effort
+
+Provider setup now detects the API layer (Anthropic Messages, OpenAI Chat
+Completions, OpenAI Responses) from a pasted URL and key and imports the model
+catalog with context, image input and effort levels. Chat and Images are
+separate provider roles, so a text-only provider can pair with an image
+provider. The shared Blink model picker shows per-model effort levels; effort
+is stored per chat.
+
+Validation and APK: `docs/mobile-app/BLINK-CHAT-0.3.0.md`. Setup:
+`mobile-app/standaloneApp/README.md`. The paired Blink app is unchanged.
+
 ## 2026-11-12 — Blink Chat 0.2.0: multiple providers and default models
 
 Blink Chat now saves named providers with independent encrypted keys, endpoints

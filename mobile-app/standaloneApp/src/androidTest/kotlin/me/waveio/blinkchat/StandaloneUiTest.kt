@@ -129,6 +129,13 @@ class StandaloneUiTest {
             // Chat Completions answered the probe; Anthropic and Responses did not.
             compose.onNodeWithTag("provider-api-openai").performScrollTo().assertIsSelected()
             edit("provider-name","Another API")
+            // Done on the name field closes the keyboard so the captures show the whole form.
+            compose.onNode(hasSetTextAction() and hasAnyAncestor(hasTestTag("provider-name"))).performImeAction()
+            for ((index,tag) in listOf("provider-connect","provider-api-responses","provider-save").withIndex()) {
+                compose.onNodeWithTag(tag).performScrollTo(); compose.waitForIdle()
+                val shot=compose.onRoot().captureToImage().asAndroidBitmap()
+                File(app.cacheDir,"provider-setup-$index.png").outputStream().use { shot.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it) }
+            }
             compose.onNodeWithTag("provider-save").performScrollTo().performClick()
             compose.waitUntil(15000) { controller.providerBook.value.providers.size==2 }
             compose.onNodeWithText("Another API").assertExists()

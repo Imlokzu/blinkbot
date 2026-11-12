@@ -12,38 +12,59 @@ original behavior and enabled features.
 
 ## Configure
 
-1. Open Profile, then **Providers & models**.
-2. Edit the existing provider or choose **Add provider**. Give each provider a
-   name, select its preset, and enter its HTTPS endpoints and API key.
-3. Enter the provider's chat and image model IDs. Additional IDs go one per line;
-   after saving, **Refresh model list** imports that provider's available models.
+1. Open Profile, then **Providers & models**, and choose **Add provider** (or
+   edit an existing one).
+2. Paste the endpoint URL (a preset chip fills the well-known ones) and the API
+   key, then tap **Connect and detect**. Blink Chat probes the endpoint:
+   - **API layer**: which of Anthropic Messages, OpenAI Chat Completions and
+     OpenAI Responses answer. Each probe is a POST with an empty JSON body; an
+     existing route rejects it as invalid before any model runs, so nothing is
+     billed. Answered layers are marked ✓, and the best one is preselected.
+   - **Models**: the catalog with each model's context window, output cap,
+     image input and published effort levels, read from Anthropic
+     `capabilities`, OpenRouter-style `context_length`, `architecture` and
+     `supported_parameters`, or explicit effort lists. Embedding, speech and
+     moderation models are left out of chat. Nothing a catalog does not publish
+     is guessed, except that reasoning model families on api.openai.com get the
+     `low`/`medium`/`high` levels they all accept.
+   - **Images**: an OpenAI Images route or the QwenCloud host enables image
+     generation with a prefilled endpoint.
+3. Choose the provider's roles. **Chat** and **Images** are separate switches:
+   a text-only provider leaves Images off and can be combined with another
+   provider that generates images. Endpoints without a model list accept model
+   IDs typed by hand.
 4. Save. Each provider's key is encrypted separately with Android Keystore and
-   is never shown again. An empty key field retains its saved key; Remove key
-   deletes only that provider's key.
-5. Choose **Default chat** and **Default image** independently from the combined
-   provider/model lists. Defaults apply to new conversations. Existing chats
-   keep their provider and model, and the chat picker can explicitly change them.
-6. Start a chat. Attach a photo for visual understanding. Select the image
-   model from the chat model picker, or choose Create image in Tools, to use
-   the composer as an image prompt.
+   is never shown again. An empty key field keeps the saved key; a saved key is
+   reused for **Detect again** only on the same origin it was saved for.
+5. Choose **Default chat** and **Default image** independently. The default
+   image may be unset when no provider generates images. Defaults apply to new
+   conversations; existing chats keep their provider and model.
+6. In a chat, the model picker is Blink's shared picker: models from every
+   provider in one list, with the effort slider showing only the levels that
+   model published. The chosen effort is stored per chat and sent only after
+   it was explicitly picked (`output_config.effort`, `reasoning_effort` or
+   `reasoning.effort`, depending on the layer).
 
-Model discovery uses the provider's `/models` endpoint. Manual model IDs are
-supported when the provider does not publish a catalog. The selected model
+Model discovery uses the provider's `/models` endpoint. The selected model
 must support the requested capability; the app does not silently substitute
 another provider or model.
 
 Providers may use identical model IDs: every picker entry retains its provider
 identity and sends the raw model ID only to that provider's endpoint with its
 own key. Image tools use the conversation's image provider, which may differ
-from its text provider. Global instructions and the tools toggle apply across
-providers.
+from its text provider; the image tool is not offered when no image model is
+set. Global instructions and the tools toggle apply across providers.
+
+Anthropic tool rounds send the assistant's content blocks back unchanged,
+including thinking blocks and their signatures. Responses requests use
+`store: false` and resend the visible history each time.
 
 The original single-provider setup migrates automatically, preserving its
-encrypted key, settings, defaults and chat history. Removing a provider removes
-its credential while retaining conversations; those conversations require an
-explicit new model choice before they can send again. At least one provider
-must remain. Deleting a default provider assigns new-chat defaults to a remaining
-provider only after confirmation.
+encrypted key, settings, defaults and chat history; saved providers without an
+API layer are Chat Completions. Removing a provider removes its credential
+while retaining conversations; those conversations require an explicit new
+model choice before they can send again. At least one chat provider must
+remain.
 
 The QwenCloud preset uses these documented protocols:
 
