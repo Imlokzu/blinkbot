@@ -194,6 +194,13 @@ CREATE VIRTUAL TABLE memory_fts USING fts5(content, content='memory');
 
 ## 3. Suggested target structure in Blink Chat
 
+**Scope (owner decision, 2026-11-14): Blink Chat stays a chatbot.** The harness is invisible
+plumbing, not a product surface — no subagents, no plan mode, no approval-heavy UX. The user
+chats; the model transparently calls web search, small built-in tools, and memory; results render
+inline in the conversation like any other reply part. MCP is a later, optional add-on. Of the UI
+patterns in section 2, only the lightweight ones apply: collapsible tool trace, used-memory
+disclosure, citation chips.
+
 ```
 shared/src/commonMain/kotlin/me/waveio/claudebot/agent/
   AgentRunner.kt          // Flow<AgentRunEvent> loop, rounds/calls/concurrency limits
