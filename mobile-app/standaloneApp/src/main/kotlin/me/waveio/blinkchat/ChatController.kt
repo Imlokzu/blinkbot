@@ -67,6 +67,8 @@ class ChatController(
     val workspaceText = note.asStateFlow()
     private val notePath = MutableStateFlow("")
     val workspacePath = notePath.asStateFlow()
+    private val memoryList = MutableStateFlow<List<StoredMemory>>(emptyList())
+    val memories = memoryList.asStateFlow()
     private val dirtyNote = MutableStateFlow(false)
     val workspaceDirty = dirtyNote.asStateFlow()
     private var chats = emptyList<StoredChat>()
@@ -109,6 +111,8 @@ class ChatController(
                 }, messages = c.messages
                     .filterNot { it.role == "assistant" && it.text.isBlank() && it.attachments.isEmpty() && it.steps.isEmpty() }
                     .map { m -> m.copy(steps = m.steps.map { if (it.status == "running") it.copy(status = "interrupted") else it }) }) }
+                // Memories restore alongside chats; a corrupt document surfaces, never resets.
+                memoryList.value = withContext(Dispatchers.IO) { storage.loadMemories() }
                 var recoveredPreference = false
                 val prefs = runCatching { platform.readPreference("preferences.v1")?.let { json.decodeFromString<Preferences>(it) } ?: Preferences() }
                     .onFailure { recoveredPreference = true }.getOrDefault(Preferences())
@@ -325,6 +329,7 @@ class ChatController(
 
     fun savePersonalization(prompt: String) = changeProviders { it.copy(systemPrompt = prompt) }
     fun setToolsEnabled(enabled: Boolean) = changeProviders { it.copy(toolsEnabled = enabled) }
+    fun setMemoryEnabled(enabled: Boolean) = changeProviders { it.copy(memoryEnabled = enabled) }
 
     /** Personalization remains global; this also preserves the original single-provider API. */
     fun saveProvider(value: ProviderSettings, newKey: String?, onSaved: () -> Unit = {}) {
@@ -570,7 +575,14 @@ class ChatController(
                             } else emptyList())
                         }
                     }.toMutableList()
-                    if (saved.systemPrompt.isNotBlank()) history.add(0, ApiMessage("system", saved.systemPrompt))
+                    val systemPrompt = buildString {
+                        if (saved.systemPrompt.isNotBlank()) append(saved.systemPrompt)
+                        if (book.memoryEnabled) MemoryStore.contextBlock(memoryList.value)?.let {
+                            if (isNotEmpty()) append("\n\n")
+                            append(it)
+                        }
+                    }
+                    if (systemPrompt.isNotBlank()) history.add(0, ApiMessage("system", systemPrompt))
                     var complete = false
                     var count = 0
                     val resultMedia = mutableListOf<StoredMedia>()
@@ -615,6 +627,8 @@ class ChatController(
                         setStatus(replyId, "sending")
                     }
                     if (!complete) throw ProviderFailure("standalone.tool.limit")
+                    // The reviewer is independent of toolsEnabled: memory is its own feature.
+                    if (book.memoryEnabled) scheduleMemoryReview(session, target, key, saved, effort)
                 }
             } catch (cancelled: CancellationException) {
                 fail("standalone.stopped")
@@ -636,6 +650,46 @@ class ChatController(
         request?.start(); publish()
     }
 
+    private fun persistMemories(updated: List<StoredMemory>) {
+        memoryList.value = updated
+        diskScope.launch {
+            try { withContext(Dispatchers.IO) { storage.saveMemories(updated) } }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { fail("standalone.error.storage") }
+        }
+    }
+
+    /**
+     * Background reviewer after a completed reply (Open WebUI's cadence): every Nth user
+     * turn one extra model call decides whether facts changed. It never blocks the reply,
+     * and any failure is silent — a wrong or broken review must cost the user nothing.
+     */
+    private fun scheduleMemoryReview(session: String, selection: ModelSelection, apiKey: String, settings: ProviderSettings, effort: String?) {
+        val chat = chats.firstOrNull { it.id == session } ?: return
+        val userTurns = chat.messages.count { it.role == "user" && it.text.isNotBlank() }
+        if (userTurns == 0 || userTurns % MemoryLimits.REVIEW_INTERVAL_TURNS != 0) return
+        val account = books.value.account(selection.providerId) ?: return
+        val transcript = reviewTranscript(chat.messages)
+        val existing = memoryList.value
+        scope.launch {
+            try {
+                val review = provider.chat(settings.copy(chatModel = selection.modelId), apiKey,
+                    listOf(
+                        ApiMessage("system", MEMORY_REVIEWER_PROMPT),
+                        ApiMessage("user", memoryReviewTask(existing, transcript)),
+                    ),
+                    effort = effort.takeIf { account.info(selection.modelId)?.efforts.orEmpty().isNotEmpty() },
+                    maxOutput = 1024,
+                )
+                val operations = parseMemoryOperations(review.text)
+                if (operations.isEmpty()) return@launch
+                val updated = applyMemoryOperations(existing, operations, platform.nowMillis() / 1000)
+                if (updated != existing) persistMemories(updated)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* a failed review is invisible to the user */ }
+        }
+    }
+
     private suspend fun executeTool(call: ApiToolCall, imageProviderId: String?, imageSettings: ProviderSettings?, images: MutableList<StoredMedia>): String {
         try {
             if (call.arguments.length > 600_000) throw ProviderFailure("standalone.error.limit")
@@ -646,6 +700,17 @@ class ChatController(
                 "current_time" -> ZonedDateTime.now().toString()
                 "web_search" -> encodeResults(WebSearch.search(toolClient(), arg("query")), json)
                 "read_url" -> UrlFetcher.fetch(toolClient(), arg("url"))
+                "remember" -> {
+                    val (updated, saved) = MemoryStore.remember(memoryList.value, arg("fact"), platform.nowMillis() / 1000)
+                    if (saved) persistMemories(updated)
+                    """{"saved":$saved}"""
+                }
+                "forget" -> {
+                    val updated = MemoryStore.forget(memoryList.value, arg("fact"))
+                    val forgot = updated.size < memoryList.value.size
+                    if (forgot) persistMemories(updated)
+                    """{"forgot":$forgot}"""
+                }
                 "list_files" -> withContext(Dispatchers.IO) { json.encodeToString(storage.listWorkspace()) }
                 "read_file" -> withContext(Dispatchers.IO) { storage.readWorkspace(arg("path")) }
                 "write_file" -> withContext(Dispatchers.IO) { storage.writeWorkspace(arg("path"), arg("content")); "{\"saved\":true}" }.also { refreshWorkspace() }

@@ -235,6 +235,17 @@ class ChatStorage(context: Context) {
         writeAtomic(File(appContext.filesDir, CHATS_FILE), json.encodeToString(chats).toByteArray(Charsets.UTF_8))
     }
 
+    fun loadMemories(): List<StoredMemory> = synchronized(lock) {
+        val file = File(appContext.filesDir, MEMORIES_FILE)
+        if (!file.exists()) return@synchronized emptyList()
+        val bytes = try { AtomicFile(file).readFully() } catch (_: Exception) { throw ProviderFailure(ChatErrors.STORAGE) }
+        decode(bytes.toString(Charsets.UTF_8)) { json.decodeFromString<List<StoredMemory>>(it) }
+    }
+
+    fun saveMemories(memories: List<StoredMemory>) = synchronized(lock) {
+        writeAtomic(File(appContext.filesDir, MEMORIES_FILE), json.encodeToString(memories).toByteArray(Charsets.UTF_8))
+    }
+
     fun saveMedia(bytes: ByteArray, name: String, mimeType: String): StoredMedia {
         if (bytes.isEmpty() || bytes.size > ChatLimits.MEDIA_BYTES) throw ProviderFailure(ChatErrors.STORAGE)
         val mime = ChatFileNames.mime(mimeType)
@@ -463,6 +474,7 @@ class ChatStorage(context: Context) {
         private const val KEY_BOOK = "provider.book.v2"
         private const val PROVIDER_KEY_PREFIX = "api.provider."
         private const val CHATS_FILE = "chats.json"
+        private const val MEMORIES_FILE = "memories.json"
         private const val MEDIA_DIR = "media"
         private const val WORKSPACE_DIR = "workspace"
         private const val KEYSTORE_ALIAS = "me.waveio.blinkchat.secrets.v1"

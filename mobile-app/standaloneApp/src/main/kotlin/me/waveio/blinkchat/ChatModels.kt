@@ -56,6 +56,16 @@ data class StoredMessage(
 )
 @Serializable
 data class StoredStep(val id: String, val name: String, val status: String)
+/** One durable fact about the user; muted stays stored but is never injected. */
+@Serializable
+data class StoredMemory(
+    val id: String,
+    val content: String,
+    val kind: String = "user",
+    val createdAt: Long = 0,
+    val updatedAt: Long = 0,
+    val muted: Boolean = false,
+)
 @Serializable
 data class StoredDraft(val text: String = "", val attachments: List<StoredMedia> = emptyList(), val editingMessageId: String? = null)
 @Serializable

@@ -32,6 +32,8 @@ data class ProviderBook(
     val defaultImage: ModelSelection? = null,
     val systemPrompt: String = "",
     val toolsEnabled: Boolean = true,
+    /** Books saved before 0.4.0 have no field and had memory enabled. */
+    val memoryEnabled: Boolean = true,
 ) {
     fun account(id: String): ProviderAccount? = providers.firstOrNull { it.id == id }
 
