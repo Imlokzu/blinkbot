@@ -48,6 +48,7 @@ fun StandaloneScreen(screen: Screen, state: AppState, controller: ChatController
         Screen.Models -> ModelSettings(state, controller)
         Screen.Personalization -> PersonalizationSettings(state, controller)
         Screen.Files -> WorkspaceSettings(state, controller)
+        Screen.Memory -> MemorySettings(state, controller)
         Screen.Agents, Screen.Skills -> ToolSettings(screen, state, controller)
         Screen.Queue -> AvailabilitySettings("standalone.queue.body", controller)
         Screen.Updates -> AvailabilitySettings("standalone.updates.body", controller)
@@ -85,6 +86,7 @@ private fun ProfileSettings(state: AppState, controller: ChatController) {
         MenuRow("bot", tr("standalone.profile.models"), { controller.navigate(Screen.Models) }, subtitle = "$defaultName · ${book.defaultChat.modelId}")
         MenuRow("settings", tr("standalone.profile.appearance"), { controller.navigate(Screen.Appearance) })
         MenuRow("edit", tr("standalone.profile.personalization"), { controller.navigate(Screen.Personalization) })
+        MenuRow("check", tr("standalone.profile.memory"), { controller.navigate(Screen.Memory) })
         MenuRow("skills", tr("standalone.profile.agents"), { controller.navigate(Screen.Agents) })
         MenuRow("folder", tr("standalone.profile.files"), { controller.navigate(Screen.Files) })
         Hairline()
@@ -574,6 +576,44 @@ private fun PersonalizationSettings(state: AppState, controller: ChatController)
 }
 
 @Composable
+private fun MemorySettings(state: AppState, controller: ChatController) {
+    val p = LocalPalette.current
+    val memories by controller.memories.collectAsState()
+    val book by controller.providerBook.collectAsState()
+    var fact by remember { mutableStateOf("") }
+    var clearing by remember { mutableStateOf(false) }
+    FormColumn {
+        Text(tr("standalone.memory.help"), color = p.muted, fontSize = 13.sp)
+        BotToggle(tr("standalone.memory.enable"), book.memoryEnabled, controller::setMemoryEnabled)
+        Hairline()
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BotField(fact, { fact = it }, Modifier.weight(1f), label = tr("standalone.memory.addHint"), singleLine = true)
+            ActionButton(tr("standalone.memory.add"), { controller.addMemory(fact); fact = "" }, enabled = fact.isNotBlank())
+        }
+        SettingsError(state)
+        Hairline()
+        Text(tr("standalone.memory.list"), color = p.ink)
+        if (memories.isEmpty()) Text(tr("standalone.memory.empty"), color = p.muted, fontSize = 13.sp)
+        memories.forEach { memory ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) { Text(memory.content, color = p.ink, fontSize = 14.sp) }
+                IconAction("delete", tr("standalone.memory.delete"), { controller.deleteMemory(memory.id) })
+            }
+            Hairline()
+        }
+        if (memories.isNotEmpty()) QuietAction(tr("standalone.memory.clearAll"), { clearing = true }, Modifier.fillMaxWidth())
+    }
+    if (clearing) {
+        BotDialog({ clearing = false }) {
+            Text(tr("standalone.memory.clearTitle"), fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = p.ink)
+            Text(tr("standalone.memory.clearBody"), color = p.muted, modifier = Modifier.padding(vertical = 14.dp))
+            ActionButton(tr("standalone.memory.confirm"), { clearing = false; controller.clearMemories() }, Modifier.fillMaxWidth(), primary = true)
+            QuietAction(tr("standalone.memory.keep"), { clearing = false }, Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
 private fun WorkspaceSettings(state: AppState, controller: ChatController) {
     val p = LocalPalette.current
     val files by controller.workspaceFiles.collectAsState()
@@ -626,6 +666,7 @@ private fun ToolSettings(screen: Screen, state: AppState, controller: ChatContro
         ToolRow("time", "standalone.tools.clock", "standalone.tools.clockHint")
         ToolRow("search", "standalone.tools.search", "standalone.tools.searchHint")
         ToolRow("download", "standalone.tools.readUrl", "standalone.tools.readUrlHint")
+        ToolRow("check", "standalone.tools.memory", "standalone.tools.memoryHint")
         ToolRow("file", "standalone.tools.notes", "standalone.tools.notesHint")
         ToolRow("photo", "standalone.tools.image", "standalone.tools.imageHint")
         Hairline()

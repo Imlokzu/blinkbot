@@ -330,6 +330,13 @@ class ChatController(
     fun savePersonalization(prompt: String) = changeProviders { it.copy(systemPrompt = prompt) }
     fun setToolsEnabled(enabled: Boolean) = changeProviders { it.copy(toolsEnabled = enabled) }
     fun setMemoryEnabled(enabled: Boolean) = changeProviders { it.copy(memoryEnabled = enabled) }
+    fun addMemory(fact: String) {
+        val (updated, saved) = MemoryStore.remember(memoryList.value, fact, platform.nowMillis() / 1000)
+        if (!saved) { fail("standalone.memory.duplicate"); return }
+        persistMemories(updated)
+    }
+    fun deleteMemory(id: String) = persistMemories(memoryList.value.filterNot { it.id == id })
+    fun clearMemories() = persistMemories(emptyList())
 
     /** Personalization remains global; this also preserves the original single-provider API. */
     fun saveProvider(value: ProviderSettings, newKey: String?, onSaved: () -> Unit = {}) {

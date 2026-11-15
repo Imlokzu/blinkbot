@@ -9,7 +9,7 @@ import me.waveio.claudebot.data.IntelligenceEntry
 import me.waveio.claudebot.data.IntelligenceSource
 import kotlinx.serialization.json.JsonElement
 
-enum class Screen { Chat, Search, Files, Agents, Profile, Appearance, Models, Notifications, Personalization, Queue, Skills, Updates, Haptics, Language }
+enum class Screen { Chat, Search, Files, Agents, Profile, Appearance, Models, Notifications, Personalization, Queue, Skills, Updates, Haptics, Language, Memory }
 
 @Serializable
 data class Preferences(
