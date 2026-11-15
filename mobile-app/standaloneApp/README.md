@@ -102,10 +102,20 @@ Sources: [QwenCloud integration overview](https://docs.qwencloud.com/token-plan/
 
 ## Tools and local data
 
-The text model can call five built-in tools when tools are enabled: generate
-an image, read the device clock, list workspace files, read a file, and write
-a file. A turn allows at most six model rounds and twelve tool calls. Tool
-failures retain their actual outcome in the shared activity view.
+The text model can call eight built-in tools when tools are enabled: generate
+an image, read the device clock, search the public web, open a web page as
+plain text, save or delete a persistent fact, list workspace files, read a
+file, and write a file. A turn allows at most six model rounds and twelve
+tool calls. Tool failures retain their actual outcome in the shared activity
+view.
+
+Web search is keyless (DuckDuckGo Lite). A fetched page reaches the model as
+plain text inside a nonce-delimited untrusted envelope, over HTTPS only, with
+private addresses unreachable and downloads bounded. Memory facts live in a
+local document and are injected into every chat; the model saves them when
+the user explicitly asks, and a background reviewer after every fifth user
+turn may add or revise facts on its own (toggleable under Profile >
+Memory, silent on failure).
 
 Workspace tools operate only on bounded text files in the app's private
 workspace. They cannot execute shell commands, install packages, or read
