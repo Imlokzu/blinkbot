@@ -7,6 +7,8 @@ object ChatTools {
     val definitions: List<JsonObject> = listOf(
         tool("generate_image", "Create an image from a detailed prompt and show it in this conversation.", mapOf("prompt" to "Image description"), listOf("prompt")),
         tool("current_time", "Read the current date and time on this device."),
+        tool("web_search", "Search the public web and return result titles, URLs and short snippets.", mapOf("query" to "Search query"), listOf("query")),
+        tool("read_url", "Open a public web page and return its readable text.", mapOf("url" to "HTTPS page URL"), listOf("url")),
         tool("list_files", "List text files in the app's private workspace."),
         tool("read_file", "Read a text file in the app's private workspace.", mapOf("path" to "Relative file path"), listOf("path")),
         tool("write_file", "Create or update a text file in the app's private workspace.", mapOf("path" to "Relative file path", "content" to "Complete UTF-8 file content"), listOf("path", "content")),

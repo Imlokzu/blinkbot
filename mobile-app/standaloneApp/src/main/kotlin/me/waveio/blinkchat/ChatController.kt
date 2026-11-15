@@ -3,6 +3,7 @@ package me.waveio.blinkchat
 import java.io.Closeable
 import java.time.ZonedDateTime
 import java.util.UUID
+import io.ktor.client.HttpClient
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
@@ -29,6 +30,9 @@ class ChatController(
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val diskScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+    private var webToolHttpClient: HttpClient? = null
+    /** One hardened client is shared by every web tool call for the controller's lifetime. */
+    private fun toolClient(): HttpClient = webToolHttpClient ?: webToolClient().also { webToolHttpClient = it }
     private val mutable = MutableStateFlow(AppState(connected = true, loading = true))
     val state = mutable.asStateFlow()
     private val config = MutableStateFlow(ProviderSettings())
@@ -640,6 +644,8 @@ class ChatController(
             fun arg(name: String) = args[name]?.jsonPrimitive?.contentOrNull ?: throw ProviderFailure("standalone.error.tool")
             return when (call.name) {
                 "current_time" -> ZonedDateTime.now().toString()
+                "web_search" -> encodeResults(WebSearch.search(toolClient(), arg("query")), json)
+                "read_url" -> UrlFetcher.fetch(toolClient(), arg("url"))
                 "list_files" -> withContext(Dispatchers.IO) { json.encodeToString(storage.listWorkspace()) }
                 "read_file" -> withContext(Dispatchers.IO) { storage.readWorkspace(arg("path")) }
                 "write_file" -> withContext(Dispatchers.IO) { storage.writeWorkspace(arg("path"), arg("content")); "{\"saved\":true}" }.also { refreshWorkspace() }
@@ -814,7 +820,7 @@ class ChatController(
     }
     override fun close() {
         providerEditorOwner?.let(::clearProviderEditorNavigation)
-        scope.cancel(); writes.close(); provider.close()
+        scope.cancel(); writes.close(); provider.close(); webToolHttpClient?.close()
         // onDestroy must not discard a queued final snapshot (for example after Stop).
         val snapshot = chats.toList()
         runBlocking(Dispatchers.IO) {

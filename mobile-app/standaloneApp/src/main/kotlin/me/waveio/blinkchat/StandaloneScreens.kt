@@ -624,6 +624,8 @@ private fun ToolSettings(screen: Screen, state: AppState, controller: ChatContro
         Text(tr("standalone.tools.help"), color = p.muted, fontSize = 12.sp)
         Hairline()
         ToolRow("time", "standalone.tools.clock", "standalone.tools.clockHint")
+        ToolRow("search", "standalone.tools.search", "standalone.tools.searchHint")
+        ToolRow("download", "standalone.tools.readUrl", "standalone.tools.readUrlHint")
         ToolRow("file", "standalone.tools.notes", "standalone.tools.notesHint")
         ToolRow("photo", "standalone.tools.image", "standalone.tools.imageHint")
         Hairline()

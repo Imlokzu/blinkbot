@@ -261,6 +261,7 @@
   "chat.historyActions": "Chat actions",
   "chat.toolsOpen": "Tool details",
   "tool.web_search": "Web search",
+  "tool.read_url": "Read web page",
   "tool.image_search": "Image search",
   "tool.facts": "Facts",
   "tool.weather": "Weather",

@@ -261,6 +261,7 @@
   "chat.historyActions": "Дії з чатом",
   "chat.toolsOpen": "Деталі інструмента",
   "tool.web_search": "Вебпошук",
+  "tool.read_url": "Читати веб-сторінку",
   "tool.image_search": "Пошук зображень",
   "tool.facts": "Факти",
   "tool.weather": "Погода",
