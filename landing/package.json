@@ -11,9 +11,7 @@
   },
   "dependencies": {
     "@fontsource-variable/ibm-plex-sans": "^5.3.0",
-    "@fontsource/cormorant-garamond": "^5.3.0",
-    "@fontsource/ibm-plex-mono": "^5.3.0",
-    "gsap": "^3.15.0"
+    "@fontsource/ibm-plex-mono": "^5.3.0"
   },
   "devDependencies": {
     "vite": "^8.3.2"

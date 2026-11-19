@@ -1,9 +1,10 @@
 # Blink Bot — landing page
 
-A dark, screenshot-led page for the project: the real dashboard rises out of
-the hero as you scroll, a tour walks through its panels, and the device
-section cycles through clock, weather and app-drawer views. The Blink spiral
-is the only decorative product mark; there is no character mascot.
+A screenshot-led introduction to the project. The real dashboard opens the
+page, the tour pairs each panel with its explanation, and the device preview
+lets visitors switch between clock, weather and app-drawer captures. Warm
+paper tones frame the dark product UI and the approved Cube + Flash mark.
+The design pass followed Damir Sokolovsky's [Unslop](https://github.com/heydamir/unslop).
 
 ```bash
 npm install
@@ -19,13 +20,13 @@ The old 3D version (CRT intro, asteroid tools) lives in `../landing-3d/`.
 | Piece | Where | Notes |
 |---|---|---|
 | Markup | `index.html` | Keys only, no visible text (see i18n below) |
-| Motion | `src/hero.js`, `src/tour.js`, `src/device.js`, `src/reveal.js`, `src/extras.js` | GSAP with ScrollTrigger, ScrollSmoother and SplitText — the default in `~/stack/ui-effects.md`, and already the dashboard's |
-| Screenshots | `public/shots/en/` | English captures, see below |
-| Type | `@fontsource` | IBM Plex Sans and Mono like the dashboard, Cormorant Garamond italic like its welcome heading. Self-hosted, Cyrillic included |
+| Interactions | `src/main.js` | Language, mobile navigation, device views and copy buttons |
+| Screenshots | `public/shots/en/` | Responsive English captures in the HTML |
+| Type | `@fontsource` | Self-hosted IBM Plex Sans and Mono, including Cyrillic |
 
-Everything moving is `transform` or `opacity`. With
-`prefers-reduced-motion`, smooth scrolling, pinning, scrubbing and the
-entrances are all off, and the page reads top to bottom.
+Native scrolling and links work without JavaScript. The page has no
+autoplay and disables its short control transitions with
+`prefers-reduced-motion`.
 
 ## Languages
 
@@ -43,7 +44,7 @@ crawlers. Product screenshots stay in English, with the optional right panel clo
 The phone image comes from the native Kotlin Multiplatform Android app in
 `mobile-app/`, with its conversation drawer closed.
 The visitor's language is picked from `?lang=`, then the saved
-choice, then the browser, before the hero makes its entrance.
+choice, then the browser when the page module loads.
 `scripts/i18n_check.py` at the repo root checks key parity and that every key
 the page uses exists.
 

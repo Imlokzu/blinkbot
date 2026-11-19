@@ -3,7 +3,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { catalogue, detectLang, glue, t } from "../src/i18n.js";
 import { prerender } from "../scripts/prerender-i18n.js";
@@ -57,6 +57,17 @@ test("the prerender fills text and attributes in the default language", () => {
   assert.match(out, /<title data-i18n="meta.title">Blink Bot — an AI companion that lives on your desk<\/title>/);
   assert.match(out, /name="description" data-i18n-attr="content:meta.description" content="An open-source AI companion/);
   assert.doesNotMatch(out, /data-i18n="[^"]+"><\//, "an element was left empty");
+});
+
+test("product previews have local image sources in the prerendered HTML", () => {
+  const out = prerender(html, (key) => t(key, "en"));
+  const previews = [...out.matchAll(/<img src="%BASE_URL%(shots\/en\/[^"]+)"[^>]+>/g)];
+  assert.equal(previews.length, 8, "hero, four product views and three device views");
+  for (const [markup, asset] of previews) {
+    assert.ok(existsSync(new URL(`../public/${asset}`, import.meta.url)), asset);
+    assert.match(markup, /alt="[^"]+"/, asset);
+    assert.match(markup, /width="\d+" height="\d+"/, asset);
+  }
 });
 
 test("the prerender escapes text and refuses unknown keys", () => {

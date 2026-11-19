@@ -4123,3 +4123,18 @@ its own mode, benchmark bars that match their percentages, a live voice
 waveform, history dates and previews (new host `preview` field) and folder
 change dates. 358 shared, 78 Android and 87 focused backend tests pass; hardware
 haptics/voice and iOS are not verified. See docs/mobile-app/RELEASE-0.7.0.md.
+
+
+## 2026-11-19 — Blink landing design refresh
+
+The desktop dashboard and the Raspberry Pi screen are the visual focus.
+The landing uses the Cube + Flash identity, warm neutral surfaces, a static
+screenshot tour, manual device views, and shorter English and Ukrainian
+copy. The animated particles, scroll effects, and unsourced latency figures
+were removed. The social preview shows the new hero.
+
+Nine landing tests, the production build, locale checks, and HTTP asset
+smoke passed. Zen verified both locales at nine widths from 320 to 1440 px,
+including keyboard navigation, language persistence, device views, and
+copying the setup commands. The built page and navigation also worked with
+JavaScript disabled.
