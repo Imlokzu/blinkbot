@@ -22,7 +22,6 @@ const DICT = {
 
     "brand.name": "Blink Bot",
     "brand.home": "Blink Bot — на початок сторінки",
-    "brand.wordmark": "blink",
 
     "nav.product": "Продукт",
     "nav.device": "Пристрій",
@@ -39,12 +38,15 @@ const DICT = {
 
     "hero.lead": "Спілкуйся з Blink голосом і в чаті, переглядай його пам’ять і підключай камеру. Запусти його на комп’ютері або збери настільного робота на Raspberry Pi.",
     "hero.ctaPrimary": "Відкрити на GitHub",
-    "hero.ctaSecondary": "Огляд панелі",
+    "hero.ctaSecondary": "Огляд Blink",
     "hero.metaLangs": "Українська й англійська",
     "hero.metaLicense": "GPL-3.0",
     "hero.metaPlatforms": "macOS · Linux · Raspberry Pi",
-    "hero.titleA": "Blink Bot",
-    "hero.titleB": "На твоєму столі.",
+    "hero.titleA": "Твій власний AI",
+    "hero.titleB": "для твого столу",
+    "hero.tag": "Відкритий AI-компаньйон",
+    "hero.dashboard": "Панель Blink",
+    "hero.display": "Екран Pi",
 
 
     "statement.text": "Пам’ять Blink зберігається в Markdown на твоєму диску. Робоча тека й дії інструментів доступні через панель.",
@@ -57,7 +59,6 @@ const DICT = {
     "callout.modelTitle": "Вибір моделі",
     "callout.modelText": "Перемикай мовні моделі через один шлюз OpenClaw.",
 
-    "tour.eyebrow": "Огляд панелі",
     "tour.chatTitle": "Чат",
     "tour.chatText": "У чаті видно відповідь, виклики інструментів і посилання на джерела.",
     "tour.chatAlt": "Розмова в панелі: дерево дій агента з погодою та пошуком і відповідь бота з джерелами.",
@@ -70,16 +71,9 @@ const DICT = {
     "tour.phoneTitle": "Blink Chat",
     "tour.phoneText": "Окремий застосунок для Android: розмови, файли й голосове введення, підключені до того самого бота.",
     "tour.phoneAlt": "Розмова в нативному Android-застосунку Blink, із закритим меню.",
-    "tour.count": "04 екрани",
     "tour.openPreview": "Відкрити знімок екрана",
-    "tour.chatKind": "Панель Blink",
-    "tour.chatDetail": "Інструменти й джерела",
-    "tour.memoryKind": "Панель Blink",
-    "tour.memoryDetail": "Нотатки Markdown",
-    "tour.styleKind": "Панель Blink",
-    "tour.styleDetail": "Теми й характер",
-    "tour.phoneKind": "Застосунок для Android",
-    "tour.phoneDetail": "Розмови, файли й голос",
+    "tour.title": "На комп’ютері й телефоні",
+    "tour.lead": "Панель на комп’ютері й застосунок для Android підключаються до того самого бота.",
 
     "device.eyebrow": "На Raspberry Pi",
     "device.lead": "Годинник, прогноз погоди й застосунки на маленькому сенсорному екрані.",
@@ -149,7 +143,6 @@ const DICT = {
 
     "brand.name": "Blink Bot",
     "brand.home": "Blink Bot — back to the top",
-    "brand.wordmark": "blink",
 
     "nav.product": "Product",
     "nav.device": "Device",
@@ -166,12 +159,15 @@ const DICT = {
 
     "hero.lead": "Talk to Blink, read its memory, and connect a camera. Run it on your computer or build a desk robot with a Raspberry Pi.",
     "hero.ctaPrimary": "View on GitHub",
-    "hero.ctaSecondary": "Explore the dashboard",
+    "hero.ctaSecondary": "Explore Blink",
     "hero.metaLangs": "Ukrainian and English",
     "hero.metaLicense": "GPL-3.0",
     "hero.metaPlatforms": "macOS · Linux · Raspberry Pi",
-    "hero.titleA": "Blink Bot",
-    "hero.titleB": "On your desk.",
+    "hero.titleA": "Your own AI",
+    "hero.titleB": "for your desk",
+    "hero.tag": "Open-source AI companion",
+    "hero.dashboard": "Blink dashboard",
+    "hero.display": "Pi display",
 
 
     "statement.text": "Blink keeps its memory in Markdown on your disk. Open its workspace and follow tool activity from the dashboard.",
@@ -184,7 +180,6 @@ const DICT = {
     "callout.modelTitle": "Model choice",
     "callout.modelText": "Switch language models through one OpenClaw gateway.",
 
-    "tour.eyebrow": "Product tour",
     "tour.chatTitle": "Chat",
     "tour.chatText": "See replies, tool calls and source links in the same conversation.",
     "tour.chatAlt": "A conversation in the dashboard: the agent activity tree with weather and search, and the bot's answer with sources.",
@@ -197,16 +192,9 @@ const DICT = {
     "tour.phoneTitle": "Blink Chat",
     "tour.phoneText": "A native Android app for your chats, files and voice input, connected to the same bot.",
     "tour.phoneAlt": "A conversation in the native Blink Android app, with its drawer closed.",
-    "tour.count": "04 previews",
     "tour.openPreview": "Open screenshot",
-    "tour.chatKind": "Blink dashboard",
-    "tour.chatDetail": "Tool activity and sources",
-    "tour.memoryKind": "Blink dashboard",
-    "tour.memoryDetail": "Markdown notes",
-    "tour.styleKind": "Blink dashboard",
-    "tour.styleDetail": "Themes and personality",
-    "tour.phoneKind": "Native Android app",
-    "tour.phoneDetail": "Chat, files and voice",
+    "tour.title": "From desktop to Android",
+    "tour.lead": "The desktop dashboard and Android app connect to the same bot.",
 
     "device.eyebrow": "On Raspberry Pi",
     "device.lead": "A clock, weather and apps on a small touchscreen.",

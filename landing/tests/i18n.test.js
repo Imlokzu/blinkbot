@@ -62,7 +62,7 @@ test("the prerender fills text and attributes in the default language", () => {
 test("product previews have local image sources in the prerendered HTML", () => {
   const out = prerender(html, (key) => t(key, "en"));
   const previews = [...out.matchAll(/<img src="%BASE_URL%(shots\/en\/[^"]+)"[^>]+>/g)];
-  assert.equal(previews.length, 7, "four product previews and three device views");
+  assert.equal(previews.length, 9, "two hero previews, four tour previews and three device views");
   for (const [markup, asset] of previews) {
     assert.ok(existsSync(new URL(`../public/${asset}`, import.meta.url)), asset);
     assert.match(markup, /alt="[^"]+"/, asset);

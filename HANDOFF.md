@@ -4153,3 +4153,15 @@ All eleven landing tests, the production build, and locale checks passed.
 Zen verified both locales at nine widths, the desktop and mobile motion
 paths, device selection, setup clipboard controls, and the reduced-motion
 and JavaScript-disabled fallbacks.
+
+## 2026-11-19 — Blink product styling on the landing
+
+The hero now shows the real dashboard and Pi display in a warm graphite
+panel with Blink's Cube + Flash mark. The visual tour uses a permanent
+screenshot gallery. Proximity lettering, staggered entrances, and
+scroll lighting carry over from the portfolio, and gallery images shift
+slightly under the pointer.
+
+All eleven landing tests and the production build passed. Zen checked both
+locales at nine widths, including pointer response, reduced motion, keyboard
+navigation, clipboard copying, device switching, and no-JavaScript rendering.
