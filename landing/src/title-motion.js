@@ -1,5 +1,5 @@
-const MIN_WEIGHT = 390;
-const MAX_WEIGHT = 720;
+const MIN_WEIGHT = 200;
+const MAX_WEIGHT = 820;
 const RADIUS = 280;
 const IDLE_AFTER = 2200;
 const clamp = (value) => Math.min(1, Math.max(0, value));

@@ -12,8 +12,8 @@
     <meta property="og:description" data-i18n-attr="content:meta.description" />
     <meta property="og:image" content="https://waveio.me/og.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#f7f3ec" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#171513" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a0a0b" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -24,8 +24,7 @@
     <header class="nav">
       <div class="container nav__inner">
         <a class="nav__brand" href="#top" data-i18n-attr="aria-label:brand.home">
-          <img src="/blink-tile.svg" alt="" width="30" height="30" />
-          <span data-i18n="brand.name"></span>
+          <span data-i18n="brand.wordmark"></span>
         </a>
         <button type="button" class="nav__toggle" data-nav-toggle aria-expanded="false" aria-controls="site-navigation" data-i18n-attr="aria-label:nav.openMenu" hidden>
           <span aria-hidden="true"></span><span aria-hidden="true"></span>
@@ -50,122 +49,114 @@
     </header>
 
     <main id="main" tabindex="-1">
-      <section class="hero container" id="top" tabindex="-1" aria-labelledby="hero-title">
-        <div class="hero__inner">
-          <div class="hero__copy">
-            <p class="hero__tag rise" data-i18n="hero.tag"></p>
-            <h1 class="hero__title rise" id="hero-title" data-motion-title>
-              <span class="hero__line" data-motion-line data-i18n="hero.titleA"></span>
-              <span class="hero__line hero__line--accent" data-motion-line data-i18n="hero.titleB"></span>
-            </h1>
-            <p class="hero__lead rise" data-i18n="hero.lead"></p>
-            <div class="actions hero__actions rise">
-              <a class="button" href="https://github.com/Imlokzu/blinkbot" rel="noopener">
-                <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#icon-github" /></svg>
-                <span data-i18n="hero.ctaPrimary"></span>
-              </a>
-              <a class="text-link" href="#product">
-                <span data-i18n="hero.ctaSecondary"></span>
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-down" /></svg>
-              </a>
-            </div>
-          </div>
-          <div class="hero__stage rise">
-            <figure class="hero__dashboard">
-              <figcaption>
-                <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
-                <span data-i18n="hero.dashboard"></span>
-              </figcaption>
-              <img src="%BASE_URL%shots/en/chat-half.webp"
-                srcset="%BASE_URL%shots/en/chat-half.webp 1440w, %BASE_URL%shots/en/chat.webp 2880w"
-                sizes="(max-width: 900px) 85vw, 610px"
-                width="1440" height="1000" data-i18n-attr="alt:tour.chatAlt" fetchpriority="high" />
-            </figure>
-            <a class="hero__screen" href="#device" data-i18n-attr="aria-label:hero.display">
-              <img src="%BASE_URL%shots/en/screen-clock-half.webp"
-                width="320" height="240" data-i18n-attr="alt:device.clockAlt" decoding="async" />
-              <span><i aria-hidden="true"></i><span data-i18n="hero.display"></span></span>
+      <section class="hero" id="top" tabindex="-1" aria-labelledby="hero-title">
+        <div class="container hero__inner">
+          <h1 class="hero__title rise" id="hero-title" data-motion-title>
+            <span class="hero__line" data-motion-line data-i18n="hero.titleA"></span>
+            <span class="hero__line hero__line--gradient" data-motion-line data-i18n="hero.titleB"></span>
+          </h1>
+          <p class="hero__lead rise" data-i18n="hero.lead"></p>
+          <ul class="hero__facts rise" role="list">
+            <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chip" /></svg><span data-i18n="hero.metaPlatforms"></span></li>
+            <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chat" /></svg><span data-i18n="hero.metaLangs"></span></li>
+            <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-license" /></svg><span data-i18n="hero.metaLicense"></span></li>
+          </ul>
+          <div class="actions hero__actions rise">
+            <a class="button" href="https://github.com/Imlokzu/blinkbot" rel="noopener">
+              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#icon-github" /></svg>
+              <span data-i18n="hero.ctaPrimary"></span>
+            </a>
+            <a class="text-link" href="#product">
+              <span data-i18n="hero.ctaSecondary"></span>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-down" /></svg>
             </a>
           </div>
         </div>
-        <ul class="hero__facts" role="list">
-          <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chip" /></svg><span data-i18n="hero.metaPlatforms"></span></li>
-          <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chat" /></svg><span data-i18n="hero.metaLangs"></span></li>
-          <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-license" /></svg><span data-i18n="hero.metaLicense"></span></li>
-        </ul>
       </section>
 
       <section class="tour container section" id="product" tabindex="-1" aria-labelledby="product-title">
         <header class="section-head tour__heading" data-reveal>
-          <div>
-            <p class="eyebrow" data-i18n="nav.product"></p>
-            <h2 id="product-title" data-i18n="tour.title"></h2>
-          </div>
-          <p class="section-lead" data-i18n="tour.lead"></p>
+          <h2 id="product-title" data-i18n="tour.eyebrow"></h2>
           <span id="tour-preview-description" class="sr-only" data-i18n="tour.openPreview"></span>
+          <p data-i18n="tour.count"></p>
         </header>
-        <ul class="tour__grid" role="list">
+        <ol class="tour__list" role="list" data-preview-list>
           <li data-reveal>
-            <a class="tour__card" href="%BASE_URL%shots/en/chat.webp" data-tour-card aria-labelledby="tour-chat-title" aria-describedby="tour-chat-summary tour-preview-description">
+            <a class="tour__row" href="%BASE_URL%shots/en/chat.webp" data-preview-row data-shape="wide" aria-labelledby="tour-chat-title" aria-describedby="tour-chat-summary tour-preview-description">
+              <span class="tour__index" aria-hidden="true"></span>
+              <h3 id="tour-chat-title" data-i18n="tour.chatTitle"></h3>
+              <span class="tour__meta">
+                <strong data-i18n="tour.chatKind"></strong>
+                <span data-i18n="tour.chatDetail"></span>
+              </span>
+              <svg class="icon tour__arrow" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right" /></svg>
+              <p class="tour__summary" id="tour-chat-summary" data-i18n="tour.chatText"></p>
               <span class="tour__preview tour__preview--wide">
                 <img src="%BASE_URL%shots/en/chat-half.webp"
                   srcset="%BASE_URL%shots/en/chat-half.webp 1440w, %BASE_URL%shots/en/chat.webp 2880w"
-                  sizes="(max-width: 734px) 90vw, 610px"
+                  sizes="(max-width: 734px) 84vw, 620px"
                   width="1440" height="1000" data-i18n-attr="alt:tour.chatAlt" loading="lazy" decoding="async" />
               </span>
-              <div class="tour__copy">
-                <h3 id="tour-chat-title" data-i18n="tour.chatTitle"></h3>
-                <svg class="icon tour__arrow" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right" /></svg>
-                <p id="tour-chat-summary" data-i18n="tour.chatText"></p>
-              </div>
             </a>
           </li>
           <li data-reveal>
-            <a class="tour__card" href="%BASE_URL%shots/en/memory.webp" data-tour-card aria-labelledby="tour-memory-title" aria-describedby="tour-memory-summary tour-preview-description">
+            <a class="tour__row" href="%BASE_URL%shots/en/memory.webp" data-preview-row data-shape="wide" aria-labelledby="tour-memory-title" aria-describedby="tour-memory-summary tour-preview-description">
+              <span class="tour__index" aria-hidden="true"></span>
+              <h3 id="tour-memory-title" data-i18n="tour.memoryTitle"></h3>
+              <span class="tour__meta">
+                <strong data-i18n="tour.memoryKind"></strong>
+                <span data-i18n="tour.memoryDetail"></span>
+              </span>
+              <svg class="icon tour__arrow" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right" /></svg>
+              <p class="tour__summary" id="tour-memory-summary" data-i18n="tour.memoryText"></p>
               <span class="tour__preview tour__preview--wide">
                 <img src="%BASE_URL%shots/en/memory-half.webp"
                   srcset="%BASE_URL%shots/en/memory-half.webp 1440w, %BASE_URL%shots/en/memory.webp 2880w"
-                  sizes="(max-width: 734px) 90vw, 510px"
+                  sizes="(max-width: 734px) 84vw, 620px"
                   width="1440" height="1000" data-i18n-attr="alt:tour.memoryAlt" loading="lazy" decoding="async" />
               </span>
-              <div class="tour__copy">
-                <h3 id="tour-memory-title" data-i18n="tour.memoryTitle"></h3>
-                <svg class="icon tour__arrow" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right" /></svg>
-                <p id="tour-memory-summary" data-i18n="tour.memoryText"></p>
-              </div>
             </a>
           </li>
           <li data-reveal>
-            <a class="tour__card" href="%BASE_URL%shots/en/welcome.webp" data-tour-card aria-labelledby="tour-style-title" aria-describedby="tour-style-summary tour-preview-description">
+            <a class="tour__row" href="%BASE_URL%shots/en/welcome.webp" data-preview-row data-shape="wide" aria-labelledby="tour-style-title" aria-describedby="tour-style-summary tour-preview-description">
+              <span class="tour__index" aria-hidden="true"></span>
+              <h3 id="tour-style-title" data-i18n="tour.styleTitle"></h3>
+              <span class="tour__meta">
+                <strong data-i18n="tour.styleKind"></strong>
+                <span data-i18n="tour.styleDetail"></span>
+              </span>
+              <svg class="icon tour__arrow" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right" /></svg>
+              <p class="tour__summary" id="tour-style-summary" data-i18n="tour.styleText"></p>
               <span class="tour__preview tour__preview--wide">
                 <img src="%BASE_URL%shots/en/welcome-half.webp"
                   srcset="%BASE_URL%shots/en/welcome-half.webp 1440w, %BASE_URL%shots/en/welcome.webp 2880w"
-                  sizes="(max-width: 734px) 90vw, 610px"
+                  sizes="(max-width: 734px) 84vw, 620px"
                   width="1440" height="1000" data-i18n-attr="alt:tour.styleAlt" loading="lazy" decoding="async" />
               </span>
-              <div class="tour__copy">
-                <h3 id="tour-style-title" data-i18n="tour.styleTitle"></h3>
-                <svg class="icon tour__arrow" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right" /></svg>
-                <p id="tour-style-summary" data-i18n="tour.styleText"></p>
-              </div>
             </a>
           </li>
           <li data-reveal>
-            <a class="tour__card" href="%BASE_URL%shots/en/mobile.webp" data-tour-card aria-labelledby="tour-phone-title" aria-describedby="tour-phone-summary tour-preview-description">
+            <a class="tour__row" href="%BASE_URL%shots/en/mobile.webp" data-preview-row data-shape="phone" aria-labelledby="tour-phone-title" aria-describedby="tour-phone-summary tour-preview-description">
+              <span class="tour__index" aria-hidden="true"></span>
+              <h3 id="tour-phone-title" data-i18n="tour.phoneTitle"></h3>
+              <span class="tour__meta">
+                <strong data-i18n="tour.phoneKind"></strong>
+                <span data-i18n="tour.phoneDetail"></span>
+              </span>
+              <svg class="icon tour__arrow" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right" /></svg>
+              <p class="tour__summary" id="tour-phone-summary" data-i18n="tour.phoneText"></p>
               <span class="tour__preview tour__preview--phone">
                 <img src="%BASE_URL%shots/en/mobile-half.webp"
                   srcset="%BASE_URL%shots/en/mobile-half.webp 585w, %BASE_URL%shots/en/mobile.webp 1170w"
-                  sizes="(max-width: 734px) 46vw, 180px"
+                  sizes="(max-width: 734px) 56vw, 240px"
                   width="390" height="844" data-i18n-attr="alt:tour.phoneAlt" loading="lazy" decoding="async" />
               </span>
-              <div class="tour__copy">
-                <h3 id="tour-phone-title" data-i18n="tour.phoneTitle"></h3>
-                <svg class="icon tour__arrow" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right" /></svg>
-                <p id="tour-phone-summary" data-i18n="tour.phoneText"></p>
-              </div>
             </a>
           </li>
-        </ul>
+        </ol>
+        <div class="tour__follower" data-preview-follower aria-hidden="true" hidden>
+          <div class="tour__floating-frame"></div>
+        </div>
       </section>
 
       <section class="statement container section" aria-labelledby="statement-title">

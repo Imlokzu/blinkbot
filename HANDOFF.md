@@ -4165,3 +4165,9 @@ slightly under the pointer.
 All eleven landing tests and the production build passed. Zen checked both
 locales at nine widths, including pointer response, reduced motion, keyboard
 navigation, clipboard copying, device switching, and no-JavaScript rendering.
+
+## 2026-11-19 — Restore the portfolio-style landing
+
+Restored the landing files from `c69d7893`. The deployed version returns to
+the centered animated headline and the pointer-following screenshot tour.
+All eleven landing tests, locale checks, and the production build passed.
