@@ -33,6 +33,8 @@ import os
 import subprocess
 import time
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional, Union
 
@@ -70,8 +72,6 @@ REGOLO_BASE_URL = os.environ.get("REGOLO_BASE_URL", "https://api.regolo.ai/v1").
 # Лише текстові моделі — картинок вони не приймають (див. _ask_regolo).
 REGOLO_MODELS = ("gpt-oss-20b", "gpt-oss-120b")
 REGOLO_TIMEOUT_S = float(os.environ.get("OMNI_SHIM_REGOLO_TIMEOUT_S", "60"))
-
-app = FastAPI(title="Omni shim (opencode)", docs_url=None, redoc_url=None)
 
 _proc: Optional[subprocess.Popen] = None
 
@@ -121,18 +121,23 @@ async def _ensure_opencode() -> None:
         raise RuntimeError("opencode serve не піднявся за 20с")
 
 
-@app.on_event("startup")
-async def _startup() -> None:
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Start opencode on boot and stop the child we spawned on shutdown."""
     try:
         await _ensure_opencode()
-    except Exception as exc:  # noqa: BLE001 — шим має піднятися й повідомити 503
-        log.error("opencode недоступний: %s", exc)
+    except Exception as exc:  # noqa: BLE001 — the shim must still come up and answer 503
+        log.error("opencode unavailable: %s", exc)
+    try:
+        yield
+    finally:
+        # Only terminate a process this shim started; an opencode that was
+        # already running belongs to someone else.
+        if _proc and _proc.poll() is None:
+            _proc.terminate()
 
 
-@app.on_event("shutdown")
-async def _shutdown() -> None:
-    if _proc and _proc.poll() is None:
-        _proc.terminate()
+app = FastAPI(title="Omni shim (opencode)", docs_url=None, redoc_url=None, lifespan=_lifespan)
 
 
 # ---------------------------------------------------------------- моделі
