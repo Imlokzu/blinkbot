@@ -4138,3 +4138,18 @@ smoke passed. Zen verified both locales at nine widths from 320 to 1440 px,
 including keyboard navigation, language persistence, device views, and
 copying the setup commands. The built page and navigation also worked with
 JavaScript disabled.
+
+## 2026-11-19 — Portfolio styling on the Blink landing
+
+The landing now follows the owner's portfolio. It uses the same Geist
+headline, pointer proximity and idle sweep, staggered blur entrances,
+scroll-driven text, and color scheme preferences. The product tour uses
+large rows with trailing desktop screenshots and inline previews on touch
+screens or when motion is reduced. The mobile navigation uses a full-screen
+overlay. The product features, English and Ukrainian catalogues, and setup
+instructions remain available through the landing.
+
+All eleven landing tests, the production build, and locale checks passed.
+Zen verified both locales at nine widths, the desktop and mobile motion
+paths, device selection, setup clipboard controls, and the reduced-motion
+and JavaScript-disabled fallbacks.

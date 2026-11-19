@@ -1,13 +1,16 @@
-import "@fontsource-variable/ibm-plex-sans/wght.css";
+import "@fontsource-variable/geist";
 import "@fontsource/ibm-plex-mono/400.css";
 import "./styles/base.css";
 import "./styles/landing.css";
 
 import { LANG_KEY, applyStatic, detectLang, setCurrentLang, t } from "./i18n.js";
+import { initReveals, initTourPreview } from "./motion.js";
+import { createTextMotion } from "./title-motion.js";
 
 const root = document.documentElement;
 const languageGroup = document.querySelector(".lang");
 const languageButtons = languageGroup.querySelectorAll("[data-set-lang]");
+const refreshTextMotion = createTextMotion();
 
 function savedLanguage() {
   try {
@@ -21,6 +24,7 @@ function applyLanguage(lang) {
   setCurrentLang(lang);
   root.lang = lang;
   applyStatic(document, lang);
+  refreshTextMotion();
   for (const button of languageButtons) {
     button.setAttribute("aria-pressed", String(button.dataset.setLang === lang));
   }
@@ -46,12 +50,22 @@ for (const button of languageButtons) {
 
 const navToggle = document.querySelector("[data-nav-toggle]");
 const navLinks = document.querySelector("#site-navigation");
-const narrowNav = matchMedia("(max-width: 800px)");
+const nav = navToggle.closest(".nav");
+const narrowNav = matchMedia("(max-width: 734px)");
+const menuBackground = document.querySelectorAll(".skip, main, footer");
 
 function setMenu(open) {
-  navToggle.hidden = !narrowNav.matches;
-  navToggle.setAttribute("aria-expanded", String(open));
-  navLinks.hidden = narrowNav.matches && !open;
+  const mobile = narrowNav.matches;
+  const expanded = mobile && open;
+  navToggle.hidden = !mobile;
+  navToggle.setAttribute("aria-expanded", String(expanded));
+  const label = expanded ? "nav.closeMenu" : "nav.openMenu";
+  navToggle.dataset.i18nAttr = `aria-label:${label}`;
+  navToggle.setAttribute("aria-label", t(label));
+  navLinks.inert = mobile && !expanded;
+  nav.classList.toggle("is-open", expanded);
+  document.body.classList.toggle("menu-open", expanded);
+  for (const element of menuBackground) element.inert = expanded;
 }
 
 setMenu(false);
@@ -62,19 +76,22 @@ narrowNav.addEventListener("change", () => {
   if (narrowNav.matches && menuHadFocus) navToggle.focus();
   if (!narrowNav.matches && toggleHadFocus) navLinks.querySelector("a").focus();
 });
-navToggle.addEventListener("click", () => setMenu(navLinks.hidden));
+navToggle.addEventListener("click", () => setMenu(navLinks.inert));
 document.addEventListener("keydown", (event) => {
   if (event.key !== "Escape" || navToggle.getAttribute("aria-expanded") !== "true") return;
   setMenu(false);
   navToggle.focus();
 });
-for (const link of navLinks.querySelectorAll("a")) {
+for (const link of nav.querySelectorAll(".nav__brand, .nav__links a")) {
   link.addEventListener("click", (event) => {
     if (!narrowNav.matches || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     setMenu(false);
     document.querySelector(link.hash)?.focus({ preventScroll: true });
   });
 }
+
+initReveals();
+initTourPreview();
 
 const deviceControls = document.querySelector(".bot__views");
 const viewButtons = deviceControls.querySelectorAll("[data-show-view]");

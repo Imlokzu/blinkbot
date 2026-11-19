@@ -1,10 +1,9 @@
 # Blink Bot — landing page
 
-A screenshot-led introduction to the project. The real dashboard opens the
-page, the tour pairs each panel with its explanation, and the device preview
-lets visitors switch between clock, weather and app-drawer captures. Warm
-paper tones frame the dark product UI and the approved Cube + Flash mark.
-The design pass followed Damir Sokolovsky's [Unslop](https://github.com/heydamir/unslop).
+The landing carries the owner's portfolio style into Blink: a centered
+Geist heading, matching light and dark palettes, and a row-based product
+tour. Its previews show the real dashboard and Android app. The Raspberry
+Pi section switches between clock, weather and app-drawer captures.
 
 ```bash
 npm install
@@ -21,12 +20,14 @@ The old 3D version (CRT intro, asteroid tools) lives in `../landing-3d/`.
 |---|---|---|
 | Markup | `index.html` | Keys only, no visible text (see i18n below) |
 | Interactions | `src/main.js` | Language, mobile navigation, device views and copy buttons |
+| Motion | `src/title-motion.js`, `src/motion.js` | Proximity lettering, scroll lighting, entrances and pointer-following previews |
 | Screenshots | `public/shots/en/` | Responsive English captures in the HTML |
-| Type | `@fontsource` | Self-hosted IBM Plex Sans and Mono, including Cyrillic |
+| Type | `@fontsource` | Self-hosted Geist Variable and IBM Plex Mono, including Cyrillic |
 
-Native scrolling and links work without JavaScript. The page has no
-autoplay and disables its short control transitions with
-`prefers-reduced-motion`.
+Native navigation, setup instructions and inline tour images work without
+JavaScript. Touch screens and reduced-motion users get the inline previews.
+With `prefers-reduced-motion`, the headline, scroll copy and menus stay
+static. The headline animation pauses when it leaves the viewport.
 
 ## Languages
 

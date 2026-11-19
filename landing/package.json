@@ -10,7 +10,7 @@
     "test": "node --test tests/*.test.js"
   },
   "dependencies": {
-    "@fontsource-variable/ibm-plex-sans": "^5.3.0",
+    "@fontsource-variable/geist": "5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0"
   },
   "devDependencies": {
