@@ -4201,3 +4201,19 @@ instead of invented connection states.
 All eleven landing tests, locale checks, and the production build passed.
 agent-browser checked desktop, 390 px Ukrainian, dark mode, flip, reel,
 marquee drift and dragging.
+marquee drift and dragging.
+
+## 2026-11-20 — Landing footer and more ObsidianUI motion
+
+The footer is now a full-height black block after ObsidianUI's footer:
+drifting stage lights, a pill label, the closing call to action, three link
+columns (page, project, platforms) and a giant flipping "blink." wordmark
+that fades into the bottom edge. Also added: Click Spark in Blink orange,
+Lenis smooth scrolling on fine pointers only, the Interactive Hover Button
+on the navigation GitHub link, and Parallax Slider drift for the dashboard
+screenshots in the marquee. Status Bars and Liquid Metal were left out:
+the first needs real uptime data, the second a WebGL shader dependency.
+
+All eleven landing tests, locale checks, and the production build passed.
+agent-browser checked the footer on desktop and 390 px Ukrainian, the hover
+pill, spark canvas, Lenis activation, marquee drift, and a clean console.

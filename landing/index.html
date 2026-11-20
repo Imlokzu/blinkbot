@@ -39,9 +39,10 @@
             <button type="button" data-set-lang="en" lang="en" data-i18n="nav.english"></button>
             <button type="button" data-set-lang="uk" lang="uk" data-i18n="nav.ukrainian"></button>
           </div>
-          <a class="nav__github" href="https://github.com/Imlokzu/blinkbot" rel="noopener" data-i18n-attr="aria-label:nav.github">
-            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#icon-github" /></svg>
-            <span data-i18n="nav.github"></span>
+          <a class="hover-pill" href="https://github.com/Imlokzu/blinkbot" rel="noopener" data-i18n-attr="aria-label:nav.github">
+            <span class="hover-pill__dot" aria-hidden="true"></span>
+            <span class="hover-pill__label" data-i18n="nav.github"></span>
+            <span class="hover-pill__reveal" aria-hidden="true"><span data-i18n="nav.github"></span><svg viewBox="0 0 24 24"><use href="#icon-arrow-right" /></svg></span>
           </a>
         </div>
       </div>
@@ -292,28 +293,56 @@
     </main>
 
     <footer class="footer" aria-labelledby="final-title">
-      <div class="container footer__cta" data-reveal>
-        <div>
+      <div class="footer__lights" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="container footer__top-row">
+        <div class="footer__intro" data-reveal>
+          <p class="footer__pill" data-i18n="footer.label"></p>
           <h2 id="final-title" data-i18n="footer.title"></h2>
-          <p class="section-lead" data-i18n="footer.lead"></p>
+          <p class="footer__lead" data-i18n="footer.lead"></p>
+          <a class="discover discover--invert" href="https://github.com/Imlokzu/blinkbot" rel="noopener">
+            <span class="discover__fill" aria-hidden="true"></span>
+            <span class="discover__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-arrow-right" /></svg></span>
+            <span class="discover__text" data-i18n="footer.cta"></span>
+          </a>
         </div>
-        <a class="discover discover--invert" href="https://github.com/Imlokzu/blinkbot" rel="noopener">
-          <span class="discover__fill" aria-hidden="true"></span>
-          <span class="discover__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-arrow-right" /></svg></span>
-          <span class="discover__text" data-i18n="footer.cta"></span>
-        </a>
+        <nav class="footer__cols" data-i18n-attr="aria-label:footer.navLabel">
+          <div data-reveal>
+            <h3 data-i18n="footer.colPage"></h3>
+            <ul role="list">
+              <li><a href="#screens" data-i18n="nav.screens"></a></li>
+              <li><a href="#devices" data-i18n="nav.devices"></a></li>
+              <li><a href="#start" data-i18n="nav.start"></a></li>
+            </ul>
+          </div>
+          <div data-reveal>
+            <h3 data-i18n="footer.colProject"></h3>
+            <ul role="list">
+              <li><a href="https://github.com/Imlokzu/blinkbot" rel="noopener" data-i18n="footer.source"></a></li>
+              <li><a href="https://github.com/Imlokzu/blinkbot#readme" rel="noopener" data-i18n="footer.readme"></a></li>
+              <li><a href="https://github.com/Imlokzu/blinkbot/blob/main/LICENSE" rel="noopener" data-i18n="footer.licenseLink"></a></li>
+              <li><a href="https://github.com/Imlokzu/blinkbot/issues" rel="noopener" data-i18n="footer.issues"></a></li>
+            </ul>
+          </div>
+          <div data-reveal>
+            <h3 data-i18n="footer.colRuns"></h3>
+            <ul role="list" class="footer__plain">
+              <li data-i18n="footer.runsComputer"></li>
+              <li data-i18n="footer.runsPi"></li>
+              <li data-i18n="footer.runsPhone"></li>
+            </ul>
+          </div>
+        </nav>
       </div>
-      <div class="container">
-        <p class="footer__word" data-flip aria-hidden="true"><span data-flip-line>blink</span><span class="footer__dot">.</span></p>
-      </div>
+      <p class="footer__word" data-flip aria-hidden="true"><span data-flip-line>blink</span><span class="footer__dot">.</span></p>
       <div class="container footer__inner">
         <a class="footer__brand" href="#top" data-i18n-attr="aria-label:brand.home">
-          <img src="/blink-tile.svg" alt="" width="24" height="24" />
+          <img src="/blink-tile.svg" alt="" width="22" height="22" />
           <span data-i18n="brand.name"></span>
         </a>
         <span data-i18n="footer.license"></span>
         <span data-i18n="footer.by"></span>
-        <a href="https://github.com/Imlokzu/blinkbot" rel="noopener" data-i18n="footer.repository"></a>
         <a class="footer__top" href="#top" data-i18n="footer.top"></a>
       </div>
     </footer>

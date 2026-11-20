@@ -41,7 +41,7 @@
 .nav__links { gap: 26px; }
 .nav__end { gap: 14px; justify-self: end; }
 
-.nav__links a, .nav__github {
+.nav__links a {
   display: inline-flex;
   min-height: 36px;
   align-items: center;
@@ -52,7 +52,7 @@
   transition: color .25s ease;
 }
 
-.nav__links a:hover, .nav__github:hover, .footer a:hover { color: var(--ink); }
+.nav__links a:hover { color: var(--ink); }
 
 .lang {
   display: flex;
@@ -534,47 +534,181 @@
 .terminal :focus-visible { outline-color: #f0643f; }
 .paths__note { margin-top: 16px; color: var(--muted); font-size: 14px; text-align: center; }
 
-/* Closing footer */
+/* Closing footer, after ObsidianUI's footer block: black, with slow stage
+   lights behind the copy and a giant wordmark sinking into the bottom edge. */
 .footer {
-  overflow: clip;
-  padding-top: clamp(80px, 10vw, 140px);
-  border-top: 1px solid var(--hair);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 12px;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-height: min(100vh, 980px);
+  flex-direction: column;
+  overflow: hidden;
+  padding-top: clamp(88px, 11vw, 160px);
+  background: #000;
+  color: #8a8a8a;
+  font-size: 13px;
 }
 
-.footer__cta { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: 28px 48px; }
-.footer__cta h2 { color: var(--ink); }
-.footer__cta .section-lead { margin-top: 14px; }
+.footer__lights { position: absolute; z-index: -1; inset: 0; pointer-events: none; }
+
+.footer__lights span {
+  position: absolute;
+  top: -30%;
+  left: var(--x);
+  width: var(--w, 18vw);
+  height: 150%;
+  background: linear-gradient(180deg, var(--c, rgb(255 255 255 / .26)), transparent 72%);
+  filter: blur(34px);
+  opacity: .9;
+  transform: rotate(var(--r)) translateX(0);
+  transform-origin: 50% 0;
+  animation: beam var(--t, 14s) ease-in-out infinite alternate;
+}
+
+.footer__lights span:nth-child(1) { --x: 6%; --r: 18deg; --t: 13s; }
+.footer__lights span:nth-child(2) { --x: 26%; --r: 8deg; --w: 12vw; --t: 17s; --c: rgb(230 83 47 / .38); }
+.footer__lights span:nth-child(3) { --x: 48%; --r: -4deg; --w: 22vw; --t: 15s; }
+.footer__lights span:nth-child(4) { --x: 68%; --r: -14deg; --w: 10vw; --t: 19s; --c: rgb(230 83 47 / .3); }
+.footer__lights span:nth-child(5) { --x: 84%; --r: -22deg; --t: 12s; }
+
+@keyframes beam {
+  0% { opacity: .35; transform: rotate(var(--r)) translateX(-4vw); }
+  100% { opacity: 1; transform: rotate(calc(var(--r) * -.6)) translateX(4vw); }
+}
+
+.footer__top-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 64px;
+}
+
+.footer__pill {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #161616;
+  color: #9a9a9a;
+  font: 400 11px/1.4 var(--font-mono);
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+
+.footer h2 { max-width: 12ch; margin-top: 28px; color: #f2f2f2; font-size: clamp(2.6rem, 5.4vw, 4.8rem); }
+.footer__lead { max-width: 40ch; margin-top: 20px; color: #9a9a9a; font-size: 16px; line-height: 1.55; }
+.footer .discover { margin-top: 36px; }
+
+.footer .discover--invert {
+  --discover-surface: #f2f2f2;
+  --discover-fill: var(--accent);
+  --discover-text: #171717;
+  --discover-active: #fff;
+}
+
+.footer__cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; padding-top: 12px; }
+.footer__cols div:nth-child(2) { --delay: 90ms; }
+.footer__cols div:nth-child(3) { --delay: 180ms; }
+.footer__cols h3 { color: #6b6b6b; font: 400 11px/1.4 var(--font-mono); letter-spacing: .2em; text-transform: uppercase; }
+.footer__cols ul { display: grid; gap: 12px; margin-top: 22px; list-style: none; }
+.footer__cols a, .footer__plain li { color: #d4d4d4; font-size: 14px; }
+
+.footer__cols a {
+  background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat;
+  transition: color .2s ease, background-size .4s var(--ease);
+}
+
+.footer__cols a:hover { color: #fff; background-size: 100% 1px; }
 
 .footer__word {
-  margin: clamp(48px, 7vw, 96px) 0 0 -.05em;
-  padding-bottom: .1em;
-  color: var(--ink);
-  font-size: clamp(6rem, 37vw, 34rem);
+  position: relative;
+  margin: auto 0 0;
+  padding-top: clamp(56px, 8vw, 120px);
+  overflow: hidden;
+  color: #f2f2f2;
+  /* A mask fades the letters into the bottom edge; it also covers flipped letters. */
+  -webkit-mask-image: linear-gradient(180deg, #000 40%, rgb(0 0 0 / .6) 75%, rgb(0 0 0 / .18) 100%);
+  mask-image: linear-gradient(180deg, #000 40%, rgb(0 0 0 / .6) 75%, rgb(0 0 0 / .18) 100%);
+  font-size: clamp(9rem, 44vw, 46rem);
   font-weight: 500;
-  letter-spacing: -.08em;
-  line-height: .78;
-  perspective: 1200px;
+  letter-spacing: -.085em;
+  line-height: .74;
+  text-align: center;
+  white-space: nowrap;
+  perspective: 1400px;
   user-select: none;
 }
 
 .footer__dot { color: var(--accent); }
 
 .footer__inner {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px 24px;
-  padding-top: 20px;
-  padding-bottom: 28px;
+  padding-top: 18px;
+  padding-bottom: 26px;
+  border-top: 1px solid #1f1f1f;
+  font: 400 11px/1.5 var(--font-mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 
-.footer a:hover { color: var(--ink); }
-.footer__brand { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 500; }
+.footer__inner a:hover { color: #fff; }
+.footer__brand { display: inline-flex; align-items: center; gap: 8px; color: #d4d4d4; }
 .footer__top { text-decoration: underline; text-underline-offset: 4px; }
+
+/* Interactive hover button, ported from ObsidianUI: the dot grows to fill
+   the pill and the label slides out as a copy with an arrow slides in. */
+.hover-pill {
+  position: relative;
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  padding: 0 16px 0 14px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.hover-pill__dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--ink);
+  transition: transform .45s var(--ease-wipe);
+}
+
+.hover-pill__label { transition: transform .35s var(--ease), opacity .3s ease; }
+
+.hover-pill__reveal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--bg);
+  opacity: 0;
+  transform: translateX(36px);
+  transition: transform .35s var(--ease), opacity .3s ease;
+}
+
+.hover-pill__reveal svg { width: 15px; height: 15px; }
+.hover-pill:hover .hover-pill__dot, .hover-pill:focus-visible .hover-pill__dot { transform: scale(30); }
+.hover-pill:hover .hover-pill__label, .hover-pill:focus-visible .hover-pill__label { opacity: 0; transform: translateX(36px); }
+.hover-pill:hover .hover-pill__reveal, .hover-pill:focus-visible .hover-pill__reveal { opacity: 1; transform: none; }
+.hover-pill:focus-visible { border-radius: 999px; }
+
+.click-spark { position: fixed; z-index: 90; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+.shot--wide .shot__frame img { transform: scale(1.18); transform-origin: 50% 0; will-change: transform; }
 
 @media (max-width: 979px) {
   .nav__inner { gap: 18px; }
@@ -582,6 +716,7 @@
   .hero__row { grid-template-columns: minmax(0, 1fr); }
   .surfaces { grid-template-columns: minmax(0, 1fr); }
   .surfaces__head { position: static; }
+  .footer__top-row { grid-template-columns: minmax(0, 1fr); gap: 56px; }
 }
 
 @media (max-width: 734px) {
@@ -592,8 +727,7 @@
   .nav__brand { grid-area: 1 / 1; }
   .nav__end { grid-area: 1 / 2; gap: 8px; }
   .nav__toggle { grid-area: 1 / 3; margin-right: -10px; }
-  .nav__github { min-width: 36px; justify-content: center; }
-  .nav__github span { display: none; }
+  .hover-pill { min-height: 36px; padding-inline: 12px; }
   .nav__links { grid-column: 1 / -1; flex-wrap: wrap; gap: 6px 18px; padding-block: 4px 8px; }
 
   .nav__toggle:not([hidden]) + .nav__links {
@@ -661,7 +795,9 @@
   .terminal__step { padding: 12px; }
   .terminal__line { gap: 8px; }
   .copy { min-height: 44px; }
-  .footer__cta { align-items: flex-start; flex-direction: column; }
+  .footer { min-height: 0; }
+  .footer__cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .footer__inner { letter-spacing: .06em; }
 }
 
 @media (max-width: 360px) {
@@ -671,5 +807,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .session__live i { animation: none; }
+  .session__live i, .footer__lights span { animation: none; }
+  .shot--wide .shot__frame img { transform: none; }
 }

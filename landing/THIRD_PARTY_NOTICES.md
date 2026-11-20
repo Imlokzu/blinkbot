@@ -1,7 +1,9 @@
 # Third-party notices
 
-`src/effects.js` and the Discover button, Active Sessions and Split Showcase
-styles are vanilla ports of components from ObsidianUI
+`src/effects.js` (Flip Text, Text reel, Draggable Marquee, Click Spark,
+Smooth Scroll, Parallax Slider drift) and the Discover button, Interactive
+Hover Button, Active Sessions, Split Showcase and footer styles are vanilla
+ports of components from ObsidianUI
 (https://www.obsidianui.dev, https://github.com/Atharvsinh-codez/ObsidianUI).
 
 ```

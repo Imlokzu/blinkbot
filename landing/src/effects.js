@@ -213,13 +213,26 @@ export function initMarquee() {
   }
 
   function measure() {
+    frames = [...track.querySelectorAll(".shot--wide .shot__frame")].map((frame) => ({ frame, image: frame.querySelector("img") }));
     const first = track.firstElementChild;
     const firstClone = track.querySelector("[data-marquee-clone]");
     width = firstClone && first ? firstClone.offsetLeft - first.offsetLeft : 0;
   }
 
+  let frames = [];
+
   function paint() {
     track.style.transform = `translate3d(${x.toFixed(2)}px, 0, 0)`;
+    if (reducedMotion.matches) return;
+    // From ObsidianUI's Parallax Slider: each picture shifts against the motion
+    // inside its frame, depending on how far its card is from the screen center.
+    const center = innerWidth / 2;
+    for (const { frame, image } of frames) {
+      const box = frame.getBoundingClientRect();
+      if (box.right < 0 || box.left > innerWidth) continue;
+      const offset = (box.left + box.width / 2 - center) / innerWidth;
+      image.style.transform = `translate3d(${(offset * -14).toFixed(2)}%, 0, 0) scale(1.18)`;
+    }
   }
 
   function tick(now) {
@@ -300,4 +313,95 @@ export function initMarquee() {
   return function refreshMarquee() {
     build();
   };
+}
+
+/**
+ * Click Spark: short lines burst from every click or tap. Drawn on one fixed
+ * canvas that only runs while sparks are alive.
+ */
+export function initClickSpark({ count = 8, size = 10, radius = 18, duration = 420 } = {}) {
+  const canvas = document.createElement("canvas");
+  canvas.className = "click-spark";
+  canvas.setAttribute("aria-hidden", "true");
+  document.body.append(canvas);
+  const context = canvas.getContext("2d");
+  let sparks = [];
+  let frame = 0;
+
+  function resize() {
+    const ratio = devicePixelRatio || 1;
+    canvas.width = innerWidth * ratio;
+    canvas.height = innerHeight * ratio;
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  }
+
+  function draw(now) {
+    context.clearRect(0, 0, innerWidth, innerHeight);
+    context.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#e6532f";
+    context.lineWidth = 2;
+    context.lineCap = "round";
+    sparks = sparks.filter((spark) => {
+      const progress = (now - spark.start) / duration;
+      if (progress >= 1) return false;
+      const eased = progress * (2 - progress);
+      const distance = eased * radius;
+      const length = size * (1 - eased);
+      const cos = Math.cos(spark.angle);
+      const sin = Math.sin(spark.angle);
+      context.beginPath();
+      context.moveTo(spark.x + distance * cos, spark.y + distance * sin);
+      context.lineTo(spark.x + (distance + length) * cos, spark.y + (distance + length) * sin);
+      context.stroke();
+      return true;
+    });
+    frame = sparks.length ? requestAnimationFrame(draw) : 0;
+  }
+
+  function burst(x, y) {
+    if (reducedMotion.matches) return;
+    const start = performance.now();
+    for (let i = 0; i < count; i++) sparks.push({ x, y, angle: (2 * Math.PI * i) / count, start });
+    if (!frame) frame = requestAnimationFrame(draw);
+  }
+
+  resize();
+  window.addEventListener("resize", resize);
+  document.addEventListener("pointerdown", (event) => burst(event.clientX, event.clientY), { passive: true });
+}
+
+/**
+ * Smooth Scroll: Lenis eases wheel scrolling on mouse and trackpad devices.
+ * Touch keeps native scrolling, and reduced motion turns it off entirely.
+ * Anchor links scroll with an offset for the sticky navigation.
+ */
+export async function initSmoothScroll() {
+  const fine = matchMedia("(hover: hover) and (pointer: fine)");
+  let lenis = null;
+  let frame = 0;
+
+  async function sync() {
+    const wanted = fine.matches && !reducedMotion.matches;
+    if (wanted && !lenis) {
+      const { default: Lenis } = await import("lenis");
+      lenis = new Lenis({
+        duration: 1.2,
+        easing: (t) => Math.min(1, 1.001 - 2 ** (-10 * t)),
+        smoothWheel: true,
+        anchors: { offset: -64 },
+      });
+      const raf = (time) => {
+        lenis?.raf(time);
+        frame = requestAnimationFrame(raf);
+      };
+      frame = requestAnimationFrame(raf);
+    } else if (!wanted && lenis) {
+      cancelAnimationFrame(frame);
+      lenis.destroy();
+      lenis = null;
+    }
+  }
+
+  fine.addEventListener("change", sync);
+  reducedMotion.addEventListener("change", sync);
+  await sync();
 }

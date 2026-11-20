@@ -5,8 +5,13 @@ Several pieces are vanilla ports of ObsidianUI components (MIT, see
 `THIRD_PARTY_NOTICES.md`): Flip Text on the headline and closing wordmark,
 the Discover button, a Text reel of requests, a Draggable Marquee of real
 screenshots, an Active Sessions-style list of where Blink runs, and a Split
-Showcase for the two ways to start. The hero puts the Raspberry Pi display on
-a dark stage with a clock, weather and apps switch.
+Showcase for the two ways to start. The navigation GitHub link is an
+Interactive Hover Button, clicks throw a Click Spark, the screenshots drift
+inside their frames like the Parallax Slider, and Lenis smooths wheel
+scrolling on mouse and trackpad devices. The footer follows ObsidianUI's
+footer block: black, with slow stage lights, link columns and a giant
+wordmark. The hero puts the Raspberry Pi display on a dark stage with a
+clock, weather and apps switch.
 
 ```bash
 npm install
@@ -23,14 +28,14 @@ The old 3D version (CRT intro, asteroid tools) lives in `../landing-3d/`.
 |---|---|---|
 | Markup | `index.html` | Keys only, no visible text (see i18n below) |
 | Interactions | `src/main.js` | Language, mobile navigation, device views and copy buttons |
-| Motion | `src/effects.js`, `src/motion.js` | Flip text, text reel, draggable marquee and scroll entrances |
+| Motion | `src/effects.js`, `src/motion.js` | Flip text, text reel, draggable marquee, click spark, smooth scroll and scroll entrances |
 | Screenshots | `public/shots/en/` | Responsive English captures in the HTML |
 | Type | `@fontsource` | Self-hosted Geist Variable and IBM Plex Mono, including Cyrillic |
 
 Native navigation, setup instructions and the screenshot strip work without
 JavaScript; the strip is then a native horizontal scroll row. With
-`prefers-reduced-motion` the flip, reel and marquee drift stop; the strip can
-still be dragged.
+`prefers-reduced-motion` the flip, reel, marquee drift, sparks, footer lights
+and smooth scrolling stop; the strip can still be dragged.
 With `prefers-reduced-motion`, the headline, scroll copy and menus stay
 static. The headline animation pauses when it leaves the viewport.
 

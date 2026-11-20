@@ -5,7 +5,7 @@ import "./styles/landing.css";
 
 import { LANG_KEY, applyStatic, detectLang, setCurrentLang, t } from "./i18n.js";
 import { initReveals } from "./motion.js";
-import { initFlipText, initMarquee, initTextReel } from "./effects.js";
+import { initClickSpark, initFlipText, initMarquee, initSmoothScroll, initTextReel } from "./effects.js";
 
 const root = document.documentElement;
 const languageGroup = document.querySelector(".lang");
@@ -95,6 +95,8 @@ for (const link of nav.querySelectorAll(".nav__brand, .nav__links a")) {
 }
 
 initReveals();
+initClickSpark();
+initSmoothScroll();
 
 const deviceControls = document.querySelector(".segmented");
 const viewButtons = deviceControls.querySelectorAll("[data-show-view]");
