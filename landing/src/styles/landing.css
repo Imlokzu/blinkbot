@@ -629,7 +629,7 @@
   /* A mask fades the letters into the bottom edge; it also covers flipped letters. */
   -webkit-mask-image: linear-gradient(180deg, #000 40%, rgb(0 0 0 / .6) 75%, rgb(0 0 0 / .18) 100%);
   mask-image: linear-gradient(180deg, #000 40%, rgb(0 0 0 / .6) 75%, rgb(0 0 0 / .18) 100%);
-  font-size: clamp(9rem, 44vw, 46rem);
+  font-size: clamp(8.6rem, 42vw, 44rem);
   font-weight: 500;
   letter-spacing: -.085em;
   line-height: .74;
