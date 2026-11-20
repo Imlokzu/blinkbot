@@ -1,9 +1,11 @@
 # Blink Bot — landing page
 
-The landing carries the owner's portfolio style into Blink: a centered
-Geist heading, matching light and dark palettes, and a row-based product
-tour. Its previews show the real dashboard and Android app. The Raspberry
-Pi section switches between clock, weather and app-drawer captures.
+The landing shares the owner's portfolio style (Geist lettering, the same
+light and dark palettes, blur entrances and scroll-lit copy) but not its
+layout. The hero is split, with the headline beside the Raspberry Pi display
+and a spec ledger underneath. The product tour pins one screenshot stage
+beside the steps, a dark band carries the statement, and the page closes on
+a bento grid, a connected architecture flow, setup and a large wordmark.
 
 ```bash
 npm install
@@ -20,12 +22,12 @@ The old 3D version (CRT intro, asteroid tools) lives in `../landing-3d/`.
 |---|---|---|
 | Markup | `index.html` | Keys only, no visible text (see i18n below) |
 | Interactions | `src/main.js` | Language, mobile navigation, device views and copy buttons |
-| Motion | `src/title-motion.js`, `src/motion.js` | Proximity lettering, scroll lighting, entrances and pointer-following previews |
+| Motion | `src/title-motion.js`, `src/motion.js` | Proximity lettering, scroll lighting, entrances and the sticky tour stage |
 | Screenshots | `public/shots/en/` | Responsive English captures in the HTML |
 | Type | `@fontsource` | Self-hosted Geist Variable and IBM Plex Mono, including Cyrillic |
 
 Native navigation, setup instructions and inline tour images work without
-JavaScript. Touch screens and reduced-motion users get the inline previews.
+JavaScript. Below 980 px the tour keeps each screenshot inline under its step.
 With `prefers-reduced-motion`, the headline, scroll copy and menus stay
 static. The headline animation pauses when it leaves the viewport.
 

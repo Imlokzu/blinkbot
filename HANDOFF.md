@@ -4171,3 +4171,15 @@ navigation, clipboard copying, device switching, and no-JavaScript rendering.
 Restored the landing files from `c69d7893`. The deployed version returns to
 the centered animated headline and the pointer-following screenshot tour.
 All eleven landing tests, locale checks, and the production build passed.
+
+## 2026-11-20 — Landing layout separated from the portfolio
+
+The landing kept the portfolio's look but no longer copies its layout. The
+hero is split, with the Pi display and view switcher beside the headline and
+a spec ledger underneath. The pointer-following tour rows became a sticky
+screenshot stage beside scrolling steps. The statement moved into a dark
+band, capabilities became a bento grid, and the architecture is a connected
+flow. The final call to action sits in the footer above a large wordmark.
+
+All eleven landing tests, locale checks, and the production build passed.
+agent-browser checked desktop, 390 px Ukrainian, and dark mode.

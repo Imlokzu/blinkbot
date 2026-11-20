@@ -25,7 +25,6 @@ const DICT = {
     "brand.wordmark": "blink",
 
     "nav.product": "Продукт",
-    "nav.device": "Пристрій",
     "nav.how": "Як це працює",
     "nav.start": "Почати",
     "nav.lang": "Мова сторінки",
@@ -45,6 +44,10 @@ const DICT = {
     "hero.metaPlatforms": "macOS · Linux · Raspberry Pi",
     "hero.titleA": "Blink Bot",
     "hero.titleB": "На твоєму столі.",
+    "hero.eyebrow": "Відкритий AI-компаньйон",
+    "hero.statPlatforms": "Працює на",
+    "hero.statLangs": "Мови",
+    "hero.statLicense": "Ліцензія",
 
 
     "statement.text": "Пам’ять Blink зберігається в Markdown на твоєму диску. Робоча тека й дії інструментів доступні через панель.",
@@ -71,7 +74,6 @@ const DICT = {
     "tour.phoneText": "Окремий застосунок для Android: розмови, файли й голосове введення, підключені до того самого бота.",
     "tour.phoneAlt": "Розмова в нативному Android-застосунку Blink, із закритим меню.",
     "tour.count": "04 екрани",
-    "tour.openPreview": "Відкрити знімок екрана",
     "tour.chatKind": "Панель Blink",
     "tour.chatDetail": "Інструменти й джерела",
     "tour.memoryKind": "Панель Blink",
@@ -81,7 +83,6 @@ const DICT = {
     "tour.phoneKind": "Застосунок для Android",
     "tour.phoneDetail": "Розмови, файли й голос",
 
-    "device.eyebrow": "На Raspberry Pi",
     "device.lead": "Годинник, прогноз погоди й застосунки на маленькому сенсорному екрані.",
     "device.viewsLabel": "Що показати на екрані",
     "device.viewClock": "Годинник",
@@ -91,11 +92,8 @@ const DICT = {
     "device.weatherAlt": "Екран бота: погода на сьогодні, погодинний графік і прогноз на тиждень.",
     "device.appsAlt": "Екран бота: шухляда застосунків у вигляді стільників.",
     "device.statScreen": "Роздільна здатність",
-    "device.hardware": "Додай мікрофон, динамік і камеру для голосу та зору.",
     "device.title": "Настільний екран Blink",
     "device.resolution": "320 × 240",
-    "device.statHardware": "Платформа",
-    "device.statPi": "Raspberry Pi",
 
     "bento.voiceTitle": "Голос",
     "bento.voiceText": "Розпізнавання мовлення на Whisper і живий голос на Piper — обидва працюють на твоїй машині.",
@@ -152,7 +150,6 @@ const DICT = {
     "brand.wordmark": "blink",
 
     "nav.product": "Product",
-    "nav.device": "Device",
     "nav.how": "How it works",
     "nav.start": "Get started",
     "nav.lang": "Page language",
@@ -172,6 +169,10 @@ const DICT = {
     "hero.metaPlatforms": "macOS · Linux · Raspberry Pi",
     "hero.titleA": "Blink Bot",
     "hero.titleB": "On your desk.",
+    "hero.eyebrow": "Open-source AI companion",
+    "hero.statPlatforms": "Runs on",
+    "hero.statLangs": "Languages",
+    "hero.statLicense": "License",
 
 
     "statement.text": "Blink keeps its memory in Markdown on your disk. Open its workspace and follow tool activity from the dashboard.",
@@ -198,7 +199,6 @@ const DICT = {
     "tour.phoneText": "A native Android app for your chats, files and voice input, connected to the same bot.",
     "tour.phoneAlt": "A conversation in the native Blink Android app, with its drawer closed.",
     "tour.count": "04 previews",
-    "tour.openPreview": "Open screenshot",
     "tour.chatKind": "Blink dashboard",
     "tour.chatDetail": "Tool activity and sources",
     "tour.memoryKind": "Blink dashboard",
@@ -208,7 +208,6 @@ const DICT = {
     "tour.phoneKind": "Native Android app",
     "tour.phoneDetail": "Chat, files and voice",
 
-    "device.eyebrow": "On Raspberry Pi",
     "device.lead": "A clock, weather and apps on a small touchscreen.",
     "device.viewsLabel": "What to show on the screen",
     "device.viewClock": "Clock",
@@ -218,11 +217,8 @@ const DICT = {
     "device.weatherAlt": "The bot's screen: today's weather, an hourly graph and the week ahead.",
     "device.appsAlt": "The bot's screen: the app drawer laid out as a honeycomb.",
     "device.statScreen": "Display resolution",
-    "device.hardware": "Add a mic, speaker and camera for voice and vision.",
     "device.title": "The Blink desk display",
     "device.resolution": "320 × 240",
-    "device.statHardware": "Board",
-    "device.statPi": "Raspberry Pi",
 
     "bento.voiceTitle": "Voice",
     "bento.voiceText": "Speech recognition with Whisper and a natural voice with Piper — both run on your own machine.",

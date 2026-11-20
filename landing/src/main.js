@@ -4,7 +4,7 @@ import "./styles/base.css";
 import "./styles/landing.css";
 
 import { LANG_KEY, applyStatic, detectLang, setCurrentLang, t } from "./i18n.js";
-import { initReveals, initTourPreview } from "./motion.js";
+import { initReveals, initTourStage } from "./motion.js";
 import { createTextMotion } from "./title-motion.js";
 
 const root = document.documentElement;
@@ -91,7 +91,7 @@ for (const link of nav.querySelectorAll(".nav__brand, .nav__links a")) {
 }
 
 initReveals();
-initTourPreview();
+initTourStage();
 
 const deviceControls = document.querySelector(".bot__views");
 const viewButtons = deviceControls.querySelectorAll("[data-show-view]");

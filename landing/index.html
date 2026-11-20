@@ -31,7 +31,6 @@
         </button>
         <nav class="nav__links" id="site-navigation" data-i18n-attr="aria-label:nav.primary">
           <a href="#product" data-i18n="nav.product"></a>
-          <a href="#device" data-i18n="nav.device"></a>
           <a href="#how" data-i18n="nav.how"></a>
           <a href="#start" data-i18n="nav.start"></a>
         </nav>
@@ -50,122 +49,154 @@
 
     <main id="main" tabindex="-1">
       <section class="hero" id="top" tabindex="-1" aria-labelledby="hero-title">
-        <div class="container hero__inner">
-          <h1 class="hero__title rise" id="hero-title" data-motion-title>
-            <span class="hero__line" data-motion-line data-i18n="hero.titleA"></span>
-            <span class="hero__line hero__line--gradient" data-motion-line data-i18n="hero.titleB"></span>
-          </h1>
-          <p class="hero__lead rise" data-i18n="hero.lead"></p>
-          <ul class="hero__facts rise" role="list">
-            <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chip" /></svg><span data-i18n="hero.metaPlatforms"></span></li>
-            <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chat" /></svg><span data-i18n="hero.metaLangs"></span></li>
-            <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-license" /></svg><span data-i18n="hero.metaLicense"></span></li>
-          </ul>
-          <div class="actions hero__actions rise">
-            <a class="button" href="https://github.com/Imlokzu/blinkbot" rel="noopener">
-              <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#icon-github" /></svg>
-              <span data-i18n="hero.ctaPrimary"></span>
-            </a>
-            <a class="text-link" href="#product">
-              <span data-i18n="hero.ctaSecondary"></span>
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-down" /></svg>
-            </a>
+        <div class="container hero__grid">
+          <div class="hero__copy">
+            <p class="hero__eyebrow rise">
+              <img src="/blink-tile.svg" alt="" width="20" height="20" />
+              <span data-i18n="hero.eyebrow"></span>
+            </p>
+            <h1 class="hero__title rise" id="hero-title" data-motion-title>
+              <span class="hero__line" data-motion-line data-i18n="hero.titleA"></span>
+              <span class="hero__line hero__line--gradient" data-motion-line data-i18n="hero.titleB"></span>
+            </h1>
+            <p class="hero__lead rise" data-i18n="hero.lead"></p>
+            <div class="actions hero__actions rise">
+              <a class="button" href="https://github.com/Imlokzu/blinkbot" rel="noopener">
+                <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#icon-github" /></svg>
+                <span data-i18n="hero.ctaPrimary"></span>
+              </a>
+              <a class="text-link" href="#product">
+                <span data-i18n="hero.ctaSecondary"></span>
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-down" /></svg>
+              </a>
+            </div>
           </div>
+
+          <figure class="hero__device rise" aria-labelledby="device-title">
+            <div class="bot">
+              <div class="bot__screen">
+                <img src="%BASE_URL%shots/en/screen-clock-half.webp"
+                  srcset="%BASE_URL%shots/en/screen-clock-half.webp 640w, %BASE_URL%shots/en/screen-clock.webp 1280w"
+                  sizes="(max-width: 900px) 80vw, 440px"
+                  width="320" height="240" data-i18n-attr="alt:device.clockAlt" data-bot-view="clock" />
+                <img src="%BASE_URL%shots/en/screen-weather-half.webp"
+                  srcset="%BASE_URL%shots/en/screen-weather-half.webp 640w, %BASE_URL%shots/en/screen-weather.webp 1280w"
+                  sizes="(max-width: 900px) 80vw, 440px"
+                  width="320" height="240" data-i18n-attr="alt:device.weatherAlt" loading="lazy" data-bot-view="weather" hidden />
+                <img src="%BASE_URL%shots/en/screen-apps-half.webp"
+                  srcset="%BASE_URL%shots/en/screen-apps-half.webp 640w, %BASE_URL%shots/en/screen-apps.webp 1280w"
+                  sizes="(max-width: 900px) 80vw, 440px"
+                  width="320" height="240" data-i18n-attr="alt:device.appsAlt" loading="lazy" data-bot-view="apps" hidden />
+              </div>
+              <div class="bot__trim" aria-hidden="true">
+                <img src="/blink-mark-white.svg" alt="" width="16" height="16" />
+                <span class="bot__speaker"><i></i><i></i><i></i><i></i></span>
+              </div>
+            </div>
+            <figcaption class="hero__caption">
+              <span>
+                <strong id="device-title" data-i18n="device.title"></strong>
+                <span data-i18n="device.lead"></span>
+              </span>
+              <span class="bot__views" role="group" data-i18n-attr="aria-label:device.viewsLabel" hidden>
+                <button type="button" aria-pressed="true" data-show-view="clock" data-i18n="device.viewClock"></button>
+                <button type="button" aria-pressed="false" data-show-view="weather" data-i18n="device.viewWeather"></button>
+                <button type="button" aria-pressed="false" data-show-view="apps" data-i18n="device.viewApps"></button>
+              </span>
+            </figcaption>
+          </figure>
+        </div>
+
+        <div class="container">
+          <dl class="ledger rise">
+            <div>
+              <dt data-i18n="hero.statPlatforms"></dt>
+              <dd data-i18n="hero.metaPlatforms"></dd>
+            </div>
+            <div>
+              <dt data-i18n="device.statScreen"></dt>
+              <dd data-i18n="device.resolution"></dd>
+            </div>
+            <div>
+              <dt data-i18n="hero.statLangs"></dt>
+              <dd data-i18n="hero.metaLangs"></dd>
+            </div>
+            <div>
+              <dt data-i18n="hero.statLicense"></dt>
+              <dd data-i18n="hero.metaLicense"></dd>
+            </div>
+          </dl>
         </div>
       </section>
 
       <section class="tour container section" id="product" tabindex="-1" aria-labelledby="product-title">
-        <header class="section-head tour__heading" data-reveal>
+        <header class="tour__head" data-reveal>
           <h2 id="product-title" data-i18n="tour.eyebrow"></h2>
-          <span id="tour-preview-description" class="sr-only" data-i18n="tour.openPreview"></span>
           <p data-i18n="tour.count"></p>
         </header>
-        <ol class="tour__list" role="list" data-preview-list>
-          <li data-reveal>
-            <a class="tour__row" href="%BASE_URL%shots/en/chat.webp" data-preview-row data-shape="wide" aria-labelledby="tour-chat-title" aria-describedby="tour-chat-summary tour-preview-description">
+        <div class="tour__layout" data-tour>
+          <div class="tour__stage" data-tour-stage aria-hidden="true" hidden>
+            <div class="tour__screen" data-tour-screen></div>
+            <ol class="tour__ticks" role="list"><li></li><li></li><li></li><li></li></ol>
+          </div>
+          <ol class="tour__steps" role="list">
+            <li class="tour__step" data-tour-step data-shape="wide">
               <span class="tour__index" aria-hidden="true"></span>
-              <h3 id="tour-chat-title" data-i18n="tour.chatTitle"></h3>
-              <span class="tour__meta">
-                <strong data-i18n="tour.chatKind"></strong>
-                <span data-i18n="tour.chatDetail"></span>
-              </span>
-              <svg class="icon tour__arrow" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right" /></svg>
-              <p class="tour__summary" id="tour-chat-summary" data-i18n="tour.chatText"></p>
-              <span class="tour__preview tour__preview--wide">
+              <h3 data-i18n="tour.chatTitle"></h3>
+              <p class="tour__kind"><strong data-i18n="tour.chatKind"></strong> <span data-i18n="tour.chatDetail"></span></p>
+              <p class="tour__text" data-i18n="tour.chatText"></p>
+              <figure class="tour__shot">
                 <img src="%BASE_URL%shots/en/chat-half.webp"
                   srcset="%BASE_URL%shots/en/chat-half.webp 1440w, %BASE_URL%shots/en/chat.webp 2880w"
-                  sizes="(max-width: 734px) 84vw, 620px"
+                  sizes="(max-width: 979px) 90vw, 760px"
                   width="1440" height="1000" data-i18n-attr="alt:tour.chatAlt" loading="lazy" decoding="async" />
-              </span>
-            </a>
-          </li>
-          <li data-reveal>
-            <a class="tour__row" href="%BASE_URL%shots/en/memory.webp" data-preview-row data-shape="wide" aria-labelledby="tour-memory-title" aria-describedby="tour-memory-summary tour-preview-description">
+              </figure>
+            </li>
+            <li class="tour__step" data-tour-step data-shape="wide">
               <span class="tour__index" aria-hidden="true"></span>
-              <h3 id="tour-memory-title" data-i18n="tour.memoryTitle"></h3>
-              <span class="tour__meta">
-                <strong data-i18n="tour.memoryKind"></strong>
-                <span data-i18n="tour.memoryDetail"></span>
-              </span>
-              <svg class="icon tour__arrow" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right" /></svg>
-              <p class="tour__summary" id="tour-memory-summary" data-i18n="tour.memoryText"></p>
-              <span class="tour__preview tour__preview--wide">
+              <h3 data-i18n="tour.memoryTitle"></h3>
+              <p class="tour__kind"><strong data-i18n="tour.memoryKind"></strong> <span data-i18n="tour.memoryDetail"></span></p>
+              <p class="tour__text" data-i18n="tour.memoryText"></p>
+              <figure class="tour__shot">
                 <img src="%BASE_URL%shots/en/memory-half.webp"
                   srcset="%BASE_URL%shots/en/memory-half.webp 1440w, %BASE_URL%shots/en/memory.webp 2880w"
-                  sizes="(max-width: 734px) 84vw, 620px"
+                  sizes="(max-width: 979px) 90vw, 760px"
                   width="1440" height="1000" data-i18n-attr="alt:tour.memoryAlt" loading="lazy" decoding="async" />
-              </span>
-            </a>
-          </li>
-          <li data-reveal>
-            <a class="tour__row" href="%BASE_URL%shots/en/welcome.webp" data-preview-row data-shape="wide" aria-labelledby="tour-style-title" aria-describedby="tour-style-summary tour-preview-description">
+              </figure>
+            </li>
+            <li class="tour__step" data-tour-step data-shape="wide">
               <span class="tour__index" aria-hidden="true"></span>
-              <h3 id="tour-style-title" data-i18n="tour.styleTitle"></h3>
-              <span class="tour__meta">
-                <strong data-i18n="tour.styleKind"></strong>
-                <span data-i18n="tour.styleDetail"></span>
-              </span>
-              <svg class="icon tour__arrow" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right" /></svg>
-              <p class="tour__summary" id="tour-style-summary" data-i18n="tour.styleText"></p>
-              <span class="tour__preview tour__preview--wide">
+              <h3 data-i18n="tour.styleTitle"></h3>
+              <p class="tour__kind"><strong data-i18n="tour.styleKind"></strong> <span data-i18n="tour.styleDetail"></span></p>
+              <p class="tour__text" data-i18n="tour.styleText"></p>
+              <figure class="tour__shot">
                 <img src="%BASE_URL%shots/en/welcome-half.webp"
                   srcset="%BASE_URL%shots/en/welcome-half.webp 1440w, %BASE_URL%shots/en/welcome.webp 2880w"
-                  sizes="(max-width: 734px) 84vw, 620px"
+                  sizes="(max-width: 979px) 90vw, 760px"
                   width="1440" height="1000" data-i18n-attr="alt:tour.styleAlt" loading="lazy" decoding="async" />
-              </span>
-            </a>
-          </li>
-          <li data-reveal>
-            <a class="tour__row" href="%BASE_URL%shots/en/mobile.webp" data-preview-row data-shape="phone" aria-labelledby="tour-phone-title" aria-describedby="tour-phone-summary tour-preview-description">
+              </figure>
+            </li>
+            <li class="tour__step" data-tour-step data-shape="phone">
               <span class="tour__index" aria-hidden="true"></span>
-              <h3 id="tour-phone-title" data-i18n="tour.phoneTitle"></h3>
-              <span class="tour__meta">
-                <strong data-i18n="tour.phoneKind"></strong>
-                <span data-i18n="tour.phoneDetail"></span>
-              </span>
-              <svg class="icon tour__arrow" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-up-right" /></svg>
-              <p class="tour__summary" id="tour-phone-summary" data-i18n="tour.phoneText"></p>
-              <span class="tour__preview tour__preview--phone">
+              <h3 data-i18n="tour.phoneTitle"></h3>
+              <p class="tour__kind"><strong data-i18n="tour.phoneKind"></strong> <span data-i18n="tour.phoneDetail"></span></p>
+              <p class="tour__text" data-i18n="tour.phoneText"></p>
+              <figure class="tour__shot tour__shot--phone">
                 <img src="%BASE_URL%shots/en/mobile-half.webp"
                   srcset="%BASE_URL%shots/en/mobile-half.webp 585w, %BASE_URL%shots/en/mobile.webp 1170w"
-                  sizes="(max-width: 734px) 56vw, 240px"
+                  sizes="(max-width: 979px) 60vw, 300px"
                   width="390" height="844" data-i18n-attr="alt:tour.phoneAlt" loading="lazy" decoding="async" />
-              </span>
-            </a>
-          </li>
-        </ol>
-        <div class="tour__follower" data-preview-follower aria-hidden="true" hidden>
-          <div class="tour__floating-frame"></div>
+              </figure>
+            </li>
+          </ol>
         </div>
       </section>
 
-      <section class="statement container section" aria-labelledby="statement-title">
-        <div class="statement__inner">
-          <div>
-            <h2 class="eyebrow" id="statement-title" data-reveal data-i18n="statement.title"></h2>
-            <p class="statement__text" data-motion-words data-i18n="statement.text"></p>
-          </div>
-          <ul class="statement__details">
+      <section class="statement" aria-labelledby="statement-title">
+        <div class="container statement__inner">
+          <h2 class="statement__label" id="statement-title" data-reveal data-i18n="statement.title"></h2>
+          <p class="statement__text" data-motion-words data-i18n="statement.text"></p>
+          <ol class="statement__details" role="list">
             <li data-reveal>
               <h3 data-i18n="callout.activityTitle"></h3>
               <p data-i18n="callout.activityText"></p>
@@ -178,141 +209,74 @@
               <h3 data-i18n="callout.modelTitle"></h3>
               <p data-i18n="callout.modelText"></p>
             </li>
-          </ul>
-        </div>
-      </section>
-
-      <section class="device section" id="device" tabindex="-1" aria-labelledby="device-title">
-        <div class="container device__inner">
-          <div class="device__copy" data-reveal>
-            <p class="eyebrow" data-i18n="device.eyebrow"></p>
-            <h2 id="device-title" data-i18n="device.title"></h2>
-            <p class="section-lead" data-i18n="device.lead"></p>
-            <dl class="device__specs">
-              <div>
-                <dt data-i18n="device.statScreen"></dt>
-                <dd data-i18n="device.resolution"></dd>
-              </div>
-              <div>
-                <dt data-i18n="device.statHardware"></dt>
-                <dd data-i18n="device.statPi"></dd>
-              </div>
-            </dl>
-            <p class="device__hardware" data-i18n="device.hardware"></p>
-          </div>
-          <div class="device__preview" data-reveal>
-            <div class="bot">
-              <div class="bot__screen">
-                <img src="%BASE_URL%shots/en/screen-clock-half.webp"
-                  srcset="%BASE_URL%shots/en/screen-clock-half.webp 640w, %BASE_URL%shots/en/screen-clock.webp 1280w"
-                  sizes="(max-width: 720px) 76vw, 392px"
-                  width="320" height="240" data-i18n-attr="alt:device.clockAlt" loading="lazy" data-bot-view="clock" />
-                <img src="%BASE_URL%shots/en/screen-weather-half.webp"
-                  srcset="%BASE_URL%shots/en/screen-weather-half.webp 640w, %BASE_URL%shots/en/screen-weather.webp 1280w"
-                  sizes="(max-width: 720px) 76vw, 392px"
-                  width="320" height="240" data-i18n-attr="alt:device.weatherAlt" loading="lazy" data-bot-view="weather" hidden />
-                <img src="%BASE_URL%shots/en/screen-apps-half.webp"
-                  srcset="%BASE_URL%shots/en/screen-apps-half.webp 640w, %BASE_URL%shots/en/screen-apps.webp 1280w"
-                  sizes="(max-width: 720px) 76vw, 392px"
-                  width="320" height="240" data-i18n-attr="alt:device.appsAlt" loading="lazy" data-bot-view="apps" hidden />
-              </div>
-              <div class="bot__trim" aria-hidden="true">
-                <img src="/blink-mark-white.svg" alt="" width="16" height="16" />
-                <span class="bot__speaker"><i></i><i></i><i></i><i></i></span>
-              </div>
-            </div>
-            <div class="bot__views" role="group" data-i18n-attr="aria-label:device.viewsLabel" hidden>
-              <button type="button" aria-pressed="true" data-show-view="clock" data-i18n="device.viewClock"></button>
-              <button type="button" aria-pressed="false" data-show-view="weather" data-i18n="device.viewWeather"></button>
-              <button type="button" aria-pressed="false" data-show-view="apps" data-i18n="device.viewApps"></button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="container section" aria-labelledby="features-title">
-        <header class="section-head" data-reveal>
-          <h2 id="features-title" data-i18n="bento.title"></h2>
-        </header>
-        <ul class="features" role="list">
-            <li>
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-mic" /></svg>
-              <div>
-                <h3 data-i18n="bento.voiceTitle"></h3>
-                <p data-i18n="bento.voiceText"></p>
-              </div>
-            </li>
-            <li>
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chat" /></svg>
-              <div>
-                <h3 data-i18n="bento.chatsTitle"></h3>
-                <p data-i18n="bento.chatsText"></p>
-              </div>
-            </li>
-            <li>
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-camera" /></svg>
-              <div>
-                <h3 data-i18n="bento.visionTitle"></h3>
-                <p data-i18n="bento.visionText"></p>
-              </div>
-            </li>
-            <li>
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-play" /></svg>
-              <div>
-                <h3 data-i18n="bento.musicTitle"></h3>
-                <p data-i18n="bento.musicText"></p>
-              </div>
-            </li>
-            <li>
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-clock" /></svg>
-              <div>
-                <h3 data-i18n="bento.scheduleTitle"></h3>
-                <p data-i18n="bento.scheduleText"></p>
-              </div>
-            </li>
-            <li>
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-folder" /></svg>
-              <div>
-                <h3 data-i18n="bento.filesTitle"></h3>
-                <p data-i18n="bento.filesText"></p>
-              </div>
-            </li>
-        </ul>
-      </section>
-
-      <section class="architecture section" id="how" tabindex="-1" aria-labelledby="how-title">
-        <div class="container">
-          <header class="section-head" data-reveal>
-            <p class="eyebrow" data-i18n="how.eyebrow"></p>
-            <h2 id="how-title" data-i18n="how.title"></h2>
-          </header>
-          <ol class="tiers" role="list">
-            <li>
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chip" /></svg>
-              <h3 data-i18n="how.edgeWhere"></h3>
-              <p data-i18n="how.edgeText"></p>
-            </li>
-            <li>
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-home" /></svg>
-              <h3 data-i18n="how.fogWhere"></h3>
-              <p data-i18n="how.fogText"></p>
-            </li>
-            <li>
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-cpu" /></svg>
-              <h3 data-i18n="how.cloudWhere"></h3>
-              <p data-i18n="how.cloudText"></p>
-            </li>
           </ol>
         </div>
       </section>
 
+      <section class="container section bento-section" aria-labelledby="features-title">
+        <header class="section-head" data-reveal>
+          <h2 id="features-title" data-i18n="bento.title"></h2>
+        </header>
+        <ul class="bento" role="list">
+          <li class="bento__cell bento__cell--wide" data-reveal>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-mic" /></svg>
+            <h3 data-i18n="bento.voiceTitle"></h3>
+            <p data-i18n="bento.voiceText"></p>
+            <span class="bento__wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          </li>
+          <li class="bento__cell" data-reveal>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chat" /></svg>
+            <h3 data-i18n="bento.chatsTitle"></h3>
+            <p data-i18n="bento.chatsText"></p>
+          </li>
+          <li class="bento__cell" data-reveal>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-camera" /></svg>
+            <h3 data-i18n="bento.visionTitle"></h3>
+            <p data-i18n="bento.visionText"></p>
+          </li>
+          <li class="bento__cell" data-reveal>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-play" /></svg>
+            <h3 data-i18n="bento.musicTitle"></h3>
+            <p data-i18n="bento.musicText"></p>
+          </li>
+          <li class="bento__cell" data-reveal>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-clock" /></svg>
+            <h3 data-i18n="bento.scheduleTitle"></h3>
+            <p data-i18n="bento.scheduleText"></p>
+          </li>
+          <li class="bento__cell bento__cell--wide" data-reveal>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-folder" /></svg>
+            <h3 data-i18n="bento.filesTitle"></h3>
+            <p data-i18n="bento.filesText"></p>
+          </li>
+        </ul>
+      </section>
+
+      <section class="container section flow-section" id="how" tabindex="-1" aria-labelledby="how-title">
+        <header class="section-head" data-reveal>
+          <p class="eyebrow" data-i18n="how.eyebrow"></p>
+          <h2 id="how-title" data-i18n="how.title"></h2>
+        </header>
+        <ol class="flow" role="list">
+          <li data-reveal>
+            <span class="flow__node"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chip" /></svg></span>
+            <h3 data-i18n="how.edgeWhere"></h3>
+            <p data-i18n="how.edgeText"></p>
+          </li>
+          <li data-reveal>
+            <span class="flow__node"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-home" /></svg></span>
+            <h3 data-i18n="how.fogWhere"></h3>
+            <p data-i18n="how.fogText"></p>
+          </li>
+          <li data-reveal>
+            <span class="flow__node"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-cpu" /></svg></span>
+            <h3 data-i18n="how.cloudWhere"></h3>
+            <p data-i18n="how.cloudText"></p>
+          </li>
+        </ol>
+      </section>
+
       <section class="start container section" id="start" tabindex="-1" aria-labelledby="start-title">
-        <div class="start__copy" data-reveal>
-          <p class="eyebrow" data-i18n="start.eyebrow"></p>
-          <h2 id="start-title" data-i18n="start.title"></h2>
-          <p class="section-lead" data-i18n="start.lead"></p>
-          <p class="start__note" data-i18n="start.note"></p>
-        </div>
         <div class="terminal" data-reveal>
           <div class="terminal__bar">
             <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -349,24 +313,30 @@
           </ol>
           <p class="sr-only" role="status" data-copy-status></p>
         </div>
-      </section>
-
-      <section class="final" aria-labelledby="final-title">
-        <div class="container final__inner" data-reveal>
-          <div>
-            <h2 id="final-title" data-i18n="final.title"></h2>
-            <p class="section-lead" data-i18n="final.lead"></p>
-          </div>
-          <a class="button" href="https://github.com/Imlokzu/blinkbot" rel="noopener">
-            <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#icon-github" /></svg>
-            <span data-i18n="final.cta"></span>
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right" /></svg>
-          </a>
+        <div class="start__copy" data-reveal>
+          <p class="eyebrow" data-i18n="start.eyebrow"></p>
+          <h2 id="start-title" data-i18n="start.title"></h2>
+          <p class="section-lead" data-i18n="start.lead"></p>
+          <p class="start__note" data-i18n="start.note"></p>
         </div>
       </section>
     </main>
 
-    <footer class="footer">
+    <footer class="footer" aria-labelledby="final-title">
+      <div class="container footer__cta" data-reveal>
+        <div>
+          <h2 id="final-title" data-i18n="final.title"></h2>
+          <p class="section-lead" data-i18n="final.lead"></p>
+        </div>
+        <a class="button" href="https://github.com/Imlokzu/blinkbot" rel="noopener">
+          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#icon-github" /></svg>
+          <span data-i18n="final.cta"></span>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right" /></svg>
+        </a>
+      </div>
+      <div class="container">
+        <p class="footer__word" aria-hidden="true">blink<span>.</span></p>
+      </div>
       <div class="container footer__inner">
         <a class="footer__brand" href="#top" data-i18n-attr="aria-label:brand.home">
           <img src="/blink-tile.svg" alt="" width="28" height="28" />
