@@ -4201,7 +4201,6 @@ instead of invented connection states.
 All eleven landing tests, locale checks, and the production build passed.
 agent-browser checked desktop, 390 px Ukrainian, dark mode, flip, reel,
 marquee drift and dragging.
-marquee drift and dragging.
 
 ## 2026-11-20 — Landing footer and more ObsidianUI motion
 
