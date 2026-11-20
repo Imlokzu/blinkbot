@@ -54,15 +54,15 @@ test("translatable elements are written empty, so the prerender can fill them", 
 
 test("the prerender fills text and attributes in the default language", () => {
   const out = prerender(html, (key) => t(key, "en"));
-  assert.match(out, /<title data-i18n="meta.title">Blink Bot — an AI companion that lives on your desk<\/title>/);
-  assert.match(out, /name="description" data-i18n-attr="content:meta.description" content="An open-source AI companion/);
+  assert.match(out, /<title data-i18n="meta.title">Blink Bot — a self-hosted AI companion<\/title>/);
+  assert.match(out, /name="description" data-i18n-attr="content:meta.description" content="An open-source AI companion that runs/);
   assert.doesNotMatch(out, /data-i18n="[^"]+"><\//, "an element was left empty");
 });
 
 test("product previews have local image sources in the prerendered HTML", () => {
   const out = prerender(html, (key) => t(key, "en"));
   const previews = [...out.matchAll(/<img src="%BASE_URL%(shots\/en\/[^"]+)"[^>]+>/g)];
-  assert.equal(previews.length, 7, "four product previews and three device views");
+  assert.equal(previews.length, 10, "three device views in the hero and seven screenshots in the strip");
   for (const [markup, asset] of previews) {
     assert.ok(existsSync(new URL(`../public/${asset}`, import.meta.url)), asset);
     assert.match(markup, /alt="[^"]+"/, asset);

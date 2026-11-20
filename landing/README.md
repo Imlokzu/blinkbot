@@ -1,11 +1,12 @@
 # Blink Bot — landing page
 
-The landing shares the owner's portfolio style (Geist lettering, the same
-light and dark palettes, blur entrances and scroll-lit copy) but not its
-layout. The hero is split, with the headline beside the Raspberry Pi display
-and a spec ledger underneath. The product tour pins one screenshot stage
-beside the steps, a dark band carries the statement, and the page closes on
-a bento grid, a connected architecture flow, setup and a large wordmark.
+The landing uses a monochrome look with Blink's orange as the only accent.
+Several pieces are vanilla ports of ObsidianUI components (MIT, see
+`THIRD_PARTY_NOTICES.md`): Flip Text on the headline and closing wordmark,
+the Discover button, a Text reel of requests, a Draggable Marquee of real
+screenshots, an Active Sessions-style list of where Blink runs, and a Split
+Showcase for the two ways to start. The hero puts the Raspberry Pi display on
+a dark stage with a clock, weather and apps switch.
 
 ```bash
 npm install
@@ -22,12 +23,14 @@ The old 3D version (CRT intro, asteroid tools) lives in `../landing-3d/`.
 |---|---|---|
 | Markup | `index.html` | Keys only, no visible text (see i18n below) |
 | Interactions | `src/main.js` | Language, mobile navigation, device views and copy buttons |
-| Motion | `src/title-motion.js`, `src/motion.js` | Proximity lettering, scroll lighting, entrances and the sticky tour stage |
+| Motion | `src/effects.js`, `src/motion.js` | Flip text, text reel, draggable marquee and scroll entrances |
 | Screenshots | `public/shots/en/` | Responsive English captures in the HTML |
 | Type | `@fontsource` | Self-hosted Geist Variable and IBM Plex Mono, including Cyrillic |
 
-Native navigation, setup instructions and inline tour images work without
-JavaScript. Below 980 px the tour keeps each screenshot inline under its step.
+Native navigation, setup instructions and the screenshot strip work without
+JavaScript; the strip is then a native horizontal scroll row. With
+`prefers-reduced-motion` the flip, reel and marquee drift stop; the strip can
+still be dragged.
 With `prefers-reduced-motion`, the headline, scroll copy and menus stay
 static. The headline animation pauses when it leaves the viewport.
 

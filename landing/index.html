@@ -12,8 +12,8 @@
     <meta property="og:description" data-i18n-attr="content:meta.description" />
     <meta property="og:image" content="https://waveio.me/og.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0a0a0b" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -30,8 +30,8 @@
           <span aria-hidden="true"></span><span aria-hidden="true"></span>
         </button>
         <nav class="nav__links" id="site-navigation" data-i18n-attr="aria-label:nav.primary">
-          <a href="#product" data-i18n="nav.product"></a>
-          <a href="#how" data-i18n="nav.how"></a>
+          <a href="#screens" data-i18n="nav.screens"></a>
+          <a href="#devices" data-i18n="nav.devices"></a>
           <a href="#start" data-i18n="nav.start"></a>
         </nav>
         <div class="nav__end">
@@ -49,43 +49,44 @@
 
     <main id="main" tabindex="-1">
       <section class="hero" id="top" tabindex="-1" aria-labelledby="hero-title">
-        <div class="container hero__grid">
-          <div class="hero__copy">
-            <p class="hero__eyebrow rise">
-              <img src="/blink-tile.svg" alt="" width="20" height="20" />
-              <span data-i18n="hero.eyebrow"></span>
-            </p>
-            <h1 class="hero__title rise" id="hero-title" data-motion-title>
-              <span class="hero__line" data-motion-line data-i18n="hero.titleA"></span>
-              <span class="hero__line hero__line--gradient" data-motion-line data-i18n="hero.titleB"></span>
-            </h1>
-            <p class="hero__lead rise" data-i18n="hero.lead"></p>
-            <div class="actions hero__actions rise">
-              <a class="button" href="https://github.com/Imlokzu/blinkbot" rel="noopener">
-                <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#icon-github" /></svg>
-                <span data-i18n="hero.ctaPrimary"></span>
+        <div class="container">
+          <p class="label rise" data-i18n="hero.label"></p>
+          <h1 class="hero__title rise" id="hero-title" data-flip>
+            <span class="hero__line" data-flip-line data-i18n="hero.titleA"></span>
+            <span class="hero__line hero__line--soft" data-flip-line data-i18n="hero.titleB"></span>
+          </h1>
+          <div class="hero__row rise">
+            <p class="hero__lead" data-i18n="hero.lead"></p>
+            <div class="hero__actions">
+              <a class="discover" href="https://github.com/Imlokzu/blinkbot" rel="noopener">
+                <span class="discover__fill" aria-hidden="true"></span>
+                <span class="discover__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-arrow-right" /></svg></span>
+                <span class="discover__text" data-i18n="hero.cta"></span>
               </a>
-              <a class="text-link" href="#product">
-                <span data-i18n="hero.ctaSecondary"></span>
-                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-down" /></svg>
-              </a>
+              <button type="button" class="install" hidden data-copy="git clone https://github.com/Imlokzu/blinkbot.git" aria-describedby="install-command">
+                <code id="install-command"><span aria-hidden="true">$ </span>git clone github.com/Imlokzu/blinkbot</code>
+                <span class="install__state"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-copy" /></svg><span data-i18n="start.copy"></span></span>
+              </button>
             </div>
           </div>
+        </div>
 
-          <figure class="hero__device rise" aria-labelledby="device-title">
+        <div class="container">
+          <figure class="stage rise" aria-labelledby="device-caption">
+            <div class="stage__glow" aria-hidden="true"></div>
             <div class="bot">
               <div class="bot__screen">
                 <img src="%BASE_URL%shots/en/screen-clock-half.webp"
                   srcset="%BASE_URL%shots/en/screen-clock-half.webp 640w, %BASE_URL%shots/en/screen-clock.webp 1280w"
-                  sizes="(max-width: 900px) 80vw, 440px"
+                  sizes="(max-width: 734px) 80vw, 480px"
                   width="320" height="240" data-i18n-attr="alt:device.clockAlt" data-bot-view="clock" />
                 <img src="%BASE_URL%shots/en/screen-weather-half.webp"
                   srcset="%BASE_URL%shots/en/screen-weather-half.webp 640w, %BASE_URL%shots/en/screen-weather.webp 1280w"
-                  sizes="(max-width: 900px) 80vw, 440px"
+                  sizes="(max-width: 734px) 80vw, 480px"
                   width="320" height="240" data-i18n-attr="alt:device.weatherAlt" loading="lazy" data-bot-view="weather" hidden />
                 <img src="%BASE_URL%shots/en/screen-apps-half.webp"
                   srcset="%BASE_URL%shots/en/screen-apps-half.webp 640w, %BASE_URL%shots/en/screen-apps.webp 1280w"
-                  sizes="(max-width: 900px) 80vw, 440px"
+                  sizes="(max-width: 734px) 80vw, 480px"
                   width="320" height="240" data-i18n-attr="alt:device.appsAlt" loading="lazy" data-bot-view="apps" hidden />
               </div>
               <div class="bot__trim" aria-hidden="true">
@@ -93,12 +94,9 @@
                 <span class="bot__speaker"><i></i><i></i><i></i><i></i></span>
               </div>
             </div>
-            <figcaption class="hero__caption">
-              <span>
-                <strong id="device-title" data-i18n="device.title"></strong>
-                <span data-i18n="device.lead"></span>
-              </span>
-              <span class="bot__views" role="group" data-i18n-attr="aria-label:device.viewsLabel" hidden>
+            <figcaption class="stage__bar">
+              <span class="stage__caption" id="device-caption" data-i18n="hero.deviceCaption"></span>
+              <span class="segmented" role="group" data-i18n-attr="aria-label:device.viewsLabel" hidden>
                 <button type="button" aria-pressed="true" data-show-view="clock" data-i18n="device.viewClock"></button>
                 <button type="button" aria-pressed="false" data-show-view="weather" data-i18n="device.viewWeather"></button>
                 <button type="button" aria-pressed="false" data-show-view="apps" data-i18n="device.viewApps"></button>
@@ -106,177 +104,153 @@
             </figcaption>
           </figure>
         </div>
-
-        <div class="container">
-          <dl class="ledger rise">
-            <div>
-              <dt data-i18n="hero.statPlatforms"></dt>
-              <dd data-i18n="hero.metaPlatforms"></dd>
-            </div>
-            <div>
-              <dt data-i18n="device.statScreen"></dt>
-              <dd data-i18n="device.resolution"></dd>
-            </div>
-            <div>
-              <dt data-i18n="hero.statLangs"></dt>
-              <dd data-i18n="hero.metaLangs"></dd>
-            </div>
-            <div>
-              <dt data-i18n="hero.statLicense"></dt>
-              <dd data-i18n="hero.metaLicense"></dd>
-            </div>
-          </dl>
-        </div>
       </section>
 
-      <section class="tour container section" id="product" tabindex="-1" aria-labelledby="product-title">
-        <header class="tour__head" data-reveal>
-          <h2 id="product-title" data-i18n="tour.eyebrow"></h2>
-          <p data-i18n="tour.count"></p>
-        </header>
-        <div class="tour__layout" data-tour>
-          <div class="tour__stage" data-tour-stage aria-hidden="true" hidden>
-            <div class="tour__screen" data-tour-screen></div>
-            <ol class="tour__ticks" role="list"><li></li><li></li><li></li><li></li></ol>
+      <section class="reel section" aria-labelledby="reel-label">
+        <div class="container reel__inner">
+          <p class="label reel__prefix" id="reel-label" data-i18n="reel.label"></p>
+          <div class="reel__viewport" data-reel>
+            <ul class="reel__track" role="list" data-reel-track>
+              <li data-i18n="reel.item1"></li>
+              <li data-i18n="reel.item2"></li>
+              <li data-i18n="reel.item3"></li>
+              <li data-i18n="reel.item4"></li>
+              <li data-i18n="reel.item5"></li>
+              <li data-i18n="reel.item6"></li>
+              <li data-i18n="reel.item7"></li>
+              <li data-i18n="reel.item8"></li>
+            </ul>
           </div>
-          <ol class="tour__steps" role="list">
-            <li class="tour__step" data-tour-step data-shape="wide">
-              <span class="tour__index" aria-hidden="true"></span>
-              <h3 data-i18n="tour.chatTitle"></h3>
-              <p class="tour__kind"><strong data-i18n="tour.chatKind"></strong> <span data-i18n="tour.chatDetail"></span></p>
-              <p class="tour__text" data-i18n="tour.chatText"></p>
-              <figure class="tour__shot">
-                <img src="%BASE_URL%shots/en/chat-half.webp"
-                  srcset="%BASE_URL%shots/en/chat-half.webp 1440w, %BASE_URL%shots/en/chat.webp 2880w"
-                  sizes="(max-width: 979px) 90vw, 760px"
-                  width="1440" height="1000" data-i18n-attr="alt:tour.chatAlt" loading="lazy" decoding="async" />
-              </figure>
-            </li>
-            <li class="tour__step" data-tour-step data-shape="wide">
-              <span class="tour__index" aria-hidden="true"></span>
-              <h3 data-i18n="tour.memoryTitle"></h3>
-              <p class="tour__kind"><strong data-i18n="tour.memoryKind"></strong> <span data-i18n="tour.memoryDetail"></span></p>
-              <p class="tour__text" data-i18n="tour.memoryText"></p>
-              <figure class="tour__shot">
-                <img src="%BASE_URL%shots/en/memory-half.webp"
-                  srcset="%BASE_URL%shots/en/memory-half.webp 1440w, %BASE_URL%shots/en/memory.webp 2880w"
-                  sizes="(max-width: 979px) 90vw, 760px"
-                  width="1440" height="1000" data-i18n-attr="alt:tour.memoryAlt" loading="lazy" decoding="async" />
-              </figure>
-            </li>
-            <li class="tour__step" data-tour-step data-shape="wide">
-              <span class="tour__index" aria-hidden="true"></span>
-              <h3 data-i18n="tour.styleTitle"></h3>
-              <p class="tour__kind"><strong data-i18n="tour.styleKind"></strong> <span data-i18n="tour.styleDetail"></span></p>
-              <p class="tour__text" data-i18n="tour.styleText"></p>
-              <figure class="tour__shot">
-                <img src="%BASE_URL%shots/en/welcome-half.webp"
-                  srcset="%BASE_URL%shots/en/welcome-half.webp 1440w, %BASE_URL%shots/en/welcome.webp 2880w"
-                  sizes="(max-width: 979px) 90vw, 760px"
-                  width="1440" height="1000" data-i18n-attr="alt:tour.styleAlt" loading="lazy" decoding="async" />
-              </figure>
-            </li>
-            <li class="tour__step" data-tour-step data-shape="phone">
-              <span class="tour__index" aria-hidden="true"></span>
-              <h3 data-i18n="tour.phoneTitle"></h3>
-              <p class="tour__kind"><strong data-i18n="tour.phoneKind"></strong> <span data-i18n="tour.phoneDetail"></span></p>
-              <p class="tour__text" data-i18n="tour.phoneText"></p>
-              <figure class="tour__shot tour__shot--phone">
-                <img src="%BASE_URL%shots/en/mobile-half.webp"
-                  srcset="%BASE_URL%shots/en/mobile-half.webp 585w, %BASE_URL%shots/en/mobile.webp 1170w"
-                  sizes="(max-width: 979px) 60vw, 300px"
-                  width="390" height="844" data-i18n-attr="alt:tour.phoneAlt" loading="lazy" decoding="async" />
-              </figure>
-            </li>
-          </ol>
+          <p class="reel__note" data-reveal data-i18n="reel.note"></p>
         </div>
       </section>
 
-      <section class="statement" aria-labelledby="statement-title">
-        <div class="container statement__inner">
-          <h2 class="statement__label" id="statement-title" data-reveal data-i18n="statement.title"></h2>
-          <p class="statement__text" data-motion-words data-i18n="statement.text"></p>
-          <ol class="statement__details" role="list">
-            <li data-reveal>
-              <h3 data-i18n="callout.activityTitle"></h3>
-              <p data-i18n="callout.activityText"></p>
-            </li>
-            <li data-reveal>
-              <h3 data-i18n="callout.sourcesTitle"></h3>
-              <p data-i18n="callout.sourcesText"></p>
-            </li>
-            <li data-reveal>
-              <h3 data-i18n="callout.modelTitle"></h3>
-              <p data-i18n="callout.modelText"></p>
-            </li>
-          </ol>
-        </div>
-      </section>
-
-      <section class="container section bento-section" aria-labelledby="features-title">
-        <header class="section-head" data-reveal>
-          <h2 id="features-title" data-i18n="bento.title"></h2>
+      <section class="screens section" id="screens" tabindex="-1" aria-labelledby="screens-title">
+        <header class="container screens__head" data-reveal>
+          <div>
+            <h2 id="screens-title" data-i18n="screens.title"></h2>
+            <p class="section-lead" data-i18n="screens.lead"></p>
+          </div>
+          <p class="label screens__hint" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><use href="#icon-drag" /></svg>
+            <span data-i18n="screens.hint"></span>
+          </p>
         </header>
-        <ul class="bento" role="list">
-          <li class="bento__cell bento__cell--wide" data-reveal>
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-mic" /></svg>
-            <h3 data-i18n="bento.voiceTitle"></h3>
-            <p data-i18n="bento.voiceText"></p>
-            <span class="bento__wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <div class="marquee" data-marquee tabindex="0" role="region" data-i18n-attr="aria-label:screens.title">
+          <ul class="marquee__track" role="list" data-marquee-track>
+            <li class="shot shot--wide">
+              <div class="shot__frame"><img src="%BASE_URL%shots/en/chat-half.webp" width="1440" height="1000" data-i18n-attr="alt:screens.chatAlt" loading="lazy" decoding="async" draggable="false" /></div>
+              <h3 data-i18n="screens.chatTitle"></h3>
+              <p data-i18n="screens.chatText"></p>
+            </li>
+            <li class="shot shot--wide">
+              <div class="shot__frame"><img src="%BASE_URL%shots/en/memory-half.webp" width="1440" height="1000" data-i18n-attr="alt:screens.memoryAlt" loading="lazy" decoding="async" draggable="false" /></div>
+              <h3 data-i18n="screens.memoryTitle"></h3>
+              <p data-i18n="screens.memoryText"></p>
+            </li>
+            <li class="shot shot--phone">
+              <div class="shot__frame"><img src="%BASE_URL%shots/en/mobile-half.webp" width="390" height="844" data-i18n-attr="alt:screens.phoneAlt" loading="lazy" decoding="async" draggable="false" /></div>
+              <h3 data-i18n="screens.phoneTitle"></h3>
+              <p data-i18n="screens.phoneText"></p>
+            </li>
+            <li class="shot shot--wide">
+              <div class="shot__frame"><img src="%BASE_URL%shots/en/welcome-half.webp" width="1440" height="1000" data-i18n-attr="alt:screens.styleAlt" loading="lazy" decoding="async" draggable="false" /></div>
+              <h3 data-i18n="screens.styleTitle"></h3>
+              <p data-i18n="screens.styleText"></p>
+            </li>
+            <li class="shot shot--pi">
+              <div class="shot__frame"><img src="%BASE_URL%shots/en/screen-clock-half.webp" width="320" height="240" data-i18n-attr="alt:device.clockAlt" loading="lazy" decoding="async" draggable="false" /></div>
+              <h3 data-i18n="screens.clockTitle"></h3>
+              <p data-i18n="screens.clockText"></p>
+            </li>
+            <li class="shot shot--pi">
+              <div class="shot__frame"><img src="%BASE_URL%shots/en/screen-weather-half.webp" width="320" height="240" data-i18n-attr="alt:device.weatherAlt" loading="lazy" decoding="async" draggable="false" /></div>
+              <h3 data-i18n="screens.weatherTitle"></h3>
+              <p data-i18n="screens.weatherText"></p>
+            </li>
+            <li class="shot shot--pi">
+              <div class="shot__frame"><img src="%BASE_URL%shots/en/screen-apps-half.webp" width="320" height="240" data-i18n-attr="alt:device.appsAlt" loading="lazy" decoding="async" draggable="false" /></div>
+              <h3 data-i18n="screens.appsTitle"></h3>
+              <p data-i18n="screens.appsText"></p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="surfaces container section" id="devices" tabindex="-1" aria-labelledby="surfaces-title">
+        <header class="surfaces__head" data-reveal>
+          <h2 id="surfaces-title" data-i18n="surfaces.title"></h2>
+          <p class="section-lead" data-i18n="surfaces.lead"></p>
+        </header>
+        <ul class="sessions" role="list" data-reveal>
+          <li class="session">
+            <span class="session__icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-laptop" /></svg></span>
+            <span class="session__body">
+              <span class="session__name"><span data-i18n="surfaces.computerName"></span><span class="badge" data-i18n="surfaces.computerStatus"></span></span>
+              <span class="session__detail" data-i18n="surfaces.computerDetail"></span>
+            </span>
+            <span class="session__live" aria-hidden="true"><i></i></span>
           </li>
-          <li class="bento__cell" data-reveal>
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chat" /></svg>
-            <h3 data-i18n="bento.chatsTitle"></h3>
-            <p data-i18n="bento.chatsText"></p>
+          <li class="session">
+            <span class="session__icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chip" /></svg></span>
+            <span class="session__body">
+              <span class="session__name"><span data-i18n="surfaces.piName"></span><span class="badge badge--soft" data-i18n="surfaces.piStatus"></span></span>
+              <span class="session__detail" data-i18n="surfaces.piDetail"></span>
+            </span>
           </li>
-          <li class="bento__cell" data-reveal>
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-camera" /></svg>
-            <h3 data-i18n="bento.visionTitle"></h3>
-            <p data-i18n="bento.visionText"></p>
+          <li class="session">
+            <span class="session__icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-browser" /></svg></span>
+            <span class="session__body">
+              <span class="session__name"><span data-i18n="surfaces.dashboardName"></span><span class="badge badge--soft" data-i18n="surfaces.dashboardStatus"></span></span>
+              <span class="session__detail" data-i18n="surfaces.dashboardDetail"></span>
+            </span>
           </li>
-          <li class="bento__cell" data-reveal>
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-play" /></svg>
-            <h3 data-i18n="bento.musicTitle"></h3>
-            <p data-i18n="bento.musicText"></p>
+          <li class="session">
+            <span class="session__icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-phone" /></svg></span>
+            <span class="session__body">
+              <span class="session__name"><span data-i18n="surfaces.androidName"></span><span class="badge badge--soft" data-i18n="surfaces.androidStatus"></span></span>
+              <span class="session__detail" data-i18n="surfaces.androidDetail"></span>
+            </span>
           </li>
-          <li class="bento__cell" data-reveal>
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-clock" /></svg>
-            <h3 data-i18n="bento.scheduleTitle"></h3>
-            <p data-i18n="bento.scheduleText"></p>
+          <li class="session">
+            <span class="session__icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-send" /></svg></span>
+            <span class="session__body">
+              <span class="session__name"><span data-i18n="surfaces.telegramName"></span><span class="badge badge--soft" data-i18n="surfaces.telegramStatus"></span></span>
+              <span class="session__detail" data-i18n="surfaces.telegramDetail"></span>
+            </span>
           </li>
-          <li class="bento__cell bento__cell--wide" data-reveal>
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-folder" /></svg>
-            <h3 data-i18n="bento.filesTitle"></h3>
-            <p data-i18n="bento.filesText"></p>
+          <li class="session">
+            <span class="session__icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chat" /></svg></span>
+            <span class="session__body">
+              <span class="session__name"><span data-i18n="surfaces.discordName"></span><span class="badge badge--soft" data-i18n="surfaces.discordStatus"></span></span>
+              <span class="session__detail" data-i18n="surfaces.discordDetail"></span>
+            </span>
+          </li>
+          <li class="session">
+            <span class="session__icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-cpu" /></svg></span>
+            <span class="session__body">
+              <span class="session__name"><span data-i18n="surfaces.modelName"></span><span class="badge badge--soft" data-i18n="surfaces.modelStatus"></span></span>
+              <span class="session__detail" data-i18n="surfaces.modelDetail"></span>
+            </span>
           </li>
         </ul>
       </section>
 
-      <section class="container section flow-section" id="how" tabindex="-1" aria-labelledby="how-title">
-        <header class="section-head" data-reveal>
-          <p class="eyebrow" data-i18n="how.eyebrow"></p>
-          <h2 id="how-title" data-i18n="how.title"></h2>
-        </header>
-        <ol class="flow" role="list">
-          <li data-reveal>
-            <span class="flow__node"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-chip" /></svg></span>
-            <h3 data-i18n="how.edgeWhere"></h3>
-            <p data-i18n="how.edgeText"></p>
-          </li>
-          <li data-reveal>
-            <span class="flow__node"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-home" /></svg></span>
-            <h3 data-i18n="how.fogWhere"></h3>
-            <p data-i18n="how.fogText"></p>
-          </li>
-          <li data-reveal>
-            <span class="flow__node"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-cpu" /></svg></span>
-            <h3 data-i18n="how.cloudWhere"></h3>
-            <p data-i18n="how.cloudText"></p>
-          </li>
-        </ol>
-      </section>
-
-      <section class="start container section" id="start" tabindex="-1" aria-labelledby="start-title">
+      <section class="paths container section" id="start" tabindex="-1" aria-labelledby="paths-title">
+        <h2 class="paths__title" id="paths-title" data-reveal data-i18n="paths.title"></h2>
+        <div class="split" data-reveal>
+          <article class="split__card">
+            <p class="label" data-i18n="paths.computerLabel"></p>
+            <h3 data-i18n="paths.computerTitle"></h3>
+            <p data-i18n="paths.computerText"></p>
+          </article>
+          <span class="split__divider" aria-hidden="true"></span>
+          <article class="split__card">
+            <p class="label" data-i18n="paths.piLabel"></p>
+            <h3 data-i18n="paths.piTitle"></h3>
+            <p data-i18n="paths.piText"></p>
+          </article>
+        </div>
         <div class="terminal" data-reveal>
           <div class="terminal__bar">
             <span class="window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
@@ -313,33 +287,28 @@
           </ol>
           <p class="sr-only" role="status" data-copy-status></p>
         </div>
-        <div class="start__copy" data-reveal>
-          <p class="eyebrow" data-i18n="start.eyebrow"></p>
-          <h2 id="start-title" data-i18n="start.title"></h2>
-          <p class="section-lead" data-i18n="start.lead"></p>
-          <p class="start__note" data-i18n="start.note"></p>
-        </div>
+        <p class="paths__note" data-i18n="start.note"></p>
       </section>
     </main>
 
     <footer class="footer" aria-labelledby="final-title">
       <div class="container footer__cta" data-reveal>
         <div>
-          <h2 id="final-title" data-i18n="final.title"></h2>
-          <p class="section-lead" data-i18n="final.lead"></p>
+          <h2 id="final-title" data-i18n="footer.title"></h2>
+          <p class="section-lead" data-i18n="footer.lead"></p>
         </div>
-        <a class="button" href="https://github.com/Imlokzu/blinkbot" rel="noopener">
-          <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><use href="#icon-github" /></svg>
-          <span data-i18n="final.cta"></span>
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-arrow-right" /></svg>
+        <a class="discover discover--invert" href="https://github.com/Imlokzu/blinkbot" rel="noopener">
+          <span class="discover__fill" aria-hidden="true"></span>
+          <span class="discover__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#icon-arrow-right" /></svg></span>
+          <span class="discover__text" data-i18n="footer.cta"></span>
         </a>
       </div>
       <div class="container">
-        <p class="footer__word" aria-hidden="true">blink<span>.</span></p>
+        <p class="footer__word" data-flip aria-hidden="true"><span data-flip-line>blink</span><span class="footer__dot">.</span></p>
       </div>
       <div class="container footer__inner">
         <a class="footer__brand" href="#top" data-i18n-attr="aria-label:brand.home">
-          <img src="/blink-tile.svg" alt="" width="28" height="28" />
+          <img src="/blink-tile.svg" alt="" width="24" height="24" />
           <span data-i18n="brand.name"></span>
         </a>
         <span data-i18n="footer.license"></span>
@@ -367,6 +336,11 @@
       <symbol id="icon-camera" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="6" width="18" height="13" rx="2" /><circle cx="12" cy="12.5" r="3" /></g></symbol>
       <symbol id="icon-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" /></symbol>
       <symbol id="icon-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></g></symbol>
+      <symbol id="icon-drag" viewBox="0 0 24 24"><path d="M8 7 3 12l5 5M16 7l5 5-5 5M3 12h18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></symbol>
+      <symbol id="icon-laptop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="1.5" /><path d="M2 19h20" /></g></symbol>
+      <symbol id="icon-browser" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18M6.5 6.5h.01M9 6.5h.01" /></g></symbol>
+      <symbol id="icon-phone" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" /><path d="M11 18.5h2" /></g></symbol>
+      <symbol id="icon-send" viewBox="0 0 24 24"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></symbol>
     </svg>
   </body>
 </html>

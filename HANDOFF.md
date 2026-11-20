@@ -4183,3 +4183,21 @@ flow. The final call to action sits in the footer above a large wordmark.
 
 All eleven landing tests, locale checks, and the production build passed.
 agent-browser checked desktop, 390 px Ukrainian, and dark mode.
+
+## 2026-11-20 — Landing rebuilt with ObsidianUI pieces and rewritten copy
+
+The landing moved to a monochrome palette with Blink's orange as the only
+accent and medium-weight Geist headings. Vanilla ports of ObsidianUI
+components (MIT, credited in `landing/THIRD_PARTY_NOTICES.md`) carry the
+structure: Flip Text, Discover button, Text reel, Draggable Marquee, an
+Active Sessions-style device list and a Split Showcase. The statement band,
+bento grid, flow diagram and sticky tour were removed.
+
+Gemini drafted the English and Ukrainian copy from a fact sheet. Claims it
+could not support were corrected before use: tools run locally but the
+model goes through OpenClaw, and integrations show "Optional"/"Required"
+instead of invented connection states.
+
+All eleven landing tests, locale checks, and the production build passed.
+agent-browser checked desktop, 390 px Ukrainian, dark mode, flip, reel,
+marquee drift and dragging.

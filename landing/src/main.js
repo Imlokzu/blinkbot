@@ -4,13 +4,15 @@ import "./styles/base.css";
 import "./styles/landing.css";
 
 import { LANG_KEY, applyStatic, detectLang, setCurrentLang, t } from "./i18n.js";
-import { initReveals, initTourStage } from "./motion.js";
-import { createTextMotion } from "./title-motion.js";
+import { initReveals } from "./motion.js";
+import { initFlipText, initMarquee, initTextReel } from "./effects.js";
 
 const root = document.documentElement;
 const languageGroup = document.querySelector(".lang");
 const languageButtons = languageGroup.querySelectorAll("[data-set-lang]");
-const refreshTextMotion = createTextMotion();
+const refreshFlipText = initFlipText();
+const refreshReel = initTextReel();
+const refreshMarquee = initMarquee();
 
 function savedLanguage() {
   try {
@@ -24,7 +26,9 @@ function applyLanguage(lang) {
   setCurrentLang(lang);
   root.lang = lang;
   applyStatic(document, lang);
-  refreshTextMotion();
+  refreshFlipText();
+  refreshReel();
+  refreshMarquee();
   for (const button of languageButtons) {
     button.setAttribute("aria-pressed", String(button.dataset.setLang === lang));
   }
@@ -91,9 +95,8 @@ for (const link of nav.querySelectorAll(".nav__brand, .nav__links a")) {
 }
 
 initReveals();
-initTourStage();
 
-const deviceControls = document.querySelector(".bot__views");
+const deviceControls = document.querySelector(".segmented");
 const viewButtons = deviceControls.querySelectorAll("[data-show-view]");
 const views = document.querySelectorAll("[data-bot-view]");
 

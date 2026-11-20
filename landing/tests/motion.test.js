@@ -1,16 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { weightAtDistance, wordRevealProgress } from "../src/title-motion.js";
+import { flipDelay, wrap } from "../src/effects.js";
 
-test("the title goes from maximum weight at the pointer to base weight at the radius", () => {
-  assert.equal(weightAtDistance(0), 820);
-  assert.equal(weightAtDistance(140), 510);
-  assert.equal(weightAtDistance(280), 200);
-  assert.equal(weightAtDistance(900), 200);
+test("wrap keeps the loop offset inside its range in both directions", () => {
+  assert.equal(wrap(-100, 0, -30), -30);
+  assert.equal(wrap(-100, 0, -130), -30);
+  assert.equal(wrap(-100, 0, 20), -80);
+  assert.equal(wrap(-100, 0, -100), -100);
 });
 
-test("scroll lighting stays in range when a section is entered or skipped", () => {
-  assert.equal(wordRevealProgress(720, 480, 800), 0);
-  assert.equal(wordRevealProgress(320, 480, 800), 0.5);
-  assert.equal(wordRevealProgress(-120, 480, 800), 1);
+test("flip delays rise along a quarter sine and stay within a quarter of the duration", () => {
+  assert.equal(flipDelay(0, 10, 1), 0);
+  assert.equal(flipDelay(0, 1, 1), 0);
+  const delays = Array.from({ length: 10 }, (_, i) => flipDelay(i, 10, 1));
+  for (let i = 1; i < delays.length; i++) assert.ok(delays[i] > delays[i - 1]);
+  assert.ok(delays.at(-1) < 0.25);
 });
